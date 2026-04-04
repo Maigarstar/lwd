@@ -189,7 +189,7 @@ export default function PlatformMediaIntelligenceModule({ C }) {
             Media Intelligence
           </div>
           <div style={{ fontFamily: NU, fontSize: 13, color: textMuted }}>
-            Visual trends, style signals, and media health across all vendors
+            Understand which visuals capture attention, drive engagement, and influence enquiries across the platform.
           </div>
         </div>
 
@@ -214,12 +214,12 @@ export default function PlatformMediaIntelligenceModule({ C }) {
       {/* ── Platform summary strip ───────────────────────────────────────── */}
       <div style={{ display: "grid",
         gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
-        <StatCard label="Avg Media Score"  value={loading ? "…" : (summary?.avgScore ?? "—")}    sub="across all vendors"     color={GOLD} C={C} />
-        <StatCard label="Total Image Views" value={loading ? "…" : (summary?.totalViews30d ?? "—")} sub={`last ${PERIODS.find(p=>p.key===period)?.label}`} color={textPrimary} C={C} />
-        <StatCard label="Vendors Tracked"  value={loading ? "…" : (summary?.vendorCount ?? "—")} sub="with media scorecard"   color={textPrimary} C={C} />
+        <StatCard label="Avg Media Score"  value={loading ? "…" : (summary?.avgScore ?? "—")}    sub="Overall visual performance across all vendors"     color={GOLD} C={C} />
+        <StatCard label="Image Views" value={loading ? "…" : (summary?.totalViews30d ?? "—")} sub="How often couples engaged with media this period" color={textPrimary} C={C} />
+        <StatCard label="Vendors Tracked"  value={loading ? "…" : (summary?.vendorCount ?? "—")} sub="Listings with active media intelligence"   color={textPrimary} C={C} />
         <StatCard label="Top Performer"
           value={loading ? "…" : (summary?.topVendor?.score_grade ?? "—")}
-          sub={summary?.topVendor?.name ? `${summary.topVendor.name} · ${summary.topVendor.media_score}/100` : ""}
+          sub={summary?.topVendor?.name ? `${summary.topVendor.name} · ${summary.topVendor.media_score}/100` : "Highest scoring vendor this period"}
           color="#4ade80" C={C} />
       </div>
 
@@ -248,8 +248,8 @@ export default function PlatformMediaIntelligenceModule({ C }) {
                 What couples are clicking
               </div>
               {styleTrends.length === 0 ? (
-                <div style={{ fontFamily: NU, fontSize: 12, color: textMuted, fontStyle: "italic" }}>
-                  No style tag data yet — enrich media via the analyse-media-intelligence function.
+                <div style={{ fontFamily: NU, fontSize: 12, color: textMuted, lineHeight: 1.6 }}>
+                  No style trends yet — as couples interact with images, you'll see which aesthetics are driving the most engagement.
                 </div>
               ) : (
                 <div style={{ display: "grid",
@@ -274,8 +274,8 @@ export default function PlatformMediaIntelligenceModule({ C }) {
                 What couples are spending time on
               </div>
               {subjectTrends.length === 0 ? (
-                <div style={{ fontFamily: NU, fontSize: 12, color: textMuted, fontStyle: "italic" }}>
-                  No subject tag data yet — enrich media via the analyse-media-intelligence function.
+                <div style={{ fontFamily: NU, fontSize: 12, color: textMuted, lineHeight: 1.6 }}>
+                  No subject trends yet — this will reveal which moments (ceremony, reception, portraits) capture the most couple attention.
                 </div>
               ) : (
                 <div style={{ display: "grid",
@@ -419,20 +419,21 @@ export default function PlatformMediaIntelligenceModule({ C }) {
           {/* ── Empty state ───────────────────────────────────────────── */}
           {trends.length === 0 && leaderboard.length === 0 && (
             <div style={{
-              padding: "40px",
+              padding: "40px 44px",
               background: GOLD_DIM,
               border: `1px solid ${GOLD_BORDER}`,
               borderRadius: "var(--lwd-radius-card)",
-              textAlign: "center",
             }}>
-              <div style={{ fontFamily: GD, fontSize: 20, color: textPrimary,
-                marginBottom: 8 }}>
-                Media tracking is active
+              <div style={{ fontFamily: GD, fontSize: 22, color: textPrimary,
+                marginBottom: 10 }}>
+                <span style={{ color: GOLD }}>✦</span>{" "}Media tracking is active
               </div>
-              <div style={{ fontFamily: NU, fontSize: 13, color: textMuted, lineHeight: 1.6 }}>
-                Visual intelligence data will appear here as couples browse listings.
-                Run <code>compute_vendor_media_scorecard()</code> nightly to populate the leaderboard.
-                Use <strong>analyse-media-intelligence</strong> edge function to enrich image metadata with style and subject tags.
+              <div style={{ fontFamily: NU, fontSize: 13, color: textMuted, lineHeight: 1.7, maxWidth: 560 }}>
+                As couples browse listings, this module reveals which visual styles, moments, and images are driving engagement and enquiries across the platform.
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 12, color: textMuted,
+                opacity: 0.7, marginTop: 12, lineHeight: 1.5 }}>
+                Trends and scores become meaningful within 7–14 days of activity. Performance data updates automatically.
               </div>
             </div>
           )}
