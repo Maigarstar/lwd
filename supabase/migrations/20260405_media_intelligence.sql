@@ -59,7 +59,7 @@ create policy "media_events_vendor_read"
   on public.media_events for select to authenticated
   using (
     listing_id in (
-      select id from public.listings where vendor_id = auth.uid()
+      select id from public.listings where vendor_account_id = auth.uid()
     )
   );
 
@@ -154,7 +154,7 @@ create policy "vms_vendor_read"
   on public.vendor_media_scorecard for select to authenticated
   using (
     listing_id in (
-      select id from public.listings where vendor_id = auth.uid()
+      select id from public.listings where vendor_account_id = auth.uid()
     )
   );
 

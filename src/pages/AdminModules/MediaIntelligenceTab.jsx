@@ -132,7 +132,7 @@ export default function MediaIntelligenceTab({ vendorId, vendorName, C }) {
 
     // Get the linked listing_id for this vendor
     Promise.resolve(
-      supabase.from("listings").select("id").eq("vendor_id", vendorId).limit(1).single()
+      supabase.from("listings").select("id").eq("vendor_account_id", vendorId).limit(1).single()
     ).then(({ data: listingRow }) => {
       const lid = listingRow?.id;
       if (!lid) { setLoading(false); return; }
