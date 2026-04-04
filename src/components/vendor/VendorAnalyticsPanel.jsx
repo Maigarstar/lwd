@@ -42,7 +42,7 @@ function deltaStr(curr, prev) {
   return (pct >= 0 ? "+" : "") + pct + "%";
 }
 
-function buildCSV({ vendorName, rangeLabel, stats, prevStats, sources, compareList, dailyViews, interpretation }) {
+function buildCSV({ vendorName, rangeLabel, stats, prevStats, sources, countries, compareList, dailyViews, interpretation }) {
   const s  = stats    || {};
   const p  = prevStats || {};
   const d  = new Date().toLocaleDateString("en-GB", { day:"numeric", month:"long", year:"numeric" });
@@ -73,6 +73,10 @@ function buildCSV({ vendorName, rangeLabel, stats, prevStats, sources, compareLi
     csvRow("TRAFFIC SOURCES"),
     csvRow("Source", "Visits", "Share"),
     ...sources.map(src => csvRow(src.label, src.count, src.pct + "%")),
+    "",
+    csvRow("AUDIENCE COUNTRIES"),
+    csvRow("Country", "Sessions", "Share"),
+    ...(countries || []).map(c => csvRow(c.name, c.sessions, c.pct + "%")),
     "",
     csvRow("COMPARE INTELLIGENCE (last 30 days)"),
     csvRow("Listing", "Type", "Sessions"),
@@ -154,6 +158,13 @@ const SOURCE_ICONS = {
   Google: "G", Instagram: "◎", Facebook: "f", Pinterest: "P",
   TikTok: "♩", Twitter: "𝕏", Direct: "→", Internal: "↺", Other: "◇",
 };
+
+// ── Country flag emoji ────────────────────────────────────────────────────────
+
+function countryFlag(code) {
+  if (!code || code.length !== 2) return "🌐";
+  return String.fromCodePoint(...[...code.toUpperCase()].map(c => c.charCodeAt(0) + 127397));
+}
 
 // ── Interpretation engine ─────────────────────────────────────────────────────
 
@@ -303,7 +314,7 @@ function StatKPI({ label, value, prevValue, unit = "", color,
 
 // ── PrintReport — board-ready one-page PDF ────────────────────────────────────
 
-function PrintReport({ vendor, rangeLabel, stats, prevStats, sources, compareList, dailyViews, interpretation, liveCount }) {
+function PrintReport({ vendor, rangeLabel, stats, prevStats, sources, countries, compareList, dailyViews, interpretation, liveCount }) {
   const s = stats    || {};
   const p = prevStats || {};
   const generatedOn = new Date().toLocaleDateString("en-GB", {
@@ -437,7 +448,7 @@ function PrintReport({ vendor, rangeLabel, stats, prevStats, sources, compareLis
       </div>
       <hr style={PR.thinRule} />
 
-      {/* ── Sources + Compare (2-col) ──────────────────────────────────── */}
+      {/* ── Sources + Countries (2-col) ───────────────────────────────── */}
       <div style={PR.grid2}>
         {/* Traffic sources */}
         <div>
@@ -457,31 +468,51 @@ function PrintReport({ vendor, rangeLabel, stats, prevStats, sources, compareLis
           ) : <div style={PR.muted}>No source data for this period.</div>}
         </div>
 
-        {/* Compare intelligence */}
+        {/* Audience countries */}
         <div>
-          <div style={PR.label}>Compare Intelligence · last 30 days</div>
-          <div style={{ ...PR.muted, fontSize: 9, marginBottom: 8 }}>
-            Venues couples compared you against
-          </div>
-          {compareList.length > 0 ? (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+          <div style={PR.label}>Audience Countries</div>
+          {(countries || []).length > 0 ? (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, marginTop: 8 }}>
               <tbody>
-                {compareList.slice(0, 5).map((c, i) => (
-                  <tr key={c.slug || i} style={{ borderBottom: "1px solid #f0ece4" }}>
-                    <td style={{ padding: "4px 0", ...PR.muted, width: 20 }}>{i + 1}.</td>
-                    <td style={{ padding: "4px 4px", fontWeight: "bold" }}>
-                      {c.slug ? c.slug.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase()) : "—"}
-                    </td>
-                    <td style={{ textAlign: "right", ...PR.muted, textTransform: "capitalize" }}>{c.type}</td>
-                    <td style={{ textAlign: "right", fontWeight: "bold", paddingLeft: 8, ...PR.gold }}>
-                      {c.count}×
-                    </td>
+                {(countries || []).slice(0, 8).map(c => (
+                  <tr key={c.code} style={{ borderBottom: "1px solid #f0ece4" }}>
+                    <td style={{ padding: "4px 0", fontSize: 14, width: 24 }}>{countryFlag(c.code)}</td>
+                    <td style={{ padding: "4px 4px" }}>{c.name}</td>
+                    <td style={{ textAlign: "right", ...PR.muted }}>{c.sessions} session{c.sessions === 1 ? "" : "s"}</td>
+                    <td style={{ textAlign: "right", fontWeight: "bold", paddingLeft: 8, width: 36 }}>{c.pct}%</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          ) : <div style={PR.muted}>No comparison data yet.</div>}
+          ) : <div style={PR.muted}>No country data for this period.</div>}
         </div>
+      </div>
+      <hr style={PR.thinRule} />
+
+      {/* ── Compare intelligence ───────────────────────────────────────── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={PR.label}>Compare Intelligence · last 30 days</div>
+        <div style={{ ...PR.muted, fontSize: 9, marginBottom: 8 }}>
+          Venues couples compared you against
+        </div>
+        {compareList.length > 0 ? (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <tbody>
+              {compareList.slice(0, 5).map((c, i) => (
+                <tr key={c.slug || i} style={{ borderBottom: "1px solid #f0ece4" }}>
+                  <td style={{ padding: "4px 0", ...PR.muted, width: 20 }}>{i + 1}.</td>
+                  <td style={{ padding: "4px 4px", fontWeight: "bold" }}>
+                    {c.slug ? c.slug.replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase()) : "—"}
+                  </td>
+                  <td style={{ textAlign: "right", ...PR.muted, textTransform: "capitalize" }}>{c.type}</td>
+                  <td style={{ textAlign: "right", fontWeight: "bold", paddingLeft: 8, ...PR.gold }}>
+                    {c.count}×
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <div style={PR.muted}>No comparison data yet.</div>}
       </div>
       <hr style={PR.thinRule} />
 
@@ -597,6 +628,8 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
   const [tick,          setTick]          = useState(0); // drives "Updated X ago" re-render
   const [notifications, setNotifications] = useState([]);
   const [showExport,    setShowExport]    = useState(false);
+  const [countries,     setCountries]     = useState([]);
+  const [trafficView,   setTrafficView]   = useState("sources"); // "sources" | "countries"
 
   const notifIdRef  = useRef(0);
   const realtimeRef = useRef(null);
@@ -744,6 +777,22 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
     } catch { setDailyEnquiries([]); }
   }
 
+  async function loadCountries(from, to) {
+    try {
+      const { data, error } = await supabase.rpc("get_listing_countries", {
+        p_listing_id: vendor.id, p_from: from, p_to: to,
+      });
+      if (error || !data?.length) { setCountries([]); return; }
+      const total = data.reduce((sum, r) => sum + Number(r.sessions), 0);
+      setCountries(data.map(r => ({
+        code:     r.country_code,
+        name:     r.country_name || r.country_code,
+        sessions: Number(r.sessions),
+        pct:      Math.round((Number(r.sessions) / total) * 100),
+      })));
+    } catch { setCountries([]); }
+  }
+
   // ── loadAll — clears state immediately, then fetches ───────────────────────
   const loadAll = useCallback(async () => {
     if (!vendor?.id || !analyticsEnabled) { setLoading(false); return; }
@@ -752,6 +801,7 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
     setStats(null);
     setPrevStats(null);
     setSources([]);
+    setCountries([]);
     setLoading(true);
 
     const { from, to }           = getRangeISO();
@@ -762,6 +812,7 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
       loadPrevStats(pFrom, pTo),
       loadLiveCount(),
       loadSources(from, to),
+      loadCountries(from, to),
       loadCompareList(),
       loadDailyViews(),
       loadDailyShortlists(),
@@ -1102,16 +1153,40 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
           )}
         </div>
 
-        {/* Source breakdown — count + % */}
+        {/* Traffic origins — Sources + Countries toggle */}
         <div style={{ background: cardBg, border: `1px solid ${border}`,
           borderRadius: "var(--lwd-radius-card)", padding: "20px 22px" }}>
-          <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "2px",
-            textTransform: "uppercase", color: textMuted, marginBottom: 4 }}>
-            Traffic origins
-          </div>
-          <div style={{ fontFamily: NU, fontSize: 15, fontWeight: 700,
-            color: textPrimary, marginBottom: 16 }}>
-            Where Couples Find You
+
+          {/* Header row: title + toggle */}
+          <div style={{ display: "flex", alignItems: "flex-start",
+            justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
+            <div>
+              <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "2px",
+                textTransform: "uppercase", color: textMuted, marginBottom: 4 }}>
+                Traffic origins
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 15, fontWeight: 700, color: textPrimary }}>
+                {trafficView === "sources" ? "Where Couples Find You" : "Where Couples Come From"}
+              </div>
+            </div>
+            {/* Sources | Countries toggle */}
+            <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+              {[
+                { key: "sources",   label: "Sources"   },
+                { key: "countries", label: "Countries" },
+              ].map(({ key, label }) => (
+                <button key={key} onClick={() => setTrafficView(key)} style={{
+                  fontFamily: NU, fontSize: 10, fontWeight: 600, letterSpacing: "0.3px",
+                  padding: "3px 9px", borderRadius: "var(--lwd-radius-input)",
+                  border: `1px solid ${trafficView === key ? GOLD : border}`,
+                  background: trafficView === key ? GOLD_DIM : "transparent",
+                  color: trafficView === key ? GOLD : textMuted,
+                  cursor: "pointer", transition: "all 0.12s",
+                }}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {loading ? (
@@ -1121,47 +1196,88 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
                   background: "rgba(128,128,128,0.08)", animation: "shimmer 1.4s ease infinite" }} />
               ))}
             </div>
-          ) : sources.length > 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {sources.map(s => (
-                <div key={s.label}>
-                  <div style={{ display: "flex", justifyContent: "space-between",
-                    alignItems: "center", marginBottom: 5 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontFamily: NU, fontSize: 11, color: textMuted,
-                        width: 14, textAlign: "center" }}>
-                        {SOURCE_ICONS[s.label] || "◇"}
-                      </span>
-                      <span style={{ fontFamily: NU, fontSize: 13, color: textPrimary }}>
-                        {s.label}
-                      </span>
+          ) : trafficView === "sources" ? (
+            sources.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {sources.map(s => (
+                  <div key={s.label}>
+                    <div style={{ display: "flex", justifyContent: "space-between",
+                      alignItems: "center", marginBottom: 5 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontFamily: NU, fontSize: 11, color: textMuted,
+                          width: 14, textAlign: "center" }}>
+                          {SOURCE_ICONS[s.label] || "◇"}
+                        </span>
+                        <span style={{ fontFamily: NU, fontSize: 13, color: textPrimary }}>
+                          {s.label}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontFamily: NU, fontSize: 11, color: textMuted }}>
+                          {s.count} visit{s.count === 1 ? "" : "s"}
+                        </span>
+                        <span style={{ fontFamily: NU, fontSize: 12, fontWeight: 700,
+                          color: textPrimary, minWidth: 32, textAlign: "right" }}>
+                          {s.pct}%
+                        </span>
+                      </div>
                     </div>
-                    {/* count + % */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontFamily: NU, fontSize: 11, color: textMuted }}>
-                        {s.count} visit{s.count === 1 ? "" : "s"}
-                      </span>
-                      <span style={{ fontFamily: NU, fontSize: 12, fontWeight: 700,
-                        color: textPrimary, minWidth: 32, textAlign: "right" }}>
-                        {s.pct}%
-                      </span>
+                    <div style={{ height: 3, background: isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)",
+                      borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{ width: `${s.pct}%`, height: "100%",
+                        background: `linear-gradient(90deg, ${GOLD}, ${GOLD}99)`,
+                        borderRadius: 2, transition: "width 0.6s ease" }} />
                     </div>
                   </div>
-                  <div style={{ height: 3, background: isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)",
-                    borderRadius: 2, overflow: "hidden" }}>
-                    <div style={{ width: `${s.pct}%`, height: "100%",
-                      background: `linear-gradient(90deg, ${GOLD}, ${GOLD}99)`,
-                      borderRadius: 2, transition: "width 0.6s ease" }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ height: 64, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: NU, fontSize: 12, color: textMuted }}>
+                  Source data will appear once views are tracked
+                </span>
+              </div>
+            )
           ) : (
-            <div style={{ height: 64, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontFamily: NU, fontSize: 12, color: textMuted }}>
-                Source data will appear once views are tracked
-              </span>
-            </div>
+            /* Countries view */
+            countries.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {countries.map(c => (
+                  <div key={c.code}>
+                    <div style={{ display: "flex", justifyContent: "space-between",
+                      alignItems: "center", marginBottom: 5 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 18, lineHeight: 1 }}>{countryFlag(c.code)}</span>
+                        <span style={{ fontFamily: NU, fontSize: 13, color: textPrimary }}>
+                          {c.name}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontFamily: NU, fontSize: 11, color: textMuted }}>
+                          {c.sessions} session{c.sessions === 1 ? "" : "s"}
+                        </span>
+                        <span style={{ fontFamily: NU, fontSize: 12, fontWeight: 700,
+                          color: textPrimary, minWidth: 32, textAlign: "right" }}>
+                          {c.pct}%
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ height: 3, background: isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)",
+                      borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{ width: `${c.pct}%`, height: "100%",
+                        background: `linear-gradient(90deg, ${GOLD}, ${GOLD}99)`,
+                        borderRadius: 2, transition: "width 0.6s ease" }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ height: 64, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: NU, fontSize: 12, color: textMuted }}>
+                  Country data will appear as couples visit your listing
+                </span>
+              </div>
+            )
           )}
         </div>
       </div>
@@ -1303,6 +1419,7 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
                   stats: cs,
                   prevStats: prev,
                   sources,
+                  countries,
                   compareList,
                   dailyViews,
                   interpretation,
@@ -1357,6 +1474,7 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
           stats={cs}
           prevStats={prev}
           sources={sources}
+          countries={countries}
           compareList={compareList}
           dailyViews={dailyViews}
           interpretation={interpretation}
