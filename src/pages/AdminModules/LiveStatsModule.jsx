@@ -99,6 +99,25 @@ const REFRESH_MS  = 30_000;        // poll interval (supplements Realtime)
 const TICK_MS     = 10_000;        // re-render interval for live timers
 const ALERT_TTL   = 60_000;        // dismiss alert toast after 60s
 
+// ── Time range options ──────────────────────────────────────────────────────
+const TIME_RANGE_OPTIONS = [
+  { key: "30m",   label: "30m",   ms: 30 * 60_000 },
+  { key: "1h",    label: "1h",    ms: 60 * 60_000 },
+  { key: "6h",    label: "6h",    ms: 6 * 60 * 60_000 },
+  { key: "today", label: "Today", ms: null },           // from midnight
+  { key: "week",  label: "7d",    ms: 7 * 24 * 60 * 60_000 },
+];
+
+// Compute the "since" ISO timestamp for a given time range key
+function getWindowSince(key) {
+  const opt = TIME_RANGE_OPTIONS.find(o => o.key === key) || TIME_RANGE_OPTIONS[0];
+  if (opt.key === "today") {
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }
+  return new Date(Date.now() - opt.ms).toISOString();
+}
+
 // ── Inline Aura AI (engage panel) ────────────────────────────────────────────
 const AURA_AI_URL  = 'https://qpkggfibwreznussudfh.supabase.co/functions/v1/ai-generate';
 const AURA_ANON_KEY = typeof window !== 'undefined'
@@ -248,6 +267,25 @@ function shortPath(path) {
   if (!path || path === "/") return "Home";
   const clean = path.replace(/^\//, "").replace(/-/g, " ").replace(/\//g, " › ");
   return clean.length > 36 ? "…" + clean.slice(-32) : clean;
+}
+
+// ── Venue slug extractor ──────────────────────────────────────────────────────
+// Detects venue-like paths: /country/region/venue-slug or /venues/slug
+// Returns a readable venue name or null
+
+function extractVenueName(path) {
+  if (!path || path === "/") return null;
+  const parts = path.replace(/^\//, "").split("/").filter(Boolean);
+  // /venues/slug or /wedding-venues/slug
+  if ((parts[0] === "venues" || parts[0] === "wedding-venues") && parts[1]) {
+    return parts[1].replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  }
+  // /country/region/venue-slug — 3+ segments, not a system route
+  const systemRoutes = new Set(["admin","vendor","wedding-planners","wedding-venues","search","list-your-business","review"]);
+  if (parts.length >= 3 && !systemRoutes.has(parts[0]) && !systemRoutes.has(parts[2])) {
+    return parts[2].replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  }
+  return null;
 }
 
 // ── Country names (frontend mirror of edge function map) ─────────────────────
@@ -448,6 +486,16 @@ export default function LiveStatsModule({ C }) {
   const [showHotOnly,setShowHotOnly]= useState(false); // filter toggle
   const [soundOn,    setSoundOn]    = useState(() => localStorage.getItem("lwd_live_sound") === "1");
 
+  // ── Time range + realtime status + notes ──────────────────────────────────
+  const [timeRangeKey,   setTimeRangeKey]   = useState(() => localStorage.getItem("lwd_time_range") || "30m");
+  const [realtimeStatus, setRealtimeStatus] = useState("connecting"); // connecting|live|polling
+  const [sessionNotes,   setSessionNotes]   = useState(() => {
+    try { return JSON.parse(localStorage.getItem("lwd_session_notes") || "{}"); }
+    catch { return {}; }
+  });
+  const timeRangeRef = useRef("30m");
+  timeRangeRef.current = timeRangeKey;
+
   const mapContainerRef  = useRef(null);
   const mapRef           = useRef(null);
   const markersRef       = useRef({});        // key: cluster key → MapLibre Marker
@@ -563,7 +611,7 @@ export default function LiveStatsModule({ C }) {
   const rowEven       = isLight ? "#FFFFFF"     : "transparent";
   const rowOdd        = isLight ? "#FAF9F6"     : "rgba(255,255,255,0.022)";
   const rowOddLeave   = isLight ? "#FAF9F6"     : "rgba(255,255,255,0.018)";
-  const rowHover      = isLight ? "#FFF8E6"     : "rgba(201,168,76,0.05)";      // gold wash
+  const rowHover      = isLight ? "#FFF3D0"     : "rgba(201,168,76,0.09)";      // gold wash
   const rowSelBg      = isLight ? "#FFF8E1"     : undefined;                     // warm gold wash
   const rowBorder     = isLight ? C?.border || "#DED9CF" : border;
   // Header row bg — anchors the table in light mode
@@ -573,13 +621,13 @@ export default function LiveStatsModule({ C }) {
   // ── Data loading ──────────────────────────────────────────────────────────
 
   const loadSessions = useCallback(async () => {
-    const since = new Date(Date.now() - RECENT_MS).toISOString();
+    const since = getWindowSince(timeRangeRef.current);
     const { data } = await supabase
       .from("live_sessions")
       .select("*")
       .gte("last_seen_at", since)
       .order("last_seen_at", { ascending: false })
-      .limit(300);
+      .limit(500);
     if (data) { setSessions(data); setLastFetch(new Date()); }
   }, []);
 
@@ -611,6 +659,9 @@ export default function LiveStatsModule({ C }) {
     const id = setInterval(loadTodayCount, 5 * 60_000);
     return () => clearInterval(id);
   }, [loadSessions, loadEvents, loadTodayCount]);
+
+  // Reload when time range changes
+  useEffect(() => { loadSessions(); }, [loadSessions, timeRangeKey]);
 
   // ── Polling ───────────────────────────────────────────────────────────────
 
@@ -672,8 +723,13 @@ export default function LiveStatsModule({ C }) {
           }
         }
       )
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED")             setRealtimeStatus("live");
+        else if (status === "TIMED_OUT" || status === "CHANNEL_ERROR" || status === "CLOSED")
+                                                  setRealtimeStatus("polling");
+        else                                      setRealtimeStatus("connecting");
+      });
+    return () => { supabase.removeChannel(ch); setRealtimeStatus("connecting"); };
   }, [loadSessions, autoFollow, flyToSession]);
 
   // ── Live timer tick ───────────────────────────────────────────────────────
@@ -999,6 +1055,47 @@ export default function LiveStatsModule({ C }) {
     else { setSortCol(col); setSortDir("desc"); }
   };
 
+  // ── CSV Export ────────────────────────────────────────────────────────────
+  const exportCSV = () => {
+    const headers = ["Location","Country","ISP","Current Page","Entry Page","Source","Device","Browser","OS","Pages","Duration (s)","Intent Events","First Seen","Last Seen","Tier","Outcome","Notes"];
+    const rows = displaySessions.map(s => {
+      const loc   = resolveLocation(s);
+      const src   = classifySource(s.referrer, s.utm_source, s.utm_medium, s.utm_campaign);
+      const tier  = getAlertTier(s, viewEvents);
+      const stage = getConversionStage(s, viewEvents, engagedIds);
+      const durS  = Math.floor((Date.now() - new Date(s.first_seen_at)) / 1000);
+      const note  = sessionNotes[s.session_id] || "";
+      return [
+        loc.full,
+        s.country_name || s.country_code || "",
+        s.isp || "",
+        shortPath(s.current_path),
+        s.entry_path ? shortPath(s.entry_path) : "",
+        src.label,
+        s.device_type || "",
+        s.browser || "",
+        s.os || "",
+        s.page_count || 1,
+        durS,
+        s.intent_count || 0,
+        s.first_seen_at ? new Date(s.first_seen_at).toLocaleString("en-GB") : "",
+        s.last_seen_at  ? new Date(s.last_seen_at).toLocaleString("en-GB")  : "",
+        tier  || "",
+        stage || "",
+        note,
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
+    });
+    const csv  = [headers.map(h => `"${h}"`).join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    const range = TIME_RANGE_OPTIONS.find(o => o.key === timeRangeKey)?.label || "30m";
+    a.href = url;
+    a.download = `lwd-sessions-${range}-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // ── Column resize ──────────────────────────────────────────────────────────
   const startResize = useCallback((e, colKey) => {
     e.preventDefault(); e.stopPropagation();
@@ -1201,7 +1298,7 @@ export default function LiveStatsModule({ C }) {
   // ── Styles ────────────────────────────────────────────────────────────────
 
   const S = {
-    kpiVal:   { fontFamily: GD, fontSize: 26, fontWeight: 500, lineHeight: 1, color: white, marginBottom: 4 },
+    kpiVal:   { fontFamily: GD, fontSize: 30, fontWeight: 700, lineHeight: 1, color: white, marginBottom: 4 },
     kpiLabel: { fontFamily: NU, fontSize: 9,  fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: grey2 },
     sectionTitle: { fontFamily: GD, fontSize: 13, fontStyle: "italic", color: white, marginBottom: 10 },
     row: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 },
@@ -1429,6 +1526,7 @@ export default function LiveStatsModule({ C }) {
                 color: convMeta.color, background: `${convMeta.color}18`,
                 border: `1px solid ${convMeta.color}40`,
                 borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap",
+                boxShadow: convStage === "engaged" ? `0 0 8px ${GOLD}55, 0 0 3px ${GOLD}35` : "none",
               }}>
                 <span>{convMeta.icon}</span> {convMeta.label}
               </span>
@@ -1525,6 +1623,10 @@ export default function LiveStatsModule({ C }) {
         @keyframes lwd-engage-in {
           from { opacity:0; transform:translateY(12px); }
           to   { opacity:1; transform:translateY(0); }
+        }
+        @keyframes lwd-dot-pulse {
+          0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+          40%            { opacity: 1;   transform: scale(1.1); }
         }
       `}</style>
 
@@ -1639,7 +1741,7 @@ export default function LiveStatsModule({ C }) {
       {/* ── View toggle + Freeze ─────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 14px", borderBottom: `1px solid ${frozen ? "rgba(201,168,76,0.3)" : border}`, flexShrink: 0, background: frozen ? "rgba(201,168,76,0.03)" : "transparent", transition: "all 0.2s" }}>
 
-        {/* Left: session count + frozen badge */}
+        {/* Left: session count + frozen badge + realtime status */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontFamily: NU, fontSize: 10, color: grey2, letterSpacing: "0.3px" }}>
             {displaySessions.length} session{displaySessions.length !== 1 ? "s" : ""}
@@ -1647,6 +1749,44 @@ export default function LiveStatsModule({ C }) {
               <span style={{ color: GOLD, marginLeft: 6 }}>· {activeNow.length} active</span>
             )}
           </span>
+
+          {/* Realtime status indicator */}
+          {(() => {
+            const rtColor = realtimeStatus === "live" ? "#10b981" : realtimeStatus === "connecting" ? AMBER : grey2;
+            const rtLabel = realtimeStatus === "live" ? "Realtime" : realtimeStatus === "connecting" ? "Connecting…" : "Polling";
+            return (
+              <span style={{
+                display: "flex", alignItems: "center", gap: 4,
+                fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase",
+                color: rtColor,
+              }}>
+                <span style={{
+                  width: 5, height: 5, borderRadius: "50%", background: rtColor,
+                  boxShadow: realtimeStatus === "live" ? `0 0 5px ${rtColor}` : "none",
+                  animation: realtimeStatus !== "polling" ? "lwd-pulse 2s infinite" : "none",
+                }} />
+                {rtLabel}
+              </span>
+            );
+          })()}
+
+          {/* Time range selector */}
+          <div style={{ display: "flex", borderRadius: 4, overflow: "hidden", border: `1px solid ${border}` }}>
+            {TIME_RANGE_OPTIONS.map(opt => (
+              <button key={opt.key} onClick={() => {
+                setTimeRangeKey(opt.key);
+                localStorage.setItem("lwd_time_range", opt.key);
+              }} style={{
+                fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.4px",
+                textTransform: "uppercase", padding: "3px 9px", cursor: "pointer",
+                border: "none", borderLeft: opt.key !== "30m" ? `1px solid ${border}` : "none",
+                background: timeRangeKey === opt.key ? "rgba(201,168,76,0.14)" : "transparent",
+                color: timeRangeKey === opt.key ? GOLD : grey2,
+                transition: "all 0.12s",
+              }}>{opt.label}</button>
+            ))}
+          </div>
+
           {frozen && pendingCount > 0 && (
             <span style={{
               fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.5px",
@@ -2221,6 +2361,27 @@ export default function LiveStatsModule({ C }) {
                 {displaySessions.length} match{displaySessions.length !== 1 ? "es" : ""}
               </span>
             )}
+
+            {/* Export */}
+            <div style={{ marginLeft: "auto" }}>
+              <button
+                onClick={exportCSV}
+                title={`Export ${displaySessions.length} sessions as CSV`}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.5px",
+                  textTransform: "uppercase", padding: "3px 11px", cursor: "pointer",
+                  border: `1px solid ${isLight ? "#C4BDB3" : "rgba(255,255,255,0.15)"}`,
+                  borderRadius: 4,
+                  background: isLight ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.04)",
+                  color: grey2, transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = GOLD; e.currentTarget.style.borderColor = `${GOLD}50`; }}
+                onMouseLeave={e => { e.currentTarget.style.color = grey2; e.currentTarget.style.borderColor = isLight ? "#C4BDB3" : "rgba(255,255,255,0.15)"; }}
+              >
+                ↓ Export CSV
+              </button>
+            </div>
           </div>
 
           <div style={{ flex: 1, overflowY: "auto" }}>
@@ -2693,7 +2854,9 @@ export default function LiveStatsModule({ C }) {
             position: "fixed", bottom: 0, left: 0, right: 0,
             background: engageBarBg, borderTop: `3px solid ${GOLD}`,
             zIndex: 300,
-            boxShadow: isLight ? "0 -6px 24px rgba(0,0,0,0.14)" : "0 -8px 40px rgba(0,0,0,0.65)",
+            boxShadow: isLight
+              ? "0 -6px 24px rgba(0,0,0,0.14), 0 -2px 12px rgba(201,168,76,0.10)"
+              : "0 -8px 40px rgba(0,0,0,0.65), 0 -2px 16px rgba(201,168,76,0.18)",
             animation: "lwd-engage-in 0.25s ease",
             display: "flex", flexDirection: "column",
             maxHeight: "42vh",
@@ -2809,8 +2972,8 @@ export default function LiveStatsModule({ C }) {
                   disabled={engageChatTyping}
                   style={{
                     flex: 1, fontFamily: NU, fontSize: 12, color: white,
-                    background: isLight ? "#FFFFFF" : "rgba(255,255,255,0.07)",
-                    border: `1px solid ${isLight ? "#DED9CF" : "rgba(255,255,255,0.12)"}`,
+                    background: isLight ? "#F9F7F4" : "rgba(255,255,255,0.10)",
+                    border: `1px solid ${isLight ? "#C4BDB3" : "rgba(255,255,255,0.20)"}`,
                     borderRadius: 6, padding: "7px 12px", outline: "none",
                     opacity: engageChatTyping ? 0.5 : 1,
                   }}
@@ -2890,6 +3053,8 @@ export default function LiveStatsModule({ C }) {
           { label: "Started",       value: new Date(selected.first_seen_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) },
         ].filter(f => f.value !== null && f.value !== undefined);
 
+        const venueName = extractVenueName(selected.current_path) || extractVenueName(selected.entry_path);
+
         return (
           <div
             onClick={e => e.stopPropagation()}
@@ -2936,6 +3101,14 @@ export default function LiveStatsModule({ C }) {
                     background: `${cm.color}18`, border: `1px solid ${cm.color}50`,
                     borderRadius: 4, padding: "2px 8px",
                   }}>{cm.icon} {cm.label}</span>
+                )}
+                {venueName && (
+                  <span style={{
+                    fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.6px",
+                    textTransform: "uppercase", color: GOLD,
+                    background: "rgba(201,168,76,0.10)", border: `1px solid ${GOLD}35`,
+                    borderRadius: 4, padding: "2px 8px",
+                  }}>⚑ {venueName}</span>
                 )}
               </div>
               <button
@@ -3035,6 +3208,42 @@ export default function LiveStatsModule({ C }) {
                     );
                   });
                 })()}
+              </div>
+
+              {/* ── Notes ──────────────────────────────────────────────────── */}
+              <div style={{ padding: "14px 18px 20px", borderTop: `1px solid ${drawerRow}` }}>
+                <div style={{
+                  fontFamily: NU, fontSize: 10, fontWeight: 800, letterSpacing: "0.8px",
+                  textTransform: "uppercase", color: drawerLabel, marginBottom: 8,
+                }}>Notes</div>
+                <textarea
+                  value={sessionNotes[selected.session_id] || ""}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setSessionNotes(prev => {
+                      const next = { ...prev, [selected.session_id]: val };
+                      localStorage.setItem("lwd_session_notes", JSON.stringify(next));
+                      return next;
+                    });
+                  }}
+                  placeholder="Add notes about this session…"
+                  style={{
+                    width: "100%", minHeight: 80, maxHeight: 160,
+                    fontFamily: NU, fontSize: 11, lineHeight: 1.55, color: drawerValue,
+                    background: isLight ? "#FAF9F7" : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${drawerRow}`, borderRadius: 5,
+                    padding: "8px 10px", outline: "none", resize: "vertical",
+                    boxSizing: "border-box",
+                    transition: "border-color 0.15s",
+                  }}
+                  onFocus={e => { e.currentTarget.style.borderColor = `${GOLD}50`; }}
+                  onBlur={e => { e.currentTarget.style.borderColor = drawerRow; }}
+                />
+                {sessionNotes[selected.session_id] && (
+                  <div style={{ fontFamily: NU, fontSize: 9, color: GOLD, marginTop: 5, letterSpacing: "0.3px" }}>
+                    ✓ Saved
+                  </div>
+                )}
               </div>
             </div>
           </div>
