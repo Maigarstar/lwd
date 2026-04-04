@@ -25,6 +25,7 @@ import {
 } from "../services/websiteAuditService";
 import AuditScoreRing from "../components/seo/AuditScoreRing";
 import { fetchVendorReviews, addReviewMessage, fetchReviewMessages } from "../services/adminReviewService";
+import VendorAnalyticsPanel from "../components/vendor/VendorAnalyticsPanel";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -3363,38 +3364,7 @@ export default function VendorDashboard({ onBack, onVendorLogin }) {
 
           {/* ANALYTICS */}
           {dashTab === "analytics" && (
-            <div>
-              <div style={{ marginBottom: 28 }}>
-                <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "3px", textTransform: "uppercase", color: C.gold, marginBottom: 8 }}>Performance Analytics</div>
-                <h2 style={{ fontFamily: GD, fontSize: isMobile ? 24 : 32, color: C.white, fontWeight: 600 }}>Your Numbers</h2>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20, marginBottom: 20 }}>
-                <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: 24 }}>
-                  <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white, marginBottom: 16 }}>Profile Views</div>
-                  <MiniChart data={viewsData} labels={months} color={C.blue} />
-                </div>
-                <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: 24 }}>
-                  <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 700, color: C.white, marginBottom: 16 }}>Lead Volume</div>
-                  <MiniChart data={leadsData} labels={months} color={C.gold} />
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 16 }}>
-                {[
-                  { label: "Top Traffic Source", val: "Google Search", sub: "62% of views" },
-                  { label: "Top Country", val: "United Kingdom", sub: "48% of enquiries" },
-                  { label: "Avg. Budget Enquiring", val: "£25–50k", sub: "Most common range" },
-                  { label: "Peak Enquiry Day", val: "Tuesday", sub: "28% more than avg" },
-                  { label: "Profile Completeness", val: "94%", sub: "Add video to reach 100%" },
-                  { label: "Directory Ranking", val: "#1", sub: "Venues · London" },
-                ].map((s, i) => (
-                  <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "var(--lwd-radius-card)", padding: "18px 20px" }}>
-                    <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "1.5px", textTransform: "uppercase", color: C.grey, marginBottom: 6 }}>{s.label}</div>
-                    <div style={{ fontSize: 20, fontFamily: GD, color: C.white, fontWeight: 600 }}>{s.val}</div>
-                    <div style={{ fontFamily: NU, fontSize: 12, color: C.green, marginTop: 4 }}>{s.sub}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <VendorAnalyticsPanel vendor={vendor} C={C} isMobile={isMobile} />
           )}
 
           {/* AI INSIGHTS */}

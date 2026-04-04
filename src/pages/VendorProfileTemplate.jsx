@@ -3,6 +3,7 @@
 // Desktop: 2-col grid (content + sticky sidebar). Mobile: bottom bar + sheet.
 // ──────────────────────────────────────────────────────────────────────────────
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { setListingContext, clearListingContext } from "../lib/tracker";
 import { ThemeCtx } from "../theme/ThemeContext";
 import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
@@ -111,6 +112,13 @@ export default function VendorProfileTemplate({
       entityName: vendor.name,
     });
   }, [setChatContext, vendor, vendorType, countrySlug, regionSlug]);
+
+  // ── Listing context for tracker ───────────────────────────────────────────
+  useEffect(() => {
+    if (!vendor) return;
+    setListingContext(vendor.id || null, vendor.slug || null, "vendor");
+    return () => clearListingContext();
+  }, [vendor]);
 
   // ── Scroll tracking ────────────────────────────────────────────────────────
   useEffect(() => {

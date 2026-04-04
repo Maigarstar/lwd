@@ -4,7 +4,7 @@
 // Location: Admin → Sales → Listing Applications
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
 const GOLD    = "#C9A84C";
@@ -339,6 +339,93 @@ function ApplicationRow({ app, isLast, border, white, grey, card, onClick }) {
 
 // ── Detail Drawer ──────────────────────────────────────────────────────────
 
+function AnalyticsToggle({ email, border, white, grey }) {
+  const [vendorId,  setVendorId]  = useState(null);
+  const [enabled,   setEnabled]   = useState(null);  // null = loading/not found
+  const [saving,    setSaving]    = useState(false);
+  const [notFound,  setNotFound]  = useState(false);
+
+  // Lookup vendor by email on mount
+  useEffect(() => {
+    if (!email) return;
+    supabase
+      .from("vendors")
+      .select("id, analytics_enabled")
+      .eq("email", email)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) { setVendorId(data.id); setEnabled(!!data.analytics_enabled); }
+        else setNotFound(true);
+      });
+  }, [email]);
+
+  const toggle = useCallback(async () => {
+    if (!vendorId || saving) return;
+    const next = !enabled;
+    setSaving(true);
+    const { error } = await supabase
+      .from("vendors")
+      .update({ analytics_enabled: next })
+      .eq("id", vendorId);
+    if (!error) setEnabled(next);
+    setSaving(false);
+  }, [vendorId, enabled, saving]);
+
+  return (
+    <div>
+      <SectionLabel>Analytics Access</SectionLabel>
+      <div style={{
+        marginTop: 10,
+        padding: "14px 16px",
+        background: enabled ? "rgba(201,168,76,0.06)" : "rgba(255,255,255,0.03)",
+        border: `1px solid ${enabled ? "rgba(201,168,76,0.25)" : border}`,
+        borderRadius: 6,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+      }}>
+        <div>
+          <div style={{ fontFamily: NU, fontSize: 12, color: white, marginBottom: 2 }}>
+            {enabled ? "Analytics enabled" : "Analytics locked"}
+          </div>
+          <div style={{ fontFamily: NU, fontSize: 11, color: grey, lineHeight: 1.4 }}>
+            {notFound
+              ? "No vendor account found for this email yet."
+              : enabled
+              ? "Vendor can see views, live interest, source breakdown & compare data."
+              : "Vendor sees an upgrade prompt. Enable when they're on Featured or Elite."}
+          </div>
+        </div>
+        {!notFound && (
+          <button
+            onClick={toggle}
+            disabled={saving || enabled === null}
+            style={{
+              flexShrink: 0,
+              fontFamily: NU,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.7px",
+              textTransform: "uppercase",
+              padding: "8px 14px",
+              border: `1px solid ${enabled ? "rgba(248,113,113,0.5)" : "rgba(201,168,76,0.5)"}`,
+              background: enabled ? "rgba(248,113,113,0.08)" : "rgba(201,168,76,0.1)",
+              color: enabled ? "#f87171" : GOLD,
+              borderRadius: 4,
+              cursor: saving ? "default" : "pointer",
+              opacity: saving ? 0.6 : 1,
+              transition: "all 0.15s",
+            }}
+          >
+            {saving ? "…" : enabled ? "Disable" : "Enable"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DetailDrawer({ app, notesDraft, setNotesDraft, onSaveNotes, onUpdateStatus, onClose, savingNote, savingStatus, white, grey, card, border }) {
   return (
     <>
@@ -505,6 +592,11 @@ function DetailDrawer({ app, notesDraft, setNotesDraft, onSaveNotes, onUpdateSta
             <div style={{ padding: "12px 14px", background: "rgba(201,168,76,0.06)", borderRadius: 4, border: `1px solid rgba(201,168,76,0.15)` }}>
               <span style={{ fontFamily: NU, fontSize: 11, color: GOLD }}>✦ Synced to CRM · Lead ID: {app.crm_lead_id}</span>
             </div>
+          )}
+
+          {/* Analytics access toggle — only shown for approved applications */}
+          {app.status === "approved" && (
+            <AnalyticsToggle email={app.email} border={border} white={white} grey={grey} />
           )}
 
         </div>
