@@ -402,45 +402,80 @@ returns table (
 )
 language sql security definer stable as $$
 
-select
-  coalesce(
-    nullif(trim(event_location), ''),
-    nullif(trim(location_preference), ''),
-    'Not Specified'
-  )                                           as location,
-  count(*)                                    as lead_count,
-  round(avg(coalesce(score, 0))::numeric, 1) as avg_score,
-  count(*) filter (where coalesce(score,0) >= 60)  as high_value_count,
-  count(*) filter (where status = 'booked')         as booked_count,
-  round(
-    count(*) filter (where status = 'booked')::numeric
-    / count(*) * 100, 1)                     as conversion_rate,
-  round(avg(
-    case when booking_value_estimate > 0
-         then booking_value_estimate end)::numeric, 0) as avg_booking_value,
-  -- Most common budget band
-  (select budget_range
-   from public.leads l2
-   where coalesce(nullif(trim(l2.event_location),''), nullif(trim(l2.location_preference),''), 'Not Specified')
-       = coalesce(nullif(trim(l.event_location),''), nullif(trim(l.location_preference),''), 'Not Specified')
-     and l2.created_at >= p_from and l2.created_at < p_to
-     and l2.budget_range is not null
-   group by budget_range order by count(*) desc limit 1) as top_budget_band,
-  -- Most common guest band
-  (select guest_count
-   from public.leads l2
-   where coalesce(nullif(trim(l2.event_location),''), nullif(trim(l2.location_preference),''), 'Not Specified')
-       = coalesce(nullif(trim(l.event_location),''), nullif(trim(l.location_preference),''), 'Not Specified')
-     and l2.created_at >= p_from and l2.created_at < p_to
-     and l2.guest_count is not null
-   group by guest_count order by count(*) desc limit 1) as top_guest_band
+with
+-- Step 1: normalise location key per row
+base as (
+  select
+    coalesce(
+      nullif(trim(event_location), ''),
+      nullif(trim(location_preference), ''),
+      'Not Specified'
+    ) as location,
+    score,
+    status,
+    booking_value_estimate,
+    budget_range,
+    guest_count
+  from public.leads
+  where created_at >= p_from
+    and created_at <  p_to
+),
 
-from public.leads l
-where created_at >= p_from
-  and created_at <  p_to
-group by 1
-having count(*) > 0
-order by lead_count desc
+-- Step 2: core aggregates grouped by location
+agg as (
+  select
+    location,
+    count(*)                                              as lead_count,
+    round(avg(coalesce(score, 0))::numeric, 1)           as avg_score,
+    count(*) filter (where coalesce(score,0) >= 60)      as high_value_count,
+    count(*) filter (where status = 'booked')            as booked_count,
+    round(
+      count(*) filter (where status = 'booked')::numeric
+      / count(*) * 100, 1)                               as conversion_rate,
+    round(avg(
+      case when booking_value_estimate > 0
+           then booking_value_estimate end)::numeric, 0) as avg_booking_value
+  from base
+  group by location
+  having count(*) > 0
+),
+
+-- Step 3: mode of budget_range per location
+budget_mode as (
+  select distinct on (location)
+    location,
+    budget_range as top_budget_band
+  from base
+  where budget_range is not null
+  group by location, budget_range
+  order by location, count(*) desc
+),
+
+-- Step 4: mode of guest_count per location
+guest_mode as (
+  select distinct on (location)
+    location,
+    guest_count as top_guest_band
+  from base
+  where guest_count is not null
+  group by location, guest_count
+  order by location, count(*) desc
+)
+
+select
+  a.location,
+  a.lead_count,
+  a.avg_score,
+  a.high_value_count,
+  a.booked_count,
+  a.conversion_rate,
+  a.avg_booking_value,
+  b.top_budget_band,
+  g.top_guest_band
+from agg a
+left join budget_mode b on b.location = a.location
+left join guest_mode  g on g.location = a.location
+order by a.lead_count desc
 limit 30;
 $$;
 
@@ -463,32 +498,58 @@ returns table (
 )
 language sql security definer stable as $$
 
-select
-  coalesce(wedding_year, 0)   as wedding_year,
-  coalesce(wedding_month, '?') as wedding_month,
-  count(*)                    as lead_count,
-  round(avg(coalesce(score, 0))::numeric, 1) as avg_score,
-  count(*) filter (where status = 'booked')  as booked_count,
-  -- Most common budget
-  (select budget_range from public.leads l2
-   where l2.wedding_year  = l.wedding_year
-     and l2.wedding_month = l.wedding_month
-     and l2.budget_range is not null
-   group by budget_range order by count(*) desc limit 1) as budget_band,
-  -- Most common guest count band
-  (select guest_count from public.leads l2
-   where l2.wedding_year  = l.wedding_year
-     and l2.wedding_month = l.wedding_month
-     and l2.guest_count is not null
-   group by guest_count order by count(*) desc limit 1) as guest_band,
-  -- Rough numeric average (from common bands like "50-100" → midpoint 75)
-  null::numeric as avg_guest_num
+with
+base as (
+  select
+    coalesce(wedding_year,  0)   as wedding_year,
+    coalesce(wedding_month, '?') as wedding_month,
+    score, status, budget_range, guest_count
+  from public.leads
+  where wedding_year is not null
+    and wedding_year >= extract(year from now())::int
+),
+agg as (
+  select
+    wedding_year,
+    wedding_month,
+    count(*)                                         as lead_count,
+    round(avg(coalesce(score, 0))::numeric, 1)       as avg_score,
+    count(*) filter (where status = 'booked')        as booked_count
+  from base
+  group by wedding_year, wedding_month
+),
+budget_mode as (
+  select distinct on (wedding_year, wedding_month)
+    wedding_year, wedding_month,
+    budget_range as budget_band
+  from base
+  where budget_range is not null
+  group by wedding_year, wedding_month, budget_range
+  order by wedding_year, wedding_month, count(*) desc
+),
+guest_mode as (
+  select distinct on (wedding_year, wedding_month)
+    wedding_year, wedding_month,
+    guest_count as guest_band
+  from base
+  where guest_count is not null
+  group by wedding_year, wedding_month, guest_count
+  order by wedding_year, wedding_month, count(*) desc
+)
 
-from public.leads l
-where wedding_year is not null
-  and wedding_year >= extract(year from now())::int
-group by wedding_year, wedding_month
-order by wedding_year, case wedding_month
+select
+  a.wedding_year,
+  a.wedding_month,
+  a.lead_count,
+  a.avg_score,
+  a.booked_count,
+  b.budget_band,
+  g.guest_band,
+  null::numeric as avg_guest_num
+from agg a
+left join budget_mode b on b.wedding_year = a.wedding_year and b.wedding_month = a.wedding_month
+left join guest_mode  g on g.wedding_year = a.wedding_year and g.wedding_month = a.wedding_month
+order by a.wedding_year, case a.wedding_month
   when 'January'   then 1 when 'February' then 2 when 'March'     then 3
   when 'April'     then 4 when 'May'      then 5 when 'June'      then 6
   when 'July'      then 7 when 'August'   then 8 when 'September' then 9
