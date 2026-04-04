@@ -12,6 +12,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import MediaScorecardSection from "./MediaScorecardSection";
 
 const GD   = "var(--font-heading-primary)";
 const NU   = "var(--font-body)";
@@ -2516,6 +2517,18 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
           </>
         )}
       </div>
+
+      {/* ── Media Intelligence ──────────────────────────────────────────── */}
+      {analyticsEnabled && vendor?.linked_listing_id && (
+        <MediaScorecardSection
+          listingId={vendor.linked_listing_id}
+          vendorName={vendor.name}
+          rangeFrom={getRangeISO().from}
+          rangeTo={getRangeISO().to}
+          C={C}
+          isMobile={isMobile}
+        />
+      )}
 
       {/* ── Export section ──────────────────────────────────────────────── */}
       {!loading && stats && (

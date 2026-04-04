@@ -55,6 +55,7 @@ import FooterModule from "./AdminModules/FooterModule";
 import CategoryGridAdmin from "./AdminModules/CategoryGridAdmin";
 import MenuBranding from "./AdminModules/menu/MenuBranding";
 import PlatformIntelligenceModule from "./AdminModules/PlatformIntelligenceModule";
+import PlatformMediaIntelligenceModule from "./AdminModules/PlatformMediaIntelligenceModule";
 import LiveStatsModule from "./AdminModules/LiveStatsModule";
 import ReportingHubModule from "./AdminModules/ReportingHubModule";
 import EventsModule from "./AdminModules/EventsModule";
@@ -344,6 +345,7 @@ const NAV_SECTIONS = [
       { key: "ai-settings",           label: "AI Settings",            icon: "⚙" },
       { key: "connected-data",         label: "Connected Data",        icon: "◉" },
       { key: "platform-intelligence",  label: "Platform Intelligence", icon: "⬡" },
+      { key: "media-intelligence",     label: "Media Intelligence",    icon: "◎" },
       { key: "reporting-hub",          label: "Reporting Hub",         icon: "◈" },
     ],
   },
@@ -11660,6 +11662,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "connected-data":          return <ConnectedDataModule C={C} NU={NU} GD={GD} />;
       case "live-stats":             return <LiveStatsModule C={C} />;
       case "platform-intelligence":  return <PlatformIntelligenceModule C={C} />;
+      case "media-intelligence":     return <PlatformMediaIntelligenceModule C={C} />;
       case "reporting-hub":          return <ReportingHubModule C={C} />;
       case "styles":        return <StyleEditorModule C={C} darkPalette={customDark} lightPalette={customLight} fonts={customFonts} customCss={customCss} siteSettings={siteSettings} auditLog={auditLog} onUpdatePalette={handleUpdatePalette} onUpdateFonts={handleUpdateFonts} onUpdateCss={handleUpdateCss} onUpdateSiteSettings={handleUpdateSiteSettings} onSave={handleSaveThemeLogged} onRevert={handleRevertTheme} onExport={handleExportTheme} onImport={handleImportTheme} onApplyPreset={handleApplyPreset} saveStatus={saveStatus} />;
       case "page-studio":   return <PageStudioHome C={C} NU={NU} GD={GD} onNavigate={(action, params) => {

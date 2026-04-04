@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import VendorAnalyticsPanel from "../../components/vendor/VendorAnalyticsPanel";
+import MediaIntelligenceTab from "./MediaIntelligenceTab";
 
 const GD   = "var(--font-heading-primary)";
 const NU   = "var(--font-body)";
@@ -991,6 +992,7 @@ function AdminControlsTab({ vendorId, vendorName, vendorData, onVendorDataChange
 const TABS = [
   { key: "view",     label: "Vendor View" },
   { key: "deep",     label: "Deep Data" },
+  { key: "media",    label: "Media Intel" },
   { key: "bench",    label: "Benchmarks" },
   { key: "history",  label: "Report History" },
   { key: "controls", label: "Admin Controls" },
@@ -1162,7 +1164,8 @@ export default function AdminVendorIntelligenceView({ vendorId, vendorName, onCl
         {activeTab === "view" && (
           <VendorViewTab vendorId={vendorId} vendorName={vendorName} vendorData={vendorData} C={C} />
         )}
-        {activeTab === "deep" && <DeepDataTab vendorId={vendorId} C={C} />}
+        {activeTab === "deep"  && <DeepDataTab vendorId={vendorId} C={C} />}
+        {activeTab === "media" && <MediaIntelligenceTab vendorId={vendorId} vendorName={vendorName} C={C} />}
         {activeTab === "bench" && <BenchmarksTab vendorId={vendorId} C={C} />}
         {activeTab === "history" && <ReportHistoryTab vendorId={vendorId} C={C} />}
         {activeTab === "controls" && (

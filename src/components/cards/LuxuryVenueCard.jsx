@@ -11,6 +11,14 @@ import LuxeEnquiryModal from "../enquiry/LuxeEnquiryModal";
 import ShortlistButton from "../buttons/ShortlistButton";
 import CompareCheckbox from "../buttons/CompareCheckbox";
 import { trackCompareAdd } from "../../services/userEventService";
+import {
+  trackMediaView,
+  cancelMediaDwell,
+  trackMediaClick,
+  trackMediaSwipe,
+  trackVideoPlay,
+  trackVideoComplete,
+} from "../../services/mediaEventService";
 
 const COMPARE_KEY = "lwd_compare_list";
 function loadCL() { try { return JSON.parse(sessionStorage.getItem(COMPARE_KEY)) || []; } catch { return []; } }
@@ -104,6 +112,22 @@ function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem })
     });
   }, [slideIdx, isVisible, muted]);
 
+  // ── Media tracking: fire view + dwell on slide change ──
+  useEffect(() => {
+    if (!isVisible || !v?.id) return;
+    const current = allMedia[slideIdx];
+    if (!current?.src) return;
+    const mediaId = current.src;
+    cancelMediaDwell(mediaId);
+    trackMediaView({
+      mediaId,
+      listingId: v.id,
+      galleryPosition: slideIdx,
+      isHero: slideIdx === 0,
+      slideIndex: slideIdx,
+    });
+  }, [slideIdx, isVisible]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Navigation ──
   const goTo   = useCallback((idx) => setSlideIdx(Math.max(0, Math.min(idx, mediaCount - 1))), [mediaCount]);
   const goNext = useCallback(() => goTo(slideIdx < mediaCount - 1 ? slideIdx + 1 : 0), [slideIdx, mediaCount, goTo]);
@@ -122,9 +146,18 @@ function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem })
   const onTouchEnd = useCallback((e) => {
     if (!touchRef.current.swiping) return;
     const diff = touchRef.current.startX - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 40) { diff > 0 ? goNext() : goPrev(); }
+    if (Math.abs(diff) > 40) {
+      diff > 0 ? goNext() : goPrev();
+      const nextIdx = diff > 0
+        ? (slideIdx < mediaCount - 1 ? slideIdx + 1 : 0)
+        : (slideIdx > 0 ? slideIdx - 1 : mediaCount - 1);
+      const swiped = allMedia[nextIdx];
+      if (swiped?.src && v?.id) {
+        trackMediaSwipe({ mediaId: swiped.src, listingId: v.id, galleryPosition: nextIdx });
+      }
+    }
     touchRef.current = { startX: 0, startY: 0, swiping: false, isDrag: false };
-  }, [goNext, goPrev]);
+  }, [goNext, goPrev, slideIdx, mediaCount, allMedia, v?.id]);
 
   // ── Mouse drag ──
   const onMouseDown = useCallback((e) => {
@@ -149,8 +182,12 @@ function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem })
   const handleImageClick = useCallback((e) => {
     e.stopPropagation();
     if (touchRef.current.swiping) return;
+    const current = allMedia[slideIdx];
+    if (current?.src && v?.id) {
+      trackMediaClick({ mediaId: current.src, listingId: v.id, galleryPosition: slideIdx, isHero: slideIdx === 0 });
+    }
     goNext();
-  }, [goNext]);
+  }, [goNext, allMedia, slideIdx, v?.id]);
 
   return (
     <article
