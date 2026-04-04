@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useIsMobile } from '../../components/profile/ProfileDesignSystem';
 import {
   getS, themeVars, FU, FD, Field, Input, Textarea, Select, Toggle,
@@ -11,6 +11,7 @@ import { fetchCategories } from '../../services/magazineService';
 import ArticleBody from '../Magazine/components/ArticleBody';
 import TiptapEditor from './TiptapEditor';
 import MagazineMediaUploader from './MagazineMediaUploader';
+import { ContentIntelligencePanel, ContentScoreBadge, computeContentIntelligence } from './ContentIntelligence';
 
 const GOLD = '#c9a96e';
 
@@ -3371,80 +3372,1099 @@ function HeroPreviewPane({ formData, isLight }) {
   );
 }
 
-// ── Step navigation, Next / Previous buttons at bottom of each panel ─────────
-function StepNav({ activeTab, onTabChange }) {
-  const idx = TABS.findIndex(t => t.id === activeTab);
-  const prev = idx > 0 ? TABS[idx - 1] : null;
-  const next = idx < TABS.length - 1 ? TABS[idx + 1] : null;
+// ── Document Sidebar ──────────────────────────────────────────────────────────
+function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpublish, onSave, saving, intel, focusKeyword, onKeywordChange, onOpenIntelligence, S }) {
+  const allCats = useAllCategories();
+  const { runAI, loading: aiLoading } = useAIGenerate(formData, tone);
+  const [open, setOpen] = useState({ status: true, publish: false, author: false, excerpt: false, seo: false, image: false, typography: false, intelligence: true, links: false });
+  const toggle = (k) => setOpen(p => ({ ...p, [k]: !p[k] }));
+  const upd = (k, v) => onChange({ ...formData, [k]: v });
+
+  const isSched = formData.scheduledDate && !formData.published && new Date(formData.scheduledDate) > new Date();
+  const statusLabel = formData.published ? 'Published' : isSched ? 'Scheduled' : 'Draft';
+  const statusColor = formData.published ? S.success : isSched ? '#818cf8' : S.muted;
+
+  const ACC = ({ id, title, icon, badge, children }) => (
+    <div style={{ borderBottom: `1px solid ${S.border}` }}>
+      <button onClick={() => toggle(id)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: FU, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: open[id] ? GOLD : S.text, transition: 'color 0.15s' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {icon && <span>{icon}</span>}
+          {title}
+          {badge && <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: badge.color, marginLeft: 3 }}>{badge.text}</span>}
+        </span>
+        <span style={{ fontSize: 9, opacity: 0.4 }}>{open[id] ? '▴' : '▾'}</span>
+      </button>
+      {open[id] && <div style={{ padding: '2px 16px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>{children}</div>}
+    </div>
+  );
+
+  const Lbl = ({ children, right }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+      <span style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted }}>{children}</span>
+      {right && <span style={{ fontFamily: FU, fontSize: 9, color: S.faint }}>{right}</span>}
+    </div>
+  );
+
+  const inp = { width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text, fontFamily: FU, fontSize: 12, padding: '7px 9px', borderRadius: 2, outline: 'none' };
+  const FI = ({ value, onChange: oc, placeholder, type = 'text', rows }) => rows
+    ? <textarea value={value || ''} onChange={e => oc(e.target.value)} placeholder={placeholder} rows={rows} style={{ ...inp, resize: 'vertical', lineHeight: 1.5 }} />
+    : <input type={type} value={value || ''} onChange={e => oc(e.target.value)} placeholder={placeholder} style={inp} />;
+
+  const AIBtn = ({ action, field }) => (
+    <button onClick={() => runAI(action, (_, r) => upd(field, r))} disabled={aiLoading === action}
+      style={{ marginTop: 5, fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 9px', cursor: 'pointer', opacity: aiLoading === action ? 0.5 : 1 }}>
+      {aiLoading === action ? '…' : '✦ AI'}
+    </button>
+  );
 
   return (
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      marginTop: 28, paddingTop: 16,
-      borderTop: '1px solid var(--s-border, rgba(245,240,232,0.07))',
-    }}>
-      {prev ? (
-        <GhostBtn small onClick={() => onTabChange(prev.id)}>
-          ← {prev.label}
-        </GhostBtn>
-      ) : <div />}
-      <div style={{ fontFamily: FU, fontSize: 8, color: 'var(--s-muted, rgba(245,240,232,0.45))', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-        Step {idx + 1} of {TABS.length}
+    <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', background: S.surface, borderRight: `1px solid ${S.border}`, overflowY: 'auto', height: '100%' }}>
+      {/* Header */}
+      <div style={{ padding: '14px 16px 12px', borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
+        <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 5 }}>Document</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: FU, fontSize: 10, fontWeight: 700, color: statusColor, letterSpacing: '0.08em', textTransform: 'uppercase' }}>● {statusLabel}</span>
+          {formData.featured && <span style={{ fontFamily: FU, fontSize: 8, color: GOLD, padding: '2px 6px', border: `1px solid ${GOLD}30`, borderRadius: 2 }}>Featured</span>}
+          {formData.trending && <span style={{ fontFamily: FU, fontSize: 8, color: '#818cf8', padding: '2px 6px', border: '1px solid rgba(129,140,248,0.3)', borderRadius: 2 }}>Trending</span>}
+        </div>
       </div>
-      {next ? (
-        <GoldBtn small onClick={() => onTabChange(next.id)}>
-          {next.label} →
-        </GoldBtn>
-      ) : <div />}
+
+      {/* Status & Visibility */}
+      <ACC id="status" title="Status & Visibility">
+        <div style={{ display: 'flex', gap: 4 }}>
+          {[
+            { k: 'Draft',     active: !formData.published && !isSched, color: S.muted },
+            { k: 'Published', active: formData.published,              color: S.success },
+          ].map(({ k, active, color }) => (
+            <button key={k} onClick={() => k === 'Published' ? onPublish() : onUnpublish()}
+              style={{ flex: 1, padding: '6px 4px', borderRadius: 2, cursor: 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', background: active ? `${color}18` : 'none', border: `1px solid ${active ? color : S.border}`, color: active ? color : S.muted, transition: 'all 0.15s' }}>
+              {k}
+            </button>
+          ))}
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input type="checkbox" checked={!!formData.featured} onChange={e => upd('featured', e.target.checked)} style={{ accentColor: GOLD, width: 14, height: 14 }} />
+          <span style={{ fontFamily: FU, fontSize: 12, color: S.muted }}>Featured article</span>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input type="checkbox" checked={!!formData.trending} onChange={e => upd('trending', e.target.checked)} style={{ accentColor: '#818cf8', width: 14, height: 14 }} />
+          <span style={{ fontFamily: FU, fontSize: 12, color: S.muted }}>Trending</span>
+        </label>
+      </ACC>
+
+      {/* Publish & Schedule */}
+      <ACC id="publish" title="Publish & Schedule">
+        <div>
+          <Lbl>Schedule Date</Lbl>
+          <FI type="datetime-local" value={formData.scheduledDate || ''} onChange={v => upd('scheduledDate', v)} />
+        </div>
+        <div>
+          <Lbl>Publish Date</Lbl>
+          <FI type="datetime-local" value={formData.publishedAt || ''} onChange={v => upd('publishedAt', v)} />
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+          {!formData.published
+            ? <GoldBtn small onClick={onPublish} style={{ flex: 1 }}>Publish Now</GoldBtn>
+            : <GhostBtn small onClick={onUnpublish} style={{ flex: 1 }}>Unpublish</GhostBtn>
+          }
+          <GhostBtn small onClick={() => onSave()} style={{ flex: 1 }}>{saving ? 'Saving…' : 'Save Draft'}</GhostBtn>
+        </div>
+      </ACC>
+
+      {/* Author & Category */}
+      <ACC id="author" title="Author & Category">
+        <div>
+          <Lbl>Category</Lbl>
+          <select value={formData.category || ''} onChange={e => { const c = allCats.find(x => x.id === e.target.value); onChange({ ...formData, category: e.target.value, categoryLabel: c?.label || e.target.value }); }}
+            style={{ ...inp, cursor: 'pointer' }}>
+            <option value="">Select category…</option>
+            {allCats.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <Lbl>Tone</Lbl>
+          <select value={tone} onChange={e => onToneChange(e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
+            {TONE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+        <div>
+          <Lbl>Reading Time (min)</Lbl>
+          <FI type="number" value={formData.readingTime} onChange={v => upd('readingTime', parseInt(v) || 0)} placeholder="e.g. 8" />
+        </div>
+      </ACC>
+
+      {/* Excerpt & Tags */}
+      <ACC id="excerpt" title="Excerpt & Tags">
+        <div>
+          <Lbl>Excerpt</Lbl>
+          <FI value={formData.excerpt} onChange={v => upd('excerpt', v)} placeholder="Short description…" rows={3} />
+          <AIBtn action="generate-excerpt" field="excerpt" />
+        </div>
+        <div>
+          <Lbl>Standfirst</Lbl>
+          <FI value={formData.standfirst} onChange={v => upd('standfirst', v)} placeholder="Opening paragraph below headline…" rows={2} />
+        </div>
+        <div>
+          <Lbl>Tags</Lbl>
+          <FI value={(formData.tags || []).join(', ')} onChange={v => upd('tags', v.split(',').map(t => t.trim()).filter(Boolean))} placeholder="italy, amalfi, coastal" />
+          <div style={{ fontFamily: FU, fontSize: 9, color: S.faint, marginTop: 3 }}>Comma separated</div>
+        </div>
+      </ACC>
+
+      {/* SEO */}
+      <ACC id="seo" title="SEO" icon="◎">
+        <div>
+          <Lbl>Focus Keyword</Lbl>
+          <FI value={focusKeyword} onChange={onKeywordChange} placeholder="e.g. amalfi wedding" />
+        </div>
+        <div>
+          <Lbl right={`${(formData.seoTitle || '').length}/60`}>SEO Title</Lbl>
+          <FI value={formData.seoTitle} onChange={v => upd('seoTitle', v)} placeholder="SEO title…" />
+          <AIBtn action="generate-seo-title" field="seoTitle" />
+        </div>
+        <div>
+          <Lbl right={`${(formData.metaDescription || '').length}/155`}>Meta Description</Lbl>
+          <FI value={formData.metaDescription} onChange={v => upd('metaDescription', v)} placeholder="Meta description…" rows={3} />
+          <AIBtn action="generate-meta" field="metaDescription" />
+        </div>
+        <div>
+          <Lbl>OG Image URL</Lbl>
+          <FI value={formData.ogImage} onChange={v => upd('ogImage', v)} placeholder="https://…" />
+        </div>
+      </ACC>
+
+      {/* Featured Image */}
+      <ACC id="image" title="Featured Image" icon="◻">
+        <div>
+          <Lbl>Cover Image URL</Lbl>
+          <FI value={formData.coverImage} onChange={v => upd('coverImage', v)} placeholder="https://…" />
+          {formData.coverImage && <div style={{ marginTop: 8, borderRadius: 2, overflow: 'hidden', aspectRatio: '16/9' }}><img src={formData.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>}
+        </div>
+        <div>
+          <Lbl>Alt Text</Lbl>
+          <FI value={formData.coverImageAlt} onChange={v => upd('coverImageAlt', v)} placeholder="Describe the image…" />
+        </div>
+        <div>
+          <Lbl>Hero Style</Lbl>
+          <select value={formData.heroStyle || 'editorial'} onChange={e => upd('heroStyle', e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
+            {[['editorial','Editorial'],['split','Split'],['cinematic','Cinematic'],['minimal','Minimal'],['banner','Banner']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </div>
+      </ACC>
+
+      {/* Typography */}
+      <ACC id="typography" title="Typography" icon="T">
+        <div style={{ fontFamily: FU, fontSize: 11, color: S.muted, lineHeight: 1.6 }}>
+          Per-block font controls are available in the canvas — click any block and use the format bar.
+        </div>
+        <div>
+          <Lbl>Layout</Lbl>
+          <select value={formData.layout || 'full-width'} onChange={e => upd('layout', e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
+            {[['full-width','Full Width'],['sidebar','With Sidebar'],['narrow','Narrow / Essay']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </div>
+      </ACC>
+
+      {/* Intelligence */}
+      <ACC id="intelligence" title="Intelligence" icon="✦" badge={intel ? { text: `${intel.score} ${intel.grade}`, color: intel.gradeColor } : null}>
+        {intel && <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 0' }}>
+            <svg width={52} height={52} style={{ flexShrink: 0 }}>
+              <circle cx={26} cy={26} r={21} fill="none" stroke={`${intel.gradeColor}20`} strokeWidth={4} />
+              <circle cx={26} cy={26} r={21} fill="none" stroke={intel.gradeColor} strokeWidth={4}
+                strokeDasharray={`${2 * Math.PI * 21}`}
+                strokeDashoffset={`${2 * Math.PI * 21 * (1 - intel.score / 100)}`}
+                strokeLinecap="round" transform="rotate(-90 26 26)"
+                style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+              />
+              <text x={26} y={27} textAnchor="middle" dominantBaseline="central" fill={intel.gradeColor} style={{ fontSize: 13, fontWeight: 700, fontFamily: 'monospace' }}>{intel.score}</text>
+            </svg>
+            <div>
+              <div style={{ fontFamily: FD, fontSize: 22, color: intel.gradeColor, lineHeight: 1 }}>{intel.grade}</div>
+              <div style={{ fontFamily: FU, fontSize: 9, color: S.muted, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 3 }}>Content Score</div>
+            </div>
+          </div>
+          {intel.issues?.slice(0, 3).map((issue, i) => (
+            <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+              <span style={{ color: S.error, fontSize: 9, flexShrink: 0, marginTop: 2 }}>●</span>
+              <span style={{ fontFamily: FU, fontSize: 11, color: S.muted, lineHeight: 1.4 }}>{issue}</span>
+            </div>
+          ))}
+          {intel.passes?.slice(0, 2).map((pass, i) => (
+            <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+              <span style={{ color: S.success, fontSize: 9, flexShrink: 0, marginTop: 2 }}>●</span>
+              <span style={{ fontFamily: FU, fontSize: 11, color: S.muted, lineHeight: 1.4 }}>{pass}</span>
+            </div>
+          ))}
+          <button onClick={onOpenIntelligence}
+            style={{ marginTop: 4, fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: GOLD, background: 'none', border: `1px solid ${GOLD}30`, borderRadius: 2, padding: '5px 10px', cursor: 'pointer', width: '100%' }}>
+            Full Analysis →
+          </button>
+        </>}
+      </ACC>
+
+      {/* Internal Links */}
+      <ACC id="links" title="Internal Links" icon="⤷">
+        <div style={{ fontFamily: FU, fontSize: 11, color: S.muted, lineHeight: 1.6 }}>
+          Link to other LWD articles, venues, planners, and destination pages to strengthen internal SEO.
+        </div>
+        <FI value={formData.internalLinks || ''} onChange={v => upd('internalLinks', v)} placeholder="/wedding-venues/italy/amalfi" rows={3} />
+        <div style={{ fontFamily: FU, fontSize: 9, color: S.faint }}>One URL per line</div>
+      </ACC>
+    </div>
+  );
+}
+
+// ── Block field helper (inline mini input for edit panels) ────────────────────
+function BlockField({ label, value, onChange, placeholder, type = 'text', width = 120 }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <span style={{ fontFamily: FU, fontSize: 8, color: '#aaa', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ width, boxSizing: 'border-box', background: '#fff', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 2, padding: '4px 7px', fontFamily: FU, fontSize: 11, outline: 'none', color: '#333' }}
+      />
+    </div>
+  );
+}
+
+// ── Sidebar rail item (used inside sidebar_layout block) ─────────────────────
+function SidebarRailItem({ item, index, isActive, onChange, onDelete }) {
+  const t = item.type || 'note';
+  const baseStyle = { borderRadius: 4, overflow: 'hidden', position: 'relative' };
+
+  const editField = (field, val) => onChange({ ...item, [field]: val });
+
+  if (t === 'stat') {
+    return (
+      <div style={{ ...baseStyle, background: `${GOLD}0a`, border: `1px solid ${GOLD}28`, padding: '14px 16px' }}>
+        <div style={{ fontFamily: FD, fontSize: 32, fontWeight: 400, color: GOLD, lineHeight: 1 }}>{item.value || '—'}</div>
+        <div style={{ fontFamily: FU, fontSize: 10, color: '#888', marginTop: 5 }}>{item.label || 'Stat label'}</div>
+        {isActive && (
+          <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+            <BlockField label="Value" value={item.value||''} onChange={v => editField('value',v)} placeholder="£4,500" width={70} />
+            <BlockField label="Label" value={item.label||''} onChange={v => editField('label',v)} placeholder="avg. cost" width={100} />
+            <button onClick={onDelete} style={{ alignSelf: 'flex-end', fontFamily: FU, fontSize: 9, color: '#e05555', background: 'none', border: '1px solid rgba(224,85,85,0.2)', borderRadius: 2, padding: '3px 7px', cursor: 'pointer' }}>✕</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (t === 'quote') {
+    return (
+      <div style={{ ...baseStyle, borderLeft: `3px solid ${GOLD}`, padding: '12px 14px' }}>
+        <div style={{ fontFamily: 'Georgia,serif', fontSize: 14, fontStyle: 'italic', lineHeight: 1.6, color: '#555' }}>{item.text || 'Quote…'}</div>
+        {item.attr && <div style={{ fontFamily: FU, fontSize: 9, color: '#aaa', marginTop: 6 }}>— {item.attr}</div>}
+        {isActive && (
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <BlockField label="Quote" value={item.text||''} onChange={v => editField('text',v)} placeholder="Quote text…" width={220} />
+            <BlockField label="Attribution" value={item.attr||''} onChange={v => editField('attr',v)} placeholder="Name" width={140} />
+            <button onClick={onDelete} style={{ alignSelf: 'flex-start', fontFamily: FU, fontSize: 9, color: '#e05555', background: 'none', border: '1px solid rgba(224,85,85,0.2)', borderRadius: 2, padding: '3px 7px', cursor: 'pointer' }}>✕</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (t === 'product') {
+    return (
+      <div style={{ ...baseStyle, border: '1px solid rgba(0,0,0,0.08)', padding: '12px 14px', background: '#fff' }}>
+        {item.image && <div style={{ height: 100, background: `url(${item.image}) center/cover`, borderRadius: 2, marginBottom: 8 }} />}
+        <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 3, opacity: 0.7 }}>{item.brand || 'Brand'}</div>
+        <div style={{ fontFamily: 'Georgia,serif', fontSize: 13, color: '#0f0e0b', lineHeight: 1.3, marginBottom: 4 }}>{item.name || 'Product'}</div>
+        {item.price && <div style={{ fontFamily: FU, fontSize: 11, color: '#333', fontWeight: 600 }}>{item.price}</div>}
+        {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, fontFamily: FU, fontSize: 8, padding: '3px 8px', background: `linear-gradient(135deg,${GOLD},#b8891e)`, color: '#fff', borderRadius: 2, textDecoration: 'none' }}>Shop →</a>}
+        {isActive && (
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <BlockField label="Brand" value={item.brand||''} onChange={v => editField('brand',v)} placeholder="Brand" width={100} />
+            <BlockField label="Name" value={item.name||''} onChange={v => editField('name',v)} placeholder="Product" width={180} />
+            <BlockField label="Price" value={item.price||''} onChange={v => editField('price',v)} placeholder="£295" width={70} />
+            <BlockField label="URL" value={item.url||''} onChange={v => editField('url',v)} placeholder="https://…" width={200} />
+            <BlockField label="Image" value={item.image||''} onChange={v => editField('image',v)} placeholder="https://…" width={200} />
+            <button onClick={onDelete} style={{ alignSelf: 'flex-start', fontFamily: FU, fontSize: 9, color: '#e05555', background: 'none', border: '1px solid rgba(224,85,85,0.2)', borderRadius: 2, padding: '3px 7px', cursor: 'pointer' }}>✕</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // default: note
+  return (
+    <div style={{ ...baseStyle, background: 'rgba(201,168,76,0.06)', border: `1px solid ${GOLD}22`, padding: '12px 14px' }}>
+      <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 5, opacity: 0.6 }}>Editor's Note</div>
+      <div style={{ fontFamily: 'Georgia,serif', fontSize: 13, fontStyle: 'italic', lineHeight: 1.6, color: '#555' }}>{item.text || 'Note text…'}</div>
+      {isActive && (
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <BlockField label="Note" value={item.text||''} onChange={v => editField('text',v)} placeholder="Note…" width={220} />
+          <button onClick={onDelete} style={{ alignSelf: 'flex-start', fontFamily: FU, fontSize: 9, color: '#e05555', background: 'none', border: '1px solid rgba(224,85,85,0.2)', borderRadius: 2, padding: '3px 7px', cursor: 'pointer' }}>✕</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Canvas block types and styles ─────────────────────────────────────────────
+const ART = {
+  intro:     { fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 20, fontStyle: 'italic', lineHeight: 1.72, color: '#2a2722', margin: '0 0 32px' },
+  paragraph: { fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 18, lineHeight: 1.78, color: '#2a2722', margin: '0 0 24px' },
+  h2:        { fontFamily: 'var(--font-heading, Georgia, serif)', fontSize: 28, fontWeight: 500, lineHeight: 1.2, color: '#0f0e0b', margin: '44px 0 18px' },
+  h3:        { fontFamily: 'var(--font-heading, Georgia, serif)', fontSize: 22, fontWeight: 500, lineHeight: 1.25, color: '#0f0e0b', margin: '36px 0 14px' },
+  h4:        { fontFamily: 'var(--font-heading, Georgia, serif)', fontSize: 18, fontWeight: 600, lineHeight: 1.3, color: '#0f0e0b', margin: '28px 0 12px' },
+};
+
+// ── Single editable canvas block ──────────────────────────────────────────────
+function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChange, onDelete, onMoveUp, onMoveDown, total, S }) {
+  const textRef  = useRef(null);
+  const [hovered, setHovered] = useState(false);
+
+  useEffect(() => {
+    if (isActive && textRef.current && block.text !== undefined) {
+      textRef.current.innerHTML = block.text || '';
+      textRef.current.focus();
+      try {
+        const r = document.createRange();
+        r.selectNodeContents(textRef.current);
+        r.collapse(false);
+        window.getSelection()?.removeAllRanges();
+        window.getSelection()?.addRange(r);
+      } catch {}
+    }
+  }, [isActive]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const commit = useCallback(() => {
+    if (textRef.current) onChange({ ...block, text: textRef.current.innerHTML });
+    onDeactivate();
+  }, [block, onChange, onDeactivate]);
+
+  const kd = useCallback((e) => {
+    const m = e.metaKey || e.ctrlKey;
+    if (m && e.key === 'b') { e.preventDefault(); document.execCommand('bold'); }
+    if (m && e.key === 'i') { e.preventDefault(); document.execCommand('italic'); }
+    if (m && e.key === 'k') { e.preventDefault(); const u = window.prompt('URL:', 'https://'); if (u) document.execCommand('createLink', false, u); }
+    if (e.key === 'Escape' || (m && e.key === 'Enter')) { e.preventDefault(); textRef.current?.blur(); }
+  }, []);
+
+  const show = hovered || isActive;
+
+  const wrapStyle = {
+    position: 'relative',
+    outline: isActive ? `2px solid rgba(201,168,76,0.5)` : (hovered ? `1px solid rgba(201,168,76,0.2)` : 'none'),
+    outlineOffset: 8,
+    borderRadius: 3,
+    transition: 'outline 0.12s',
+    cursor: isActive ? 'text' : 'pointer',
+  };
+
+  // Side controls
+  const sideCtrl = show && (
+    <div style={{ position: 'absolute', right: -44, top: 0, display: 'flex', flexDirection: 'column', gap: 3 }} onClick={e => e.stopPropagation()}>
+      {index > 0 && <button onClick={onMoveUp} title="Move up" style={{ width: 30, height: 30, borderRadius: 2, background: 'rgba(250,248,244,0.95)', border: '1px solid rgba(0,0,0,0.1)', color: '#888', cursor: 'pointer', fontSize: 12 }}>↑</button>}
+      {index < total - 1 && <button onClick={onMoveDown} title="Move down" style={{ width: 30, height: 30, borderRadius: 2, background: 'rgba(250,248,244,0.95)', border: '1px solid rgba(0,0,0,0.1)', color: '#888', cursor: 'pointer', fontSize: 12 }}>↓</button>}
+      <button onClick={onDelete} title="Delete" style={{ width: 30, height: 30, borderRadius: 2, background: 'rgba(250,248,244,0.95)', border: '1px solid rgba(224,85,85,0.25)', color: '#e05555', cursor: 'pointer', fontSize: 12 }}>✕</button>
+    </div>
+  );
+
+  // Block type label
+  const typeLabel = hovered && !isActive && (
+    <div style={{ position: 'absolute', top: -16, left: 2, fontFamily: FU, fontSize: 7, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD, opacity: 0.65, pointerEvents: 'none' }}>
+      {block.type}
+    </div>
+  );
+
+  const t = block.type;
+
+  // Text-based blocks (shared edit/display logic)
+  const textStyle =
+    t === 'intro'     ? ART.intro :
+    t === 'paragraph' ? ART.paragraph :
+    t === 'heading'   ? (block.level === 3 ? ART.h3 : block.level === 4 ? ART.h4 : ART.h2) :
+    null;
+
+  if (textStyle) {
+    // Per-block font overrides
+    const customStyle = {
+      ...textStyle,
+      ...(block.fontFamily ? { fontFamily: block.fontFamily } : {}),
+      ...(block.fontSize   ? { fontSize: block.fontSize }     : {}),
+      ...(block.lineHeight ? { lineHeight: block.lineHeight }  : {}),
+      ...(block.color      ? { color: block.color }            : {}),
+    };
+
+    const FONT_FAMILIES = [
+      { label: 'Georgia (serif)',   value: 'Georgia, "Times New Roman", serif' },
+      { label: 'System (sans)',     value: '-apple-system, BlinkMacSystemFont, sans-serif' },
+      { label: 'Cormorant (display)', value: 'var(--font-display, Georgia, serif)' },
+      { label: 'Futura (caps)',     value: 'Futura, "Century Gothic", sans-serif' },
+    ];
+
+    return (
+      <div style={wrapStyle} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        {/* Inline format bar — shown when block is active */}
+        {isActive && (
+          <div style={{ display: 'flex', gap: 4, marginBottom: 6, flexWrap: 'wrap', alignItems: 'center' }} onMouseDown={e => e.preventDefault()}>
+            {/* Formatting */}
+            {[
+              { cmd: 'bold',         label: <b>B</b> },
+              { cmd: 'italic',       label: <i>I</i> },
+              { cmd: 'underline',    label: <u>U</u> },
+              { cmd: 'strikeThrough',label: <s>S</s> },
+            ].map(({ cmd, label }) => (
+              <button key={cmd} onClick={() => document.execCommand(cmd)}
+                style={{ width: 24, height: 24, borderRadius: 2, background: 'none', border: '1px solid rgba(0,0,0,0.12)', color: '#555', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {label}
+              </button>
+            ))}
+            <div style={{ width: 1, height: 18, background: 'rgba(0,0,0,0.1)' }} />
+            {/* Font family */}
+            <select value={block.fontFamily || ''} onChange={e => onChange({ ...block, fontFamily: e.target.value || undefined })}
+              style={{ fontFamily: FU, fontSize: 9, padding: '2px 4px', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 2, background: '#fff', color: '#555', cursor: 'pointer', height: 24 }}>
+              <option value="">Default font</option>
+              {FONT_FAMILIES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+            </select>
+            {/* Font size */}
+            <select value={block.fontSize || ''} onChange={e => onChange({ ...block, fontSize: e.target.value ? parseInt(e.target.value) : undefined })}
+              style={{ fontFamily: FU, fontSize: 9, padding: '2px 4px', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 2, background: '#fff', color: '#555', cursor: 'pointer', height: 24, width: 60 }}>
+              <option value="">Default</option>
+              {[12,14,16,18,20,22,24,28,32,36,40,48].map(s => <option key={s} value={s}>{s}px</option>)}
+            </select>
+            {/* Text color */}
+            <label title="Text color" style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer', fontFamily: FU, fontSize: 9, color: '#666' }}>
+              A<input type="color" value={block.color || '#2a2722'} onChange={e => onChange({ ...block, color: e.target.value })}
+                style={{ width: 22, height: 22, padding: 0, border: 'none', borderRadius: 2, cursor: 'pointer' }} />
+            </label>
+            {/* Link */}
+            <button onClick={() => { const u = window.prompt('URL:', 'https://'); if (u) document.execCommand('createLink', false, u); }}
+              style={{ width: 24, height: 24, borderRadius: 2, background: 'none', border: '1px solid rgba(0,0,0,0.12)', color: '#555', cursor: 'pointer', fontSize: 11 }}>🔗</button>
+            {/* Alignment */}
+            {['justifyLeft','justifyCenter','justifyRight'].map((cmd, i) => (
+              <button key={cmd} onClick={() => document.execCommand(cmd)}
+                style={{ width: 24, height: 24, borderRadius: 2, background: 'none', border: '1px solid rgba(0,0,0,0.12)', color: '#555', cursor: 'pointer', fontSize: 11 }}>
+                {['⬤','◉','●'][i]}
+              </button>
+            ))}
+          </div>
+        )}
+        {isActive
+          ? <div ref={textRef} contentEditable suppressContentEditableWarning onBlur={commit} onKeyDown={kd} style={{ ...customStyle, outline: 'none', minHeight: 32, caretColor: GOLD }} />
+          : <div style={customStyle} dangerouslySetInnerHTML={{ __html: block.text || `<span style="opacity:0.3;font-style:italic">Click to write…</span>` }} />
+        }
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  if (t === 'quote') {
+    return (
+      <div style={wrapStyle} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        <blockquote style={{ borderLeft: `3px solid ${GOLD}`, margin: '36px 0', padding: '4px 0 4px 28px' }}>
+          {isActive
+            ? <div ref={textRef} contentEditable suppressContentEditableWarning onBlur={commit} onKeyDown={kd} style={{ fontFamily: 'Georgia,serif', fontSize: 22, fontStyle: 'italic', lineHeight: 1.5, color: '#2a2722', outline: 'none', caretColor: GOLD }} />
+            : <div style={{ fontFamily: 'Georgia,serif', fontSize: 22, fontStyle: 'italic', lineHeight: 1.5, color: '#2a2722' }} dangerouslySetInnerHTML={{ __html: block.text || '<span style="opacity:0.3">Pull quote…</span>' }} />
+          }
+          {block.attribution && <div style={{ fontFamily: FU, fontSize: 12, color: '#999', marginTop: 12, fontStyle: 'normal' }}>— {block.attribution}</div>}
+        </blockquote>
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  if (t === 'image') {
+    return (
+      <div style={{ ...wrapStyle, margin: '32px 0' }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        <figure style={{ margin: 0 }}>
+          {block.src
+            ? <img src={block.src} alt={block.alt || ''} style={{ width: '100%', borderRadius: 2, display: 'block' }} />
+            : <div style={{ background: 'rgba(0,0,0,0.04)', height: 200, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed rgba(0,0,0,0.12)' }}>
+                <span style={{ fontFamily: FU, fontSize: 11, color: '#aaa' }}>Click to add image</span>
+              </div>
+          }
+          {isActive && (
+            <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <input value={block.src || ''} onChange={e => onChange({ ...block, src: e.target.value })} placeholder="Image URL https://…"
+                style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, outline: 'none' }} />
+              <input value={block.caption || ''} onChange={e => onChange({ ...block, caption: e.target.value })} placeholder="Caption (optional)"
+                style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, outline: 'none' }} />
+              <button onClick={onDeactivate} style={{ alignSelf: 'flex-start', fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>Done</button>
+            </div>
+          )}
+          {!isActive && block.caption && <figcaption style={{ fontFamily: FU, fontSize: 12, color: '#999', marginTop: 10, textAlign: 'center', fontStyle: 'italic' }}>{block.caption}</figcaption>}
+        </figure>
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  if (t === 'divider') {
+    const styles = ['line', 'ornament', 'space'];
+    const ds = block.dividerStyle || 'line';
+    return (
+      <div style={{ ...wrapStyle, margin: '8px 0' }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={!isActive ? onActivate : undefined}>
+        {isActive ? (
+          <div style={{ padding: '12px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {styles.map(s => (
+                <button key={s} onClick={() => onChange({ ...block, dividerStyle: s })}
+                  style={{ fontFamily: FU, fontSize: 8, padding: '3px 8px', borderRadius: 2, cursor: 'pointer', background: ds === s ? `${GOLD}18` : 'none', border: `1px solid ${ds === s ? GOLD : 'rgba(0,0,0,0.1)'}`, color: ds === s ? GOLD : '#888' }}>
+                  {s}
+                </button>
+              ))}
+              <button onClick={onDeactivate} style={{ marginLeft: 'auto', fontFamily: FU, fontSize: 8, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '3px 8px', cursor: 'pointer' }}>Done</button>
+            </div>
+            {ds === 'line'     && <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.12)', margin: '12px 0' }} />}
+            {ds === 'ornament' && <div style={{ textAlign: 'center', color: GOLD, fontSize: 16, letterSpacing: '0.4em', margin: '8px 0' }}>✦ ✦ ✦</div>}
+            {ds === 'space'    && <div style={{ height: 40 }} />}
+          </div>
+        ) : (
+          <>
+            {ds === 'line'     && <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.08)', margin: '36px 0' }} />}
+            {ds === 'ornament' && <div style={{ textAlign: 'center', color: GOLD, fontSize: 16, letterSpacing: '0.4em', margin: '24px 0', opacity: 0.7 }}>✦ ✦ ✦</div>}
+            {ds === 'space'    && <div style={{ height: 64 }} />}
+          </>
+        )}
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  // ── Display Section (large typographic text over coloured/image background) ─
+  if (t === 'display_section') {
+    const bg   = block.bg   || '#1a1714';
+    const fg   = block.fg   || '#f5f0e8';
+    const sz   = block.fontSize || 64;
+    const sticky = !!block.sticky;
+    return (
+      <div style={{ ...wrapStyle, margin: '32px -48px', position: 'relative' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        <section
+          style={{
+            position: sticky && !isActive ? 'sticky' : 'relative',
+            top: sticky && !isActive ? 0 : undefined,
+            zIndex: sticky ? 2 : undefined,
+            background: block.bgImage ? `url(${block.bgImage}) center/cover no-repeat` : bg,
+            padding: '80px 96px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: block.align === 'center' ? 'center' : block.align === 'right' ? 'flex-end' : 'flex-start',
+            textAlign: block.align || 'left',
+            minHeight: block.minHeight || 320,
+          }}
+        >
+          {block.bgImage && <div style={{ position: 'absolute', inset: 0, background: `rgba(0,0,0,${block.overlay ?? 0.45})` }} />}
+          <div style={{ position: 'relative', zIndex: 1, maxWidth: 900 }}>
+            {block.eyebrow && <div style={{ fontFamily: FU, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD, marginBottom: 20, opacity: 0.8 }}>{block.eyebrow}</div>}
+            {isActive
+              ? <div ref={textRef} contentEditable suppressContentEditableWarning onBlur={commit} onKeyDown={kd}
+                  style={{ fontFamily: FD, fontSize: sz, fontWeight: 400, lineHeight: 1.1, color: fg, outline: 'none', caretColor: GOLD }} />
+              : <div style={{ fontFamily: FD, fontSize: sz, fontWeight: 400, lineHeight: 1.1, color: fg }}
+                  dangerouslySetInnerHTML={{ __html: block.text || '<span style="opacity:0.3">Display headline…</span>' }} />
+            }
+            {block.subtitle && <div style={{ fontFamily: 'Georgia,serif', fontSize: 20, fontStyle: 'italic', color: fg, opacity: 0.7, marginTop: 24, lineHeight: 1.55 }}>{block.subtitle}</div>}
+          </div>
+        </section>
+        {isActive && (
+          <div style={{ padding: '12px 16px', background: 'rgba(0,0,0,0.03)', borderTop: '1px solid rgba(0,0,0,0.06)', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            <BlockField label="Eyebrow" value={block.eyebrow || ''} onChange={v => onChange({ ...block, eyebrow: v })} placeholder="Destination Edit" width={130} />
+            <BlockField label="Subtitle" value={block.subtitle || ''} onChange={v => onChange({ ...block, subtitle: v })} placeholder="Intro sentence…" width={200} />
+            <BlockField label="Bg Color" value={bg} onChange={v => onChange({ ...block, bg: v })} type="color" width={48} />
+            <BlockField label="Text Color" value={fg} onChange={v => onChange({ ...block, fg: v })} type="color" width={48} />
+            <BlockField label="Font size" value={sz} onChange={v => onChange({ ...block, fontSize: parseInt(v) || 64 })} type="number" width={60} />
+            <BlockField label="Bg Image URL" value={block.bgImage || ''} onChange={v => onChange({ ...block, bgImage: v })} placeholder="https://…" width={160} />
+            <BlockField label="Overlay" value={block.overlay ?? 0.45} onChange={v => onChange({ ...block, overlay: parseFloat(v) })} type="number" width={55} placeholder="0-1" />
+            <div style={{ display: 'flex', gap: 5 }}>
+              {['left','center','right'].map(a => (
+                <button key={a} onClick={() => onChange({ ...block, align: a })}
+                  style={{ fontFamily: FU, fontSize: 8, padding: '3px 7px', borderRadius: 2, cursor: 'pointer', background: (block.align||'left') === a ? `${GOLD}18` : 'none', border: `1px solid ${(block.align||'left') === a ? GOLD : 'rgba(0,0,0,0.1)'}`, color: (block.align||'left') === a ? GOLD : '#888' }}>{a}</button>
+              ))}
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontFamily: FU, fontSize: 9, color: '#666' }}>
+              <input type="checkbox" checked={sticky} onChange={e => onChange({ ...block, sticky: e.target.checked })} style={{ accentColor: GOLD }} />
+              Sticky scroll
+            </label>
+            <button onClick={onDeactivate} style={{ marginLeft: 'auto', fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>Done</button>
+          </div>
+        )}
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  // ── Sticky Scroll Section (text column locks while right column scrolls past) ─
+  if (t === 'sticky_section') {
+    const enabled = block.stickyEnabled !== false;
+    return (
+      <div style={{ ...wrapStyle, margin: '32px -48px', background: block.bg || '#f7f4ef' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, maxWidth: '100%' }}>
+          {/* Sticky left column */}
+          <div style={{ padding: '60px 48px 60px 96px', position: enabled ? 'sticky' : 'relative', top: enabled ? 0 : undefined, alignSelf: 'start', height: enabled ? '100vh' : undefined, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            {isActive
+              ? <div ref={textRef} contentEditable suppressContentEditableWarning onBlur={commit} onKeyDown={kd}
+                  style={{ fontFamily: FD, fontSize: 36, fontWeight: 400, lineHeight: 1.2, color: block.color || '#0f0e0b', outline: 'none', caretColor: GOLD }} />
+              : <div style={{ fontFamily: FD, fontSize: 36, fontWeight: 400, lineHeight: 1.2, color: block.color || '#0f0e0b' }}
+                  dangerouslySetInnerHTML={{ __html: block.text || '<span style="opacity:0.3">Sticky heading…</span>' }} />
+            }
+            {block.body && <div style={{ fontFamily: 'Georgia,serif', fontSize: 17, lineHeight: 1.7, color: '#555', marginTop: 20 }}>{block.body}</div>}
+          </div>
+          {/* Scrolling right column */}
+          <div style={{ padding: '60px 96px 60px 48px', display: 'flex', flexDirection: 'column', gap: 32 }}>
+            {(block.items || ['','','']).map((item, i) => (
+              <div key={i} style={{ background: '#fff', padding: 24, borderRadius: 4, border: '1px solid rgba(0,0,0,0.06)', fontFamily: 'Georgia,serif', fontSize: 16, lineHeight: 1.7, color: '#2a2722' }}>
+                {isActive
+                  ? <input value={item} onChange={e => { const it = [...(block.items||['','',''])]; it[i] = e.target.value; onChange({ ...block, items: it }); }}
+                      style={{ width: '100%', border: 'none', background: 'none', fontFamily: 'Georgia,serif', fontSize: 16, outline: 'none', caretColor: GOLD }} />
+                  : <span>{item || `Item ${i+1}…`}</span>
+                }
+              </div>
+            ))}
+            {isActive && <button onClick={() => onChange({ ...block, items: [...(block.items||[]), ''] })}
+              style={{ fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer', alignSelf: 'flex-start' }}>+ Add item</button>}
+          </div>
+        </div>
+        {isActive && (
+          <div style={{ padding: '10px 16px', borderTop: '1px solid rgba(0,0,0,0.06)', display: 'flex', gap: 10, alignItems: 'center' }}>
+            <BlockField label="Bg Color" value={block.bg || '#f7f4ef'} onChange={v => onChange({ ...block, bg: v })} type="color" width={48} />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontFamily: FU, fontSize: 9, color: '#666' }}>
+              <input type="checkbox" checked={enabled} onChange={e => onChange({ ...block, stickyEnabled: e.target.checked })} style={{ accentColor: GOLD }} />
+              Sticky scroll on
+            </label>
+            <button onClick={onDeactivate} style={{ marginLeft: 'auto', fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>Done</button>
+          </div>
+        )}
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  // ── Sidebar Layout Block (main content + sidebar rail) ────────────────────
+  if (t === 'sidebar_layout') {
+    return (
+      <div style={{ ...wrapStyle, margin: '24px 0' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 32 }}>
+          {/* Main */}
+          <div>
+            {isActive
+              ? <div ref={textRef} contentEditable suppressContentEditableWarning onBlur={commit} onKeyDown={kd}
+                  style={{ ...ART.paragraph, outline: 'none', minHeight: 60, caretColor: GOLD }} />
+              : <div style={ART.paragraph} dangerouslySetInnerHTML={{ __html: block.text || '<span style="opacity:0.25">Main column text…</span>' }} />
+            }
+          </div>
+          {/* Sidebar rail */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {(block.sidebarItems || [{ type: 'note', text: '' }]).map((item, i) => (
+              <SidebarRailItem key={i} item={item} index={i} isActive={isActive} onChange={updated => {
+                const si = [...(block.sidebarItems || [])]; si[i] = updated; onChange({ ...block, sidebarItems: si });
+              }} onDelete={() => {
+                const si = (block.sidebarItems || []).filter((_, idx) => idx !== i);
+                onChange({ ...block, sidebarItems: si });
+              }} />
+            ))}
+            {isActive && (
+              <div style={{ display: 'flex', gap: 5 }}>
+                {['note','product','quote','stat'].map(type => (
+                  <button key={type} onClick={() => onChange({ ...block, sidebarItems: [...(block.sidebarItems||[]), { type, text: '' }] })}
+                    style={{ fontFamily: FU, fontSize: 8, padding: '3px 7px', borderRadius: 2, cursor: 'pointer', background: `${GOLD}08`, border: `1px solid ${GOLD}30`, color: GOLD }}>
+                    +{type}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        {isActive && (
+          <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
+            <button onClick={onDeactivate} style={{ fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>Done</button>
+          </div>
+        )}
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  // ── Listing Embed (venue/planner card inline) ──────────────────────────────
+  if (t === 'listing_embed') {
+    return (
+      <div style={{ ...wrapStyle, margin: '28px 0' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        <div style={{ border: `1px solid ${GOLD}28`, borderRadius: 4, overflow: 'hidden', background: '#fdfcf9' }}>
+          {/* Preview card */}
+          <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', minHeight: 130 }}>
+            <div style={{ background: block.image ? `url(${block.image}) center/cover` : 'rgba(0,0,0,0.05)', position: 'relative' }}>
+              {!block.image && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FU, fontSize: 9, color: '#ccc' }}>Cover</div>}
+            </div>
+            <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.18em', textTransform: 'uppercase', opacity: 0.7 }}>{block.category || 'Venue'}</div>
+              <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 400, color: '#0f0e0b', lineHeight: 1.2 }}>{block.name || 'Listing Name'}</div>
+              <div style={{ fontFamily: FU, fontSize: 11, color: '#888' }}>{block.location || 'Location'}</div>
+              <div style={{ fontFamily: 'Georgia,serif', fontSize: 13, color: '#666', lineHeight: 1.55, flex: 1 }}>{block.desc || 'Short description…'}</div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <span style={{ fontFamily: FU, fontSize: 9, padding: '3px 9px', border: `1px solid ${GOLD}40`, borderRadius: 2, color: GOLD, cursor: 'pointer' }}>View Profile →</span>
+                {block.showEnquire && <span style={{ fontFamily: FU, fontSize: 9, padding: '3px 9px', background: `linear-gradient(135deg, ${GOLD}, #b8891e)`, borderRadius: 2, color: '#fff', cursor: 'pointer' }}>Enquire</span>}
+              </div>
+            </div>
+          </div>
+          {isActive && (
+            <div style={{ padding: '12px 16px', borderTop: `1px solid ${GOLD}18`, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <BlockField label="Name" value={block.name||''} onChange={v => onChange({...block,name:v})} placeholder="Villa Cimbrone" width={140} />
+              <BlockField label="Location" value={block.location||''} onChange={v => onChange({...block,location:v})} placeholder="Ravello, Italy" width={130} />
+              <BlockField label="Category" value={block.category||''} onChange={v => onChange({...block,category:v})} placeholder="Venue" width={90} />
+              <BlockField label="Cover Image" value={block.image||''} onChange={v => onChange({...block,image:v})} placeholder="https://…" width={160} />
+              <BlockField label="Description" value={block.desc||''} onChange={v => onChange({...block,desc:v})} placeholder="Short description…" width={220} />
+              <BlockField label="Profile URL" value={block.url||''} onChange={v => onChange({...block,url:v})} placeholder="/venues/…" width={150} />
+              <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontFamily: FU, fontSize: 9, color: '#666' }}>
+                <input type="checkbox" checked={!!block.showEnquire} onChange={e => onChange({...block,showEnquire:e.target.checked})} style={{ accentColor: GOLD }} />
+                Show Enquire CTA
+              </label>
+              <button onClick={onDeactivate} style={{ marginLeft: 'auto', fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>Done</button>
+            </div>
+          )}
+        </div>
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  // ── Showcase Embed (featured strip) ───────────────────────────────────────
+  if (t === 'showcase_embed') {
+    const items = block.items || [];
+    return (
+      <div style={{ ...wrapStyle, margin: '32px -48px' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        <div style={{ background: block.bg || '#1a1714', padding: '48px 96px' }}>
+          <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 6, opacity: 0.7 }}>✦ Featured</div>
+          <div style={{ fontFamily: FD, fontSize: 28, fontWeight: 400, color: '#f5f0e8', lineHeight: 1.2, marginBottom: 28 }}>{block.title || 'Curated Selection'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(items.length || 3, 4)}, 1fr)`, gap: 16 }}>
+            {(items.length ? items : [{},{},{}]).map((item, i) => (
+              <div key={i} style={{ background: '#fff', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ height: 140, background: item.image ? `url(${item.image}) center/cover` : 'rgba(255,255,255,0.06)' }} />
+                <div style={{ padding: '12px 14px' }}>
+                  <div style={{ fontFamily: FD, fontSize: 15, color: '#0f0e0b', lineHeight: 1.3 }}>{item.name || `Item ${i+1}`}</div>
+                  <div style={{ fontFamily: FU, fontSize: 9, color: '#aaa', marginTop: 4 }}>{item.location || 'Location'}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {isActive && (
+            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <BlockField label="Section Title" value={block.title||''} onChange={v => onChange({...block,title:v})} placeholder="Curated Selection" width={200} />
+              <BlockField label="Bg Color" value={block.bg||'#1a1714'} onChange={v => onChange({...block,bg:v})} type="color" width={48} />
+              <div style={{ fontFamily: FU, fontSize: 9, color: '#999' }}>Add up to 4 items (name, location, image URL)</div>
+              {(items.length ? items : [{},{},{}]).map((item, i) => (
+                <div key={i} style={{ display: 'flex', gap: 6 }}>
+                  <BlockField label={`#${i+1} Name`} value={item.name||''} onChange={v => { const it=[...items]; it[i]={...it[i],name:v}; onChange({...block,items:it}); }} placeholder="Venue name" width={120} />
+                  <BlockField label="Location" value={item.location||''} onChange={v => { const it=[...items]; it[i]={...it[i],location:v}; onChange({...block,items:it}); }} placeholder="City" width={100} />
+                  <BlockField label="Image" value={item.image||''} onChange={v => { const it=[...items]; it[i]={...it[i],image:v}; onChange({...block,items:it}); }} placeholder="https://…" width={160} />
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => onChange({...block,items:[...(items),[...items,{}].slice(-1)[0]]})}
+                  style={{ fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>+ Item</button>
+                <button onClick={onDeactivate} style={{ fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>Done</button>
+              </div>
+            </div>
+          )}
+        </div>
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  // ── Affiliate Product Block ────────────────────────────────────────────────
+  if (t === 'affiliate_product' || t === 'product_tile') {
+    const cols = block.columns || 3;
+    const products = block.products || [{}];
+    return (
+      <div style={{ ...wrapStyle, margin: '28px 0' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        {block.sectionTitle && <div style={{ fontFamily: FU, fontSize: 9, color: GOLD, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 14, opacity: 0.75 }}>{block.sectionTitle}</div>}
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols},1fr)`, gap: 16 }}>
+          {products.map((p, i) => (
+            <div key={i} style={{ border: '1px solid rgba(0,0,0,0.07)', borderRadius: 4, overflow: 'hidden', background: '#fff' }}>
+              {p.image
+                ? <div style={{ height: 180, background: `url(${p.image}) center/cover` }} />
+                : <div style={{ height: 140, background: 'rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FU, fontSize: 9, color: '#ccc' }}>Image</div>
+              }
+              <div style={{ padding: '12px 14px 16px' }}>
+                {p.brand && <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4, opacity: 0.7 }}>{p.brand}</div>}
+                <div style={{ fontFamily: 'Georgia,serif', fontSize: 15, fontWeight: 500, color: '#0f0e0b', lineHeight: 1.3, marginBottom: 6 }}>{p.name || `Product ${i+1}`}</div>
+                {p.desc && <div style={{ fontFamily: 'Georgia,serif', fontSize: 12, color: '#888', lineHeight: 1.5, marginBottom: 8 }}>{p.desc}</div>}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
+                  {p.price && <span style={{ fontFamily: FU, fontSize: 12, fontWeight: 600, color: '#2a2722' }}>{p.price}</span>}
+                  {p.url && <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: FU, fontSize: 9, padding: '4px 10px', background: `linear-gradient(135deg, ${GOLD}, #b8891e)`, color: '#fff', borderRadius: 2, textDecoration: 'none' }}>Shop →</a>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        {isActive && (
+          <div style={{ marginTop: 12, padding: '12px 0', borderTop: '1px solid rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <BlockField label="Section Title" value={block.sectionTitle||''} onChange={v => onChange({...block,sectionTitle:v})} placeholder="Our Picks" width={160} />
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <span style={{ fontFamily: FU, fontSize: 9, color: '#888' }}>Columns:</span>
+                {[1,2,3,4].map(n => (
+                  <button key={n} onClick={() => onChange({...block,columns:n})}
+                    style={{ fontFamily: FU, fontSize: 9, width: 24, height: 24, borderRadius: 2, cursor: 'pointer', background: cols===n?`${GOLD}18`:'none', border: `1px solid ${cols===n?GOLD:'rgba(0,0,0,0.1)'}`, color: cols===n?GOLD:'#888' }}>{n}</button>
+                ))}
+              </div>
+              <button onClick={() => onChange({...block,products:[...(block.products||[]),{}]})}
+                style={{ fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>+ Product</button>
+              <button onClick={onDeactivate} style={{ marginLeft: 'auto', fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>Done</button>
+            </div>
+            {products.map((p, i) => (
+              <div key={i} style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', paddingBottom: 8, borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                <span style={{ fontFamily: FU, fontSize: 8, color: '#bbb', width: 14, flexShrink: 0 }}>{i+1}</span>
+                <BlockField label="Brand" value={p.brand||''} onChange={v => { const ps=[...products]; ps[i]={...ps[i],brand:v}; onChange({...block,products:ps}); }} placeholder="Brand" width={80} />
+                <BlockField label="Name" value={p.name||''} onChange={v => { const ps=[...products]; ps[i]={...ps[i],name:v}; onChange({...block,products:ps}); }} placeholder="Product name" width={140} />
+                <BlockField label="Price" value={p.price||''} onChange={v => { const ps=[...products]; ps[i]={...ps[i],price:v}; onChange({...block,products:ps}); }} placeholder="£295" width={60} />
+                <BlockField label="URL" value={p.url||''} onChange={v => { const ps=[...products]; ps[i]={...ps[i],url:v}; onChange({...block,products:ps}); }} placeholder="https://…" width={140} />
+                <BlockField label="Image" value={p.image||''} onChange={v => { const ps=[...products]; ps[i]={...ps[i],image:v}; onChange({...block,products:ps}); }} placeholder="https://…" width={160} />
+                <button onClick={() => onChange({...block,products:products.filter((_,idx)=>idx!==i)})}
+                  style={{ fontFamily: FU, fontSize: 9, color: '#e05555', background: 'none', border: '1px solid rgba(224,85,85,0.2)', borderRadius: 2, padding: '3px 7px', cursor: 'pointer' }}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  // Fallback for gallery, video, etc.
+  return (
+    <div style={{ ...wrapStyle, padding: '14px 16px', background: 'rgba(0,0,0,0.02)', borderRadius: 4, border: '1px solid rgba(0,0,0,0.06)', margin: '16px 0' }}
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={!isActive ? onActivate : undefined}>
+      {typeLabel}
+      <div style={{ fontFamily: FU, fontSize: 9, color: '#aaa', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>{block.type}</div>
+      {block.text && <div style={{ fontFamily: 'Georgia,serif', fontSize: 15, color: '#555' }} dangerouslySetInnerHTML={{ __html: block.text }} />}
+      {isActive && (
+        <div style={{ marginTop: 10 }}>
+          <textarea value={block.text || ''} onChange={e => onChange({ ...block, text: e.target.value })} rows={3}
+            style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 2, padding: '7px 9px', fontFamily: FU, fontSize: 12, resize: 'vertical', outline: 'none' }} />
+          <button onClick={onDeactivate} style={{ marginTop: 5, fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>Done</button>
+        </div>
+      )}
+      {sideCtrl}
+    </div>
+  );
+}
+
+// ── Editable Article Canvas ───────────────────────────────────────────────────
+function EditableCanvas({ formData, onChange, activeBlockIdx, setActiveBlockIdx, showTemplate, setShowTemplate, S }) {
+  const blocks  = formData.content || [];
+  const titleRef = useRef(null);
+  const sfRef    = useRef(null);
+  const [heroFocus, setHeroFocus] = useState(null); // 'title' | 'standfirst' | null
+
+  useEffect(() => {
+    if (heroFocus === 'title' && titleRef.current) {
+      titleRef.current.innerHTML = formData.title || '';
+      titleRef.current.focus();
+      try { const r = document.createRange(); r.selectNodeContents(titleRef.current); r.collapse(false); window.getSelection()?.removeAllRanges(); window.getSelection()?.addRange(r); } catch {}
+    }
+    if (heroFocus === 'standfirst' && sfRef.current) {
+      sfRef.current.innerHTML = formData.standfirst || '';
+      sfRef.current.focus();
+    }
+  }, [heroFocus]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const updateBlock = (i, b) => { const c = [...blocks]; c[i] = b; onChange({ ...formData, content: c }); };
+  const deleteBlock = (i) => { onChange({ ...formData, content: blocks.filter((_, idx) => idx !== i) }); setActiveBlockIdx(null); };
+  const moveBlock   = (i, d) => { const b = [...blocks]; const j = i + d; if (j < 0 || j >= b.length) return; [b[i], b[j]] = [b[j], b[i]]; onChange({ ...formData, content: b }); };
+
+  const [addOpen, setAddOpen] = useState(false);
+
+  const ADD_GROUPS = [
+    { group: 'Text', items: [
+      { type: 'paragraph',     label: 'Paragraph',       icon: '¶' },
+      { type: 'intro',         label: 'Intro / Lead',    icon: 'I' },
+      { type: 'heading',       label: 'Section Heading', icon: 'H' },
+      { type: 'quote',         label: 'Pull Quote',      icon: '"' },
+      { type: 'body_wysiwyg',  label: 'Rich Text',       icon: '≡' },
+    ]},
+    { group: 'Media', items: [
+      { type: 'image',         label: 'Image',           icon: '◻' },
+      { type: 'gallery',       label: 'Gallery',         icon: '⊞' },
+      { type: 'video',         label: 'Video Embed',     icon: '▶' },
+    ]},
+    { group: 'Design', items: [
+      { type: 'display_section', label: 'Display Section', icon: 'D' },
+      { type: 'sticky_section',  label: 'Sticky Scroll',   icon: '⊻' },
+      { type: 'sidebar_layout',  label: 'Sidebar Layout',  icon: '⊟' },
+      { type: 'divider',         label: 'Divider',         icon: '—' },
+    ]},
+    { group: 'Commerce', items: [
+      { type: 'listing_embed',   label: 'Venue Listing',    icon: '⊙' },
+      { type: 'showcase_embed',  label: 'Showcase',         icon: '✦' },
+      { type: 'affiliate_product', label: 'Affiliate Product', icon: '£' },
+    ]},
+  ];
+
+  const addBlock = (type) => {
+    const nb = defaultBlock ? defaultBlock(type) : { type, text: '' };
+    onChange({ ...formData, content: [...blocks, nb] });
+    setTimeout(() => setActiveBlockIdx(blocks.length), 60);
+    setAddOpen(false);
+  };
+
+  const articleWidth = formData.layout === 'narrow' ? 640 : 720;
+
+  return (
+    <div
+      style={{ flex: 1, overflowY: 'auto', background: '#fafaf8', position: 'relative' }}
+      onClick={() => { if (activeBlockIdx !== null) setActiveBlockIdx(null); if (heroFocus) setHeroFocus(null); }}
+    >
+      {/* Hero band */}
+      {formData.coverImage ? (
+        <div style={{ position: 'relative', height: 340, overflow: 'hidden', background: '#111', flexShrink: 0 }}>
+          <img src={formData.coverImage} alt={formData.coverImageAlt || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.72 }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 30%, rgba(10,9,7,0.78))' }} />
+          <div style={{ position: 'absolute', bottom: 36, left: 48, right: 48 }} onClick={e => e.stopPropagation()}>
+            {formData.categoryLabel && <div style={{ fontFamily: FU, fontSize: 9, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 12 }}>{formData.categoryLabel}</div>}
+            {heroFocus === 'title'
+              ? <div ref={titleRef} contentEditable suppressContentEditableWarning onBlur={e => { onChange({ ...formData, title: e.currentTarget.innerText }); setHeroFocus(null); }} onKeyDown={e => { if (e.key === 'Escape' || (e.key === 'Enter' && !e.shiftKey)) { e.preventDefault(); titleRef.current?.blur(); } }} style={{ fontFamily: FD, fontSize: 'clamp(26px,3.2vw,44px)', fontWeight: 400, color: '#fff', lineHeight: 1.15, outline: 'none', cursor: 'text', borderBottom: `1px solid ${GOLD}60`, caretColor: GOLD }} />
+              : <div onClick={() => setHeroFocus('title')} style={{ fontFamily: FD, fontSize: 'clamp(26px,3.2vw,44px)', fontWeight: 400, color: formData.title ? '#fff' : 'rgba(255,255,255,0.3)', lineHeight: 1.15, cursor: 'pointer' }}>{formData.title || 'Click to add title…'}</div>
+            }
+          </div>
+        </div>
+      ) : (
+        <div style={{ background: '#f0ede8', padding: '48px 48px 36px', borderBottom: '1px solid rgba(0,0,0,0.06)' }} onClick={e => e.stopPropagation()}>
+          {formData.categoryLabel && <div style={{ fontFamily: FU, fontSize: 9, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 14 }}>{formData.categoryLabel}</div>}
+          {heroFocus === 'title'
+            ? <div ref={titleRef} contentEditable suppressContentEditableWarning onBlur={e => { onChange({ ...formData, title: e.currentTarget.innerText }); setHeroFocus(null); }} onKeyDown={e => { if (e.key === 'Escape' || (e.key === 'Enter' && !e.shiftKey)) { e.preventDefault(); titleRef.current?.blur(); } }} style={{ fontFamily: FD, fontSize: 'clamp(28px,3.5vw,52px)', fontWeight: 400, color: '#0f0e0b', lineHeight: 1.1, outline: 'none', cursor: 'text', borderBottom: `1px solid ${GOLD}60`, caretColor: GOLD }} />
+            : <div onClick={() => setHeroFocus('title')} style={{ fontFamily: FD, fontSize: 'clamp(28px,3.5vw,52px)', fontWeight: 400, color: formData.title ? '#0f0e0b' : 'rgba(0,0,0,0.2)', lineHeight: 1.1, cursor: 'pointer' }}>{formData.title || 'Click to add title…'}</div>
+          }
+          {(formData.standfirst || heroFocus === 'standfirst') && (
+            <div style={{ marginTop: 18 }} onClick={e => e.stopPropagation()}>
+              {heroFocus === 'standfirst'
+                ? <div ref={sfRef} contentEditable suppressContentEditableWarning onBlur={e => { onChange({ ...formData, standfirst: e.currentTarget.innerText }); setHeroFocus(null); }} style={{ fontFamily: 'Georgia,serif', fontSize: 19, fontStyle: 'italic', lineHeight: 1.65, color: '#555', outline: 'none', caretColor: GOLD }} />
+                : <div onClick={() => setHeroFocus('standfirst')} style={{ fontFamily: 'Georgia,serif', fontSize: 19, fontStyle: 'italic', lineHeight: 1.65, color: '#555', cursor: 'pointer' }}>{formData.standfirst}</div>
+              }
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Standfirst below hero image */}
+      {formData.coverImage && formData.standfirst && (
+        <div style={{ maxWidth: articleWidth, margin: '0 auto', padding: '32px 48px 0' }} onClick={e => e.stopPropagation()}>
+          {heroFocus === 'standfirst'
+            ? <div ref={sfRef} contentEditable suppressContentEditableWarning onBlur={e => { onChange({ ...formData, standfirst: e.currentTarget.innerText }); setHeroFocus(null); }} style={{ fontFamily: 'Georgia,serif', fontSize: 19, fontStyle: 'italic', lineHeight: 1.65, color: '#555', outline: 'none', caretColor: GOLD }} />
+            : <div onClick={() => setHeroFocus('standfirst')} style={{ fontFamily: 'Georgia,serif', fontSize: 19, fontStyle: 'italic', lineHeight: 1.65, color: '#555', cursor: 'pointer' }}>{formData.standfirst}</div>
+          }
+        </div>
+      )}
+
+      {/* Content */}
+      <div
+        style={{ maxWidth: articleWidth, margin: '0 auto', padding: '40px 48px 120px', position: 'relative' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {blocks.map((block, i) => (
+          <CanvasBlock
+            key={i}
+            block={block}
+            index={i}
+            isActive={activeBlockIdx === i}
+            onActivate={() => setActiveBlockIdx(i)}
+            onDeactivate={() => setActiveBlockIdx(null)}
+            onChange={b => updateBlock(i, b)}
+            onDelete={() => deleteBlock(i)}
+            onMoveUp={() => moveBlock(i, -1)}
+            onMoveDown={() => moveBlock(i, 1)}
+            total={blocks.length}
+            S={S}
+          />
+        ))}
+
+        {/* Add block */}
+        <div style={{ marginTop: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 16 }}>
+            <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.07)' }} />
+            <button
+              onClick={e => { e.stopPropagation(); setAddOpen(o => !o); }}
+              style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', padding: '8px 20px', borderRadius: 2, cursor: 'pointer', background: 'none', border: '1px solid rgba(0,0,0,0.12)', color: '#aaa', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.12)'; e.currentTarget.style.color = '#aaa'; }}
+            >+ Add Block</button>
+            <button
+              onClick={e => { e.stopPropagation(); setShowTemplate(true); }}
+              style={{ fontFamily: FU, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '8px 14px', borderRadius: 2, cursor: 'pointer', background: 'none', border: '1px solid rgba(0,0,0,0.08)', color: '#bbb', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.08)'; e.currentTarget.style.color = '#bbb'; }}
+            >Templates</button>
+            <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.07)' }} />
+          </div>
+          {addOpen && (
+            <div style={{ width: '100%', background: '#f5f2ed', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 4, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+              {ADD_GROUPS.map(({ group, items }) => (
+                <div key={group} style={{ padding: '10px 12px 8px' }}>
+                  <div style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD, marginBottom: 6, opacity: 0.7 }}>{group}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 5 }}>
+                    {items.map(({ type, label, icon }) => (
+                      <button key={type} onClick={() => addBlock(type)}
+                        style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '7px 5px 6px', borderRadius: 2, background: '#fff', border: '1px solid rgba(0,0,0,0.08)', color: '#666', cursor: 'pointer', textAlign: 'center', transition: 'all 0.12s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; e.currentTarget.style.background = `${GOLD}08`; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.08)'; e.currentTarget.style.color = '#666'; e.currentTarget.style.background = '#fff'; }}
+                      >
+                        <span style={{ fontSize: 14, lineHeight: 1 }}>{icon}</span>
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
 // ── Main ArticleEditor ─────────────────────────────────────────────────────────
-const TABS = [
-  { id: 'hero',    label: '1 · Hero',     step: 1 },
-  { id: 'content', label: '2 · Content',  step: 2 },
-  { id: 'meta',    label: '3 · Metadata', step: 3 },
-  { id: 'seo',     label: '4 · SEO',      step: 4 },
-  { id: 'publish', label: '5 · Publish',  step: 5 },
-];
-
 export default function ArticleEditor({ initialPost, onBack, onSaveToParent, saving = false, isLight = false }) {
-  const [editorLight, setEditorLight] = useState(isLight);
-  const S = getS(editorLight);
-  const [formData, setFormData]     = useState(() => JSON.parse(JSON.stringify(initialPost)));
-  const [activeTab, setActiveTab]   = useState('hero');
-  const [previewLight, setPreviewLight] = useState(true);
-  const [tone, setTone]             = useState(initialPost.tone || 'Luxury Editorial');
-  const [dirty, setDirty]           = useState(false);
-  const [lastSaved, setLastSaved]   = useState(null);
-  const [saveLabel, setSaveLabel]   = useState(null);
+  const S = getS(false); // Canvas is always light (article feel); sidebar adapts
+  const [formData, setFormData]         = useState(() => JSON.parse(JSON.stringify(initialPost)));
+  const [activeBlockIdx, setActiveBlockIdx] = useState(null);
+  const [tone, setTone]                 = useState(initialPost.tone || 'Luxury Editorial');
+  const [dirty, setDirty]               = useState(false);
+  const [lastSaved, setLastSaved]       = useState(null);
+  const [saveLabel, setSaveLabel]       = useState(null);
+  const [focusKeyword, setFocusKeyword] = useState('');
+  const [showIntelPanel, setShowIntelPanel] = useState(false);
   const [showTemplate, setShowTemplate] = useState((initialPost.content || []).length === 0);
-  const [viewMode, setViewMode]     = useState('split'); // 'split' | 'editor' | 'preview'
-  const [viewport, setViewport]     = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
-  const [openIndices, setOpenIndices] = useState(() => {
-    const s = new Set();
-    (initialPost?.content || []).forEach((b, i) => {
-      if (b.type === 'intro' || b.type === 'body_wysiwyg') s.add(i);
-    });
-    if (s.size === 0) s.add(0);
-    return s;
-  });
-  const [selectedBlockIdx, setSelectedBlockIdx] = useState(null);
+  const [sidebarLight, setSidebarLight] = useState(isLight);
+  const SS = getS(sidebarLight); // Sidebar theme (can differ from canvas)
   const autosaveRef = useRef(null);
 
-  const updateForm = useCallback(data => {
-    setFormData(data);
-    setDirty(true);
-  }, []);
+  const contentIntel = useMemo(() => computeContentIntelligence(formData, focusKeyword), [formData, focusKeyword]);
+
+  const updateForm = useCallback(data => { setFormData(data); setDirty(true); }, []);
 
   const save = useCallback(async (data = formData) => {
     setSaveLabel('Saving…');
     const result = await onSaveToParent({ ...data, tone });
-    // Sync the real DB UUID into formData on the first save of a static post
-    if (result?.savedId && result.savedId !== data.id) {
-      setFormData(fd => ({ ...fd, id: result.savedId }));
-    }
+    if (result?.savedId && result.savedId !== data.id) setFormData(fd => ({ ...fd, id: result.savedId }));
     setDirty(false);
     setLastSaved(new Date());
     setSaveLabel('✓ Saved');
@@ -3452,254 +4472,114 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   }, [formData, tone, onSaveToParent]);
 
   const publish = async () => {
-    const updated = { ...formData, published: true, publishedAt: new Date().toISOString(), tone };
-    setFormData(updated);
-    await save(updated);
+    const u = { ...formData, published: true, publishedAt: new Date().toISOString(), tone };
+    setFormData(u); await save(u);
   };
-
   const unpublish = async () => {
-    const updated = { ...formData, published: false, tone };
-    setFormData(updated);
-    await save(updated);
-  };
-
-  const duplicate = () => {
-    const dup = { ...formData, slug: `${formData.slug}-copy`, title: `${formData.title} (Copy)`, published: false };
-    onSaveToParent(dup, true);
+    const u = { ...formData, published: false, tone };
+    setFormData(u); await save(u);
   };
 
   // Autosave every 25s if dirty
   useEffect(() => {
     autosaveRef.current = setInterval(() => {
-      setDirty(d => {
-        if (d) {
-          setFormData(fd => { save(fd); return fd; });
-          return false;
-        }
-        return d;
-      });
+      setDirty(d => { if (d) { setFormData(fd => { save(fd); return fd; }); return false; } return d; });
     }, 25000);
     return () => clearInterval(autosaveRef.current);
   }, [save]);
 
-  // Warn before browser close/tab navigation when dirty
+  // Warn on unload
   useEffect(() => {
-    const handler = (e) => {
-      if (!dirty) return;
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
+    const h = (e) => { if (!dirty) return; e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
   }, [dirty]);
 
   const statuses = computeStatuses(formData);
 
-  const handlePreviewBlockClick = (idx) => {
-    setSelectedBlockIdx(idx);
-    setActiveTab('content');
-    if (idx >= 0) setOpenIndices(prev => new Set([...prev, idx]));
-  };
-
-  const showPreview = viewMode !== 'editor';
-  const showEditor  = viewMode !== 'preview';
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: S.bg, overflow: 'hidden', ...themeVars(editorLight) }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100%', background: SS.surface, overflow: 'hidden' }}>
+      {/* Template picker modal */}
       {showTemplate && (
         <TemplatePicker
           onSelect={t => {
-            const newContent = t.content.map(b => ({ ...b, id: crypto.randomUUID() }));
-            updateForm({ ...formData, content: newContent });
+            const nc = t.content.map(b => ({ ...b }));
+            updateForm({ ...formData, content: nc });
             setShowTemplate(false);
-            setActiveTab('content');
-            const autoOpen = new Set();
-            newContent.forEach((b, i) => { if (b.type === 'intro' || b.type === 'body_wysiwyg') autoOpen.add(i); });
-            if (autoOpen.size === 0) autoOpen.add(0);
-            setOpenIndices(autoOpen);
           }}
           onClose={() => setShowTemplate(false)}
         />
       )}
 
-      {/* Save indicator strip */}
-      <div style={{
-        height: 3, background: dirty ? S.warn : (lastSaved ? S.success : 'transparent'),
-        transition: 'background 0.4s', flexShrink: 0,
-      }} />
-
-      {/* Article toolbar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px',
-        height: 48, flexShrink: 0, background: S.surface,
-        borderBottom: `1px solid ${S.border}`,
-      }}>
-        {/* Back */}
-        <button
-          onClick={() => {
-            if (dirty && !window.confirm('You have unsaved changes. Leave without saving?')) return;
-            onBack();
-          }}
-          style={{ background: 'none', border: 'none', color: S.muted, cursor: 'pointer', fontFamily: FU, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0 }}
-        >
+      {/* Top bar */}
+      <div style={{ height: 48, flexShrink: 0, background: SS.surface, borderBottom: `1px solid ${SS.border}`, display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px 0 12px' }}>
+        <button onClick={() => { if (dirty && !window.confirm('Unsaved changes. Leave?')) return; onBack(); }}
+          style={{ background: 'none', border: 'none', color: SS.muted, cursor: 'pointer', fontFamily: FU, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0 }}>
           ← Articles
         </button>
-        <div style={{ width: 1, height: 18, background: S.border, flexShrink: 0 }} />
-
-        {/* Title */}
-        <span style={{ fontFamily: FD, fontSize: 14, color: S.text, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '0 1 auto' }}>
+        <div style={{ width: 1, height: 18, background: SS.border, flexShrink: 0 }} />
+        <span style={{ fontFamily: FD, fontSize: 14, color: SS.text, flex: '0 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {formData.title || 'Untitled Article'}
         </span>
-
-        {/* Status badges */}
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
           {statuses.slice(0, 2).map(s => <StatusBadge key={s.label} label={s.label} color={s.color} />)}
         </div>
-
-        {/* Viewport toggle, centre */}
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: 2 }}>
-          {[
-            { key: 'editor',  label: 'Editor' },
-            { key: 'split',   label: 'Split' },
-            { key: 'preview', label: 'Preview' },
-          ].map(v => (
-            <button key={v.key} onClick={() => setViewMode(v.key)} style={{
-              fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
-              padding: '3px 9px', borderRadius: 2, cursor: 'pointer', transition: 'all 0.15s',
-              background: viewMode === v.key ? `${S.gold}18` : 'none',
-              border: `1px solid ${viewMode === v.key ? `${S.gold}60` : S.border}`,
-              color: viewMode === v.key ? S.gold : S.muted,
-            }}>{v.label}</button>
-          ))}
-          {showPreview && (
-            <>
-              <div style={{ width: 1, height: 18, background: S.border, alignSelf: 'center', margin: '0 2px' }} />
-              {[
-                { key: 'desktop', label: '⊡' },
-                { key: 'tablet',  label: '▭' },
-                { key: 'mobile',  label: '▯' },
-              ].map(v => (
-                <button key={v.key} onClick={() => setViewport(v.key)} title={v.key} style={{
-                  fontFamily: FU, fontSize: 11, padding: '3px 7px', borderRadius: 2, cursor: 'pointer',
-                  background: viewport === v.key ? `${S.gold}18` : 'none',
-                  border: `1px solid ${viewport === v.key ? `${S.gold}60` : S.border}`,
-                  color: viewport === v.key ? S.gold : S.muted,
-                }}>{v.label}</button>
-              ))}
-            </>
-          )}
-        </div>
-
+        <div style={{ flex: 1 }} />
         {/* Save state */}
-        <div style={{ fontFamily: FU, fontSize: 9, color: dirty ? S.warn : S.success, flexShrink: 0, letterSpacing: '0.06em' }}>
+        <div style={{ fontFamily: FU, fontSize: 9, color: dirty ? SS.warn : SS.success, flexShrink: 0, letterSpacing: '0.06em' }}>
           {saveLabel || (dirty ? '● Unsaved' : (lastSaved ? `✓ ${lastSaved.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''))}
         </div>
-
-        {/* Editor panel light/dark */}
-        {showEditor && (
-          <button onClick={() => setEditorLight(l => !l)} title={editorLight ? 'Switch editor to dark mode' : 'Switch editor to light mode'}
-            style={{ background: 'none', border: `1px solid ${S.border}`, color: S.muted, fontSize: 12, padding: '3px 7px', cursor: 'pointer', borderRadius: 1, flexShrink: 0 }}>
-            {editorLight ? '☾' : '☀'}
-          </button>
-        )}
-
-        {/* Preview light/dark */}
-        {showPreview && (
-          <button onClick={() => setPreviewLight(l => !l)} title="Toggle preview theme"
-            style={{ background: 'none', border: `1px solid ${S.border}`, color: S.muted, fontSize: 12, padding: '3px 7px', cursor: 'pointer', borderRadius: 1, flexShrink: 0 }}>
-            {previewLight ? '◐' : '◑'}
-          </button>
-        )}
-
-        {/* Template picker */}
-        <GhostBtn small onClick={() => setShowTemplate(true)}>Templates</GhostBtn>
-
-        {/* Quick save */}
-        <GhostBtn small onClick={() => save()} disabled={saving}>
-          {saving ? 'Saving…' : 'Save Draft'}
-        </GhostBtn>
+        {/* Intelligence badge */}
+        <ContentScoreBadge score={contentIntel.score} grade={contentIntel.grade} gradeColor={contentIntel.gradeColor} onClick={() => setShowIntelPanel(p => !p)} />
+        {/* Sidebar theme */}
+        <button onClick={() => setSidebarLight(l => !l)} title="Toggle sidebar theme"
+          style={{ background: 'none', border: `1px solid ${SS.border}`, color: SS.muted, fontSize: 12, padding: '3px 7px', cursor: 'pointer', borderRadius: 2, flexShrink: 0 }}>
+          {sidebarLight ? '☾' : '☀'}
+        </button>
+        {/* Publish */}
+        {!formData.published
+          ? <GoldBtn small onClick={publish}>Publish</GoldBtn>
+          : <GhostBtn small onClick={unpublish}>Published ✓</GhostBtn>
+        }
       </div>
 
-      {/* Main workspace, [Editor panel (left, 50%)] [Preview canvas (right, 50%)] */}
+      {/* 3-zone layout: sidebar | canvas | intel panel */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+        {/* Left: Document Sidebar */}
+        <DocSidebar
+          formData={formData} onChange={updateForm}
+          tone={tone} onToneChange={setTone}
+          onPublish={publish} onUnpublish={unpublish} onSave={save} saving={saving}
+          intel={contentIntel} focusKeyword={focusKeyword} onKeywordChange={setFocusKeyword}
+          onOpenIntelligence={() => setShowIntelPanel(p => !p)}
+          S={SS}
+        />
 
-        {/* ── Left: editor panel ── */}
-        {showEditor && (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, background: S.surface, borderRight: `1px solid ${S.border}`, ...themeVars(editorLight) }}>
-            {/* Tab bar */}
-            <div style={{ display: 'flex', borderBottom: `1px solid ${S.border}`, flexShrink: 0, overflowX: 'auto' }}>
-              {TABS.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveTab(t.id)}
-                  style={{
-                    fontFamily: FU, fontSize: 9, fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase',
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    padding: '10px 12px', whiteSpace: 'nowrap', flexShrink: 0,
-                    color: activeTab === t.id ? GOLD : S.muted,
-                    borderBottom: `2px solid ${activeTab === t.id ? GOLD : 'transparent'}`,
-                    transition: 'color 0.15s',
-                  }}
-                >
-                  {t.id === 'content' ? `2 · Content (${(formData.content || []).length})` : t.label}
-                </button>
-              ))}
+        {/* Right: Editable Article Canvas */}
+        <EditableCanvas
+          formData={formData} onChange={updateForm}
+          activeBlockIdx={activeBlockIdx} setActiveBlockIdx={setActiveBlockIdx}
+          showTemplate={showTemplate} setShowTemplate={setShowTemplate}
+          S={SS}
+        />
+
+        {/* Far right: Intelligence slide-in panel */}
+        {showIntelPanel && (
+          <div style={{ width: 360, flexShrink: 0, background: SS.surface, borderLeft: `1px solid ${SS.border}`, overflowY: 'auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '16px', borderBottom: `1px solid ${SS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div>
+                <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 4 }}>✦ Intelligence</div>
+                <div style={{ fontFamily: FD, fontSize: 20, color: SS.text, fontWeight: 400 }}>Content Analysis</div>
+              </div>
+              <button onClick={() => setShowIntelPanel(false)} style={{ background: 'none', border: 'none', color: SS.muted, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>✕</button>
             </div>
-            {/* Scrollable panel */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 60px' }}>
-              {activeTab === 'hero'    && (
-                <>
-                  <HeroPanel formData={formData} onChange={updateForm} defaultOpen />
-                  <div style={{ marginTop: 16 }}>
-                    <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, marginBottom: 8 }}>
-                      Live Hero Preview
-                    </div>
-                    <HeroPreviewPane formData={formData} isLight={previewLight} />
-                  </div>
-                </>
-              )}
-              {activeTab === 'content' && (
-                <ContentPanel
-                  blocks={formData.content || []}
-                  onChange={blocks => updateForm({ ...formData, content: blocks })}
-                  tone={tone}
-                  openIndices={openIndices}
-                  setOpenIndices={setOpenIndices}
-                />
-              )}
-              {activeTab === 'meta'    && <MetaPanel formData={formData} onChange={updateForm} tone={tone} onToneChange={setTone} />}
-              {activeTab === 'seo'     && <SEOPanel  formData={formData} onChange={updateForm} tone={tone} />}
-              {activeTab === 'publish' && (
-                <PublishPanel
-                  formData={formData}
-                  onChange={updateForm}
-                  onPublish={publish}
-                  onUnpublish={unpublish}
-                  onSave={save}
-                  onDuplicate={duplicate}
-                  saving={saving}
-                />
-              )}
-
-              {/* Step navigation */}
-              <StepNav activeTab={activeTab} onTabChange={setActiveTab} />
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              <ContentIntelligencePanel formData={formData} focusKeyword={focusKeyword} onKeywordChange={setFocusKeyword} S={SS} />
             </div>
-          </div>
-        )}
-
-        {/* ── Right: live preview canvas ── */}
-        {showPreview && (
-          <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minHeight: 0, background: previewLight ? '#fafaf8' : '#0d0d0b' }}>
-            <ArticlePreview
-              formData={formData}
-              isLight={previewLight}
-              viewport={viewport}
-              onBlockClick={showEditor ? handlePreviewBlockClick : undefined}
-              selectedBlockIdx={showEditor ? selectedBlockIdx : undefined}
-            />
           </div>
         )}
       </div>
     </div>
   );
 }
+

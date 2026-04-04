@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { POSTS } from '../Magazine/data/posts';
 import { CATEGORIES } from '../Magazine/data/categories';
+import { computeContentIntelligence } from './ContentIntelligence';
 import {
   getS, themeVars, FU, FD,
   computeStatuses, computeWordCount,
@@ -51,9 +52,11 @@ function formatDate(d) {
 
 // ── Studio Home Screen ────────────────────────────────────────────────────────
 function StudioHome({ posts, onOpenArticles, onOpenHomepage, onOpenCategories }) {
-  const published = posts.filter(p => p.published).length;
-  const drafts    = posts.filter(p => !p.published).length;
-  const featured  = posts.filter(p => p.featured).length;
+  const published  = posts.filter(p => p.published).length;
+  const scheduled  = posts.filter(p => !p.published && p.scheduledDate && new Date(p.scheduledDate) > new Date()).length;
+  const drafts     = posts.filter(p => !p.published && !(p.scheduledDate && new Date(p.scheduledDate) > new Date())).length;
+  const featured   = posts.filter(p => p.featured).length;
+  const needsWork  = posts.filter(p => computeContentIntelligence(p, '').score < 55).length;
 
   const recent = [...posts]
     .sort((a, b) => new Date(b._lastEdited || b.date) - new Date(a._lastEdited || a.date))
@@ -161,20 +164,20 @@ function StudioHome({ posts, onOpenArticles, onOpenHomepage, onOpenCategories })
       </div>
 
       {/* Stats row */}
-      <div style={{
-        display: 'flex', gap: 2, marginBottom: 40, flexWrap: 'wrap',
-      }}>
+      <div style={{ display: 'flex', gap: 2, marginBottom: 40, flexWrap: 'wrap' }}>
         {[
-          { label: 'Published', value: published, color: S.success },
-          { label: 'Drafts',    value: drafts,    color: S.faint },
-          { label: 'Featured',  value: featured,  color: S.gold },
-          { label: 'Categories',value: CATEGORIES.length, color: S.info },
+          { label: 'Published',  value: published,        color: S.success },
+          { label: 'Scheduled',  value: scheduled,        color: '#818cf8' },
+          { label: 'Drafts',     value: drafts,           color: S.faint   },
+          { label: 'Featured',   value: featured,         color: S.gold    },
+          { label: 'Needs Work', value: needsWork,        color: S.error   },
+          { label: 'Categories', value: CATEGORIES.length, color: '#7c9db5' },
         ].map(stat => (
           <div
             key={stat.label}
             style={{
               background: S.surface, border: `1px solid ${S.border}`,
-              borderRadius: 2, padding: '14px 24px', minWidth: 130,
+              borderRadius: 2, padding: '14px 24px', minWidth: 120,
             }}
           >
             <div style={{ fontFamily: FD, fontSize: 32, color: stat.color, lineHeight: 1 }}>
@@ -198,9 +201,11 @@ function StudioHome({ posts, onOpenArticles, onOpenHomepage, onOpenCategories })
           }}>
             Recent Articles
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 2 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 2 }}>
             {recent.map(post => {
               const statuses = computeStatuses(post);
+              const wc = computeWordCount(post.content);
+              const intel = computeContentIntelligence(post, '');
               return (
                 <div
                   key={post.id}
@@ -230,6 +235,23 @@ function StudioHome({ posts, onOpenArticles, onOpenHomepage, onOpenCategories })
                     }}>
                       {post.title}
                     </div>
+                    {/* Author + meta row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                      {post.author?.avatar && (
+                        <img src={post.author.avatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', opacity: 0.8 }} />
+                      )}
+                      {post.author?.name && (
+                        <span style={{ fontFamily: FU, fontSize: 10, color: S.muted }}>
+                          {post.author.name.split(' ')[0]}
+                        </span>
+                      )}
+                      {wc > 0 && (
+                        <span style={{ fontFamily: FU, fontSize: 10, color: S.faint }}>· {wc.toLocaleString()}w</span>
+                      )}
+                      <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: intel.gradeColor }}>
+                        {intel.score}
+                      </span>
+                    </div>
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {statuses.slice(0, 2).map(s => (
                         <StatusBadge key={s.label} label={s.label} color={s.color} />
@@ -246,13 +268,18 @@ function StudioHome({ posts, onOpenArticles, onOpenHomepage, onOpenCategories })
   );
 }
 
-// ── Article List ──────────────────────────────────────────────────────────────
-function ArticleList({ posts, onEdit, onNew, onDuplicate, onDelete, onBack }) {
-  const [search, setSearch]     = useState('');
-  const [filterCat, setFilterCat] = useState('all');
+// ── Article List (Newsroom) ───────────────────────────────────────────────────
+function ArticleList({ posts, onEdit, onNew, onDuplicate, onDelete, onBack, onBulkAction }) {
+  const [search, setSearch]         = useState('');
+  const [filterCat, setFilterCat]   = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [sortCol, setSortCol]   = useState('date');
-  const [sortDir, setSortDir]   = useState('desc');
+  const [sortCol, setSortCol]       = useState('date');
+  const [sortDir, setSortDir]       = useState('desc');
+  const [selected, setSelected]     = useState(new Set());
+  const [bulkOpen, setBulkOpen]     = useState(false);
+  const [bulkWorking, setBulkWorking] = useState(false);
+
+  const isSched = (p) => !p.published && p.scheduledDate && new Date(p.scheduledDate) > new Date();
 
   const toggleSort = (col) => {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -264,145 +291,162 @@ function ArticleList({ posts, onEdit, onNew, onDuplicate, onDelete, onBack }) {
       if (search && !p.title.toLowerCase().includes(search.toLowerCase()) &&
           !(p.excerpt || '').toLowerCase().includes(search.toLowerCase())) return false;
       if (filterCat !== 'all' && p.category !== filterCat) return false;
-      if (filterStatus === 'published' && !p.published) return false;
-      if (filterStatus === 'draft' && p.published) return false;
-      if (filterStatus === 'featured' && !p.featured) return false;
+      const sched = isSched(p);
+      if (filterStatus === 'published'       && !p.published) return false;
+      if (filterStatus === 'draft'           && (p.published || sched)) return false;
+      if (filterStatus === 'scheduled'       && !sched) return false;
+      if (filterStatus === 'featured'        && !p.featured) return false;
+      if (filterStatus === 'needs-attention' && computeContentIntelligence(p, '').score >= 55) return false;
       return true;
     });
     const dir = sortDir === 'asc' ? 1 : -1;
-    return [...base].sort((a, b) => {
+    const sorted = [...base].sort((a, b) => {
       if (sortCol === 'title')  return dir * a.title.localeCompare(b.title);
       if (sortCol === 'words')  return dir * (computeWordCount(a.content) - computeWordCount(b.content));
       if (sortCol === 'date')   return dir * (new Date(a.date || 0) - new Date(b.date || 0));
       if (sortCol === 'status') return dir * (a.published === b.published ? 0 : a.published ? -1 : 1);
+      if (sortCol === 'score') {
+        const sa = computeContentIntelligence(a, '').score;
+        const sb = computeContentIntelligence(b, '').score;
+        return dir * (sa - sb);
+      }
       return 0;
     });
+    return sorted.map(p => ({ ...p, _intel: computeContentIntelligence(p, '') }));
   }, [posts, search, filterCat, filterStatus, sortCol, sortDir]);
 
-  const catOptions = [
-    { value: 'all', label: 'All Categories' },
-    ...CATEGORIES.map(c => ({ value: c.id, label: c.label })),
+  useEffect(() => { setSelected(new Set()); }, [filterStatus, filterCat, search]);
+
+  const allSelected = filtered.length > 0 && filtered.every(p => selected.has(p.id));
+  const toggleAll   = () => allSelected ? setSelected(new Set()) : setSelected(new Set(filtered.map(p => p.id)));
+  const toggleRow   = (id) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const runBulk = async (action) => {
+    setBulkOpen(false);
+    if (action === 'delete' && !window.confirm(`Delete ${selected.size} article${selected.size > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    setBulkWorking(true);
+    await onBulkAction(action, [...selected]);
+    setSelected(new Set());
+    setBulkWorking(false);
+  };
+
+  const catOptions    = [{ value: 'all', label: 'All Categories' }, ...CATEGORIES.map(c => ({ value: c.id, label: c.label }))];
+  const statusOptions = [
+    { value: 'all',             label: 'All Status'      },
+    { value: 'published',       label: 'Published'       },
+    { value: 'draft',           label: 'Draft'           },
+    { value: 'scheduled',       label: 'Scheduled'       },
+    { value: 'featured',        label: 'Featured'        },
+    { value: 'needs-attention', label: 'Needs Attention' },
   ];
 
-  const statusOptions = [
-    { value: 'all',       label: 'All Status' },
-    { value: 'published', label: 'Published' },
-    { value: 'draft',     label: 'Draft' },
-    { value: 'featured',  label: 'Featured' },
-  ];
+  const GOLD_V = 'var(--s-gold,#c9a96e)';
+  const inputStyle = {
+    background: 'rgba(245,240,232,0.04)', border: `1px solid rgba(245,240,232,0.1)`,
+    color: S.text, fontFamily: FU, fontSize: 12,
+    padding: '6px 8px', borderRadius: 2, cursor: 'pointer', outline: 'none',
+  };
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100%' }}>
       {/* Toolbar */}
-      <div style={{
-        height: 52, flexShrink: 0,
-        background: S.surface, borderBottom: `1px solid ${S.border}`,
-        display: 'flex', alignItems: 'center', gap: 12, padding: '0 20px',
-      }}>
-        <button
-          onClick={onBack}
-          style={{
-            fontFamily: FU, fontSize: 11, fontWeight: 600, letterSpacing: '0.1em',
-            textTransform: 'uppercase', color: S.muted, background: 'none',
-            border: 'none', cursor: 'pointer',
-          }}
-        >
+      <div style={{ height: 52, flexShrink: 0, background: S.surface, borderBottom: `1px solid ${S.border}`, display: 'flex', alignItems: 'center', gap: 12, padding: '0 20px' }}>
+        <button onClick={onBack} style={{ fontFamily: FU, fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: S.muted, background: 'none', border: 'none', cursor: 'pointer' }}>
           ← Studio Home
         </button>
-
         <div style={{ width: 1, height: 20, background: S.border }} />
-
-        <span style={{ fontFamily: FU, fontSize: 12, fontWeight: 600, color: S.text, letterSpacing: '0.05em' }}>
-          Articles
-        </span>
-
+        <span style={{ fontFamily: FU, fontSize: 12, fontWeight: 600, color: S.text, letterSpacing: '0.05em' }}>Articles</span>
         <div style={{ flex: 1 }} />
-
         <GoldBtn small onClick={onNew}>+ New Article</GoldBtn>
       </div>
 
       {/* Filters */}
-      <div style={{
-        padding: '10px 20px', background: S.surface,
-        borderBottom: `1px solid ${S.border}`,
-        display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
-      }}>
+      <div style={{ padding: '10px 20px', background: S.surface, borderBottom: `1px solid ${S.border}`, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 200, maxWidth: 320 }}>
-          <span style={{
-            position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)',
-            color: S.muted, fontSize: 13,
-          }}>⌕</span>
+          <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: S.muted, fontSize: 13 }}>⌕</span>
           <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search articles…"
-            style={{
-              width: '100%', boxSizing: 'border-box',
-              background: S.inputBg || 'rgba(245,240,232,0.04)',
-              border: `1px solid rgba(245,240,232,0.1)`,
-              color: S.text, fontFamily: FU, fontSize: 13,
-              padding: '6px 10px 6px 26px', borderRadius: 2, outline: 'none',
-            }}
+            value={search} onChange={e => setSearch(e.target.value)} placeholder="Search articles…"
+            style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', fontSize: 13, padding: '6px 10px 6px 26px' }}
           />
         </div>
-
-        {[catOptions, statusOptions].map((opts, i) => (
-          <select
-            key={i}
-            value={i === 0 ? filterCat : filterStatus}
-            onChange={e => i === 0 ? setFilterCat(e.target.value) : setFilterStatus(e.target.value)}
-            style={{
-              background: 'rgba(245,240,232,0.04)',
-              border: `1px solid rgba(245,240,232,0.1)`,
-              color: S.text, fontFamily: FU, fontSize: 12,
-              padding: '6px 8px', borderRadius: 2, cursor: 'pointer', outline: 'none',
-            }}
-          >
-            {opts.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        ))}
-
-        <span style={{ fontFamily: FU, fontSize: 12, color: S.muted, marginLeft: 4 }}>
+        <select value={filterCat}    onChange={e => setFilterCat(e.target.value)}    style={inputStyle}>
+          {catOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={inputStyle}>
+          {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <span style={{ fontFamily: FU, fontSize: 12, color: S.muted }}>
           {filtered.length} article{filtered.length !== 1 ? 's' : ''}
         </span>
       </div>
 
-      {/* List */}
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div style={{ padding: '8px 20px', background: 'rgba(201,168,76,0.06)', borderBottom: `1px solid rgba(201,168,76,0.18)`, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <span style={{ fontFamily: FU, fontSize: 11, color: GOLD_V, fontWeight: 600 }}>{selected.size} selected</span>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setBulkOpen(o => !o)} disabled={bulkWorking}
+              style={{ fontFamily: FU, fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '5px 12px', borderRadius: 2, cursor: 'pointer', background: 'none', border: `1px solid rgba(201,168,76,0.4)`, color: GOLD_V, opacity: bulkWorking ? 0.5 : 1 }}
+            >
+              {bulkWorking ? 'Working…' : 'Bulk Actions ▾'}
+            </button>
+            {bulkOpen && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, zIndex: 100, background: 'var(--s-surface,#161614)', border: `1px solid rgba(245,240,232,0.12)`, borderRadius: 3, minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
+                {[
+                  { label: 'Publish',       action: 'publish',   color: S.success },
+                  { label: 'Unpublish',     action: 'unpublish', color: S.muted   },
+                  { label: 'Mark Featured', action: 'feature',   color: GOLD_V    },
+                  { label: 'Unfeature',     action: 'unfeature', color: S.muted   },
+                  null,
+                  { label: 'Delete',        action: 'delete',    color: S.error   },
+                ].map((item, i) => item === null ? (
+                  <div key={i} style={{ height: 1, background: 'rgba(245,240,232,0.08)', margin: '3px 0' }} />
+                ) : (
+                  <button key={item.action} onClick={() => runBulk(item.action)}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', background: 'none', border: 'none', fontFamily: FU, fontSize: 11, color: item.color || S.text, cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(245,240,232,0.05)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >{item.label}</button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button onClick={() => setSelected(new Set())} style={{ fontFamily: FU, fontSize: 10, color: S.muted, background: 'none', border: 'none', cursor: 'pointer' }}>Clear</button>
+        </div>
+      )}
+
+      {/* Table */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {filtered.length === 0 ? (
-          <div style={{
-            padding: 40, textAlign: 'center',
-            fontFamily: FU, fontSize: 14, color: S.muted,
-          }}>
-            No articles match your filters.
-          </div>
+          <div style={{ padding: 40, textAlign: 'center', fontFamily: FU, fontSize: 14, color: S.muted }}>No articles match your filters.</div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${S.border}` }}>
+                <th style={{ padding: '10px 8px 10px 20px', width: 40 }}>
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} style={{ accentColor: GOLD_V, cursor: 'pointer' }} />
+                </th>
                 {[
-                  { label: '',       col: null    },
-                  { label: 'Title',  col: 'title' },
-                  { label: 'Category', col: null  },
-                  { label: 'Status', col: 'status'},
-                  { label: 'Words',  col: 'words' },
-                  { label: 'Date',   col: 'date'  },
-                  { label: '',       col: null    },
-                ].map(({ label, col }, i) => (
-                  <th
-                    key={i}
-                    onClick={col ? () => toggleSort(col) : undefined}
+                  { label: '',          col: null,     w: 100  },
+                  { label: 'Title',     col: 'title',  w: null },
+                  { label: 'Author',    col: null,     w: 130  },
+                  { label: 'Category',  col: null,     w: 110  },
+                  { label: 'Status',    col: 'status', w: 150  },
+                  { label: 'Score',     col: 'score',  w: 65   },
+                  { label: 'Words',     col: 'words',  w: 65   },
+                  { label: 'Scheduled', col: null,     w: 105  },
+                  { label: 'Date',      col: 'date',   w: 95   },
+                  { label: '',          col: null,     w: 120  },
+                ].map(({ label, col, w }, i) => (
+                  <th key={i} onClick={col ? () => toggleSort(col) : undefined}
                     style={{
-                      padding: i === 0 ? '10px 8px 10px 20px' : i === 6 ? '10px 20px 10px 8px' : '10px 8px',
-                      fontFamily: FU, fontSize: 11, fontWeight: 700, letterSpacing: '0.14em',
-                      textTransform: 'uppercase',
+                      padding: i === 9 ? '10px 20px 10px 8px' : '10px 8px',
+                      fontFamily: FU, fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase',
                       color: col && sortCol === col ? S.gold : S.muted,
-                      textAlign: i === 6 ? 'right' : 'left',
-                      whiteSpace: 'nowrap',
-                      cursor: col ? 'pointer' : 'default',
-                      userSelect: 'none',
+                      textAlign: i === 9 ? 'right' : 'left',
+                      whiteSpace: 'nowrap', cursor: col ? 'pointer' : 'default', userSelect: 'none',
+                      width: w || undefined,
                     }}
                   >
                     {label}{col && sortCol === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
@@ -412,112 +456,93 @@ function ArticleList({ posts, onEdit, onNew, onDuplicate, onDelete, onBack }) {
             </thead>
             <tbody>
               {filtered.map(post => {
-                const statuses = computeStatuses(post);
-                const wc = computeWordCount(post.content);
+                const statuses  = computeStatuses(post);
+                const wc        = computeWordCount(post.content);
+                const intel     = post._intel;
+                const sched     = isSched(post);
+                const isChecked = selected.has(post.id);
                 return (
-                  <tr
-                    key={post.id}
-                    style={{
-                      borderBottom: `1px solid ${S.border}`,
-                      transition: 'background 0.1s',
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = `${S.surfaceUp}`}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  <tr key={post.id}
+                    style={{ borderBottom: `1px solid ${S.border}`, transition: 'background 0.1s', cursor: 'pointer', background: isChecked ? 'rgba(201,168,76,0.05)' : 'transparent' }}
+                    onMouseEnter={e => { if (!isChecked) e.currentTarget.style.background = S.surfaceUp; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = isChecked ? 'rgba(201,168,76,0.05)' : 'transparent'; }}
                     onClick={() => onEdit(post.id)}
                   >
+                    {/* Checkbox */}
+                    <td style={{ padding: '12px 8px 12px 20px', width: 40 }} onClick={e => { e.stopPropagation(); toggleRow(post.id); }}>
+                      <input type="checkbox" checked={isChecked} onChange={() => toggleRow(post.id)} style={{ accentColor: GOLD_V, cursor: 'pointer' }} />
+                    </td>
                     {/* Thumb */}
-                    <td style={{ padding: '12px 12px 12px 20px', width: 120 }}>
-                      <div style={{ width: 100, height: 75, borderRadius: 2, overflow: 'hidden', background: S.surfaceUp, flexShrink: 0 }}>
-                        {post.coverImage && (
-                          <img src={post.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} />
-                        )}
+                    <td style={{ padding: '12px 8px', width: 100 }}>
+                      <div style={{ width: 86, height: 58, borderRadius: 2, overflow: 'hidden', background: S.surfaceUp }}>
+                        {post.coverImage && <img src={post.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} />}
                       </div>
                     </td>
                     {/* Title */}
-                    <td style={{ padding: '10px 8px', maxWidth: 320 }}>
-                      <div style={{
-                        fontFamily: FD, fontSize: 16, color: S.text, lineHeight: 1.3,
-                        overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-                        maxWidth: 300,
-                      }}>
+                    <td style={{ padding: '10px 8px' }}>
+                      <div style={{ fontFamily: FD, fontSize: 15, color: S.text, lineHeight: 1.3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: 260 }}>
                         {post.title}
                       </div>
                       {post.excerpt && (
-                        <div style={{
-                          fontFamily: FU, fontSize: 12, color: S.muted, marginTop: 3,
-                          overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-                          maxWidth: 300,
-                        }}>
+                        <div style={{ fontFamily: FU, fontSize: 11, color: S.muted, marginTop: 3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: 260 }}>
                           {post.excerpt}
                         </div>
                       )}
                     </td>
+                    {/* Author */}
+                    <td style={{ padding: '10px 8px', width: 130 }}>
+                      {post.author ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                          {post.author.avatar && <img src={post.author.avatar} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, opacity: 0.85 }} />}
+                          <span style={{ fontFamily: FU, fontSize: 11, color: S.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 90 }}>
+                            {post.author.name?.split(' ')[0]}
+                          </span>
+                        </div>
+                      ) : <span style={{ color: S.faint, fontSize: 11 }}>—</span>}
+                    </td>
                     {/* Category */}
-                    <td style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}>
-                      <span style={{
-                        fontFamily: FU, fontSize: 11, color: S.gold, letterSpacing: '0.1em',
-                        textTransform: 'uppercase',
-                      }}>
+                    <td style={{ padding: '10px 8px', width: 110 }}>
+                      <span style={{ fontFamily: FU, fontSize: 11, color: S.gold, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                         {post.categoryLabel || post.category}
                       </span>
                     </td>
                     {/* Status */}
-                    <td style={{ padding: '10px 8px' }}>
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                        {statuses.slice(0, 3).map(s => (
-                          <StatusBadge key={s.label} label={s.label} color={s.color} />
-                        ))}
+                    <td style={{ padding: '10px 8px', width: 150 }}>
+                      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                        {sched
+                          ? <StatusBadge label="Scheduled" color="#818cf8" />
+                          : statuses.slice(0, 2).map(s => <StatusBadge key={s.label} label={s.label} color={s.color} />)
+                        }
+                        {intel.score < 55 && <StatusBadge label="Low Score" color={S.error} />}
+                      </div>
+                    </td>
+                    {/* Score */}
+                    <td style={{ padding: '10px 8px', width: 65 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 700, color: intel.gradeColor }}>{intel.score}</span>
+                        <span style={{ fontFamily: FU, fontSize: 8, color: intel.gradeColor, opacity: 0.7 }}>{intel.grade}</span>
                       </div>
                     </td>
                     {/* Words */}
-                    <td style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontFamily: FU, fontSize: 12, color: S.muted }}>
-                        {wc > 0 ? wc.toLocaleString() : ' - '}
+                    <td style={{ padding: '10px 8px', width: 65 }}>
+                      <span style={{ fontFamily: FU, fontSize: 12, color: S.muted }}>{wc > 0 ? wc.toLocaleString() : '—'}</span>
+                    </td>
+                    {/* Scheduled */}
+                    <td style={{ padding: '10px 8px', width: 105 }}>
+                      <span style={{ fontFamily: FU, fontSize: 10, color: sched ? '#818cf8' : S.faint }}>
+                        {sched ? formatDate(post.scheduledDate) : '—'}
                       </span>
                     </td>
                     {/* Date */}
-                    <td style={{ padding: '10px 8px', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontFamily: FU, fontSize: 10, color: S.muted }}>
-                        {formatDate(post.date)}
-                      </span>
+                    <td style={{ padding: '10px 8px', width: 95 }}>
+                      <span style={{ fontFamily: FU, fontSize: 10, color: S.muted }}>{formatDate(post.date)}</span>
                     </td>
                     {/* Actions */}
-                    <td style={{ padding: '10px 20px 10px 8px', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
-                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                        <button
-                          onClick={() => onEdit(post.id)}
-                          style={{
-                            fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em',
-                            textTransform: 'uppercase', padding: '4px 8px', borderRadius: 2,
-                            background: 'none', border: `1px solid ${S.border}`,
-                            color: S.muted, cursor: 'pointer',
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => onDuplicate(post.id)}
-                          style={{
-                            fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em',
-                            textTransform: 'uppercase', padding: '4px 8px', borderRadius: 2,
-                            background: 'none', border: `1px solid ${S.border}`,
-                            color: S.muted, cursor: 'pointer',
-                          }}
-                        >
-                          Dupe
-                        </button>
-                        <button
-                          onClick={() => onDelete(post.id)}
-                          style={{
-                            fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em',
-                            textTransform: 'uppercase', padding: '4px 8px', borderRadius: 2,
-                            background: 'none', border: `1px solid rgba(224,85,85,0.25)`,
-                            color: S.error, cursor: 'pointer',
-                          }}
-                        >
-                          ✕
-                        </button>
+                    <td style={{ padding: '10px 20px 10px 8px', textAlign: 'right', width: 120 }} onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
+                        <button onClick={() => onEdit(post.id)} style={{ fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 8px', borderRadius: 2, background: 'none', border: `1px solid ${S.border}`, color: S.muted, cursor: 'pointer' }}>Edit</button>
+                        <button onClick={() => onDuplicate(post.id)} style={{ fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 8px', borderRadius: 2, background: 'none', border: `1px solid ${S.border}`, color: S.muted, cursor: 'pointer' }}>Dupe</button>
+                        <button onClick={() => onDelete(post.id)} style={{ fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 8px', borderRadius: 2, background: 'none', border: `1px solid rgba(224,85,85,0.25)`, color: S.error, cursor: 'pointer' }}>✕</button>
                       </div>
                     </td>
                   </tr>
@@ -579,11 +604,16 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
   const [studioLight, setStudioLight] = useState(false);
   const S = getS(studioLight);
 
-  // ── Load posts from DB on mount (fallback to static POSTS) ───────────────────
+  // ── Load posts from DB on mount (merge with static seed posts) ───────────────
   useEffect(() => {
     fetchPosts().then(({ data, error }) => {
       if (!error && data && data.length > 0) {
-        setLocalPosts(data.map(p => ({ ...p, _lastEdited: p.updatedAt || p.date })));
+        const staticSlugs = new Set(POSTS.map(p => p.slug));
+        const dbOnly = data.filter(p => !staticSlugs.has(p.slug));
+        setLocalPosts([
+          ...POSTS.map(p => ({ ...p, _lastEdited: p.date })),
+          ...dbOnly.map(p => ({ ...p, _lastEdited: p.updatedAt || p.date })),
+        ]);
       }
       setDbLoaded(true);
     });
@@ -678,6 +708,28 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
     if (editingId === id) { setModeAndId('article-list', null); }
     await deletePost(id);
   };
+
+  const handleBulkAction = useCallback(async (action, ids) => {
+    for (const id of ids) {
+      const post = localPosts.find(p => p.id === id);
+      if (!post) continue;
+      if (action === 'delete') {
+        setLocalPosts(prev => prev.filter(p => p.id !== id));
+        await deletePost(id).catch(() => {});
+      } else {
+        const updates =
+          action === 'publish'   ? { published: true,  publishedAt: new Date().toISOString() } :
+          action === 'unpublish' ? { published: false, publishedAt: null } :
+          action === 'feature'   ? { featured: true  } :
+          action === 'unfeature' ? { featured: false } : null;
+        if (updates) {
+          const updated = { ...post, ...updates };
+          setLocalPosts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+          await savePost(updated).catch(() => {});
+        }
+      }
+    }
+  }, [localPosts]);
 
   const editingPost = localPosts.find(p => p.id === editingId) || null;
 
@@ -842,6 +894,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
             onNew={handleNewArticle}
             onDuplicate={handleDuplicate}
             onDelete={handleDelete}
+            onBulkAction={handleBulkAction}
             onBack={() => setModeAndId('home', null)}
           />
         )}
