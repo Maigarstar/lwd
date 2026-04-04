@@ -42,7 +42,8 @@ function deltaStr(curr, prev) {
   return (pct >= 0 ? "+" : "") + pct + "%";
 }
 
-function buildCSV({ vendorName, rangeLabel, stats, prevStats, sources, countries, compareList, dailyViews, interpretation }) {
+function buildCSV({ vendorName, rangeLabel, stats, prevStats, sources, countries, compareList, dailyViews, interpretation,
+  touchPointsTotal, touchPointsPerEnquiry, estBookingsHigh, estRevenueHigh, mediaValueLow, mediaValueHigh, effectiveBookingValue, effectiveCloseRate }) {
   const s  = stats    || {};
   const p  = prevStats || {};
   const d  = new Date().toLocaleDateString("en-GB", { day:"numeric", month:"long", year:"numeric" });
@@ -77,6 +78,19 @@ function buildCSV({ vendorName, rangeLabel, stats, prevStats, sources, countries
     csvRow("AUDIENCE COUNTRIES"),
     csvRow("Country", "Sessions", "Share"),
     ...(countries || []).map(c => csvRow(c.name, c.sessions, c.pct + "%")),
+    "",
+    csvRow("TOUCH POINTS"),
+    csvRow("Total interactions", touchPointsTotal || 0),
+    csvRow("Avg per enquiry", touchPointsPerEnquiry || "—"),
+    "",
+    csvRow("REVENUE IMPACT"),
+    csvRow("Est. bookings", `0–${estBookingsHigh || 0}`),
+    csvRow("Est. revenue", `£0–£${estRevenueHigh || 0}`),
+    csvRow("Assumptions", `£${effectiveBookingValue || 0} avg booking · ${effectiveCloseRate || 0}% close rate`),
+    "",
+    csvRow("MEDIA VALUE"),
+    csvRow("Equivalent ad spend (low)", `£${mediaValueLow || 0}`),
+    csvRow("Equivalent ad spend (high)", `£${mediaValueHigh || 0}`),
     "",
     csvRow("COMPARE INTELLIGENCE (last 30 days)"),
     csvRow("Listing", "Type", "Sessions"),
@@ -164,6 +178,109 @@ const SOURCE_ICONS = {
 function countryFlag(code) {
   if (!code || code.length !== 2) return "🌐";
   return String.fromCodePoint(...[...code.toUpperCase()].map(c => c.charCodeAt(0) + 127397));
+}
+
+// ── Media value benchmarks (£ equivalent paid media per event) ────────────────
+
+const MEDIA_CPCs = {
+  page_view:         { low: 8,   high: 15  },
+  shortlist_add:     { low: 45,  high: 80  },
+  compare_add:       { low: 60,  high: 100 },
+  enquiry_submitted: { low: 180, high: 350 },
+  outbound_click:    { low: 12,  high: 25  },
+};
+
+// ── Category / country ROI defaults (pre-fill before vendor sets their own) ───
+
+const CATEGORY_DEFAULTS = {
+  venue: {
+    GB: { value: 18000, rate: 20 },
+    IT: { value: 35000, rate: 18 },
+    AE: { value: 45000, rate: 15 },
+    FR: { value: 28000, rate: 18 },
+    US: { value: 22000, rate: 22 },
+    default: { value: 20000, rate: 20 },
+  },
+  photographer: { default: { value: 3500,  rate: 30 } },
+  planner:      { default: { value: 8000,  rate: 25 } },
+  florist:      { default: { value: 2500,  rate: 35 } },
+  caterer:      { default: { value: 6000,  rate: 28 } },
+  default:      { default: { value: 15000, rate: 20 } },
+};
+
+function getROIDefaults(entityType, countryCode) {
+  const cat = CATEGORY_DEFAULTS[entityType] || CATEGORY_DEFAULTS.default;
+  return cat[countryCode] || cat.default || { value: 15000, rate: 20 };
+}
+
+// ── Chart bucketing — scales with date range ──────────────────────────────────
+
+function getBucketSize(fromISO, toISO) {
+  const days = (new Date(toISO) - new Date(fromISO)) / 86_400_000;
+  if (days <= 35)  return "day";
+  if (days <= 95)  return "week";
+  return "month";
+}
+
+function fillTimeBuckets(data, fromISO, toISO, dayKey = "day", countKey = "views") {
+  const bucketSize = getBucketSize(fromISO, toISO);
+  const from = new Date(fromISO);
+  const to   = new Date(toISO);
+
+  // Build bucket keys
+  const buckets = {};
+  const cursor = new Date(from);
+  cursor.setUTCHours(0, 0, 0, 0);
+
+  while (cursor <= to) {
+    let key;
+    if (bucketSize === "day") {
+      key = cursor.toISOString().slice(0, 10);
+    } else if (bucketSize === "week") {
+      // ISO week start (Monday)
+      const d = new Date(cursor);
+      d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+      key = d.toISOString().slice(0, 10);
+    } else {
+      key = cursor.toISOString().slice(0, 7); // "YYYY-MM"
+    }
+    buckets[key] = (buckets[key] || 0); // initialise
+    if (bucketSize === "day")   cursor.setUTCDate(cursor.getUTCDate() + 1);
+    else if (bucketSize === "week") cursor.setUTCDate(cursor.getUTCDate() + 7);
+    else cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+
+  // Fill from data
+  for (const r of (data || [])) {
+    const raw = (r[dayKey] || "").slice(0, 10);
+    if (!raw) continue;
+    const d = new Date(raw + "T12:00:00Z");
+    let key;
+    if (bucketSize === "day") {
+      key = raw;
+    } else if (bucketSize === "week") {
+      const wd = new Date(d);
+      wd.setUTCDate(wd.getUTCDate() - ((wd.getUTCDay() + 6) % 7));
+      key = wd.toISOString().slice(0, 10);
+    } else {
+      key = raw.slice(0, 7);
+    }
+    if (key in buckets) buckets[key] += Number(r[countKey]) || 0;
+  }
+
+  return Object.entries(buckets).map(([label, count]) => ({ label, count, bucketSize }));
+}
+
+function fmtBucketLabel(label, bucketSize) {
+  if (bucketSize === "month") {
+    const d = new Date(label + "-01T12:00:00Z");
+    return d.toLocaleDateString("en-US", { month: "short" });
+  }
+  if (bucketSize === "week") {
+    const d = new Date(label + "T12:00:00Z");
+    return "W" + d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
+  return fmtDay(label);
 }
 
 // ── Interpretation engine ─────────────────────────────────────────────────────
@@ -314,7 +431,8 @@ function StatKPI({ label, value, prevValue, unit = "", color,
 
 // ── PrintReport — board-ready one-page PDF ────────────────────────────────────
 
-function PrintReport({ vendor, rangeLabel, stats, prevStats, sources, countries, compareList, dailyViews, interpretation, liveCount }) {
+function PrintReport({ vendor, rangeLabel, stats, prevStats, sources, countries, compareList, dailyViews, interpretation, liveCount,
+  touchPointsTotal, touchPointsPerEnquiry, mediaValueLow, mediaValueHigh, estBookingsHigh, estRevenueHigh, effectiveBookingValue, effectiveCloseRate }) {
   const s = stats    || {};
   const p = prevStats || {};
   const generatedOn = new Date().toLocaleDateString("en-GB", {
@@ -516,6 +634,49 @@ function PrintReport({ vendor, rangeLabel, stats, prevStats, sources, countries,
       </div>
       <hr style={PR.thinRule} />
 
+      {/* ── Media value + ROI ─────────────────────────────────────────── */}
+      <hr style={PR.thinRule} />
+      <div style={PR.grid2}>
+        <div>
+          <div style={PR.label}>Equivalent Media Value</div>
+          <div style={{ fontSize: 18, fontWeight: "bold", ...PR.gold, marginTop: 8 }}>
+            £{(mediaValueLow || 0).toLocaleString()}–£{(mediaValueHigh || 0).toLocaleString()}
+          </div>
+          <div style={{ ...PR.muted, marginTop: 4 }}>
+            What this traffic would cost in paid ads
+          </div>
+          {touchPointsTotal > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={PR.label}>Touch Points</div>
+              <div style={{ fontSize: 18, fontWeight: "bold", color: "#1a1a1a", marginTop: 4 }}>
+                {touchPointsTotal}
+              </div>
+              <div style={{ ...PR.muted }}>
+                total couple interactions
+                {touchPointsPerEnquiry ? ` · avg ${touchPointsPerEnquiry}× per enquiry` : ""}
+              </div>
+            </div>
+          )}
+        </div>
+        <div>
+          <div style={PR.label}>Revenue Impact (Estimated)</div>
+          <div style={{ fontSize: 18, fontWeight: "bold", color: "#1a1a1a", marginTop: 8 }}>
+            £0–£{(estRevenueHigh || 0).toLocaleString()}
+          </div>
+          <div style={{ ...PR.muted, marginTop: 4 }}>
+            0–{estBookingsHigh || 0} booking{estBookingsHigh === 1 ? "" : "s"} estimated
+          </div>
+          <div style={{ ...PR.muted, marginTop: 4 }}>
+            £{(effectiveBookingValue || 0).toLocaleString()} avg · {effectiveCloseRate || 0}% close rate
+          </div>
+          <div style={{ marginTop: 12, padding: "8px 12px",
+            background: "#faf7f0", border: "1px solid #e8dfc8", borderRadius: 4,
+            fontSize: 10, color: "#666" }}>
+            You only need one booking. One wedding covers your investment many times over.
+          </div>
+        </div>
+      </div>
+
       {/* ── 30-day trend (bar chart) ───────────────────────────────────── */}
       {trendSlice.length > 0 && (
         <div style={{ marginBottom: 20 }}>
@@ -607,7 +768,7 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
   const analyticsEnabled = vendor?.analytics_enabled === true;
 
   // ── State ──────────────────────────────────────────────────────────────────
-  const [range,       setRange]       = useState("7d");
+  const [range,       setRange]       = useState("30d");
   const [customFrom,  setCustomFrom]  = useState("");
   const [customTo,    setCustomTo]    = useState("");
 
@@ -631,6 +792,15 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
   const [countries,     setCountries]     = useState([]);
   const [trafficView,   setTrafficView]   = useState("sources"); // "sources" | "countries"
 
+  // ROI settings
+  const [avgBookingValue, setAvgBookingValue] = useState(null);
+  const [estCloseRate,    setEstCloseRate]    = useState(null);
+  const [roiSettingsSet,  setRoiSettingsSet]  = useState(false);
+  const [editingROI,      setEditingROI]      = useState(false);
+  const [roiInputValue,   setRoiInputValue]   = useState("");
+  const [roiInputRate,    setRoiInputRate]    = useState("");
+  const [savingROI,       setSavingROI]       = useState(false);
+
   const notifIdRef  = useRef(0);
   const realtimeRef = useRef(null);
 
@@ -644,11 +814,12 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
   // ── Date range helpers ─────────────────────────────────────────────────────
   const getRangeISO = useCallback(() => {
     const now = Date.now();
-    if (range === "7d")  return { from: new Date(now - 7  * 86400_000).toISOString(), to: new Date(now).toISOString() };
-    if (range === "30d") return { from: new Date(now - 30 * 86400_000).toISOString(), to: new Date(now).toISOString() };
+    if (range === "30d") return { from: new Date(now - 30  * 86400_000).toISOString(), to: new Date(now).toISOString() };
+    if (range === "90d") return { from: new Date(now - 90  * 86400_000).toISOString(), to: new Date(now).toISOString() };
+    if (range === "12m") return { from: new Date(now - 365 * 86400_000).toISOString(), to: new Date(now).toISOString() };
     if (range === "custom" && customFrom && customTo)
       return { from: new Date(customFrom).toISOString(), to: new Date(customTo + "T23:59:59").toISOString() };
-    return { from: new Date(now - 7 * 86400_000).toISOString(), to: new Date(now).toISOString() };
+    return { from: new Date(now - 30 * 86400_000).toISOString(), to: new Date(now).toISOString() };
   }, [range, customFrom, customTo]);
 
   const getPrevRangeISO = useCallback(() => {
@@ -749,31 +920,33 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
     } catch { setCompareList([]); }
   }
 
-  async function loadDailyViews() {
+  async function loadDailyViews(from, to) {
     try {
-      const { data, error } = await supabase.rpc("get_listing_daily_views", { p_listing_id: vendor.id });
+      const { data, error } = await supabase.rpc("get_listing_daily_views", {
+        p_listing_id: vendor.id, p_from: from, p_to: to,
+      });
       if (error) { setDailyViews([]); return; }
-      setDailyViews(fillDailyMap(data, "day", "views"));
+      setDailyViews(fillTimeBuckets(data, from, to, "day", "views"));
     } catch { setDailyViews([]); }
   }
 
-  async function loadDailyShortlists() {
+  async function loadDailyShortlists(from, to) {
     try {
       const { data, error } = await supabase.rpc("get_listing_daily_events", {
-        p_listing_id: vendor.id, p_event_type: "shortlist_add",
+        p_listing_id: vendor.id, p_event_type: "shortlist_add", p_from: from, p_to: to,
       });
       if (error) { setDailyShortlists([]); return; }
-      setDailyShortlists(fillDailyMap(data, "day", "count"));
+      setDailyShortlists(fillTimeBuckets(data, from, to, "day", "count"));
     } catch { setDailyShortlists([]); }
   }
 
-  async function loadDailyEnquiries() {
+  async function loadDailyEnquiries(from, to) {
     try {
       const { data, error } = await supabase.rpc("get_listing_daily_events", {
-        p_listing_id: vendor.id, p_event_type: "enquiry_submitted",
+        p_listing_id: vendor.id, p_event_type: "enquiry_submitted", p_from: from, p_to: to,
       });
       if (error) { setDailyEnquiries([]); return; }
-      setDailyEnquiries(fillDailyMap(data, "day", "count"));
+      setDailyEnquiries(fillTimeBuckets(data, from, to, "day", "count"));
     } catch { setDailyEnquiries([]); }
   }
 
@@ -791,6 +964,40 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
         pct:      Math.round((Number(r.sessions) / total) * 100),
       })));
     } catch { setCountries([]); }
+  }
+
+  async function loadROISettings() {
+    try {
+      const { data, error } = await supabase.rpc("get_vendor_roi_settings", {
+        p_vendor_id: vendor.id,
+      });
+      if (error || !data?.[0]) return;
+      const row = data[0];
+      if (row.avg_booking_value) {
+        setAvgBookingValue(Number(row.avg_booking_value));
+        setEstCloseRate(Number(row.est_close_rate));
+        setRoiSettingsSet(true);
+      }
+    } catch { /* silent */ }
+  }
+
+  async function saveROISettings() {
+    const val  = parseFloat(roiInputValue);
+    const rate = parseFloat(roiInputRate);
+    if (!val || !rate || rate < 1 || rate > 100) return;
+    setSavingROI(true);
+    try {
+      await supabase.rpc("save_vendor_roi_settings", {
+        p_vendor_id:     vendor.id,
+        p_booking_value: val,
+        p_close_rate:    rate,
+      });
+      setAvgBookingValue(val);
+      setEstCloseRate(rate);
+      setRoiSettingsSet(true);
+      setEditingROI(false);
+    } catch { /* silent */ }
+    setSavingROI(false);
   }
 
   // ── loadAll — clears state immediately, then fetches ───────────────────────
@@ -814,9 +1021,9 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
       loadSources(from, to),
       loadCountries(from, to),
       loadCompareList(),
-      loadDailyViews(),
-      loadDailyShortlists(),
-      loadDailyEnquiries(),
+      loadDailyViews(from, to),
+      loadDailyShortlists(from, to),
+      loadDailyEnquiries(from, to),
     ]);
 
     setLoading(false);
@@ -859,6 +1066,11 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
+  // Load ROI settings once on mount (independent of range changes)
+  useEffect(() => {
+    if (vendor?.id && analyticsEnabled) loadROISettings();
+  }, [vendor?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Guard ──────────────────────────────────────────────────────────────────
   if (!analyticsEnabled) return <LockedState C={C} />;
 
@@ -868,16 +1080,60 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
 
   const interpretation = buildInterpretation(stats, prevStats);
 
+  // ── Touch points ────────────────────────────────────────────────────────────
+  const touchPointsTotal = (cs.views || 0) + (cs.shortlists || 0) + (cs.compares || 0) +
+    (cs.enquiryStarted || 0) + (cs.enquirySubmitted || 0) + (cs.outbound || 0);
+
+  const touchPointsPerEnquiry = cs.enquirySubmitted > 0
+    ? (touchPointsTotal / cs.enquirySubmitted).toFixed(1)
+    : null;
+
+  // Funnel drop-off rates
+  const shortlistRate  = cs.views > 0      ? ((cs.shortlists      / cs.views)      * 100).toFixed(1) : null;
+  const compareRate    = cs.shortlists > 0 ? ((cs.compares        / cs.shortlists) * 100).toFixed(1) : null;
+  const enquiryRate    = cs.compares > 0   ? ((cs.enquirySubmitted / cs.compares)   * 100).toFixed(1) : null;
+
+  // ── Media value ─────────────────────────────────────────────────────────────
+  const mediaValueLow = Math.round(
+    (cs.views || 0)             * MEDIA_CPCs.page_view.low +
+    (cs.shortlists || 0)        * MEDIA_CPCs.shortlist_add.low +
+    (cs.compares || 0)          * MEDIA_CPCs.compare_add.low +
+    (cs.enquirySubmitted || 0)  * MEDIA_CPCs.enquiry_submitted.low +
+    (cs.outbound || 0)          * MEDIA_CPCs.outbound_click.low
+  );
+  const mediaValueHigh = Math.round(
+    (cs.views || 0)             * MEDIA_CPCs.page_view.high +
+    (cs.shortlists || 0)        * MEDIA_CPCs.shortlist_add.high +
+    (cs.compares || 0)          * MEDIA_CPCs.compare_add.high +
+    (cs.enquirySubmitted || 0)  * MEDIA_CPCs.enquiry_submitted.high +
+    (cs.outbound || 0)          * MEDIA_CPCs.outbound_click.high
+  );
+
+  // ── Revenue ROI ─────────────────────────────────────────────────────────────
+  const roiDefaults = getROIDefaults(vendor?.entity_type, vendor?.country_code);
+  const effectiveBookingValue = avgBookingValue ?? roiDefaults.value;
+  const effectiveCloseRate    = estCloseRate    ?? roiDefaults.rate;
+  const estBookingsHigh = Math.ceil((cs.enquirySubmitted || 0) * (effectiveCloseRate / 100));
+  const estRevenueHigh  = estBookingsHigh * effectiveBookingValue;
+
+  function fmtGBP(n) {
+    if (!n && n !== 0) return "—";
+    if (n >= 1000000) return `£${(n / 1000000).toFixed(1)}m`;
+    if (n >= 1000)    return `£${(n / 1000).toFixed(0)}k`;
+    return `£${n.toLocaleString()}`;
+  }
+
   const trendData =
     trendMetric === "shortlists" ? dailyShortlists :
     trendMetric === "enquiries"  ? dailyEnquiries  :
     dailyViews;
 
   const rangeLabel =
-    range === "7d"  ? "Last 7 days" :
-    range === "30d" ? "Last 30 days" :
+    range === "30d"  ? "Last 30 days" :
+    range === "90d"  ? "Last 90 days" :
+    range === "12m"  ? "Last 12 months" :
     range === "custom" && customFrom ? `${customFrom} → ${customTo || "today"}` :
-    "Last 7 days";
+    "Last 30 days";
 
   const refreshLabel = fmtRefreshed(lastRefreshed);
 
@@ -912,16 +1168,21 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
 
         {/* Range selector */}
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-          {["7d", "30d", "custom"].map(r => (
-            <button key={r} onClick={() => setRange(r)} style={{
+          {[
+            { key: "30d", label: "30 days" },
+            { key: "90d", label: "90 days" },
+            { key: "12m", label: "12 months" },
+            { key: "custom", label: "Custom" },
+          ].map(({ key, label }) => (
+            <button key={key} onClick={() => setRange(key)} style={{
               fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: "0.5px",
               padding: "5px 12px", borderRadius: "var(--lwd-radius-input)",
-              border: `1px solid ${range === r ? GOLD : border}`,
-              background: range === r ? GOLD_DIM : "transparent",
-              color: range === r ? GOLD : textMuted,
+              border: `1px solid ${range === key ? GOLD : border}`,
+              background: range === key ? GOLD_DIM : "transparent",
+              color: range === key ? GOLD : textMuted,
               cursor: "pointer", transition: "all 0.15s",
             }}>
-              {r === "7d" ? "7 days" : r === "30d" ? "30 days" : "Custom"}
+              {label}
             </button>
           ))}
         </div>
@@ -1080,6 +1341,128 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
         </div>
       )}
 
+      {/* ── Touch Point Funnel ──────────────────────────────────────────── */}
+      {!loading && touchPointsTotal > 0 && (
+        <div style={{ background: cardBg, border: `1px solid ${border}`,
+          borderRadius: "var(--lwd-radius-card)", padding: "20px 22px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start",
+            justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "2px",
+                textTransform: "uppercase", color: textMuted, marginBottom: 4 }}>
+                Couple engagement
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 15, fontWeight: 700, color: textPrimary }}>
+                Touch Point Journey
+              </div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontFamily: GD, fontSize: 28, fontWeight: 700, color: GOLD, lineHeight: 1 }}>
+                {touchPointsTotal}
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 10, color: textMuted, marginTop: 2 }}>
+                total interactions
+              </div>
+              {touchPointsPerEnquiry && (
+                <div style={{ fontFamily: NU, fontSize: 10, color: textMuted, marginTop: 1 }}>
+                  avg {touchPointsPerEnquiry}× per enquiry
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Funnel steps */}
+          {[
+            {
+              label: "Profile Views",
+              value: cs.views,
+              rate: null,
+              color: textPrimary,
+              icon: "◎",
+            },
+            {
+              label: "Shortlisted",
+              value: cs.shortlists,
+              rate: shortlistRate,
+              rateLabel: "of views",
+              color: GOLD,
+              icon: "♡",
+            },
+            {
+              label: "Compared",
+              value: cs.compares,
+              rate: compareRate,
+              rateLabel: "of shortlists",
+              color: GOLD,
+              icon: "⊞",
+            },
+            {
+              label: "Enquiries",
+              value: cs.enquirySubmitted,
+              rate: enquiryRate,
+              rateLabel: "of compares",
+              color: "#4ade80",
+              icon: "✉",
+            },
+          ].map((step, i) => (
+            <div key={step.label}>
+              {i > 0 && (
+                <div style={{ display: "flex", alignItems: "center",
+                  paddingLeft: 10, margin: "4px 0" }}>
+                  <div style={{ width: 2, height: 16,
+                    background: isLight ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",
+                    marginLeft: 11 }} />
+                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "center",
+                justifyContent: "space-between", padding: "10px 14px",
+                background: isLight ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)",
+                borderRadius: "var(--lwd-radius-input)",
+                border: `1px solid ${border}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 14, color: step.color }}>{step.icon}</span>
+                  <span style={{ fontFamily: NU, fontSize: 13, color: textPrimary }}>
+                    {step.label}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  {step.rate !== null && step.rate !== undefined && (
+                    <span style={{ fontFamily: NU, fontSize: 11, color: textMuted }}>
+                      {step.rate}% {step.rateLabel}
+                    </span>
+                  )}
+                  <span style={{ fontFamily: GD, fontSize: 20, fontWeight: 700,
+                    color: step.color, minWidth: 32, textAlign: "right" }}>
+                    {fmtNum(step.value)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Bookings row — locked/placeholder */}
+          <div style={{ display: "flex", alignItems: "center", paddingLeft: 10, margin: "4px 0" }}>
+            <div style={{ width: 2, height: 16,
+              background: isLight ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",
+              marginLeft: 11 }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center",
+            justifyContent: "space-between", padding: "10px 14px",
+            borderRadius: "var(--lwd-radius-input)",
+            border: `1px dashed ${border}`, opacity: 0.6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 14, color: textMuted }}>◈</span>
+              <span style={{ fontFamily: NU, fontSize: 13, color: textMuted }}>
+                Bookings
+              </span>
+            </div>
+            <span style={{ fontFamily: NU, fontSize: 11, color: textMuted, fontStyle: "italic" }}>
+              Track via Revenue Impact →
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* ── Primary KPI grid ─────────────────────────────────────────────── */}
       <div style={{ display: "grid",
         gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: 12 }}>
@@ -1139,7 +1522,7 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
               <Sparkline data={trendData.map(d => d.count)} color={GOLD} height={64} />
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
                 <span style={{ fontFamily: NU, fontSize: 10, color: textMuted }}>
-                  {trendData[0]?.label ? fmtDay(trendData[0].label) : ""}
+                  {trendData[0]?.label ? fmtBucketLabel(trendData[0].label, trendData[0]?.bucketSize || "day") : ""}
                 </span>
                 <span style={{ fontFamily: NU, fontSize: 10, color: textMuted }}>Today</span>
               </div>
@@ -1387,6 +1770,242 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
         )}
       </div>
 
+      {/* ── Media Value ─────────────────────────────────────────────────── */}
+      {!loading && touchPointsTotal > 0 && (
+        <div style={{ background: cardBg, border: `1px solid ${border}`,
+          borderRadius: "var(--lwd-radius-card)", padding: "20px 22px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start",
+            justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+            <div>
+              <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "2px",
+                textTransform: "uppercase", color: textMuted, marginBottom: 4 }}>
+                Equivalent advertising value
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 15, fontWeight: 700, color: textPrimary }}>
+                What This Traffic Would Cost in Paid Ads
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 12, color: textMuted, marginTop: 4, lineHeight: 1.5 }}>
+                Based on Google Ads benchmark CPCs for luxury wedding searches.
+              </div>
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{ fontFamily: GD, fontSize: isMobile ? 26 : 32,
+                fontWeight: 700, color: GOLD, lineHeight: 1 }}>
+                {fmtGBP(mediaValueLow)}–{fmtGBP(mediaValueHigh)}
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 10, color: textMuted, marginTop: 4 }}>
+                estimated media value · {rangeLabel.toLowerCase()}
+              </div>
+            </div>
+          </div>
+
+          {/* Breakdown */}
+          <div style={{ display: "grid",
+            gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(5, 1fr)", gap: 10, marginTop: 8 }}>
+            {[
+              { label: "Views",       count: cs.views,            low: MEDIA_CPCs.page_view.low,         high: MEDIA_CPCs.page_view.high         },
+              { label: "Shortlists",  count: cs.shortlists,       low: MEDIA_CPCs.shortlist_add.low,     high: MEDIA_CPCs.shortlist_add.high     },
+              { label: "Compares",    count: cs.compares,         low: MEDIA_CPCs.compare_add.low,       high: MEDIA_CPCs.compare_add.high       },
+              { label: "Enquiries",   count: cs.enquirySubmitted, low: MEDIA_CPCs.enquiry_submitted.low, high: MEDIA_CPCs.enquiry_submitted.high },
+              { label: "Site Clicks", count: cs.outbound,         low: MEDIA_CPCs.outbound_click.low,    high: MEDIA_CPCs.outbound_click.high    },
+            ].map(item => (
+              <div key={item.label} style={{
+                padding: "12px 14px",
+                background: isLight ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)",
+                border: `1px solid ${border}`,
+                borderRadius: "var(--lwd-radius-input)",
+              }}>
+                <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "1.5px",
+                  textTransform: "uppercase", color: textMuted, marginBottom: 6 }}>
+                  {item.label}
+                </div>
+                <div style={{ fontFamily: GD, fontSize: 16, fontWeight: 700, color: textPrimary }}>
+                  {fmtGBP(Math.round((item.count || 0) * item.low))}
+                  <span style={{ fontSize: 11, fontWeight: 400, color: textMuted }}>–{fmtGBP(Math.round((item.count || 0) * item.high))}</span>
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 10, color: textMuted, marginTop: 2 }}>
+                  {item.count || 0} × £{item.low}–{item.high}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Revenue Impact ───────────────────────────────────────────────── */}
+      <div style={{ background: cardBg, border: `1px solid ${GOLD_BORDER}`,
+        borderRadius: "var(--lwd-radius-card)", padding: "20px 22px" }}>
+        <div style={{ display: "flex", alignItems: "flex-start",
+          justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <div style={{ fontFamily: NU, fontSize: 10, letterSpacing: "2px",
+              textTransform: "uppercase", color: GOLD, marginBottom: 4 }}>
+              Revenue impact · {rangeLabel.toLowerCase()}
+            </div>
+            <div style={{ fontFamily: NU, fontSize: 15, fontWeight: 700, color: textPrimary }}>
+              Return on Investment
+            </div>
+          </div>
+          {!editingROI && (
+            <button onClick={() => {
+              setRoiInputValue(String(effectiveBookingValue));
+              setRoiInputRate(String(effectiveCloseRate));
+              setEditingROI(true);
+            }} style={{
+              fontFamily: NU, fontSize: 11, color: textMuted, background: "transparent",
+              border: `1px solid ${border}`, borderRadius: "var(--lwd-radius-input)",
+              padding: "4px 10px", cursor: "pointer",
+            }}>
+              {roiSettingsSet ? "✎ Edit assumptions" : "✎ Set your numbers"}
+            </button>
+          )}
+        </div>
+
+        {editingROI ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ fontFamily: NU, fontSize: 12, color: textMuted, lineHeight: 1.6 }}>
+              Tell us your average booking value and typical close rate to personalise your ROI estimate.
+            </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontFamily: NU, fontSize: 10, color: textMuted,
+                  letterSpacing: "1.5px", textTransform: "uppercase" }}>
+                  Avg booking value (£)
+                </label>
+                <input
+                  type="number"
+                  value={roiInputValue}
+                  onChange={e => setRoiInputValue(e.target.value)}
+                  placeholder="e.g. 18000"
+                  style={{
+                    fontFamily: NU, fontSize: 13, padding: "7px 12px", width: 140,
+                    border: `1px solid ${border}`, borderRadius: "var(--lwd-radius-input)",
+                    background: cardBg, color: textPrimary, outline: "none",
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontFamily: NU, fontSize: 10, color: textMuted,
+                  letterSpacing: "1.5px", textTransform: "uppercase" }}>
+                  Close rate (%)
+                </label>
+                <input
+                  type="number"
+                  value={roiInputRate}
+                  onChange={e => setRoiInputRate(e.target.value)}
+                  placeholder="e.g. 20"
+                  min="1" max="100"
+                  style={{
+                    fontFamily: NU, fontSize: 13, padding: "7px 12px", width: 100,
+                    border: `1px solid ${border}`, borderRadius: "var(--lwd-radius-input)",
+                    background: cardBg, color: textPrimary, outline: "none",
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                <button onClick={saveROISettings} disabled={savingROI} style={{
+                  fontFamily: NU, fontSize: 12, fontWeight: 700, padding: "8px 18px",
+                  background: GOLD, color: "#000", border: "none",
+                  borderRadius: "var(--lwd-radius-input)",
+                  cursor: savingROI ? "default" : "pointer", opacity: savingROI ? 0.6 : 1,
+                }}>
+                  {savingROI ? "Saving…" : "Save"}
+                </button>
+                <button onClick={() => setEditingROI(false)} style={{
+                  fontFamily: NU, fontSize: 12, padding: "8px 12px",
+                  background: "transparent", color: textMuted,
+                  border: `1px solid ${border}`,
+                  borderRadius: "var(--lwd-radius-input)", cursor: "pointer",
+                }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* ROI numbers */}
+            <div style={{ display: "grid",
+              gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, marginBottom: 16 }}>
+              {[
+                {
+                  label: "Enquiries",
+                  value: fmtNum(cs.enquirySubmitted),
+                  sub: "received this period",
+                  color: "#4ade80",
+                },
+                {
+                  label: "Est. Bookings",
+                  value: `0–${estBookingsHigh || 0}`,
+                  sub: `at ${effectiveCloseRate}% close rate`,
+                  color: GOLD,
+                },
+                {
+                  label: "Est. Revenue",
+                  value: estRevenueHigh > 0 ? `£0–${fmtGBP(estRevenueHigh)}` : "£0",
+                  sub: `at ${fmtGBP(effectiveBookingValue)} avg value`,
+                  color: GOLD,
+                },
+                {
+                  label: "ROI Multiple",
+                  value: estRevenueHigh > 0 ? `up to ${Math.round(estRevenueHigh / 199)}×` : "—",
+                  sub: "vs typical listing cost",
+                  color: estRevenueHigh > 0 ? GOLD : textMuted,
+                },
+              ].map(item => (
+                <div key={item.label} style={{
+                  padding: "14px 16px",
+                  background: isLight ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)",
+                  border: `1px solid ${border}`,
+                  borderRadius: "var(--lwd-radius-input)",
+                }}>
+                  <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "1.5px",
+                    textTransform: "uppercase", color: textMuted, marginBottom: 6 }}>
+                    {item.label}
+                  </div>
+                  <div style={{ fontFamily: GD, fontSize: isMobile ? 18 : 22,
+                    fontWeight: 700, color: item.color, lineHeight: 1, marginBottom: 4 }}>
+                    {item.value}
+                  </div>
+                  <div style={{ fontFamily: NU, fontSize: 10, color: textMuted }}>
+                    {item.sub}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Assumptions footer */}
+            <div style={{ fontFamily: NU, fontSize: 11, color: textMuted,
+              borderTop: `1px solid ${border}`, paddingTop: 12, lineHeight: 1.6 }}>
+              <span style={{ opacity: 0.7 }}>
+                Based on {fmtGBP(effectiveBookingValue)} avg booking · {effectiveCloseRate}% close rate
+                {!roiSettingsSet && " · category defaults — refine with your actual numbers above"}
+              </span>
+              {roiSettingsSet && (
+                <span style={{ color: GOLD, marginLeft: 8 }}>
+                  · personalised ✓
+                </span>
+              )}
+            </div>
+
+            {/* One booking argument */}
+            <div style={{
+              marginTop: 12,
+              padding: "12px 16px",
+              background: GOLD_DIM,
+              border: `1px solid ${GOLD_BORDER}`,
+              borderRadius: "var(--lwd-radius-input)",
+            }}>
+              <span style={{ fontFamily: NU, fontSize: 12, color: textPrimary, lineHeight: 1.6 }}>
+                <strong>You only need one booking.</strong>{" "}
+                One {effectiveBookingValue >= 1000 ? fmtGBP(effectiveBookingValue) : "booking"} wedding covers your
+                listing investment many times over — and your listing is already generating interest.
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+
       {/* ── Export section ──────────────────────────────────────────────── */}
       {!loading && stats && (
         <div style={{
@@ -1423,6 +2042,14 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
                   compareList,
                   dailyViews,
                   interpretation,
+                  touchPointsTotal,
+                  touchPointsPerEnquiry,
+                  estBookingsHigh,
+                  estRevenueHigh,
+                  mediaValueLow,
+                  mediaValueHigh,
+                  effectiveBookingValue,
+                  effectiveCloseRate,
                 });
                 const slug = (vendor?.name || "report")
                   .toLowerCase().replace(/[^a-z0-9]+/g, "-");
@@ -1479,6 +2106,14 @@ export default function VendorAnalyticsPanel({ vendor, C, isMobile }) {
           dailyViews={dailyViews}
           interpretation={interpretation}
           liveCount={liveCount}
+          touchPointsTotal={touchPointsTotal}
+          touchPointsPerEnquiry={touchPointsPerEnquiry}
+          mediaValueLow={mediaValueLow}
+          mediaValueHigh={mediaValueHigh}
+          estBookingsHigh={estBookingsHigh}
+          estRevenueHigh={estRevenueHigh}
+          effectiveBookingValue={effectiveBookingValue}
+          effectiveCloseRate={effectiveCloseRate}
         />
       </div>
 
