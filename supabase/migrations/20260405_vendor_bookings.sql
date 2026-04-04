@@ -32,7 +32,7 @@ create policy "vendor_bookings_vendor_rw"
 create policy "vendor_bookings_admin_read"
   on public.vendor_bookings for select
   using (
-    exists (select 1 from public.vendors where id = auth.uid() and role = 'admin')
+    coalesce((auth.jwt() ->> 'is_admin')::boolean, false) = true
   );
 
 -- RPC: get booking totals for a vendor within a date range
