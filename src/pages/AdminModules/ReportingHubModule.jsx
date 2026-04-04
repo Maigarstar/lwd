@@ -185,11 +185,11 @@ function OverviewTab({ C }) {
 
     try {
       const [sentRes, openedRes, respondedRes, convertedRes, recentRes] = await Promise.all([
-        supabase.from("vendor_report_sends").select("*", { count: "exact", head: true }).gte("sent_at", startOfMonth),
-        supabase.from("vendor_report_sends").select("*", { count: "exact", head: true }).not("opened_at", "is", null).gte("sent_at", startOfMonth),
-        supabase.from("vendor_report_sends").select("*", { count: "exact", head: true }).eq("outcome_responded", true).gte("sent_at", startOfMonth),
-        supabase.from("vendor_enquiry_outcomes").select("*", { count: "exact", head: true }).eq("converted", true).gte("responded_at", startOfMonth),
-        supabase.from("vendor_report_sends").select("*").order("sent_at", { ascending: false }).limit(10),
+        supabase.from("vendor_report_sends").select("*", { count: "exact", head: true }).gte("sent_at", daysAgo(30)),
+        supabase.from("vendor_report_sends").select("*", { count: "exact", head: true }).not("opened_at", "is", null).gte("sent_at", daysAgo(30)),
+        supabase.from("vendor_report_sends").select("*", { count: "exact", head: true }).eq("outcome_responded", true).gte("sent_at", daysAgo(30)),
+        supabase.from("vendor_enquiry_outcomes").select("*", { count: "exact", head: true }).eq("converted", true).gte("responded_at", daysAgo(30)),
+        supabase.from("vendor_report_sends").select("*, vendors(name, email)").order("sent_at", { ascending: false }).limit(10),
       ]);
 
       setStats({
@@ -228,10 +228,10 @@ function OverviewTab({ C }) {
     <div>
       {/* KPI cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 28 }}>
-        <StatCard label="Reports Sent" value={loading ? "…" : fmt(sent)} sub="This month" accent={GOLD} C={C} />
+        <StatCard label="Reports Sent" value={loading ? "…" : fmt(sent)} sub="Last 30 days" accent={GOLD} C={C} />
         <StatCard label="Open Rate" value={loading ? "…" : `${openRate}%`} sub={`${opened} of ${sent} opened`} accent="#22c55e" C={C} />
         <StatCard label="Outcome Responses" value={loading ? "…" : `${responseRate}%`} sub={`${responded} vendors responded`} accent="#3b82f6" C={C} />
-        <StatCard label="Conversions Confirmed" value={loading ? "…" : fmt(converted)} sub="Yes responses this month" accent="#a78bfa" C={C} />
+        <StatCard label="Conversions Confirmed" value={loading ? "…" : fmt(converted)} sub="Yes responses last 30 days" accent="#a78bfa" C={C} />
       </div>
 
       {/* Recent sends table */}
@@ -258,10 +258,10 @@ function OverviewTab({ C }) {
         {!loading && recentSends.map(send => (
           <div key={send.id} style={{ display: "grid", gridTemplateColumns: "1fr 90px 140px 140px 80px 80px", gap: 12, padding: "12px 20px", borderBottom: `1px solid ${C.border}`, alignItems: "center" }}>
             <div style={{ fontFamily: NU, fontSize: 12, color: C.off, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {send.vendor_email || send.vendor_id?.slice(0, 14) + "…" || "—"}
+              {send.vendors?.name || send.email_address || send.vendor_id?.slice(0, 14) + "…" || "—"}
             </div>
             <div style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
-              {send.report_month || "—"}
+              {send.month ? new Date(send.month).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : "—"}
             </div>
             <div style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
               {fmtDate(send.sent_at)}
@@ -314,7 +314,7 @@ function VendorReportsTab({ C, onVendorSelect }) {
     try {
       const { data: vendorData } = await supabase
         .from("vendors")
-        .select("id, name, entity_type, country_code, analytics_enabled")
+        .select("id, name, email, analytics_enabled")
         .order("name");
 
       const { data: sendData } = await supabase
@@ -437,7 +437,7 @@ function VendorReportsTab({ C, onVendorSelect }) {
                 <div>
                   <div style={{ fontFamily: NU, fontSize: 13, color: C.off, fontWeight: 500 }}>{vendor.name}</div>
                   <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, textTransform: "capitalize", marginTop: 2 }}>
-                    {vendor.entity_type} · {vendor.country_code || "—"}
+                    {vendor.email || "—"}
                   </div>
                 </div>
                 <div style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
@@ -504,13 +504,13 @@ function VendorReportsTab({ C, onVendorSelect }) {
                       )}
                       {(history[vendor.id] || []).map((row, i) => (
                         <div key={i} style={{ display: "grid", gridTemplateColumns: "80px 60px 60px 60px 80px 80px 80px 60px 60px 60px", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.border}55`, minWidth: 700 }}>
-                          <span style={{ fontFamily: NU, fontSize: 11, color: C.off }}>{row.month || "—"}</span>
+                          <span style={{ fontFamily: NU, fontSize: 11, color: C.off }}>{row.month ? new Date(row.month).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : "—"}</span>
                           <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{fmt(row.views)}</span>
                           <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{fmt(row.shortlists)}</span>
-                          <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{fmt(row.enquiries)}</span>
+                          <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{fmt(row.enquiry_submitted ?? row.enquiries)}</span>
                           <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{fmt(row.touch_points)}</span>
                           <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{row.media_value_low ? `£${row.media_value_low}–£${row.media_value_high}` : "—"}</span>
-                          <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{row.est_revenue ? `£${row.est_revenue}` : "—"}</span>
+                          <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>{(row.est_revenue_high ?? row.est_revenue) ? `£${fmt(row.est_revenue_high ?? row.est_revenue)}` : "—"}</span>
                           <span style={{ fontSize: 12, color: row.email_sent ? "#22c55e" : C.grey2, textAlign: "center" }}>{row.email_sent ? "✓" : "—"}</span>
                           <span style={{ fontSize: 12, color: row.email_opened ? "#22c55e" : C.grey2, textAlign: "center" }}>{row.email_opened ? "✓" : "—"}</span>
                           <span style={{ fontSize: 12, color: row.outcome_responded ? "#22c55e" : C.grey2, textAlign: "center" }}>{row.outcome_responded ? "✓" : "—"}</span>
@@ -777,7 +777,7 @@ function HealthScoresTab({ C, onVendorSelect }) {
     try {
       const { data: vendorData } = await supabase
         .from("vendors")
-        .select("id, name, entity_type, country_code, analytics_enabled, roi_settings")
+        .select("id, name, email, analytics_enabled")
         .order("name");
 
       const { data: sendData } = await supabase
@@ -919,7 +919,7 @@ function HealthScoresTab({ C, onVendorSelect }) {
               <div>
                 <div style={{ fontFamily: NU, fontSize: 13, color: C.off, fontWeight: 500 }}>{vendor.name}</div>
                 <div style={{ fontFamily: NU, fontSize: 10, color: C.grey, textTransform: "capitalize", marginTop: 1 }}>
-                  {vendor.entity_type} · {vendor.country_code || "—"}
+                  {vendor.email || "—"}
                 </div>
               </div>
               <div>

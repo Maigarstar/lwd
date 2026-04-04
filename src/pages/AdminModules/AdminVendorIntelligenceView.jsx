@@ -141,8 +141,7 @@ function VendorViewTab({ vendorId, vendorName, vendorData, C }) {
           id: vendorId,
           name: vendorName,
           analytics_enabled: true,
-          entity_type: vendorData?.entity_type,
-          country_code: vendorData?.country_code,
+          email: vendorData?.email,
           isAdminPreview: true,
         }}
         C={C}
@@ -1011,7 +1010,7 @@ export default function AdminVendorIntelligenceView({ vendorId, vendorName, onCl
     Promise.all([
       supabase
         .from("vendors")
-        .select("id, name, entity_type, country_code, analytics_enabled, report_frequency, roi_settings_set_at")
+        .select("id, name, email, analytics_enabled")
         .eq("id", vendorId)
         .single(),
       supabase
@@ -1092,23 +1091,12 @@ export default function AdminVendorIntelligenceView({ vendorId, vendorName, onCl
           )}
         </div>
 
-        {/* Entity + country badges */}
-        {!loadingVendor && vendorData && (
+        {/* Email badge */}
+        {!loadingVendor && vendorData?.email && (
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {vendorData.entity_type && (
-              <span style={{
-                fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase",
-                color: GOLD, background: GOLD_DIM, padding: "3px 10px", borderRadius: 100,
-                border: `1px solid ${GOLD_BORDER}`,
-              }}>
-                {vendorData.entity_type}
-              </span>
-            )}
-            {vendorData.country_code && (
-              <span style={{ fontFamily: NU, fontSize: 12, color: C.off }}>
-                {flag(vendorData.country_code)} {vendorData.country_code}
-              </span>
-            )}
+            <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
+              {vendorData.email}
+            </span>
           </div>
         )}
 

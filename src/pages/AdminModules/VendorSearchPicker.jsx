@@ -52,7 +52,7 @@ export default function VendorSearchPicker({ C, onSelect, placeholder = "Search 
       try {
         const { data } = await supabase
           .from("vendors")
-          .select("id, name, entity_type, country_code, analytics_enabled")
+          .select("id, name, email, analytics_enabled")
           .ilike("name", `%${q}%`)
           .limit(10);
         setResults(data || []);
@@ -145,18 +145,12 @@ export default function VendorSearchPicker({ C, onSelect, placeholder = "Search 
                 <div style={{ fontFamily: NU, fontSize: 13, color: C?.off || "#f5f3ef", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {vendor.name}
                 </div>
-                {vendor.entity_type && (
-                  <div style={{ fontFamily: NU, fontSize: 10, color: C?.grey || "#888", textTransform: "capitalize", marginTop: 1 }}>
-                    {vendor.entity_type}
+                {vendor.email && (
+                  <div style={{ fontFamily: NU, fontSize: 10, color: C?.grey || "#888", marginTop: 1 }}>
+                    {vendor.email}
                   </div>
                 )}
               </div>
-              {/* Country flag */}
-              {vendor.country_code && (
-                <span style={{ fontSize: 16, flexShrink: 0 }} title={vendor.country_code}>
-                  {flag(vendor.country_code)}
-                </span>
-              )}
               {/* Analytics status dot */}
               <span
                 title={vendor.analytics_enabled ? "Analytics enabled" : "Analytics disabled"}
