@@ -315,7 +315,6 @@ function VendorReportsTab({ C, onVendorSelect }) {
       const { data: vendorData } = await supabase
         .from("vendors")
         .select("id, name, entity_type, country_code, analytics_enabled")
-        .eq("analytics_enabled", true)
         .order("name");
 
       const { data: sendData } = await supabase
@@ -412,8 +411,8 @@ function VendorReportsTab({ C, onVendorSelect }) {
 
         {!loading && filtered.length === 0 && (
           <div style={{ padding: "40px", textAlign: "center" }}>
-            <div style={{ fontFamily: GD, fontSize: 16, color: C.off, marginBottom: 8 }}>No analytics-enabled vendors</div>
-            <div style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>Enable analytics on vendor profiles to see them here.</div>
+            <div style={{ fontFamily: GD, fontSize: 16, color: C.off, marginBottom: 8 }}>No vendors found</div>
+            <div style={{ fontFamily: NU, fontSize: 12, color: C.grey }}>No vendor records in the database yet.</div>
           </div>
         )}
 
@@ -779,7 +778,6 @@ function HealthScoresTab({ C, onVendorSelect }) {
       const { data: vendorData } = await supabase
         .from("vendors")
         .select("id, name, entity_type, country_code, analytics_enabled, roi_settings")
-        .eq("analytics_enabled", true)
         .order("name");
 
       const { data: sendData } = await supabase
@@ -812,7 +810,7 @@ function HealthScoresTab({ C, onVendorSelect }) {
         if (lastSend?.opened_at) score += 30;
         if (lastSend?.outcome_responded) score += 20;
         if (v.roi_settings && Object.keys(v.roi_settings || {}).length > 0) score += 20;
-        score += 10; // analytics_enabled = true (already filtered)
+        if (v.analytics_enabled) score += 10;
         if ((viewsByVendor[v.id] || 0) > 0) score += 20;
 
         const health = getReportHealth(vendorSends);
@@ -1001,7 +999,7 @@ export default function ReportingHubModule({ C }) {
   const [selectedVendor, setSelectedVendor] = useState(null); // { id, name }
 
   return (
-    <div style={{ maxWidth: 1100 }}>
+    <div style={{ width: "100%" }}>
       {/* Page header */}
       <div style={{ marginBottom: 24 }}>
         <h2 style={{ fontFamily: GD, fontSize: 22, color: C.off, margin: 0, fontWeight: 400 }}>
