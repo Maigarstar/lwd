@@ -103,8 +103,8 @@ function exportCSV(filename, rows, cols) {
 // ── Base UI components ────────────────────────────────────────────────────────
 function SignalBadge({ level }) {
   const map = {
-    strong:  { color: GREEN,  dot: "●", label: "Strong signal"    },
-    medium:  { color: AMBER,  dot: "●", label: "Directional"      },
+    strong:  { color: GREEN,  dot: "●", label: "Strong signal"  },
+    medium:  { color: AMBER,  dot: "●", label: "Directional"    },
     low:     { color: "rgba(255,255,255,0.25)", dot: "◌", label: "Low volume" },
   };
   const s = map[level] || map.low;
@@ -181,7 +181,7 @@ function SectionLabel({ children, action, onAction }) {
       {action && (
         <button onClick={onAction} style={{
           fontFamily: NU, fontSize: 10, color: "rgba(255,255,255,0.40)",
-          background: "none", border: "1px solid rgba(255,255,255,0.10)",
+          background: "none", border: "1px solid rgba(255,255,255,0.08)",
           borderRadius: 20, padding: "3px 10px", cursor: "pointer",
         }}>
           {action}
@@ -207,7 +207,7 @@ function InterpretationBlock({ sentences, confidence = "medium" }) {
       </div>
       {sentences.map((s, i) => (
         <p key={i} style={{
-          fontFamily: NU, fontSize: 13, color: "rgba(245,240,232,0.80)",
+          fontFamily: NU, fontSize: 13, color: "#F5F0E8",
           lineHeight: 1.7, margin: i < sentences.length - 1 ? "0 0 10px" : 0,
         }}>
           {s}
@@ -236,7 +236,7 @@ function ActionPanel({ items }) {
           <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
             <span style={{ color: GREEN, fontSize: 14, lineHeight: 1.4, flexShrink: 0 }}>→</span>
             <span style={{ fontFamily: NU, fontSize: 12,
-              color: "rgba(245,240,232,0.75)", lineHeight: 1.6 }}>
+              color: "#F5F0E8", lineHeight: 1.6 }}>
               {item}
             </span>
           </div>
@@ -263,7 +263,7 @@ function DataGapWarning({ gaps }) {
           color: AMBER, marginBottom: 3 }}>Data quality notes</div>
         {gaps.map((g, i) => (
           <div key={i} style={{ fontFamily: NU, fontSize: 11,
-            color: "rgba(251,191,36,0.75)", lineHeight: 1.6 }}>
+            color: "rgba(255,255,255,0.40)", lineHeight: 1.6 }}>
             {g}
           </div>
         ))}
@@ -275,12 +275,12 @@ function DataGapWarning({ gaps }) {
 function KPICard({ label, value, sub, delta: d, signal, color = GOLD, wide }) {
   return (
     <div style={{
-      background: "#1a1714", border: "1px solid rgba(255,255,255,0.07)",
+      background: "#1a1714", border: "1px solid rgba(255,255,255,0.08)",
       borderRadius: 10, padding: "16px 18px",
       gridColumn: wide ? "span 2" : undefined,
     }}>
       <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "1.2px",
-        textTransform: "uppercase", color: "rgba(255,255,255,0.35)",
+        textTransform: "uppercase", color: "rgba(255,255,255,0.40)",
         marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}>
         {label}{signal && <SignalBadge level={signal} />}
       </div>
@@ -290,7 +290,7 @@ function KPICard({ label, value, sub, delta: d, signal, color = GOLD, wide }) {
       </div>
       {sub && (
         <div style={{ fontFamily: NU, fontSize: 10,
-          color: "rgba(255,255,255,0.35)", lineHeight: 1.4 }}>
+          color: "rgba(255,255,255,0.40)", lineHeight: 1.4 }}>
           {sub}
         </div>
       )}
@@ -307,7 +307,7 @@ function EmptyState({ message = "No data for this period" }) {
   return (
     <div style={{ padding: "56px 24px", textAlign: "center",
       fontFamily: GD, fontSize: 16, fontStyle: "italic",
-      color: "rgba(245,240,232,0.20)" }}>
+      color: "rgba(255,255,255,0.25)" }}>
       {message}
     </div>
   );
@@ -331,17 +331,19 @@ function LoadingShimmer({ rows = 8, cols = 6 }) {
   );
 }
 
-const TH = ({ children, right, center }) => (
-  <th style={{ fontFamily: NU, fontSize: 9, fontWeight: 700,
-    letterSpacing: "1.2px", textTransform: "uppercase",
-    color: "rgba(255,255,255,0.30)", padding: "8px 12px",
-    textAlign: right ? "right" : center ? "center" : "left",
-    whiteSpace: "nowrap",
-    borderBottom: "1px solid rgba(255,255,255,0.07)",
-    background: "rgba(0,0,0,0.15)" }}>
-    {children}
-  </th>
-);
+function TH({ children, right, center }) {
+  return (
+    <th style={{ fontFamily: NU, fontSize: 9, fontWeight: 700,
+      letterSpacing: "1.2px", textTransform: "uppercase",
+      color: "rgba(255,255,255,0.40)", padding: "8px 12px",
+      textAlign: right ? "right" : center ? "center" : "left",
+      whiteSpace: "nowrap",
+      borderBottom: "1px solid rgba(255,255,255,0.08)",
+      background: "rgba(0,0,0,0.15)" }}>
+      {children}
+    </th>
+  );
+}
 
 function TD({ children, right, center, bold, gold, muted, small, danger, success }) {
   return (
@@ -349,7 +351,7 @@ function TD({ children, right, center, bold, gold, muted, small, danger, success
       fontSize: small ? 10 : 12,
       fontWeight: bold ? 700 : 400,
       color: gold ? GOLD : danger ? RED : success ? GREEN : muted
-        ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.80)",
+        ? "rgba(255,255,255,0.25)" : "#F5F0E8",
       padding: "10px 12px",
       textAlign: right ? "right" : center ? "center" : "left",
       borderBottom: "1px solid rgba(255,255,255,0.04)",
@@ -523,7 +525,7 @@ function interpretLeads(geoLeads, pipeline) {
 
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
-function OverviewTab({ C, from, to, rangeLabel }) {
+function OverviewTab({ from, to, rangeLabel }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoad]    = useState(true);
 
@@ -627,7 +629,7 @@ function OverviewTab({ C, from, to, rangeLabel }) {
 
 
 // ── Destination Demand Tab ────────────────────────────────────────────────────
-function DestinationsTab({ C, from, to }) {
+function DestinationsTab({ from, to }) {
   const [rows, setRows]   = useState([]);
   const [cat,  setCat]    = useState([]);
   const [load, setLoad]   = useState(true);
@@ -792,7 +794,7 @@ function DestinationsTab({ C, from, to }) {
 
 
 // ── Audience Origins Tab ──────────────────────────────────────────────────────
-function AudienceTab({ C, from, to }) {
+function AudienceTab({ from, to }) {
   const [origins, setOrigins] = useState([]);
   const [xborder, setXBorder] = useState([]);
   const [sources, setSources] = useState([]);
@@ -1001,7 +1003,7 @@ function AudienceTab({ C, from, to }) {
 
 
 // ── Supply & Demand Tab ───────────────────────────────────────────────────────
-function GapsTab({ C, from, to }) {
+function GapsTab({ from, to }) {
   const [gaps, setGaps] = useState([]);
   const [load, setLoad] = useState(true);
 
@@ -1120,7 +1122,7 @@ function GapsTab({ C, from, to }) {
 
 
 // ── Lead Intelligence Tab ─────────────────────────────────────────────────────
-function LeadsTab({ C, from, to }) {
+function LeadsTab({ from, to }) {
   const [geoLeads, setGeo]  = useState([]);
   const [pipeline, setPipe] = useState([]);
   const [load,     setLoad] = useState(true);
@@ -1344,7 +1346,7 @@ function LeadsTab({ C, from, to }) {
 
 
 // ── Trends & Pipeline Tab ─────────────────────────────────────────────────────
-function TrendsTab({ C, from, to }) {
+function TrendsTab({ from, to }) {
   const [monthly, setMonthly] = useState([]);
   const [appGeo,  setAppGeo]  = useState([]);
   const [load,    setLoad]    = useState(true);
@@ -1559,14 +1561,15 @@ function TrendsTab({ C, from, to }) {
 
 
 // ── Main Module ───────────────────────────────────────────────────────────────
+// This module is always dark — it is a data intelligence tool, not a themed UI panel.
+const MI_BG     = "#100e0c";
+const MI_BORDER = "rgba(255,255,255,0.08)";
+const MI_TEXT   = "#F5F0E8";
+
 export default function MarketIntelligenceModule({ C }) {
   const [tab,    setTab]    = useState("overview");
   const [range,  setRange]  = useState("30d");
   const [stamp,  setStamp]  = useState(Date.now());
-
-  const bg     = C?.bg     || "#100e0c";
-  const border = C?.border || "rgba(255,255,255,0.08)";
-  const text   = C?.text   || "#F5F0E8";
 
   const days  = RANGES.find(r => r.key === range)?.days || 30;
   const from  = new Date(Date.now() - days * 86_400_000).toISOString();
@@ -1576,10 +1579,10 @@ export default function MarketIntelligenceModule({ C }) {
   const tabKey = `${tab}__${range}__${stamp}`;
 
   return (
-    <div style={{ minHeight: "100%", background: bg, color: text, fontFamily: NU }}>
+    <div style={{ minHeight: "100%", background: MI_BG, color: MI_TEXT, fontFamily: NU }}>
 
       {/* Header */}
-      <div style={{ borderBottom: `1px solid ${border}`,
+      <div style={{ borderBottom: `1px solid ${MI_BORDER}`,
         padding: "24px 28px 20px",
         display: "flex", alignItems: "flex-start",
         justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
@@ -1589,7 +1592,7 @@ export default function MarketIntelligenceModule({ C }) {
             ✦ Intelligence Centre
           </div>
           <h2 style={{ fontFamily: GD, fontSize: 22, fontWeight: 600,
-            fontStyle: "italic", color: text, margin: "0 0 4px" }}>
+            fontStyle: "italic", color: MI_TEXT, margin: "0 0 4px" }}>
             Market Intelligence
           </h2>
           <p style={{ fontFamily: NU, fontSize: 12,
@@ -1602,7 +1605,7 @@ export default function MarketIntelligenceModule({ C }) {
             <button key={r.key} onClick={() => setRange(r.key)} style={{
               fontFamily: NU, fontSize: 11, fontWeight: 600,
               padding: "5px 13px",
-              border: `1px solid ${range === r.key ? GOLD : border}`,
+              border: `1px solid ${range === r.key ? GOLD : MI_BORDER}`,
               background: range === r.key ? GOLD_DIM : "transparent",
               color: range === r.key ? GOLD : "rgba(255,255,255,0.40)",
               borderRadius: 30, cursor: "pointer", transition: "all 0.15s",
@@ -1613,7 +1616,7 @@ export default function MarketIntelligenceModule({ C }) {
           <button onClick={() => setStamp(Date.now())} style={{
             fontFamily: NU, fontSize: 11,
             padding: "5px 14px",
-            border: `1px solid ${border}`, background: "transparent",
+            border: `1px solid ${MI_BORDER}`, background: "transparent",
             color: "rgba(255,255,255,0.40)", borderRadius: 30, cursor: "pointer",
           }}>
             ↻ Refresh
@@ -1622,7 +1625,7 @@ export default function MarketIntelligenceModule({ C }) {
       </div>
 
       {/* Tabs */}
-      <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${border}`,
+      <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${MI_BORDER}`,
         overflowX:"auto", scrollbarWidth:"none" }}>
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
@@ -1644,12 +1647,12 @@ export default function MarketIntelligenceModule({ C }) {
 
       {/* Content */}
       <div style={{ padding: "28px" }} key={tabKey}>
-        {tab === "overview"      && <OverviewTab      C={C} from={from} to={to} rangeLabel={label} />}
-        {tab === "destinations"  && <DestinationsTab  C={C} from={from} to={to} />}
-        {tab === "audience"      && <AudienceTab      C={C} from={from} to={to} />}
-        {tab === "gaps"          && <GapsTab          C={C} from={from} to={to} />}
-        {tab === "leads"         && <LeadsTab         C={C} from={from} to={to} />}
-        {tab === "trends"        && <TrendsTab        C={C} from={from} to={to} />}
+        {tab === "overview"      && <OverviewTab      from={from} to={to} rangeLabel={label} />}
+        {tab === "destinations"  && <DestinationsTab  from={from} to={to} />}
+        {tab === "audience"      && <AudienceTab      from={from} to={to} />}
+        {tab === "gaps"          && <GapsTab          from={from} to={to} />}
+        {tab === "leads"         && <LeadsTab         from={from} to={to} />}
+        {tab === "trends"        && <TrendsTab        from={from} to={to} />}
       </div>
 
     </div>
