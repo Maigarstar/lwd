@@ -76,6 +76,52 @@ function ConfirmDialog({ open, title, body, confirmLabel = 'Delete', onConfirm, 
   );
 }
 
+// ── Edit conflict dialog (concurrency control) ────────────────────────────────
+function ConflictDialog({ open, conflictPost, onReload, onOverwrite, onCancel }) {
+  if (!open || !conflictPost) return null;
+  const GOLD_V = 'var(--s-gold,#c9a96e)';
+  const dt = new Date(conflictPost.updatedAt || conflictPost.updated_at);
+  const formattedTime = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 99999,
+      background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }} onClick={onCancel}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: '#1a1510', border: '1px solid rgba(201,169,110,0.18)',
+        borderRadius: 5, padding: '28px 28px 22px', maxWidth: 420, width: '90%',
+        boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+      }}>
+        <div style={{ fontFamily: FD, fontSize: 18, color: '#f5f0e8', marginBottom: 8 }}>⚠ Article Changed</div>
+        <div style={{ fontFamily: FU, fontSize: 12, color: 'rgba(245,240,232,0.6)', lineHeight: 1.7, marginBottom: 20 }}>
+          This article was modified elsewhere at {formattedTime}. Choose to <strong>Reload</strong> the latest version or <strong>Overwrite</strong> with your changes.
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onCancel} style={{
+            fontFamily: FU, fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
+            padding: '7px 16px', borderRadius: 2, cursor: 'pointer',
+            background: 'none', border: '1px solid rgba(245,240,232,0.12)', color: 'rgba(245,240,232,0.45)',
+          }}>Cancel</button>
+          <button onClick={onReload} style={{
+            fontFamily: FU, fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
+            padding: '7px 16px', borderRadius: 2, cursor: 'pointer',
+            background: `${GOLD_V}18`,
+            border: `1px solid ${GOLD_V}60`,
+            color: GOLD_V,
+          }}>Reload</button>
+          <button onClick={onOverwrite} style={{
+            fontFamily: FU, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+            padding: '7px 16px', borderRadius: 2, cursor: 'pointer', outline: 'none',
+            background: `${GOLD_V}25`,
+            border: `1px solid ${GOLD_V}`,
+            color: GOLD_V,
+          }}>Overwrite</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function uid() {
   return 'new_' + Math.random().toString(36).slice(2, 9);
@@ -362,15 +408,51 @@ function ArticleList({ posts, allCategories, onEdit, onNew, onDuplicate, onDelet
 
   const runBulk = (action) => {
     setBulkOpen(false);
-    if (action === 'delete') {
+    const count = selected.size;
+    const plural = count > 1 ? 's' : '';
+
+    // Define confirmation for each bulk action
+    const confirmationMap = {
+      delete: {
+        title: `Delete ${count} article${plural}?`,
+        body: 'This cannot be undone. All content and blocks will be permanently removed.',
+        label: 'Delete',
+      },
+      publish: {
+        title: `Publish ${count} article${plural}?`,
+        body: `${count} article${plural} will be published and visible on the live site.`,
+        label: 'Publish',
+      },
+      unpublish: {
+        title: `Unpublish ${count} article${plural}?`,
+        body: `${count} article${plural} will no longer be visible on the live site.`,
+        label: 'Unpublish',
+      },
+      feature: {
+        title: `Feature ${count} article${plural}?`,
+        body: `${count} article${plural} will be marked as featured content.`,
+        label: 'Feature',
+      },
+      unfeature: {
+        title: `Unfeature ${count} article${plural}?`,
+        body: `${count} article${plural} will no longer be featured.`,
+        label: 'Unfeature',
+      },
+    };
+
+    if (confirmationMap[action]) {
+      const conf = confirmationMap[action];
       setConfirmState({
         action,
         ids: [...selected],
-        title: `Delete ${selected.size} article${selected.size > 1 ? 's' : ''}?`,
-        body: 'This cannot be undone. All content and blocks will be permanently removed.',
+        title: conf.title,
+        body: conf.body,
+        label: conf.label,
+        danger: action === 'delete',
       });
       return;
     }
+
     executeBulk(action, [...selected]);
   };
 
@@ -611,12 +693,13 @@ function ArticleList({ posts, allCategories, onEdit, onNew, onDuplicate, onDelet
         )}
       </div>
 
-      {/* In-app bulk delete confirm */}
+      {/* In-app bulk action confirm */}
       <ConfirmDialog
         open={!!confirmState}
         title={confirmState?.title}
         body={confirmState?.body}
-        confirmLabel="Delete"
+        confirmLabel={confirmState?.label || 'Confirm'}
+        danger={confirmState?.danger !== false}
         onConfirm={() => { const s = confirmState; setConfirmState(null); executeBulk(s.action, s.ids); }}
         onCancel={() => setConfirmState(null)}
       />
@@ -682,6 +765,8 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
   const [saving, setSaving] = useState(false);
   const [saveToast, setSaveToast] = useState(null); // { msg, type: 'ok'|'warn'|'error' }
   const [studioLight, setStudioLight] = useState(false);
+  const [conflictState, setConflictState] = useState(null); // { post, pendingUpdate } for concurrency control
+  const [pendingOverwrite, setPendingOverwrite] = useState(null); // data to save if user chooses overwrite
   const S = getS(studioLight);
 
   // ── Load posts from DB on mount (merge with static seed posts) ───────────────
@@ -693,7 +778,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
         const staticOnly = POSTS.filter(p => !dbSlugs.has(p.slug));
         setLocalPosts([
           ...data.map(p => ({ ...p, _lastEdited: p.updatedAt || p.date })),
-          ...staticOnly.map(p => ({ ...p, _lastEdited: p.date })),
+          ...staticOnly.map(p => ({ ...p, _lastEdited: p.date, _isStaticFallback: true })),
         ]);
       }
       setDbLoaded(true);
@@ -715,6 +800,32 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
   const showToast = useCallback((msg, type = 'ok') => {
     setSaveToast({ msg, type });
     setTimeout(() => setSaveToast(null), 3500);
+  }, []);
+
+  // Check for concurrency conflicts before saving
+  // Returns { hasConflict: boolean, dbPost: object | null }
+  const checkForConflict = useCallback(async (postId, currentUpdatedAt) => {
+    const { supabase, isSupabaseAvailable } = await import('../../lib/supabaseClient');
+    if (!isSupabaseAvailable()) return { hasConflict: false, dbPost: null };
+
+    try {
+      const { data } = await supabase
+        .from('magazine_posts')
+        .select('id, updated_at')
+        .eq('id', postId)
+        .maybeSingle();
+
+      if (!data) return { hasConflict: false, dbPost: null };
+
+      const dbUpdatedAt = data.updated_at || data.updatedAt;
+      const hasConflict = dbUpdatedAt && currentUpdatedAt &&
+        new Date(dbUpdatedAt).getTime() !== new Date(currentUpdatedAt).getTime();
+
+      return { hasConflict, dbPost: { ...data, updatedAt: dbUpdatedAt } };
+    } catch (err) {
+      console.error('[MagazineStudio] Conflict check error:', err);
+      return { hasConflict: false, dbPost: null };
+    }
   }, []);
 
   // Navigate to article list, optionally opening a specific article
@@ -757,6 +868,19 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
 
   const handleSavePost = useCallback(async (updated) => {
     setSaving(true);
+
+    // Check for concurrency conflicts if this is an existing DB post
+    if (updated.id && /^[0-9a-f]{8}-/.test(updated.id)) {
+      const { hasConflict, dbPost } = await checkForConflict(updated.id, updated.updatedAt);
+      if (hasConflict && dbPost) {
+        setSaving(false);
+        // Show conflict dialog and wait for user decision
+        setConflictState({ post: dbPost });
+        setPendingOverwrite(updated);
+        return null; // Block save until user resolves conflict
+      }
+    }
+
     // Compute Editorial Intelligence score and persist it alongside the post.
     // Use focus keyword if provided for keyword bonus/penalty scoring.
     const intel = computeContentIntelligence(updated, updated.focusKeyword || '');
@@ -789,7 +913,52 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
     }
     // Return both savedId and resolved slug so editor can update formData if slug changed
     return saved ? { savedId: saved.id, slug: resolvedSlug } : null;
-  }, [showToast]);
+  }, [showToast, checkForConflict]);
+
+  // Conflict dialog: user chooses to reload latest DB version
+  const handleReloadConflict = () => {
+    if (conflictState?.post?.id) {
+      // Reload the post from DB and update localPosts
+      setLocalPosts(prev =>
+        prev.map(p => p.id === conflictState.post.id
+          ? { ...p, updatedAt: conflictState.post.updatedAt, _lastEdited: conflictState.post.updatedAt }
+          : p)
+      );
+      showToast('Article reloaded from database', 'ok');
+    }
+    setConflictState(null);
+    setPendingOverwrite(null);
+  };
+
+  // Conflict dialog: user chooses to overwrite DB version with their changes
+  const handleOverwriteConflict = async () => {
+    setConflictState(null);
+    if (pendingOverwrite) {
+      // Retry the save with the pending data
+      setSaving(true);
+      const intel = computeContentIntelligence(pendingOverwrite, pendingOverwrite.focusKeyword || '');
+      const withScore = {
+        ...pendingOverwrite,
+        contentScore:          intel.score,
+        contentScoreGrade:     intel.grade,
+        contentScoreBreakdown: intel.breakdown,
+        contentScoreUpdatedAt: new Date().toISOString(),
+      };
+      const { data: saved, error, slugChanged, resolvedSlug } = await savePost(withScore);
+      setSaving(false);
+      if (error) {
+        showToast('Overwrite failed: ' + (error.message || 'unknown error'), 'error');
+      } else if (saved) {
+        setLocalPosts(prev =>
+          prev.map(p => p.id === pendingOverwrite.id
+            ? { ...saved, content: pendingOverwrite.content, _lastEdited: new Date().toISOString() }
+            : p)
+        );
+        showToast('Changes saved (overwrote concurrent edit)', 'ok');
+      }
+    }
+    setPendingOverwrite(null);
+  };
 
   const handleDuplicate = async (id) => {
     const src = localPosts.find(p => p.id === id);
@@ -854,8 +1023,23 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
   // Safety: if article-edit but post not found (e.g. was a new unsaved article), fall back to list
   // Wait for DB to load first — otherwise DB-only posts aren't in localPosts yet
   useEffect(() => {
-    if (dbLoaded && mode === 'article-edit' && !editingPost) {
+    if (!dbLoaded || mode !== 'article-edit') return;
+
+    if (!editingPost) {
       setModeAndId('article-list', null);
+      return;
+    }
+
+    // Check if we're loading a static fallback post (was deleted or never saved to DB)
+    if (editingPost._isStaticFallback) {
+      setSaveToast({
+        msg: 'This article doesn\'t exist in the database. It has been reset to the template.',
+        type: 'warn',
+      });
+      // Clear the toast after 4 seconds and redirect to list
+      setTimeout(() => {
+        setModeAndId('article-list', null);
+      }, 4000);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, editingPost, dbLoaded]);
@@ -1058,6 +1242,15 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
           />
         )}
       </div>
+
+      {/* Concurrency conflict resolution */}
+      <ConflictDialog
+        open={!!conflictState}
+        conflictPost={conflictState?.post}
+        onReload={handleReloadConflict}
+        onOverwrite={handleOverwriteConflict}
+        onCancel={() => { setConflictState(null); setPendingOverwrite(null); }}
+      />
 
       {/* Shell-level single delete confirm (from article-list or article-edit) */}
       <ConfirmDialog
