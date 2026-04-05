@@ -5782,7 +5782,7 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
       return;
     }
     setSaveLabel('Saving…');
-    const result = await onSaveToParent({ ...data, tone });
+    const result = await onSaveToParent({ ...data, tone, focusKeyword: formData.focusKeyword });
     if (result === null) {
       // Save failed — parent already showed toast; keep dirty so user knows
       setSaveLabel('✕ Save failed');
@@ -5790,6 +5790,7 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
       return;
     }
     if (result?.savedId && result.savedId !== data.id) setFormData(fd => ({ ...fd, id: result.savedId }));
+    if (result?.slug && result.slug !== data.slug) setFormData(fd => ({ ...fd, slug: result.slug }));
     setDirty(false);
     setLastSaved(new Date());
     setSaveLabel('✓ Saved');

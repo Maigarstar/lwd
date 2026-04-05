@@ -299,7 +299,7 @@ export async function savePost(formData) {
               blockRestoreFailed: true
             };
           }
-          console.log('[magazineService] Blocks restored from backup');
+          if (process.env.DEBUG_MAGAZINE) console.log('[magazineService] Blocks restored from backup');
         } else {
           return {
             data: null,
@@ -476,8 +476,8 @@ function mapCatToDb(data) {
     }
   }
 
-  // Log payload for debugging FK constraint issues
-  if (data.label || data.slug) {
+  // Log payload for debugging FK constraint issues (use DEBUG_MAGAZINE env var to enable)
+  if (process.env.DEBUG_MAGAZINE && (data.label || data.slug)) {
     console.log('[mapCatToDb] Saving category:', {
       slug: row.slug,
       name: row.name,
