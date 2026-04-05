@@ -3809,8 +3809,7 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
             <div style={{ padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
               {/* Taigenic header */}
               <div style={{ textAlign: 'center', paddingBottom: 14, borderBottom: `1px solid ${S.border}` }}>
-                <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 4 }}>✦ Taigenic</div>
-                <div style={{ fontFamily: FD, fontSize: 20, color: S.text, fontWeight: 400, marginBottom: 4 }}>AI Writer</div>
+                <div style={{ fontFamily: FU, fontSize: 11, color: GOLD, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>✦ Taigenic AI Writer</div>
                 <div style={{ fontFamily: FU, fontSize: 10, color: S.faint, lineHeight: 1.5 }}>Generates a full structured draft — editorial voice, NLP signals, image placements.</div>
               </div>
               {/* Error */}

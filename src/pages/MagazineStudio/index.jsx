@@ -1026,7 +1026,10 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
     if (!dbLoaded || mode !== 'article-edit') return;
 
     if (!editingPost) {
-      setModeAndId('article-list', null);
+      // Defer redirect to avoid setState-during-render error when ArticleEditor is unmounting
+      setTimeout(() => {
+        setModeAndId('article-list', null);
+      }, 0);
       return;
     }
 
