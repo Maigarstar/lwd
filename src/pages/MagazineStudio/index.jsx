@@ -847,12 +847,13 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
   const editingPost = localPosts.find(p => p.id === editingId) || null;
 
   // Safety: if article-edit but post not found (e.g. was a new unsaved article), fall back to list
+  // Wait for DB to load first — otherwise DB-only posts aren't in localPosts yet
   useEffect(() => {
-    if (mode === 'article-edit' && !editingPost) {
+    if (dbLoaded && mode === 'article-edit' && !editingPost) {
       setModeAndId('article-list', null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, editingPost]);
+  }, [mode, editingPost, dbLoaded]);
 
   // ── Shell wrapper ─────────────────────────────────────────────────────────
   return (
