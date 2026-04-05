@@ -758,8 +758,8 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
   const handleSavePost = useCallback(async (updated) => {
     setSaving(true);
     // Compute Editorial Intelligence score and persist it alongside the post.
-    // Empty focus keyword → objective score (no keyword bonus/penalty).
-    const intel = computeContentIntelligence(updated, '');
+    // Use focus keyword if provided for keyword bonus/penalty scoring.
+    const intel = computeContentIntelligence(updated, updated.focusKeyword || '');
     const withScore = {
       ...updated,
       contentScore:          intel.score,
@@ -787,7 +787,8 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
     if (slugChanged) {
       showToast(`Slug auto-adjusted to "${resolvedSlug}" (collision)`, 'warn');
     }
-    return saved ? { savedId: saved.id } : null;
+    // Return both savedId and resolved slug so editor can update formData if slug changed
+    return saved ? { savedId: saved.id, slug: resolvedSlug } : null;
   }, [showToast]);
 
   const handleDuplicate = async (id) => {
