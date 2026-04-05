@@ -15,6 +15,7 @@ import MagazineMediaUploader from './MagazineMediaUploader';
 import { ContentIntelligencePanel, ContentScoreBadge, computeContentIntelligence } from './ContentIntelligence';
 import { generateArticleBody, generateOutline, countBlockWords, LOADING_MESSAGES } from '../../services/taigenicWriterService';
 import MediaLibrary from './MediaLibrary';
+import InternalLinksSection from './InternalLinksSection';
 
 const GOLD = '#c9a96e';
 // Luxury panel background — warm dark charcoal with amber undertone, complements gold
@@ -3154,13 +3155,37 @@ function PublishPanel({ formData, onChange, onPublish, onUnpublish, onSave, onDu
 }
 
 // ── Internal links panel ───────────────────────────────────────────────────────
-function LinksPanel({ formData }) {
+function LinksPanel({ formData, onChange }) {
   const allCats = useAllCategories();
   const [linkText, setLinkText] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [approvedLinks, setApprovedLinks] = useState(formData?.internalLinks || []);
 
   const related = getRelatedPosts(formData, 5);
+
+  // Handle adding a detected mention to approved links
+  const handleAddLink = (mention) => {
+    const newLink = {
+      name: mention.name,
+      type: mention.type,
+      entityId: mention.entityId,
+      context: mention.context,
+    };
+    const updated = [...approvedLinks, newLink];
+    setApprovedLinks(updated);
+    // Sync to formData
+    onChange?.({ ...formData, internalLinks: updated });
+  };
+
+  // Handle removing an approved link
+  const handleRemoveLink = (entityId, type) => {
+    const updated = approvedLinks.filter(
+      l => !(l.entityId === entityId && l.type === type)
+    );
+    setApprovedLinks(updated);
+    onChange?.({ ...formData, internalLinks: updated });
+  };
 
   const copyMarkdown = () => {
     const md = `[${linkText || 'Link text'}](${linkUrl})`;
@@ -3243,10 +3268,12 @@ function LinksPanel({ formData }) {
       </GhostBtn>
 
       <Divider />
-      <div style={{ fontFamily: FU, fontSize: 10, color: S.muted, lineHeight: 1.6 }}>
-        Vendor & venue link suggestions, coming soon.<br />
-        Will surface relevant listings from the directory automatically.
-      </div>
+      <InternalLinksSection
+        formData={formData}
+        approvedLinks={approvedLinks}
+        onAddLink={handleAddLink}
+        onRemoveLink={handleRemoveLink}
+      />
     </div>
   );
 }
@@ -3678,6 +3705,18 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
           {/* ── DRAFT PREVIEW STATE ── */}
           {!aiWriterLoading && aiWriterDraft && (() => {
             const draftIntel = computeContentIntelligence({ ...formData, content: aiWriterDraft.blocks }, focusKeyword);
+
+            // Check keyword placement
+            const draftText = aiWriterDraft.blocks.map(b => b.text || '').join('\n').toLowerCase();
+            const keywordPlacement = focusKeyword ? {
+              inTitle: formData.title?.toLowerCase().includes(focusKeyword.toLowerCase()),
+              inIntro: draftText.split('\n')[0]?.toLowerCase().includes(focusKeyword.toLowerCase()),
+              inHeadings: (aiWriterDraft.blocks || [])
+                .filter(b => b.type === 'heading')
+                .some(b => b.text?.toLowerCase().includes(focusKeyword.toLowerCase())),
+              count: (draftText.match(new RegExp(focusKeyword, 'gi')) || []).length,
+            } : null;
+
             return (
               <div style={{ padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {/* Taigenic header */}
@@ -3696,6 +3735,18 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                     <div style={{ fontFamily: FU, fontSize: 8, color: S.faint, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 2 }}>score {draftIntel.grade}</div>
                   </div>
                 </div>
+                {/* Keyword placement chips */}
+                {keywordPlacement && (
+                  <div>
+                    <div style={{ fontFamily: FU, fontSize: 8, color: S.faint, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Focus Keyword Placement</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {keywordPlacement.inTitle && <span style={{ fontFamily: FU, fontSize: 8, color: '#22c55e', background: '#22c55e15', border: '1px solid #22c55e30', borderRadius: 2, padding: '2px 6px' }}>✓ Title</span>}
+                      {keywordPlacement.inIntro && <span style={{ fontFamily: FU, fontSize: 8, color: '#22c55e', background: '#22c55e15', border: '1px solid #22c55e30', borderRadius: 2, padding: '2px 6px' }}>✓ Intro</span>}
+                      {keywordPlacement.inHeadings && <span style={{ fontFamily: FU, fontSize: 8, color: '#22c55e', background: '#22c55e15', border: '1px solid #22c55e30', borderRadius: 2, padding: '2px 6px' }}>✓ Headings</span>}
+                      {keywordPlacement.count > 0 && <span style={{ fontFamily: FU, fontSize: 8, color: GOLD, background: `${GOLD}10`, border: `1px solid ${GOLD}30`, borderRadius: 2, padding: '2px 6px' }}>{keywordPlacement.count}x used</span>}
+                    </div>
+                  </div>
+                )}
                 {/* NLP terms detected */}
                 {aiWriterDraft.nlpTermsUsed?.length > 0 && (
                   <div>
@@ -3723,7 +3774,21 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                 <button onClick={() => {
                   const newBlocks = aiWriterDraft.blocks;
                   const existing  = formData.content || [];
-                  onChange({ ...formData, content: aiWriterMode === 'replace' ? newBlocks : [...existing, ...newBlocks] });
+                  const now = new Date().toISOString();
+
+                  // Add metadata fields
+                  const updatedFormData = {
+                    ...formData,
+                    content: aiWriterMode === 'replace' ? newBlocks : [...existing, ...newBlocks],
+                    aiGenerated: true,
+                    aiLastGeneratedAt: now,
+                    aiModel: aiWriterDraft.model || 'anthropic-claude-3',
+                    aiTopic: aiWriterTopic,
+                    aiTone: aiWriterTone,
+                    aiWordCount: aiWriterDraft.wordCount,
+                  };
+
+                  onChange(updatedFormData);
                   setAiWriterDraft(null);
                   setSidebarTab('document');
                 }}

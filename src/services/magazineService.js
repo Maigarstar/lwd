@@ -436,6 +436,25 @@ export async function replaceBlocks(postId, contentArray) {
 }
 
 /**
+ * Extract mentions of venues and planners from article content.
+ * Used for auto-linking phase (Phase 3: Internal Linking Engine).
+ *
+ * @param {Object} post - article object with title, excerpt, standfirst, content[]
+ * @returns {Array} array of { name, type, entityId, confidence, context }
+ */
+export async function extractMentionsFromPost(post) {
+  if (!post) return [];
+
+  try {
+    const { findMentionsInArticle } = await import('./entityMatchingService.js');
+    return findMentionsInArticle(post);
+  } catch (err) {
+    console.error('[magazineService] extractMentionsFromPost failed:', err);
+    return [];
+  }
+}
+
+/**
  * Fetch published articles with optional filtering.
  * Used by article search and recommendation engine.
  *
