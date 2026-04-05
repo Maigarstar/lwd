@@ -2,6 +2,7 @@
 import { VENUES } from "../data/italyVenues";
 import { VENDORS } from "../data/vendors";
 import { rankByCuratedIndex } from "../engine/index.js";
+import { getArticleRecommendationsForIntent } from "../services/recommendationEngine";
 
 // ── Intent maps ───────────────────────────────────────────────────────────────
 const REGION_MAP = {
@@ -106,51 +107,8 @@ export function extractIntent(messages) {
   return { region, vendorCategory, style, maxCapacity, resultType };
 }
 
-// ── Map a Supabase listing to the RecommendationCard shape ───────────────────
-function mapListingToCardShape(v) {
-  // imgs array may contain objects { src, url } or plain strings
-  const rawImgs = v.imgs || v.heroImages || [];
-  const firstImg = rawImgs.length > 0
-    ? (typeof rawImgs[0] === 'string' ? rawImgs[0] : rawImgs[0]?.src || rawImgs[0]?.url || '')
-    : '';
-
-  // Normalise priceFrom to a display string
-  let priceFrom = v.priceFrom ?? null;
-  if (typeof priceFrom === 'number') priceFrom = `£${priceFrom.toLocaleString()}`;
-
-  return {
-    id:         v.id,
-    name:       v.name        || 'Unknown venue',
-    imgs:       firstImg ? [firstImg] : [],
-    city:       v.city        || v.destination || v.country || '',
-    region:     v.destination || v.country     || '',
-    rating:     v.rating      ? Number(v.rating) : null,
-    reviews:    v.reviewCount || v.reviews      || null,
-    priceFrom,
-    capacity:   v.capacity    || null,
-    styles:     Array.isArray(v.styles) ? v.styles : (v.type ? [v.type] : []),
-    online:     true,
-    verified:   v.verified    ?? true,
-    lwdScore:   v.lwdScore    || null,
-    tag:        'Being Compared',
-    _comparePin: true,
-  };
-}
-
 // ── Build curated recommendation list ────────────────────────────────────────
 export function getRecommendations(messages, activeContext) {
-  // ── Compare mode: pin the exact venues being evaluated, first ─────────────
-  const compareVenues = activeContext?.compareVenues;
-  if (Array.isArray(compareVenues) && compareVenues.length > 0) {
-    const pinned = compareVenues.map(mapListingToCardShape);
-    const intent = messages?.length ? extractIntent(messages) : {};
-    return {
-      items:   pinned,
-      summary: `Venues you're comparing`,
-      intent,
-    };
-  }
-
   if (!messages || messages.length === 0) {
     return { items: rankByCuratedIndex([...VENUES]).slice(0, 4), summary: "Popular venues in Italy", intent: {} };
   }
@@ -218,4 +176,69 @@ export function getRecommendations(messages, activeContext) {
   }
 
   return { items, summary, intent };
+}
+
+/**
+ * Load article recommendations asynchronously based on chat intent.
+ * Called separately from getRecommendations to avoid blocking sync rendering.
+ *
+ * @async
+ * @param {Array} messages — chat messages
+ * @returns {Promise} { articles: [], error: null }
+ */
+export async function loadArticleRecommendations(messages) {
+  try {
+    if (!messages || messages.length < 2) {
+      return { articles: [], error: null };
+    }
+
+    const intent = extractIntent(messages);
+    const { region, vendorCategory, style } = intent;
+
+    // Build article search intent from chat context
+    const articleIntent = {};
+
+    // Map vendor categories to article topics
+    const VENDOR_TO_ARTICLE = {
+      photographer: "photography",
+      planner: "planning",
+      florist: "style",
+      caterer: "style",
+      musician: "style",
+      celebrant: "style",
+    };
+
+    // Map regions to destination articles
+    const REGION_TO_SLUG = {
+      "Tuscany": "tuscany",
+      "Campania": "amalfi-coast",
+      "Lombardy": "lake-como",
+      "Sicily": "sicily",
+      "Veneto": "venice",
+      "Lazio": "rome",
+      "Puglia": "puglia",
+    };
+
+    if (vendorCategory && VENDOR_TO_ARTICLE[vendorCategory]) {
+      articleIntent.articleCategory = VENDOR_TO_ARTICLE[vendorCategory];
+    } else if (style) {
+      articleIntent.articleCategory = "style";
+    } else if (region && REGION_TO_SLUG[region]) {
+      articleIntent.articleCategory = "destinations";
+      articleIntent.tags = [REGION_TO_SLUG[region]];
+    }
+
+    // Only fetch articles if we detected a relevant intent
+    if (!articleIntent.articleCategory) {
+      return { articles: [], error: null };
+    }
+
+    articleIntent.maxResults = 3;
+    const { articles, error } = await getArticleRecommendationsForIntent(articleIntent);
+
+    return { articles, error };
+  } catch (err) {
+    console.error('[chat/recommendationEngine] loadArticleRecommendations:', err);
+    return { articles: [], error: err };
+  }
 }

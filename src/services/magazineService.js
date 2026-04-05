@@ -435,6 +435,118 @@ export async function replaceBlocks(postId, contentArray) {
   }
 }
 
+/**
+ * Fetch published articles with optional filtering.
+ * Used by article search and recommendation engine.
+ *
+ * @param {Object} filters
+ *   - category_slug?: string — filter by category
+ *   - featured?: boolean — only featured articles
+ *   - trending?: boolean — only trending articles
+ *   - tags?: string[] — articles matching ANY tag
+ *   - limit?: number — max results (default 100)
+ *   - offset?: number — pagination offset (default 0)
+ *
+ * Returns: { data: [], error }
+ */
+export async function fetchPublishedArticles(filters = {}) {
+  if (!isSupabaseAvailable()) return { data: [], error: null };
+  try {
+    const {
+      category_slug,
+      featured,
+      trending,
+      tags,
+      limit = 100,
+      offset = 0,
+    } = filters;
+
+    let q = supabase
+      .from('magazine_posts')
+      .select('*')
+      .eq('published', true);
+
+    if (category_slug) q = q.eq('category_slug', category_slug);
+    if (featured) q = q.eq('featured', true);
+    if (trending) q = q.eq('trending', true);
+
+    // Tag filtering: articles with tags array containing ANY of the provided tags
+    if (tags && Array.isArray(tags) && tags.length > 0) {
+      // Use overlaps operator if available, otherwise fetch all and filter client-side
+      q = q.overlaps('tags', tags);
+    }
+
+    q = q.order('published_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    const { data, error } = await q;
+    if (error) throw error;
+    return { data: (data || []).map(mapPostFromDb), error: null };
+  } catch (err) {
+    console.error('[magazineService] fetchPublishedArticles:', err);
+    return { data: [], error: err };
+  }
+}
+
+/**
+ * Full-text search over published articles.
+ * Searches title, excerpt, tags, and category by substring matching.
+ *
+ * @param {string} query — search terms
+ * @param {Object} options
+ *   - limit?: number — max results (default 20)
+ *   - category_slug?: string — scope to category
+ *
+ * Returns: { data: [], error }
+ */
+export async function searchArticlesFullText(query = '', options = {}) {
+  if (!isSupabaseAvailable()) return { data: [], error: null };
+  if (!query.trim()) return { data: [], error: null };
+
+  try {
+    const { limit = 20, category_slug } = options;
+    const normalizedQuery = query.toLowerCase();
+
+    // Fetch all published articles (or scoped to category)
+    // In production, consider adding a full-text search column in Postgres
+    let filters = { limit: 1000 }; // Fetch a large batch for client-side filtering
+    if (category_slug) {
+      filters.category_slug = category_slug;
+    }
+
+    const { data: articles, error } = await fetchPublishedArticles(filters);
+    if (error) throw error;
+
+    // Client-side filtering (title, excerpt, tags, category)
+    const filtered = (articles || []).filter(article => {
+      // Title match (highest priority)
+      if (article.title?.toLowerCase().includes(normalizedQuery)) return true;
+
+      // Excerpt match
+      if (article.excerpt?.toLowerCase().includes(normalizedQuery)) return true;
+
+      // Tag match
+      if (Array.isArray(article.tags)) {
+        if (article.tags.some(t => t.toLowerCase().includes(normalizedQuery))) {
+          return true;
+        }
+      }
+
+      // Category label match
+      if (article.categoryLabel?.toLowerCase().includes(normalizedQuery)) {
+        return true;
+      }
+
+      return false;
+    });
+
+    return { data: filtered.slice(0, limit), error: null };
+  } catch (err) {
+    console.error('[magazineService] searchArticlesFullText:', err);
+    return { data: [], error: err };
+  }
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CATEGORIES

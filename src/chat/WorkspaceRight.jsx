@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useChat }         from "./ChatContext";
 import RecommendationCard  from "./RecommendationCard";
+import ArticlePreview      from "../components/chat/ArticlePreview";
 import QuickViewModal      from "../components/modals/QuickViewModal";
 import Icon                from "./Icons";
 
@@ -47,11 +48,20 @@ function CollapsedRight({ itemCount, darkMode }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function WorkspaceRight({ collapsed, darkMode }) {
-  const { recommendations, activeContext } = useChat();
-  const isCompareMode = activeContext?.page === 'compare';
+  const { recommendations, articleRecommendations = [], articlesLoading = false } = useChat();
   const { items = [], summary = "Curated for you" } = recommendations ?? {};
   const [qvItem, setQvItem] = useState(null);
+  const [selectedArticle, setSelectedArticle] = useState(null);
   const T = getT(darkMode);
+
+  // Combine venue/vendor items with article previews
+  const allItems = [
+    ...items,
+    ...articleRecommendations.map((article) => ({
+      ...article,
+      type: "article",
+    })),
+  ];
 
   if (collapsed) {
     return <CollapsedRight itemCount={items.length} darkMode={darkMode} />;
@@ -66,7 +76,7 @@ export default function WorkspaceRight({ collapsed, darkMode }) {
           <div style={{ fontFamily: "var(--font-heading-primary)", fontSize: 17, fontWeight: 500, color: T.text }}>
             Curated for you
           </div>
-          {items.length > 0 && (
+          {allItems.length > 0 && (
             <span style={{
               background: "rgba(201,168,76,0.12)",
               border:    `1px solid rgba(201,168,76,0.28)`,
@@ -77,7 +87,7 @@ export default function WorkspaceRight({ collapsed, darkMode }) {
               padding:    "2px 8px",
               borderRadius: 12,
             }}>
-              {items.length} result{items.length !== 1 ? "s" : ""}
+              {allItems.length} result{allItems.length !== 1 ? "s" : ""}
             </span>
           )}
         </div>
@@ -88,24 +98,78 @@ export default function WorkspaceRight({ collapsed, darkMode }) {
 
       {/* ── Scrollable cards ──────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflowY: "auto", padding: "14px 14px 20px" }}>
-        {items.length === 0 ? (
+        {allItems.length === 0 && !articlesLoading ? (
           <div style={{ textAlign: "center", padding: "56px 12px", fontFamily: "var(--font-body)", fontSize: 13, color: T.grey, opacity: 0.5, lineHeight: 1.65 }}>
             <div style={{ marginBottom: 12, opacity: 0.4 }}><Icon name="sparkle" size={28} color={GOLD} /></div>
-            Ask Aura about venues, regions, or vendors to see curated recommendations here.
+            Ask Aura about venues, regions, vendors, or editorial topics to see curated recommendations here.
           </div>
         ) : (
-          items.map((item) => (
-            <RecommendationCard
-              key={item.id}
-              item={item}
-              darkMode={darkMode}
-              onQuickView={setQvItem}
-              onViewFull={setQvItem}
-              onEnquire={isCompareMode && item._comparePin ? (v) => {
-                window.dispatchEvent(new CustomEvent('lwd:aura-enquire', { detail: { venueId: v.id } }));
-              } : null}
-            />
-          ))
+          <>
+            {/* Venue/Vendor recommendations */}
+            {items.map((item) => (
+              <RecommendationCard
+                key={item.id}
+                item={item}
+                darkMode={darkMode}
+                onQuickView={setQvItem}
+                onViewFull={setQvItem}
+              />
+            ))}
+
+            {/* Article recommendations divider */}
+            {items.length > 0 && articleRecommendations.length > 0 && (
+              <div
+                style={{
+                  height: 1,
+                  background: T.divider,
+                  margin: "16px 0",
+                  opacity: 0.5,
+                }}
+              />
+            )}
+
+            {/* Article recommendations */}
+            {articleRecommendations.map((article) => (
+              <div key={article.slug || article.id} style={{ marginBottom: 12 }}>
+                <ArticlePreview
+                  article={article}
+                  onSelect={(slug) => setSelectedArticle(article)}
+                  compact={false}
+                />
+              </div>
+            ))}
+
+            {/* Loading indicator for articles */}
+            {articlesLoading && (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "20px 12px",
+                  fontFamily: "var(--font-body)",
+                  fontSize: 12,
+                  color: T.grey,
+                  opacity: 0.6,
+                }}
+              >
+                <div style={{ display: "flex", gap: 5, alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: GOLD,
+                        animation: `ws-dot-pulse 1.4s ease ${i * 0.2}s infinite`,
+                        opacity: 0.6,
+                      }}
+                    />
+                  ))}
+                </div>
+                Loading related articles…
+              </div>
+            )}
+          </>
         )}
       </div>
 
