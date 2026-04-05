@@ -1,5 +1,5 @@
 // MagazinePreviewPage — WordPress-style live article preview
-// Opened in a new tab from ArticleEditor. Reads draft from sessionStorage.
+// Opened in a new tab from ArticleEditor. Reads draft from localStorage.
 
 import { useState, useEffect } from 'react';
 import ArticleBody from './components/ArticleBody';
@@ -22,11 +22,11 @@ export default function MagazinePreviewPage() {
 
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(PREVIEW_KEY);
+      const raw = localStorage.getItem(PREVIEW_KEY);
       if (raw) {
         const data = JSON.parse(raw);
         setPost(data);
-        sessionStorage.removeItem(PREVIEW_KEY);
+        localStorage.removeItem(PREVIEW_KEY);
       }
     } catch (e) {
       console.error('Preview read failed', e);

@@ -64,7 +64,7 @@ import EventsModule from "./AdminModules/EventsModule";
 import SiteContentModule from "./AdminModules/SiteContentModule";
 import CategoryPagePreview from "../components/admin/CategoryPagePreview";
 import { fetchClickSummary, fetchBatchClickCounts } from "../services/adminOutboundClicksService";
-import { fetchPostBySlug } from "../services/magazineService";
+import { fetchPostBySlug, fetchPosts, deletePost as deleteMagazinePost } from "../services/magazineService";
 import VenueIntakeStudio from "./admin/VenueIntakeStudio";
 import { POSTS } from "./Magazine/data/posts";
 import { PRODUCTS, COLLECTIONS, formatPrice } from "./Magazine/data/products";
@@ -11929,7 +11929,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         </aside>
 
         {/* ── Main content ── */}
-        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'market-intelligence' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
+        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'market-intelligence' || activeTab === 'platform-intelligence' || activeTab === 'media-intelligence' || activeTab === 'live-stats' || activeTab === 'reporting-hub' || activeTab === 'email-builder' || activeTab === 'newsletter-builder' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
           {/* Magazine Studio, full-screen inside admin layout */}
           {activeTab === 'magazine-studio' ? (
             <MagazineStudio
@@ -11966,7 +11966,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             </Suspense>
           ) : (
             <>
-              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake', 'showcase-studio', 'ai-seo-studio', 'locations', 'cities', 'category-studio', 'market-intelligence'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && !locationStudioActive && !cityStudioActive && !categoryStudioActive && (
+              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake', 'showcase-studio', 'ai-seo-studio', 'locations', 'cities', 'category-studio', 'market-intelligence', 'platform-intelligence', 'media-intelligence', 'live-stats', 'reporting-hub', 'aura', 'crm', 'marketing', 'email-marketing', 'newsletter', 'email-builder', 'newsletter-builder', 'seo', 'platform-settings', 'connected-data', 'listing-applications', 'events', 'team', 'site-content', 'venue-profiles'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && !locationStudioActive && !cityStudioActive && !categoryStudioActive && (
                 <div style={{ marginBottom: 36 }}>
                   <h1 style={{
                     fontFamily: GD, fontSize: 24, fontWeight: 400,
@@ -12243,11 +12243,97 @@ function MagazineAdminModule({ C, onNavigate }) {
   const [productCat, setProductCat] = useState('all');
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [allPosts, setAllPosts] = useState(POSTS);
+  const [deleting, setDeleting] = useState(null);
+  const [editingPubDate, setEditingPubDate] = useState(null); // post.id whose date is open
+  const [savingPubDate, setSavingPubDate] = useState(null);
+  // Categories state — seed from static data, extend with parentId support
+  const [managedCats, setManagedCats] = useState(() =>
+    CATEGORIES.map(c => ({ ...c, parentId: null }))
+  );
+  const [catForm, setCatForm] = useState({ name: '', slug: '', description: '', parentId: '' });
+  const [editingCat, setEditingCat] = useState(null); // cat id being inline-edited
+  const [editCatForm, setEditCatForm] = useState({});
 
-  const filtered = POSTS.filter(p => {
-    const matchCat = filterCat === 'all' || p.category === filterCat;
-    const matchSearch = !search || p.title.toLowerCase().includes(search.toLowerCase()) || p.author.name.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch;
+  useEffect(() => {
+    fetchPosts().then(({ data }) => {
+      if (data && data.length > 0) {
+        const staticSlugs = new Set(POSTS.map(p => p.slug));
+        const dbOnly = data.filter(p => !staticSlugs.has(p.slug));
+        setAllPosts([...POSTS, ...dbOnly]);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleDelete = async (post) => {
+    if (!post.id || post._static) return;
+    if (!window.confirm(`Delete "${post.title}"? This cannot be undone.`)) return;
+    setDeleting(post.id);
+    try {
+      await deleteMagazinePost(post.id);
+      setAllPosts(prev => prev.filter(p => p.id !== post.id));
+    } catch (e) {
+      console.error('[MagazineAdmin] delete failed:', e);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const handleDuplicate = async (post) => {
+    const { savePost } = await import('../services/magazineService');
+    const dup = {
+      ...post,
+      id: null,
+      slug: `${post.slug}-copy`,
+      title: `${post.title} (Copy)`,
+      published: false,
+      publishedAt: null,
+      scheduledDate: null,
+      featured: false,
+      trending: false,
+    };
+    try {
+      const { data } = await savePost(dup);
+      if (data) setAllPosts(prev => [data, ...prev]);
+    } catch (e) {
+      console.error('[MagazineAdmin] duplicate failed:', e);
+    }
+  };
+
+  const handlePubDateSave = async (post, isoValue) => {
+    // isoValue = ISO string from datetime-local, or null = "publish immediately"
+    setSavingPubDate(post.id || post.slug);
+    try {
+      const { savePost } = await import('../services/magazineService');
+      const isImmediate = !isoValue;
+      const isFuture = isoValue && new Date(isoValue) > new Date();
+      const updates = {
+        ...post,
+        publishedAt: isImmediate ? new Date().toISOString() : (isFuture ? null : isoValue),
+        scheduledDate: isFuture ? isoValue : null,
+        published: isImmediate || (!isFuture && !!isoValue),
+      };
+      await savePost(updates);
+      setAllPosts(prev => prev.map(p => (p.id || p.slug) === (post.id || post.slug) ? { ...p, ...updates } : p));
+    } catch (e) {
+      console.error('[MagazineAdmin] pubdate save failed:', e);
+    } finally {
+      setSavingPubDate(null);
+      setEditingPubDate(null);
+    }
+  };
+
+  const filtered = allPosts.filter(p => {
+    const matchCat = filterCat === 'all' || p.category === filterCat || p.categorySlug === filterCat;
+    const matchSearch = !search || p.title?.toLowerCase().includes(search.toLowerCase()) || p.author?.name?.toLowerCase().includes(search.toLowerCase());
+    const isDraft = p.published === false;
+    const isScheduled = !p.published && p.scheduledDate && new Date(p.scheduledDate) > new Date();
+    const matchStatus = filterStatus === 'all'
+      || (filterStatus === 'published' && p.published)
+      || (filterStatus === 'scheduled' && isScheduled)
+      || (filterStatus === 'draft' && isDraft && !isScheduled);
+    return matchCat && matchSearch && matchStatus;
   });
 
   const stats = [
@@ -12270,7 +12356,7 @@ function MagazineAdminModule({ C, onNavigate }) {
   );
 
   return (
-    <div style={{ padding: 'clamp(24px, 3vw, 40px)', maxWidth: 1100 }}>
+    <div>
       <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
         <div>
           <p style={{ fontFamily: NU_A, fontSize: 13, color: C.grey, margin: 0 }}>
@@ -12350,40 +12436,143 @@ function MagazineAdminModule({ C, onNavigate }) {
               <option value="all">All Categories</option>
               {CATEGORIES.map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
             </select>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{
+              fontFamily: NU_A, fontSize: 12, color: C.white,
+              background: C.card, border: `1px solid ${C.border}`,
+              borderRadius: 4, padding: '8px 14px', outline: 'none',
+            }}>
+              <option value="all">All Status</option>
+              <option value="published">Published</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="draft">Draft</option>
+            </select>
             <span style={{ fontFamily: NU_A, fontSize: 11, color: C.grey, marginLeft: 'auto' }}>
               {filtered.length} article{filtered.length !== 1 ? 's' : ''}
             </span>
           </div>
           <div style={{ border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 130px 90px 70px 90px', padding: '10px 16px', background: C.card, borderBottom: `1px solid ${C.border}` }}>
-              {['', 'Title', 'Category', 'Author', 'Read', 'Status'].map(h => (
+            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 110px 90px 60px 130px 130px 130px 120px', padding: '10px 16px', background: C.card, borderBottom: `1px solid ${C.border}` }}>
+              {['', 'Title', 'Category', 'Author', 'Read', 'Published', 'Scheduled For', 'Modified', ''].map(h => (
                 <span key={h} style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.grey }}>{h}</span>
               ))}
             </div>
-            {filtered.map((post, i) => (
-              <div key={post.id} style={{
-                display: 'grid', gridTemplateColumns: '40px 1fr 130px 90px 70px 90px',
-                padding: '12px 16px', alignItems: 'center',
+            {filtered.map((post, i) => {
+              const isDraft = post.published === false;
+              const isScheduled = !post.published && post.scheduledDate && new Date(post.scheduledDate) > new Date();
+              const pubDate = post.publishedAt || post.date;
+              const fmtDate = (iso) => {
+                if (!iso) return '—';
+                const d = new Date(iso);
+                return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + '\n' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+              };
+              const rowBg = isScheduled ? 'rgba(99,102,241,0.04)' : isDraft ? 'rgba(234,179,8,0.03)' : i % 2 === 0 ? 'transparent' : `${C.card}60`;
+              return (
+              <div key={post.id || post.slug} style={{
+                display: 'grid', gridTemplateColumns: '120px 1fr 110px 90px 60px 130px 130px 130px 120px',
+                padding: '10px 16px', alignItems: 'center',
                 borderBottom: i < filtered.length - 1 ? `1px solid ${C.border}` : 'none',
-                background: i % 2 === 0 ? 'transparent' : `${C.card}60`,
+                background: rowBg,
               }}>
-                <div style={{ width: 28, height: 28, borderRadius: 2, backgroundImage: `url(${post.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
-                <div>
-                  <div style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.white, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>
+                <div style={{ width: 108, height: 72, borderRadius: 3, backgroundImage: `url(${post.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center', flexShrink: 0 }} />
+                <div style={{ paddingRight: 12, minWidth: 0 }}>
+                  <div style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.white, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {post.title}
                   </div>
-                  <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey }}>/{post.slug}</div>
+                  <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey, marginBottom: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>/{post.slug}</div>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {isScheduled && <span style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 2, background: 'rgba(99,102,241,0.14)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }}>Scheduled</span>}
+                    {isDraft && !isScheduled && <span style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 2, background: 'rgba(234,179,8,0.12)', color: '#eab308', border: '1px solid rgba(234,179,8,0.25)' }}>Draft</span>}
+                    {post.featured && <span style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 2, background: `${GOLD_M}18`, color: GOLD_M, border: `1px solid ${GOLD_M}30` }}>Featured</span>}
+                    {post.trending && <span style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 2, background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.2)' }}>Trending</span>}
+                  </div>
                 </div>
                 <span style={{ fontFamily: NU_A, fontSize: 10, color: C.grey }}>{post.categoryLabel}</span>
-                <span style={{ fontFamily: NU_A, fontSize: 10, color: C.grey }}>{post.author.name.split(' ')[0]}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  {post.author?.avatar && (
+                    <img src={post.author.avatar} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, opacity: 0.9 }} />
+                  )}
+                  <span style={{ fontFamily: NU_A, fontSize: 9, color: C.grey, textAlign: 'center', lineHeight: 1.3 }}>{post.author?.name?.split(' ')[0]}</span>
+                </div>
                 <span style={{ fontFamily: NU_A, fontSize: 10, color: C.grey }}>{post.readingTime} min</span>
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                  {post.featured && <span style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 2, background: `${GOLD_M}18`, color: GOLD_M, border: `1px solid ${GOLD_M}30` }}>Featured</span>}
-                  {post.trending && <span style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 2, background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.2)' }}>Trending</span>}
-                  {!post.featured && !post.trending && <span style={{ fontFamily: NU_A, fontSize: 8, color: C.grey }}>Published</span>}
+                {/* ── Publish date — WordPress-style inline editor ── */}
+                <div style={{ position: 'relative' }}>
+                  {editingPubDate === (post.id || post.slug) ? (
+                    <div style={{ background: C.card, border: `1px solid ${GOLD_M}40`, borderRadius: 4, padding: '8px 10px', minWidth: 190, boxShadow: '0 4px 16px rgba(0,0,0,0.25)', zIndex: 10, position: 'relative' }}>
+                      <div style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GOLD_M, marginBottom: 6 }}>Publish Date</div>
+                      <input
+                        type="datetime-local"
+                        defaultValue={pubDate ? new Date(pubDate).toISOString().slice(0, 16) : ''}
+                        id={`pub-input-${post.id || post.slug}`}
+                        style={{ width: '100%', boxSizing: 'border-box', fontFamily: NU_A, fontSize: 11, color: C.white, background: C.dark || '#0c0a08', border: `1px solid ${C.border}`, borderRadius: 3, padding: '5px 8px', outline: 'none', marginBottom: 8 }}
+                      />
+                      <div style={{ display: 'flex', gap: 5 }}>
+                        <button
+                          onClick={() => {
+                            const val = document.getElementById(`pub-input-${post.id || post.slug}`)?.value;
+                            handlePubDateSave(post, val ? new Date(val).toISOString() : null);
+                          }}
+                          disabled={savingPubDate === (post.id || post.slug)}
+                          style={{ flex: 1, fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '5px 0', borderRadius: 3, border: 'none', background: GOLD_M, color: '#000', cursor: 'pointer' }}
+                        >{savingPubDate === (post.id || post.slug) ? '…' : 'Set Date'}</button>
+                        <button
+                          onClick={() => handlePubDateSave(post, null)}
+                          disabled={savingPubDate === (post.id || post.slug)}
+                          style={{ flex: 1, fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '5px 0', borderRadius: 3, border: `1px solid ${C.border2}`, background: 'transparent', color: C.grey, cursor: 'pointer' }}
+                        >Now</button>
+                        <button
+                          onClick={() => setEditingPubDate(null)}
+                          style={{ fontFamily: NU_A, fontSize: 9, padding: '5px 8px', borderRadius: 3, border: `1px solid ${C.border}`, background: 'transparent', color: C.grey2, cursor: 'pointer' }}
+                        >✕</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditingPubDate(post.id || post.slug)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
+                      title="Click to edit publish date"
+                    >
+                      <span style={{ fontFamily: NU_A, fontSize: 10, color: C.grey, lineHeight: 1.6, whiteSpace: 'pre-line', display: 'block' }}>{fmtDate(pubDate)}</span>
+                      <span style={{ fontFamily: NU_A, fontSize: 8, color: GOLD_M, opacity: 0, transition: 'opacity 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                        onMouseLeave={e => e.currentTarget.style.opacity = '0'}
+                      >Edit ↗</span>
+                    </button>
+                  )}
+                </div>
+                <span style={{ fontFamily: NU_A, fontSize: 10, color: isScheduled ? '#818cf8' : C.grey2, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                  {post.scheduledDate ? fmtDate(post.scheduledDate) : '—'}
+                </span>
+                <span style={{ fontFamily: NU_A, fontSize: 10, color: C.grey2, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{fmtDate(post.updatedAt)}</span>
+                <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => {
+                      try { sessionStorage.setItem('magazineStudio_nav', JSON.stringify({ mode: 'article-edit', editingId: post.id })); } catch {}
+                      onNavigate('magazine-studio');
+                    }}
+                    style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '5px 9px', borderRadius: 3, border: `1px solid ${GOLD_M}50`, background: 'transparent', color: GOLD_M, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = `${GOLD_M}12`}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >Edit ✎</button>
+                  <button
+                    onClick={() => handleDuplicate(post)}
+                    title="Duplicate as draft"
+                    style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 700, padding: '5px 8px', borderRadius: 3, border: `1px solid ${C.border2}`, background: 'transparent', color: C.grey, cursor: 'pointer', transition: 'all 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD_M; e.currentTarget.style.color = GOLD_M; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.grey; }}
+                  >⧉</button>
+                  {post.id && !post._static && (
+                    <button
+                      onClick={() => handleDelete(post)}
+                      disabled={deleting === post.id}
+                      style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 700, padding: '5px 8px', borderRadius: 3, border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: '#ef4444', cursor: 'pointer', transition: 'all 0.15s', opacity: deleting === post.id ? 0.5 : 1 }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.08)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >✕</button>
+                  )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -12459,23 +12648,175 @@ function MagazineAdminModule({ C, onNavigate }) {
         </div>
       )}
 
-      {tab === 'categories' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
-          {CATEGORIES.map(cat => {
-            const count = POSTS.filter(p => p.category === cat.id).length;
-            return (
-              <div key={cat.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '18px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <div style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 4, backgroundImage: `url(${cat.heroImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
-                <div>
-                  <div style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.white, marginBottom: 3 }}>{cat.label}</div>
-                  <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey, marginBottom: 6 }}>{count} article{count !== 1 ? 's' : ''}</div>
-                  <div style={{ fontFamily: NU_A, fontSize: 10, color: GOLD_M, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{cat.defaultCardStyle}</div>
-                </div>
+      {tab === 'categories' && (() => {
+        const topCats = managedCats.filter(c => !c.parentId);
+        const subCats = (parentId) => managedCats.filter(c => c.parentId === parentId);
+        const allOrdered = [];
+        topCats.forEach(c => { allOrdered.push({ ...c, depth: 0 }); subCats(c.id).forEach(s => allOrdered.push({ ...s, depth: 1 })); });
+
+        const addCat = () => {
+          if (!catForm.name.trim()) return;
+          const slug = catForm.slug || catForm.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          const newCat = { id: slug, label: catForm.name, slug, description: catForm.description, parentId: catForm.parentId || null, heroImage: '', accentColor: GOLD_M, defaultCardStyle: 'standard' };
+          setManagedCats(prev => [...prev, newCat]);
+          setCatForm({ name: '', slug: '', description: '', parentId: '' });
+        };
+
+        const deleteCat = (id) => {
+          if (!window.confirm('Delete this category?')) return;
+          setManagedCats(prev => prev.filter(c => c.id !== id && c.parentId !== id));
+        };
+
+        const startEdit = (cat) => { setEditingCat(cat.id); setEditCatForm({ name: cat.label, slug: cat.id, description: cat.description || '', parentId: cat.parentId || '', accentColor: cat.accentColor || GOLD_M, defaultCardStyle: cat.defaultCardStyle || 'standard' }); };
+
+        const saveEdit = (cat) => {
+          setManagedCats(prev => prev.map(c => c.id === cat.id ? { ...c, label: editCatForm.name, id: editCatForm.slug || c.id, description: editCatForm.description, parentId: editCatForm.parentId || null, accentColor: editCatForm.accentColor, defaultCardStyle: editCatForm.defaultCardStyle } : c));
+          setEditingCat(null);
+        };
+
+        const inputStyle = { fontFamily: NU_A, fontSize: 12, color: C.white, background: C.dark || '#0c0a08', border: `1px solid ${C.border}`, borderRadius: 3, padding: '7px 10px', outline: 'none', width: '100%', boxSizing: 'border-box' };
+        const labelStyle = { fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.grey, display: 'block', marginBottom: 5 };
+
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 24, alignItems: 'flex-start' }}>
+
+            {/* ── LEFT: Add Category form ── */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 6, padding: '20px 20px 24px' }}>
+              <div style={{ fontFamily: NU_A, fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.white, marginBottom: 18 }}>Add New Category</div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Name</label>
+                <input value={catForm.name} onChange={e => { setCatForm(f => ({ ...f, name: e.target.value, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') })); }} placeholder="e.g. Bridal Gowns" style={inputStyle} />
+                <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey2, marginTop: 4 }}>The name is how it appears on the site.</div>
               </div>
-            );
-          })}
-        </div>
-      )}
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Slug</label>
+                <input value={catForm.slug} onChange={e => setCatForm(f => ({ ...f, slug: e.target.value }))} placeholder="e.g. bridal-gowns" style={inputStyle} />
+                <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey2, marginTop: 4 }}>URL-friendly version, lowercase letters and hyphens only.</div>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Parent Category</label>
+                <select value={catForm.parentId} onChange={e => setCatForm(f => ({ ...f, parentId: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+                  <option value="">— None (top level) —</option>
+                  {topCats.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </select>
+                <div style={{ fontFamily: NU_A, fontSize: 10, color: C.grey2, marginTop: 4 }}>Categories can have a hierarchy.</div>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={labelStyle}>Description</label>
+                <textarea value={catForm.description} onChange={e => setCatForm(f => ({ ...f, description: e.target.value }))} placeholder="Short description of this category…" rows={3} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }} />
+              </div>
+
+              <button
+                onClick={addCat}
+                style={{ fontFamily: NU_A, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '9px 20px', borderRadius: 3, border: 'none', background: GOLD_M, color: '#000', cursor: 'pointer', width: '100%' }}
+              >Add New Category</button>
+            </div>
+
+            {/* ── RIGHT: Category table ── */}
+            <div style={{ border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 60px 90px 90px', padding: '10px 16px', background: C.card, borderBottom: `1px solid ${C.border}` }}>
+                {['Name', 'Description', 'Count', 'Card Style', ''].map(h => (
+                  <span key={h} style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.grey }}>{h}</span>
+                ))}
+              </div>
+
+              {allOrdered.map((cat, i) => {
+                const count = allPosts.filter(p => p.category === cat.id || p.categorySlug === cat.id).length;
+                const isEditing = editingCat === cat.id;
+                return (
+                  <div key={cat.id}>
+                    <div style={{
+                      display: 'grid', gridTemplateColumns: '1fr 1fr 60px 90px 90px',
+                      padding: '10px 16px', alignItems: 'center',
+                      borderBottom: `1px solid ${C.border}`,
+                      background: i % 2 === 0 ? 'transparent' : `${C.card}60`,
+                    }}>
+                      {/* Name + slug */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 0, paddingLeft: cat.depth * 24 }}>
+                        {cat.depth > 0 && <span style={{ color: C.grey2, marginRight: 6, fontSize: 12 }}>└</span>}
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {cat.accentColor && <div style={{ width: 10, height: 10, borderRadius: '50%', background: cat.accentColor, flexShrink: 0 }} />}
+                            <span style={{ fontFamily: NU_A, fontSize: 12, fontWeight: 600, color: C.white }}>{cat.label}</span>
+                          </div>
+                          <span style={{ fontFamily: NU_A, fontSize: 9, color: C.grey2, marginTop: 2 }}>/{cat.id}</span>
+                          {/* Hover actions */}
+                          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                            <button onClick={() => startEdit(cat)} style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 600, color: GOLD_M, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Edit</button>
+                            <span style={{ color: C.border2 }}>|</span>
+                            <button onClick={() => deleteCat(cat.id)} style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 600, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Delete</button>
+                            <span style={{ color: C.border2 }}>|</span>
+                            <button onClick={() => onNavigate('magazine-studio')} style={{ fontFamily: NU_A, fontSize: 9, fontWeight: 600, color: C.grey, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>View</button>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Description */}
+                      <span style={{ fontFamily: NU_A, fontSize: 11, color: C.grey, lineHeight: 1.5, paddingRight: 16, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {cat.description || <span style={{ color: C.grey2 }}>—</span>}
+                      </span>
+                      {/* Count */}
+                      <span style={{ fontFamily: NU_A, fontSize: 14, fontWeight: 700, color: count > 0 ? C.white : C.grey2 }}>{count}</span>
+                      {/* Card style */}
+                      <span style={{ fontFamily: NU_A, fontSize: 8, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '3px 7px', borderRadius: 2, background: `${GOLD_M}10`, color: GOLD_M, border: `1px solid ${GOLD_M}22`, width: 'fit-content' }}>
+                        {cat.defaultCardStyle || '—'}
+                      </span>
+                      {/* Sub-cat count badge */}
+                      <div>
+                        {cat.depth === 0 && subCats(cat.id).length > 0 && (
+                          <span style={{ fontFamily: NU_A, fontSize: 9, color: C.grey2 }}>{subCats(cat.id).length} sub</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Inline edit row */}
+                    {isEditing && (
+                      <div style={{ background: `${C.card}cc`, borderBottom: `1px solid ${C.border}`, padding: '16px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                        <div>
+                          <label style={labelStyle}>Name</label>
+                          <input value={editCatForm.name} onChange={e => setEditCatForm(f => ({ ...f, name: e.target.value }))} style={inputStyle} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Slug</label>
+                          <input value={editCatForm.slug} onChange={e => setEditCatForm(f => ({ ...f, slug: e.target.value }))} style={inputStyle} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Parent Category</label>
+                          <select value={editCatForm.parentId} onChange={e => setEditCatForm(f => ({ ...f, parentId: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+                            <option value="">— None —</option>
+                            {managedCats.filter(c => c.id !== cat.id && !c.parentId).map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Card Style</label>
+                          <select value={editCatForm.defaultCardStyle} onChange={e => setEditCatForm(f => ({ ...f, defaultCardStyle: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+                            {['overlay', 'standard', 'editorial', 'horizontal'].map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Accent Colour</label>
+                          <input value={editCatForm.accentColor} onChange={e => setEditCatForm(f => ({ ...f, accentColor: e.target.value }))} style={inputStyle} placeholder="#c9a96e" />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Description</label>
+                          <input value={editCatForm.description} onChange={e => setEditCatForm(f => ({ ...f, description: e.target.value }))} style={inputStyle} />
+                        </div>
+                        <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8, marginTop: 4 }}>
+                          <button onClick={() => saveEdit(cat)} style={{ fontFamily: NU_A, fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '7px 18px', borderRadius: 3, border: 'none', background: GOLD_M, color: '#000', cursor: 'pointer' }}>Update</button>
+                          <button onClick={() => setEditingCat(null)} style={{ fontFamily: NU_A, fontSize: 10, fontWeight: 600, padding: '7px 14px', borderRadius: 3, border: `1px solid ${C.border2}`, background: 'transparent', color: C.grey, cursor: 'pointer' }}>Cancel</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {tab === 'settings' && (
         <div style={{ maxWidth: 600 }}>

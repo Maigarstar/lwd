@@ -3913,15 +3913,63 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
         })()}
       </ACC>
 
-      {/* Author & Category */}
-      <ACC id="author" title="Author & Category">
+      {/* Title & URL */}
+      <ACC id="author" title="Title & URL">
         <div>
-          <Lbl>Category</Lbl>
-          <select value={formData.category || ''} onChange={e => { const c = allCats.find(x => x.id === e.target.value); onChange({ ...formData, category: e.target.value, categoryLabel: c?.label || e.target.value }); }}
-            style={{ ...inp, cursor: 'pointer' }}>
+          <Lbl>Title</Lbl>
+          <FI value={formData.title} onChange={v => upd('title', v)} placeholder="Article title" />
+        </div>
+        <div>
+          <Lbl>URL Slug</Lbl>
+          <FI value={formData.slug} onChange={v => upd('slug', v.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''))} placeholder="article-url-slug" />
+          {formData.slug && <div style={{ fontFamily: FU, fontSize: 9, color: S.faint, marginTop: 3 }}>/magazine/{formData.slug}</div>}
+        </div>
+        <div>
+          <Lbl right={`${(formData.metaDescription || '').length}/155`}>Google Description</Lbl>
+          <textarea
+            value={formData.metaDescription || ''}
+            onChange={e => upd('metaDescription', e.target.value)}
+            placeholder="Shown in Google search results…"
+            rows={3}
+            style={{ ...inp, resize: 'vertical', lineHeight: 1.5 }}
+          />
+          <AIBtn action="generate-meta" field="metaDescription" />
+        </div>
+        <div>
+          <Lbl right="primary">Primary Category</Lbl>
+          <select value={formData.category || ''} onChange={e => {
+            const c = allCats.find(x => x.id === e.target.value);
+            // Remove from secondary if it was there
+            const sec = (formData.secondaryCategories || []).filter(id => id !== e.target.value);
+            onChange({ ...formData, category: e.target.value, categoryLabel: c?.label || e.target.value, secondaryCategories: sec });
+          }} style={{ ...inp, cursor: 'pointer' }}>
             <option value="">Select category…</option>
             {allCats.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
           </select>
+        </div>
+        {/* Secondary categories — all cats except the primary */}
+        <div>
+          <Lbl>Also appears in</Lbl>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 2 }}>
+            {allCats.filter(c => c.id !== formData.category).map(c => {
+              const active = (formData.secondaryCategories || []).includes(c.id);
+              return (
+                <button key={c.id} onMouseDown={e => {
+                  e.preventDefault();
+                  const sec = formData.secondaryCategories || [];
+                  upd('secondaryCategories', active ? sec.filter(id => id !== c.id) : [...sec, c.id]);
+                }} style={{
+                  fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.06em',
+                  padding: '3px 8px', borderRadius: 2, cursor: 'pointer', outline: 'none',
+                  background: active ? `${GOLD}18` : 'none',
+                  border: `1px solid ${active ? `${GOLD}60` : S.border}`,
+                  color: active ? GOLD : S.muted, transition: 'all 0.12s',
+                }}>
+                  {active ? '✓ ' : ''}{c.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div>
           <Lbl>Tone</Lbl>
@@ -4324,10 +4372,24 @@ const ART = {
 };
 
 // ── Single editable canvas block ──────────────────────────────────────────────
-function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChange, onDelete, onMoveUp, onMoveDown, total, S, canvasAI, isCore }) {
-  // Canvas is always dark — "lights out" mode regardless of studio theme toggle
-  const isLight = false;
-  const textRef  = useRef(null);
+function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChange, onDelete, onMoveUp, onMoveDown, total, S, canvasAI, isCore, isLight = false }) {
+  // Shadow module-level dark-only constants with isLight-aware versions
+  // eslint-disable-next-line no-shadow
+  const C_INPUT_BG  = isLight ? 'rgba(30,28,22,0.04)'  : 'rgba(245,240,232,0.05)';
+  // eslint-disable-next-line no-shadow
+  const C_INPUT_BD  = isLight ? 'rgba(30,28,22,0.1)'   : 'rgba(245,240,232,0.1)';
+  // eslint-disable-next-line no-shadow
+  const C_INPUT_TXT = isLight ? 'rgba(30,28,22,0.7)'   : 'rgba(245,240,232,0.8)';
+  // eslint-disable-next-line no-shadow
+  const C_BTN_BD    = isLight ? 'rgba(30,28,22,0.12)'  : 'rgba(245,240,232,0.1)';
+  // eslint-disable-next-line no-shadow
+  const C_BTN_TXT   = isLight ? 'rgba(30,28,22,0.5)'   : 'rgba(245,240,232,0.55)';
+  const C_BODY_TXT  = isLight ? 'rgba(30,28,22,0.85)'  : 'rgba(245,240,232,0.88)';
+
+  const textRef   = useRef(null);
+  const wrapRef   = useRef(null);  // block outer div — used to detect focus within format bar
+  const blockRef  = useRef(block); // always-current block — avoids stale closure in commit
+  useEffect(() => { blockRef.current = block; }, [block]);
   const uploadRef = useRef(null); // for inline image upload in image blocks
   const [hovered, setHovered] = useState(false);
   const [slashQuery, setSlashQuery] = useState(null); // null = closed, string = open with filter text
@@ -4369,10 +4431,16 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
     }).catch(() => setAltGenerating(false));
   }, [block.src]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const commit = useCallback(() => {
-    if (textRef.current) onChange({ ...block, text: textRef.current.innerHTML });
+  const commit = useCallback((e) => {
+    // If focus moved to a format bar control within this block, save text but don't deactivate
+    const relTarget = e?.relatedTarget;
+    if (wrapRef.current?.contains(relTarget)) {
+      if (textRef.current) onChange({ ...blockRef.current, text: textRef.current.innerHTML });
+      return;
+    }
+    if (textRef.current) onChange({ ...blockRef.current, text: textRef.current.innerHTML });
     onDeactivate();
-  }, [block, onChange, onDeactivate]);
+  }, [onChange, onDeactivate]);
 
   const handleSlashSelect = useCallback(async (cmd) => {
     if (!canvasAI) return;
@@ -4428,14 +4496,13 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
   };
 
   // Side controls — core badge always visible, move/delete only on hover
-  const sideCtrl = (show || isCore) && (
-    <div style={{ position: 'absolute', right: -44, top: 0, display: 'flex', flexDirection: 'column', gap: 3 }} onClick={e => e.stopPropagation()}>
-      {show && !isCore && index > 0 && <button onClick={onMoveUp} title="Move up" style={{ width: 30, height: 30, borderRadius: 2, background: 'rgba(250,248,244,0.95)', border: '1px solid rgba(0,0,0,0.1)', color: '#888', cursor: 'pointer', fontSize: 12 }}>↑</button>}
-      {show && !isCore && index < total - 1 && <button onClick={onMoveDown} title="Move down" style={{ width: 30, height: 30, borderRadius: 2, background: 'rgba(250,248,244,0.95)', border: '1px solid rgba(0,0,0,0.1)', color: '#888', cursor: 'pointer', fontSize: 12 }}>↓</button>}
-      {isCore
-        ? <div title="Core block — cannot be deleted" style={{ width: 30, height: 20, borderRadius: 2, background: `${GOLD}15`, border: `1px solid ${GOLD}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FU, fontSize: 6, fontWeight: 700, letterSpacing: '0.1em', color: GOLD, cursor: 'default' }}>CORE</div>
-        : show && <button onClick={onDelete} title="Delete block" style={{ width: 30, height: 30, borderRadius: 2, background: 'rgba(250,248,244,0.95)', border: '1px solid rgba(224,85,85,0.25)', color: '#e05555', cursor: 'pointer', fontSize: 12 }}>✕</button>
-      }
+  const btnStyle = { width: 26, height: 26, borderRadius: 2, background: isLight ? 'rgba(255,255,255,0.92)' : 'rgba(30,28,22,0.88)', border: `1px solid ${isLight ? 'rgba(0,0,0,0.14)' : 'rgba(255,255,255,0.12)'}`, color: isLight ? '#555' : '#bbb', cursor: 'pointer', fontSize: 12 };
+  const sideCtrl = show && (
+    <div style={{ position: 'absolute', right: 4, top: 4, display: 'flex', flexDirection: 'row', gap: 3, zIndex: 10 }} onClick={e => e.stopPropagation()}>
+      {isCore && <div style={{ height: 20, borderRadius: 2, background: `${GOLD}15`, border: `1px solid ${GOLD}40`, display: 'flex', alignItems: 'center', fontFamily: FU, fontSize: 6, fontWeight: 700, letterSpacing: '0.1em', color: GOLD, cursor: 'default', padding: '0 4px' }}>CORE</div>}
+      {index > 0 && <button onClick={onMoveUp} title="Move up" style={btnStyle}>↑</button>}
+      {index < total - 1 && <button onClick={onMoveDown} title="Move down" style={btnStyle}>↓</button>}
+      <button onClick={onDelete} title="Delete block" style={{ ...btnStyle, border: '1px solid rgba(224,85,85,0.3)', color: '#e05555' }}>✕</button>
     </div>
   );
 
@@ -4452,6 +4519,12 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
   // Text-based blocks (shared edit/display logic)
   const artTextColor   = isLight ? '#2a2722' : 'rgba(245,240,232,0.88)';
   const artHeadColor   = isLight ? '#0f0e0b' : '#f5f0e8';
+  // Format bar — adapts to light/dark canvas
+  const fmtBg    = isLight ? 'rgba(30,28,22,0.04)'  : 'rgba(245,240,232,0.04)';
+  const fmtBd    = isLight ? 'rgba(30,28,22,0.12)'  : C_INPUT_BD;
+  const fmtBtnBd = isLight ? 'rgba(30,28,22,0.18)'  : C_BTN_BD;
+  const fmtBtnTx = isLight ? 'rgba(30,28,22,0.72)'  : C_BTN_TXT;
+  const fmtSelBg = isLight ? 'rgba(30,28,22,0.05)'  : 'rgba(245,240,232,0.06)';
   const textStyle =
     t === 'intro'     ? { ...ART.intro,     color: artTextColor } :
     t === 'paragraph' ? { ...ART.paragraph, color: artTextColor } :
@@ -4476,90 +4549,20 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
     ];
 
     return (
-      <div style={wrapStyle} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={!isActive ? onActivate : undefined}>
+      <div ref={wrapRef} style={wrapStyle} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={!isActive ? onActivate : undefined}>
         {typeLabel}
-        {/* Inline format bar — shown when block is active */}
-        {isActive && (
-          <div style={{ display: 'flex', gap: 3, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center', padding: '5px 6px', borderRadius: 3, background: 'rgba(245,240,232,0.04)', border: `1px solid ${C_INPUT_BD}` }} onMouseDown={e => e.preventDefault()}>
-            {/* Style */}
-            {[
-              { cmd: 'bold',          label: <b style={{ fontWeight: 800 }}>B</b>,  title: 'Bold' },
-              { cmd: 'italic',        label: <i>I</i>,                               title: 'Italic' },
-              { cmd: 'underline',     label: <u>U</u>,                               title: 'Underline' },
-              { cmd: 'strikeThrough', label: <s>S</s>,                               title: 'Strikethrough' },
-              { cmd: 'superscript',   label: <span>x<sup style={{ fontSize: 8 }}>2</sup></span>, title: 'Superscript' },
-              { cmd: 'subscript',     label: <span>x<sub style={{ fontSize: 8 }}>2</sub></span>, title: 'Subscript' },
-            ].map(({ cmd, label, title }) => (
-              <button key={cmd} onClick={() => document.execCommand(cmd)} title={title}
-                style={{ minWidth: 24, height: 24, padding: '0 4px', borderRadius: 2, background: 'none', border: `1px solid ${C_BTN_BD}`, color: C_BTN_TXT, cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {label}
-              </button>
-            ))}
-            <div style={{ width: 1, height: 16, background: C_BTN_BD, margin: '0 2px' }} />
-            {/* Lists */}
-            {[
-              { cmd: 'insertUnorderedList', label: '≡', title: 'Bullet list' },
-              { cmd: 'insertOrderedList',   label: '①', title: 'Numbered list' },
-              { cmd: 'indent',              label: '→', title: 'Indent' },
-              { cmd: 'outdent',             label: '←', title: 'Outdent' },
-            ].map(({ cmd, label, title }) => (
-              <button key={cmd} onClick={() => document.execCommand(cmd)} title={title}
-                style={{ width: 24, height: 24, borderRadius: 2, background: 'none', border: `1px solid ${C_BTN_BD}`, color: C_BTN_TXT, cursor: 'pointer', fontSize: 12 }}>
-                {label}
-              </button>
-            ))}
-            <div style={{ width: 1, height: 16, background: C_BTN_BD, margin: '0 2px' }} />
-            {/* Alignment */}
-            {[
-              { cmd: 'justifyLeft',   label: '⟵', title: 'Align left' },
-              { cmd: 'justifyCenter', label: '↔',  title: 'Centre' },
-              { cmd: 'justifyRight',  label: '⟶', title: 'Align right' },
-            ].map(({ cmd, label, title }) => (
-              <button key={cmd} onClick={() => document.execCommand(cmd)} title={title}
-                style={{ width: 24, height: 24, borderRadius: 2, background: 'none', border: `1px solid ${C_BTN_BD}`, color: C_BTN_TXT, cursor: 'pointer', fontSize: 12 }}>
-                {label}
-              </button>
-            ))}
-            <div style={{ width: 1, height: 16, background: C_BTN_BD, margin: '0 2px' }} />
-            {/* Font family */}
-            <select value={block.fontFamily || ''} onChange={e => onChange({ ...block, fontFamily: e.target.value || undefined })}
-              style={{ fontFamily: FU, fontSize: 9, padding: '2px 4px', border: `1px solid ${C_BTN_BD}`, borderRadius: 2, background: 'rgba(245,240,232,0.06)', color: C_BTN_TXT, cursor: 'pointer', height: 24, maxWidth: 100 }}>
-              <option value="">Font…</option>
-              {FONT_FAMILIES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-            </select>
-            {/* Font size */}
-            <select value={block.fontSize || ''} onChange={e => onChange({ ...block, fontSize: e.target.value ? parseInt(e.target.value) : undefined })}
-              style={{ fontFamily: FU, fontSize: 9, padding: '2px 4px', border: `1px solid ${C_BTN_BD}`, borderRadius: 2, background: 'rgba(245,240,232,0.06)', color: C_BTN_TXT, cursor: 'pointer', height: 24, width: 58 }}>
-              <option value="">Size…</option>
-              {[12,14,16,18,20,22,24,28,32,36,40,48].map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            {/* Text color */}
-            <label title="Text colour" style={{ display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer', fontFamily: FU, fontSize: 10, color: C_BTN_TXT, border: `1px solid ${C_BTN_BD}`, borderRadius: 2, padding: '0 4px', height: 24 }}>
-              A<input type="color" value={block.color || '#f5f0e8'} onChange={e => onChange({ ...block, color: e.target.value })}
-                style={{ width: 18, height: 18, padding: 0, border: 'none', borderRadius: 1, cursor: 'pointer', background: 'none' }} />
-            </label>
-            {/* Link */}
-            <button title="Insert link" onClick={() => { const u = window.prompt('URL:', 'https://'); if (u) document.execCommand('createLink', false, u); }}
-              style={{ width: 24, height: 24, borderRadius: 2, background: 'none', border: `1px solid ${C_BTN_BD}`, color: C_BTN_TXT, cursor: 'pointer', fontSize: 11 }}>🔗</button>
-            {/* Clear formatting */}
-            <button title="Clear formatting" onClick={() => document.execCommand('removeFormat')}
-              style={{ width: 24, height: 24, borderRadius: 2, background: 'none', border: `1px solid ${C_BTN_BD}`, color: C_BTN_TXT, cursor: 'pointer', fontSize: 10 }}>✕</button>
-          </div>
-        )}
         {isActive
-          ? <div ref={textRef} contentEditable suppressContentEditableWarning onBlur={commit} onKeyDown={kd} onInput={handleInput}
-              style={{ ...customStyle, outline: 'none', minHeight: 32, caretColor: GOLD, ...(aiLoading ? { opacity: 0.45 } : {}) }} />
+          ? <div onClick={e => e.stopPropagation()} style={aiLoading ? { opacity: 0.45, pointerEvents: 'none' } : undefined}>
+              <TiptapEditor
+                value={block.text || ''}
+                onChange={v => onChange({ ...blockRef.current, text: v })}
+                minHeight={t === 'intro' ? 100 : t === 'heading' ? 48 : 140}
+                full={t === 'body_wysiwyg'}
+              />
+            </div>
           : <div style={customStyle} dangerouslySetInnerHTML={{ __html: block.text || `<span style="opacity:0.22;font-style:italic">Click to write…</span>` }} />
         }
         {aiLoading && <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.1em', marginTop: 4, opacity: 0.75 }}>✦ Aura is writing…</div>}
-        {slashQuery !== null && (
-          <SlashCommandPalette
-            query={slashQuery}
-            onSelect={handleSlashSelect}
-            onClose={() => setSlashQuery(null)}
-            loading={aiLoading}
-          />
-        )}
         {sideCtrl}
       </div>
     );
@@ -4571,10 +4574,10 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
         {typeLabel}
         <blockquote style={{ borderLeft: `3px solid ${GOLD}`, margin: '36px 0', padding: '4px 0 4px 28px' }}>
           {isActive
-            ? <div ref={textRef} contentEditable suppressContentEditableWarning onBlur={commit} onKeyDown={kd} style={{ fontFamily: 'Georgia,serif', fontSize: 22, fontStyle: 'italic', lineHeight: 1.5, color: 'rgba(245,240,232,0.88)', outline: 'none', caretColor: GOLD }} />
-            : <div style={{ fontFamily: 'Georgia,serif', fontSize: 22, fontStyle: 'italic', lineHeight: 1.5, color: 'rgba(245,240,232,0.88)' }} dangerouslySetInnerHTML={{ __html: block.text || '<span style="opacity:0.25">Pull quote…</span>' }} />
+            ? <div ref={textRef} contentEditable suppressContentEditableWarning onBlur={commit} onKeyDown={kd} style={{ fontFamily: 'Georgia,serif', fontSize: 22, fontStyle: 'italic', lineHeight: 1.5, color: C_BODY_TXT, outline: 'none', caretColor: GOLD }} />
+            : <div style={{ fontFamily: 'Georgia,serif', fontSize: 22, fontStyle: 'italic', lineHeight: 1.5, color: C_BODY_TXT }} dangerouslySetInnerHTML={{ __html: block.text || '<span style="opacity:0.25">Pull quote…</span>' }} />
           }
-          {block.attribution && <div style={{ fontFamily: FU, fontSize: 12, color: 'rgba(245,240,232,0.38)', marginTop: 12, fontStyle: 'normal' }}>— {block.attribution}</div>}
+          {block.attribution && <div style={{ fontFamily: FU, fontSize: 12, color: C_INPUT_TXT, marginTop: 12, fontStyle: 'normal' }}>— {block.attribution}</div>}
         </blockquote>
         {sideCtrl}
       </div>
@@ -5571,9 +5574,9 @@ function EditableCanvas({ formData, onChange, activeBlockIdx, setActiveBlockIdx,
   const isScaled = viewport !== 'desktop';
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: CANVAS_BG }}>
-      {/* Placeholder colour for dark canvas inputs */}
-      <style>{`.canvas-input::placeholder { color: rgba(245,240,232,0.28); }`}</style>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: isLight ? '#f0ede8' : CANVAS_BG }}>
+      {/* Placeholder colour — adapts to light/dark canvas */}
+      <style>{`.canvas-input::placeholder { color: ${isLight ? 'rgba(30,28,22,0.28)' : 'rgba(245,240,232,0.28)'}; }`}</style>
       {/* ── Scrollable canvas area ── */}
       <div
         style={{ flex: 1, overflowY: 'auto', position: 'relative' }}
@@ -5643,6 +5646,7 @@ function EditableCanvas({ formData, onChange, activeBlockIdx, setActiveBlockIdx,
             S={S}
             canvasAI={canvasAI}
             isCore={i < 2}
+            isLight={isLight}
           />
         ))}
 
@@ -5873,9 +5877,25 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
           {statuses.slice(0, 2).map(s => <StatusBadge key={s.label} label={s.label} color={s.color} />)}
         </div>
         <div style={{ flex: 1 }} />
-        {/* Save state */}
-        <div style={{ fontFamily: FU, fontSize: 9, color: dirty ? DARK_S.warn : DARK_S.success, flexShrink: 0, letterSpacing: '0.06em' }}>
-          {saveLabel || (dirty ? '● Unsaved' : (lastSaved ? `✓ ${lastSaved.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''))}
+        {/* Save state + Save button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <div style={{ fontFamily: FU, fontSize: 9, color: dirty ? DARK_S.warn : DARK_S.success, letterSpacing: '0.06em' }}>
+            {saveLabel || (dirty ? '● Unsaved' : (lastSaved ? `✓ ${lastSaved.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''))}
+          </div>
+          <button
+            onClick={() => setFormData(fd => { save(fd); return fd; })}
+            disabled={!dirty || !!saveLabel}
+            style={{
+              fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+              padding: '5px 12px', borderRadius: 2, cursor: dirty && !saveLabel ? 'pointer' : 'default',
+              background: dirty && !saveLabel ? `${GOLD}18` : 'none',
+              border: `1px solid ${dirty && !saveLabel ? `${GOLD}50` : PANEL_BDR}`,
+              color: dirty && !saveLabel ? GOLD : DARK_S.muted,
+              transition: 'all 0.15s', outline: 'none',
+            }}
+            onMouseEnter={e => { if (dirty && !saveLabel) { e.currentTarget.style.background = `${GOLD}28`; } }}
+            onMouseLeave={e => { if (dirty && !saveLabel) { e.currentTarget.style.background = `${GOLD}18`; } }}
+          >Save</button>
         </div>
         {/* Intelligence badge */}
         <ContentScoreBadge score={contentIntel.score} grade={contentIntel.grade} gradeColor={contentIntel.gradeColor} onClick={() => setShowIntelPanel(p => !p)} />
@@ -5889,7 +5909,7 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
         {/* Preview — opens article in new tab (WordPress-style) */}
         <button
           onClick={() => {
-            try { sessionStorage.setItem('lwd:article-preview', JSON.stringify(formData)); } catch (_) {}
+            try { localStorage.setItem('lwd:article-preview', JSON.stringify(formData)); } catch (_) {}
             window.open('/magazine/preview', '_blank', 'noopener');
           }}
           style={{ background: 'none', border: `1px solid ${PANEL_BDR}`, color: DARK_S.muted, fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '5px 11px', cursor: 'pointer', borderRadius: 2, flexShrink: 0, outline: 'none', transition: 'all 0.15s' }}
@@ -5897,10 +5917,26 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
           onMouseLeave={e => { e.currentTarget.style.borderColor = PANEL_BDR; e.currentTarget.style.color = DARK_S.muted; }}>
           Preview ↗
         </button>
-        {/* Publish */}
+        {/* Publish / View Live */}
         {!formData.published
           ? <GoldBtn small onClick={publish}>Publish</GoldBtn>
-          : <GhostBtn small onClick={unpublish}>Published ✓</GhostBtn>
+          : <>
+              <button
+                onClick={() => window.open(`/magazine/${formData.slug}`, '_blank', 'noopener')}
+                disabled={!formData.slug}
+                title={formData.slug ? `Open /magazine/${formData.slug}` : 'No slug set'}
+                style={{
+                  background: 'rgba(90,170,120,0.12)', border: '1px solid rgba(90,170,120,0.45)',
+                  color: '#5aaa78', fontFamily: FU, fontSize: 9, fontWeight: 700,
+                  letterSpacing: '0.1em', textTransform: 'uppercase', padding: '5px 11px',
+                  cursor: formData.slug ? 'pointer' : 'default', borderRadius: 2, flexShrink: 0,
+                  outline: 'none', transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { if (formData.slug) { e.currentTarget.style.background = 'rgba(90,170,120,0.22)'; } }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(90,170,120,0.12)'; }}
+              >View Live ↗</button>
+              <GhostBtn small onClick={unpublish} style={{ color: DARK_S.muted, borderColor: PANEL_BDR, fontSize: 9 }}>Unpublish</GhostBtn>
+            </>
         }
       </div>
 

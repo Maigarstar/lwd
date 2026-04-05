@@ -139,7 +139,7 @@ async function uploadFile(file, bucket) {
 }
 
 // ── Grid item ─────────────────────────────────────────────────────────────────
-function LibItem({ item, selected, onClick }) {
+function LibItem({ item, selected, onClick, onDelete }) {
   const [hover, setHover] = useState(false);
   return (
     <div
@@ -160,13 +160,29 @@ function LibItem({ item, selected, onClick }) {
           <span style={{ fontSize: 10, color: '#1a1714', fontWeight: 700 }}>✓</span>
         </div>
       )}
-      {hover && !selected && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.18)' }} />}
+      {hover && !selected && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.18)', pointerEvents: 'none' }} />}
+      {hover && (
+        <button
+          onClick={e => { e.stopPropagation(); onDelete(item); }}
+          title="Delete image"
+          style={{
+            position: 'absolute', top: 5, left: 5,
+            width: 22, height: 22, borderRadius: 3,
+            background: 'rgba(20,8,8,0.82)', border: '1px solid rgba(224,85,85,0.5)',
+            color: '#e05555', fontSize: 11, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            lineHeight: 1, padding: 0, transition: 'background 0.12s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(224,85,85,0.25)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(20,8,8,0.82)'; }}
+        >✕</button>
+      )}
     </div>
   );
 }
 
 // ── Detail panel ──────────────────────────────────────────────────────────────
-function DetailPanel({ item, onChange }) {
+function DetailPanel({ item, onChange, onDelete }) {
   if (!item) return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(245,240,232,0.2)', fontFamily: FU, fontSize: 11, textAlign: 'center', padding: 20 }}>
       Select an image to edit details
@@ -202,6 +218,20 @@ function DetailPanel({ item, onChange }) {
             </button>
           ))}
         </div>
+      </div>
+      {/* Delete from storage */}
+      <div style={{ flexShrink: 0, padding: '10px 16px', borderTop: '1px solid rgba(245,240,232,0.06)' }}>
+        <button
+          onClick={() => onDelete(item)}
+          style={{
+            width: '100%', fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em',
+            textTransform: 'uppercase', padding: '7px 0', borderRadius: 2, cursor: 'pointer',
+            background: 'rgba(224,85,85,0.07)', border: '1px solid rgba(224,85,85,0.3)',
+            color: '#e05555', transition: 'background 0.12s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(224,85,85,0.15)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(224,85,85,0.07)'; }}
+        >✕ Delete Image</button>
       </div>
     </div>
   );
@@ -424,6 +454,27 @@ export default function MediaLibrary({ open, onClose, onSelect, onSelectMany, mu
     onClose();
   };
 
+  const deleteItem = async (item) => {
+    if (!window.confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
+    const { error } = await supabase.storage.from(bucket).remove([item.path]);
+    if (error) { alert('Delete failed: ' + error.message); return; }
+    setItems(prev => prev.filter(i => i.url !== item.url));
+    if (activeItem?.url === item.url) setActiveItem(null);
+    setSelected(prev => prev.filter(s => s.url !== item.url));
+  };
+
+  const deleteSelected = async () => {
+    if (selected.length === 0) return;
+    if (!window.confirm(`Delete ${selected.length} image${selected.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    const paths = selected.map(s => s.path);
+    const { error } = await supabase.storage.from(bucket).remove(paths);
+    if (error) { alert('Bulk delete failed: ' + error.message); return; }
+    const deletedUrls = new Set(selected.map(s => s.url));
+    setItems(prev => prev.filter(i => !deletedUrls.has(i.url)));
+    if (activeItem && deletedUrls.has(activeItem.url)) setActiveItem(null);
+    setSelected([]);
+  };
+
   const handleFileUpload = async (files) => {
     setUploading(true); setUploadErr('');
     setUploadProg(Array.from(files).map(f => ({ name: f.name, status: 'optimising' })));
@@ -550,13 +601,13 @@ export default function MediaLibrary({ open, onClose, onSelect, onSelectMany, mu
                 {!loading && !error && filtered.length > 0 && (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
                     {filtered.map(item => (
-                      <LibItem key={item.url} item={item} selected={selected.some(s => s.url === item.url)} onClick={() => toggleSelect(item)} />
+                      <LibItem key={item.url} item={item} selected={selected.some(s => s.url === item.url)} onClick={() => toggleSelect(item)} onDelete={deleteItem} />
                     ))}
                   </div>
                 )}
               </div>
               <div style={{ width: 260, flexShrink: 0, borderLeft: '1px solid rgba(245,240,232,0.07)', background: '#0f0f0d', display: 'flex', flexDirection: 'column' }}>
-                <DetailPanel item={activeItem} onChange={updateActiveItem} />
+                <DetailPanel item={activeItem} onChange={updateActiveItem} onDelete={deleteItem} />
               </div>
             </>
           )}
@@ -621,10 +672,23 @@ export default function MediaLibrary({ open, onClose, onSelect, onSelectMany, mu
 
         {/* Footer */}
         <div style={{ height: 52, flexShrink: 0, borderTop: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', padding: '0 18px', gap: 10 }}>
-          {multiple && selected.length > 0 && (
+          {selected.length > 0 && (
             <span style={{ fontFamily: FU, fontSize: 9, color: 'rgba(245,240,232,0.4)', letterSpacing: '0.1em' }}>
-              {selected.length} image{selected.length > 1 ? 's' : ''} selected
+              {selected.length} selected
             </span>
+          )}
+          {selected.length > 0 && tab === 'library' && (
+            <button
+              onClick={deleteSelected}
+              style={{
+                fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                padding: '5px 12px', borderRadius: 2, cursor: 'pointer',
+                background: 'rgba(224,85,85,0.07)', border: '1px solid rgba(224,85,85,0.3)',
+                color: '#e05555', transition: 'background 0.12s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(224,85,85,0.15)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(224,85,85,0.07)'; }}
+            >✕ Delete {selected.length > 1 ? `${selected.length} Images` : 'Image'}</button>
           )}
           <div style={{ flex: 1 }} />
           <button onClick={onClose}

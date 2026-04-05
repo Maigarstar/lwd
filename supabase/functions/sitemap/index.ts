@@ -58,7 +58,7 @@ Deno.serve(async () => {
     const { data: articles } = await supabase
       .from("magazine_posts")
       .select("slug, category_slug, updated_at")
-      .eq("status", "published")
+      .eq("published", true)
       .not("slug", "is", null);
 
     // Fetch magazine categories

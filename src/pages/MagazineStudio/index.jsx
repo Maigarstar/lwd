@@ -34,10 +34,47 @@ import HomepageEditor from './HomepageEditor';
 import CategoryEditor from './CategoryEditor';
 import {
   fetchPosts,
+  fetchCategories,
   savePost,
   deletePost,
   slugify,
 } from '../../services/magazineService';
+
+// ── In-app confirm dialog ────────────────────────────────────────────────────
+function ConfirmDialog({ open, title, body, confirmLabel = 'Delete', onConfirm, onCancel, danger = true }) {
+  if (!open) return null;
+  const GOLD_V = 'var(--s-gold,#c9a96e)';
+  const ERR_V  = 'var(--s-error,#e05555)';
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 99999,
+      background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }} onClick={onCancel}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: '#1a1510', border: '1px solid rgba(201,169,110,0.18)',
+        borderRadius: 5, padding: '28px 28px 22px', maxWidth: 380, width: '90%',
+        boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+      }}>
+        <div style={{ fontFamily: FD, fontSize: 18, color: '#f5f0e8', marginBottom: 8 }}>{title}</div>
+        {body && <div style={{ fontFamily: FU, fontSize: 12, color: 'rgba(245,240,232,0.5)', lineHeight: 1.6, marginBottom: 20 }}>{body}</div>}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onCancel} style={{
+            fontFamily: FU, fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
+            padding: '7px 16px', borderRadius: 2, cursor: 'pointer',
+            background: 'none', border: '1px solid rgba(245,240,232,0.12)', color: 'rgba(245,240,232,0.45)',
+          }}>Cancel</button>
+          <button onClick={onConfirm} style={{
+            fontFamily: FU, fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+            padding: '7px 16px', borderRadius: 2, cursor: 'pointer', outline: 'none',
+            background: danger ? `${ERR_V}18` : `${GOLD_V}18`,
+            border: `1px solid ${danger ? `${ERR_V}60` : `${GOLD_V}60`}`,
+            color: danger ? ERR_V : GOLD_V,
+          }}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function uid() {
@@ -51,7 +88,7 @@ function formatDate(d) {
 }
 
 // ── Studio Home Screen ────────────────────────────────────────────────────────
-function StudioHome({ posts, onOpenArticles, onOpenHomepage, onOpenCategories }) {
+function StudioHome({ posts, allCategories, onOpenArticles, onOpenHomepage, onOpenCategories }) {
   const published  = posts.filter(p => p.published).length;
   const scheduled  = posts.filter(p => !p.published && p.scheduledDate && new Date(p.scheduledDate) > new Date()).length;
   const drafts     = posts.filter(p => !p.published && !(p.scheduledDate && new Date(p.scheduledDate) > new Date())).length;
@@ -81,11 +118,11 @@ function StudioHome({ posts, onOpenArticles, onOpenHomepage, onOpenCategories })
     },
     {
       title: 'Category Pages',
-      subtitle: `${CATEGORIES.length} categories · hero, cards, SEO`,
+      subtitle: `${allCategories.length} categories · hero, cards, SEO`,
       icon: '◈',
       action: 'Edit Categories',
       onClick: onOpenCategories,
-      stat: CATEGORIES.length,
+      stat: allCategories.length,
     },
   ];
 
@@ -171,7 +208,7 @@ function StudioHome({ posts, onOpenArticles, onOpenHomepage, onOpenCategories })
           { label: 'Drafts',     value: drafts,           color: S.faint   },
           { label: 'Featured',   value: featured,         color: S.gold    },
           { label: 'Needs Work', value: needsWork,        color: S.error   },
-          { label: 'Categories', value: CATEGORIES.length, color: '#7c9db5' },
+          { label: 'Categories', value: allCategories.length, color: '#7c9db5' },
         ].map(stat => (
           <div
             key={stat.label}
@@ -269,7 +306,7 @@ function StudioHome({ posts, onOpenArticles, onOpenHomepage, onOpenCategories })
 }
 
 // ── Article List (Newsroom) ───────────────────────────────────────────────────
-function ArticleList({ posts, onEdit, onNew, onDuplicate, onDelete, onBack, onBulkAction }) {
+function ArticleList({ posts, allCategories, onEdit, onNew, onDuplicate, onDelete, onBack, onBulkAction }) {
   const [search, setSearch]         = useState('');
   const [filterCat, setFilterCat]   = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -278,6 +315,8 @@ function ArticleList({ posts, onEdit, onNew, onDuplicate, onDelete, onBack, onBu
   const [selected, setSelected]     = useState(new Set());
   const [bulkOpen, setBulkOpen]     = useState(false);
   const [bulkWorking, setBulkWorking] = useState(false);
+  const [confirmState, setConfirmState] = useState(null); // { action, ids, title, body }
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // single delete { id }
 
   const isSched = (p) => !p.published && p.scheduledDate && new Date(p.scheduledDate) > new Date();
 
@@ -321,16 +360,28 @@ function ArticleList({ posts, onEdit, onNew, onDuplicate, onDelete, onBack, onBu
   const toggleAll   = () => allSelected ? setSelected(new Set()) : setSelected(new Set(filtered.map(p => p.id)));
   const toggleRow   = (id) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const runBulk = async (action) => {
+  const runBulk = (action) => {
     setBulkOpen(false);
-    if (action === 'delete' && !window.confirm(`Delete ${selected.size} article${selected.size > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    if (action === 'delete') {
+      setConfirmState({
+        action,
+        ids: [...selected],
+        title: `Delete ${selected.size} article${selected.size > 1 ? 's' : ''}?`,
+        body: 'This cannot be undone. All content and blocks will be permanently removed.',
+      });
+      return;
+    }
+    executeBulk(action, [...selected]);
+  };
+
+  const executeBulk = async (action, ids) => {
     setBulkWorking(true);
-    await onBulkAction(action, [...selected]);
+    await onBulkAction(action, ids);
     setSelected(new Set());
     setBulkWorking(false);
   };
 
-  const catOptions    = [{ value: 'all', label: 'All Categories' }, ...CATEGORIES.map(c => ({ value: c.id, label: c.label }))];
+  const catOptions    = [{ value: 'all', label: 'All Categories' }, ...allCategories.map(c => ({ value: c.id, label: c.label }))];
   const statusOptions = [
     { value: 'all',             label: 'All Status'      },
     { value: 'published',       label: 'Published'       },
@@ -547,7 +598,7 @@ function ArticleList({ posts, onEdit, onNew, onDuplicate, onDelete, onBack, onBu
                         style={{ fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '5px 9px', borderRadius: 2, background: 'none', border: `1px solid ${S.border}`, color: S.muted, cursor: 'pointer' }}>
                         Dupe
                       </button>
-                      <button onClick={() => onDelete(post.id)}
+                      <button onClick={e => { e.stopPropagation(); setDeleteConfirm({ id: post.id, title: post.title }); }}
                         style={{ fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '5px 9px', borderRadius: 2, background: 'none', border: '1px solid rgba(224,85,85,0.22)', color: S.error, cursor: 'pointer' }}>
                         ✕
                       </button>
@@ -559,6 +610,26 @@ function ArticleList({ posts, onEdit, onNew, onDuplicate, onDelete, onBack, onBu
           </div>
         )}
       </div>
+
+      {/* In-app bulk delete confirm */}
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title}
+        body={confirmState?.body}
+        confirmLabel="Delete"
+        onConfirm={() => { const s = confirmState; setConfirmState(null); executeBulk(s.action, s.ids); }}
+        onCancel={() => setConfirmState(null)}
+      />
+
+      {/* In-app single delete confirm */}
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        title={`Delete "${deleteConfirm?.title || 'this article'}"?`}
+        body="This cannot be undone. All content and blocks will be permanently removed."
+        confirmLabel="Delete"
+        onConfirm={() => { const d = deleteConfirm; setDeleteConfirm(null); onDelete(d.id); }}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }
@@ -602,10 +673,12 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
     } catch {}
     return CATEGORIES[0].id;
   });
+  const [allCategories, setAllCategories] = useState(CATEGORIES);
   const [localPosts, setLocalPosts] = useState(() =>
     POSTS.map(p => ({ ...p, _lastEdited: p.date }))
   );
   const [dbLoaded, setDbLoaded] = useState(false);
+  const [deleteConfirmShell, setDeleteConfirmShell] = useState(null); // { id, title }
   const [saving, setSaving] = useState(false);
   const [saveToast, setSaveToast] = useState(null); // { msg, type: 'ok'|'warn'|'error' }
   const [studioLight, setStudioLight] = useState(false);
@@ -615,14 +688,27 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
   useEffect(() => {
     fetchPosts().then(({ data, error }) => {
       if (!error && data && data.length > 0) {
-        const staticSlugs = new Set(POSTS.map(p => p.slug));
-        const dbOnly = data.filter(p => !staticSlugs.has(p.slug));
+        // DB posts WIN — static seeds only fill gaps for slugs not yet in DB
+        const dbSlugs = new Set(data.map(p => p.slug));
+        const staticOnly = POSTS.filter(p => !dbSlugs.has(p.slug));
         setLocalPosts([
-          ...POSTS.map(p => ({ ...p, _lastEdited: p.date })),
-          ...dbOnly.map(p => ({ ...p, _lastEdited: p.updatedAt || p.date })),
+          ...data.map(p => ({ ...p, _lastEdited: p.updatedAt || p.date })),
+          ...staticOnly.map(p => ({ ...p, _lastEdited: p.date })),
         ]);
       }
       setDbLoaded(true);
+    });
+  }, []);
+
+  // ── Load categories from DB (merge with static fallback) ────────────────────
+  useEffect(() => {
+    fetchCategories().then(({ data, error }) => {
+      if (!error && data && data.length > 0) {
+        // DB categories win; static fills gaps
+        const dbIds = new Set(data.map(c => c.id));
+        const staticOnly = CATEGORIES.filter(c => !dbIds.has(c.id));
+        setAllCategories([...data, ...staticOnly]);
+      }
     });
   }, []);
 
@@ -719,20 +805,26 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this article? This cannot be undone.')) return;
+  const handleDelete = (id) => {
+    const post = localPosts.find(p => p.id === id);
+    setDeleteConfirmShell({ id, title: post?.title || 'this article' });
+  };
+
+  const executeDelete = async (id) => {
     setLocalPosts(prev => prev.filter(p => p.id !== id));
     if (editingId === id) { setModeAndId('article-list', null); }
     await deletePost(id);
   };
 
   const handleBulkAction = useCallback(async (action, ids) => {
+    const errors = [];
     for (const id of ids) {
       const post = localPosts.find(p => p.id === id);
       if (!post) continue;
       if (action === 'delete') {
         setLocalPosts(prev => prev.filter(p => p.id !== id));
-        await deletePost(id).catch(() => {});
+        const { error } = await deletePost(id);
+        if (error) errors.push(post.title || id);
       } else {
         const updates =
           action === 'publish'   ? { published: true,  publishedAt: new Date().toISOString() } :
@@ -742,11 +834,15 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
         if (updates) {
           const updated = { ...post, ...updates };
           setLocalPosts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-          await savePost(updated).catch(() => {});
+          const { error } = await savePost(updated);
+          if (error) errors.push(post.title || id);
         }
       }
     }
-  }, [localPosts]);
+    if (errors.length > 0) {
+      showToast(`${errors.length} item${errors.length > 1 ? 's' : ''} failed to update`, 'error');
+    }
+  }, [localPosts, showToast]);
 
   const editingPost = localPosts.find(p => p.id === editingId) || null;
 
@@ -898,6 +994,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
         {mode === 'home' && (
           <StudioHome
             posts={localPosts}
+            allCategories={allCategories}
             onOpenArticles={(id) => setModeAndId('article-edit', id)}
             onOpenHomepage={() => setModeAndId('homepage', null)}
             onOpenCategories={() => setModeAndId('category', null)}
@@ -907,6 +1004,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
         {mode === 'article-list' && (
           <ArticleList
             posts={localPosts}
+            allCategories={allCategories}
             onEdit={id => setModeAndId('article-edit', id)}
             onNew={handleNewArticle}
             onDuplicate={handleDuplicate}
@@ -954,6 +1052,16 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
           />
         )}
       </div>
+
+      {/* Shell-level single delete confirm (from article-list or article-edit) */}
+      <ConfirmDialog
+        open={!!deleteConfirmShell}
+        title={`Delete "${deleteConfirmShell?.title || 'this article'}"?`}
+        body="This cannot be undone. All content and blocks will be permanently removed."
+        confirmLabel="Delete"
+        onConfirm={() => { const d = deleteConfirmShell; setDeleteConfirmShell(null); executeDelete(d.id); }}
+        onCancel={() => setDeleteConfirmShell(null)}
+      />
     </div>
   );
 }

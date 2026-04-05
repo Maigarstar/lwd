@@ -32,13 +32,20 @@ function rfcDate(iso: string): string {
 
 function buildItem(a: {
   slug: string; category_slug: string; title: string; excerpt?: string;
-  cover_image?: string; published_at: string; author_name?: string;
+  cover_image?: string; published_at: string; author_data?: Record<string,string> | string | null;
   tags?: string[] | string; category_label?: string;
 }): string {
   const url     = `${SITE_URL}/magazine/${xe(a.category_slug)}/${xe(a.slug)}`;
   const pubDate = rfcDate(a.published_at);
   const desc    = xe(a.excerpt || a.title);
-  const author  = xe(a.author_name || "LWD Editorial");
+  // author_data is stored as JSON object { name, role, ... }
+  let rawAuthor: Record<string,string> | null = null;
+  if (typeof a.author_data === 'string') {
+    try { rawAuthor = JSON.parse(a.author_data); } catch {}
+  } else if (a.author_data && typeof a.author_data === 'object') {
+    rawAuthor = a.author_data as Record<string,string>;
+  }
+  const author  = xe(rawAuthor?.name || "LWD Editorial");
   const cat     = xe(a.category_label || a.category_slug || "");
 
   const tags = Array.isArray(a.tags)
@@ -72,8 +79,8 @@ Deno.serve(async () => {
 
     const { data: articles } = await sb
       .from("magazine_posts")
-      .select("slug, category_slug, title, excerpt, cover_image, published_at, author_name, tags, category_label")
-      .eq("status", "published")
+      .select("slug, category_slug, title, excerpt, cover_image, published_at, author_data, tags, category_label")
+      .eq("published", true)
       .not("slug", "is", null)
       .not("category_slug", "is", null)
       .order("published_at", { ascending: false })

@@ -83,6 +83,8 @@ const POST_FIELD_MAP = {
   aiGenerated:         'ai_generated',
   aiLastGeneratedAt:   'ai_last_generated_at',
   aiMetadata:          'ai_metadata',
+  // Multi-category (added 20260405)
+  secondaryCategories:     'secondary_categories',
   // Editorial Intelligence score (added 20260405)
   contentScore:            'content_score',
   contentScoreGrade:       'content_score_grade',
@@ -228,7 +230,9 @@ export async function savePost(formData) {
     // 2. Build DB row
     const row = mapPostToDb({ ...formData, slug: resolvedSlug });
     row.updated_at = new Date().toISOString();
-    if (!isDbId) delete row.id; // let Postgres generate a real UUID
+    // id is never sent in the SET clause — Postgres generates it on INSERT,
+    // and UPDATE uses .eq('id', effectiveId) not an explicit id field.
+    delete row.id;
 
     // 3. Upsert post
     let savedPost;
@@ -253,7 +257,13 @@ export async function savePost(formData) {
       savedPost = data;
     }
 
-    // 4. Replace blocks atomically
+    // 4. Replace blocks — safe two-phase: backup existing, delete, insert, restore on failure
+    const { data: existingBlocks } = await supabase
+      .from('magazine_blocks')
+      .select('*')
+      .eq('post_id', savedPost.id)
+      .order('block_order', { ascending: true });
+
     await supabase.from('magazine_blocks').delete().eq('post_id', savedPost.id);
 
     const content = formData.content || [];
@@ -263,12 +273,21 @@ export async function savePost(formData) {
         return {
           post_id:       savedPost.id,
           block_type:    type,
-          block_order:   i * 10,   // multiples of 10 for easy AI insertion
+          block_order:   i * 10,
           block_content: blockContent,
         };
       });
       const { error: blocksErr } = await supabase.from('magazine_blocks').insert(blockRows);
-      if (blocksErr) throw blocksErr;
+      if (blocksErr) {
+        // Restore backup to prevent data loss
+        if (existingBlocks && existingBlocks.length > 0) {
+          const restoreRows = existingBlocks.map(({ id: _id, created_at: _ca, ...rest }) => rest);
+          await supabase.from('magazine_blocks').insert(restoreRows).catch(e =>
+            console.error('[magazineService] Block restore failed:', e)
+          );
+        }
+        throw blocksErr;
+      }
     }
 
     const result = mapPostFromDb(savedPost);
