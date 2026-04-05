@@ -257,15 +257,20 @@ export async function savePost(formData) {
       savedPost = data;
     }
 
-    // 4. Replace blocks — safe two-phase: backup existing, delete, insert, restore on failure
+    // 4. Replace blocks — atomic two-phase: backup existing, delete, insert new with restore on failure
     const { data: existingBlocks } = await supabase
       .from('magazine_blocks')
       .select('*')
       .eq('post_id', savedPost.id)
       .order('block_order', { ascending: true });
 
-    await supabase.from('magazine_blocks').delete().eq('post_id', savedPost.id);
+    const { error: deleteErr } = await supabase.from('magazine_blocks').delete().eq('post_id', savedPost.id);
+    if (deleteErr && formData.content && formData.content.length > 0) {
+      // Can't proceed with block replacement if delete failed
+      throw deleteErr;
+    }
 
+    let blocksPersisted = false;
     const content = formData.content || [];
     if (content.length > 0) {
       const blockRows = content.map((block, i) => {
@@ -279,20 +284,48 @@ export async function savePost(formData) {
       });
       const { error: blocksErr } = await supabase.from('magazine_blocks').insert(blockRows);
       if (blocksErr) {
+        console.error('[magazineService] Block insert failed, attempting restore:', blocksErr);
         // Restore backup to prevent data loss
         if (existingBlocks && existingBlocks.length > 0) {
-          const restoreRows = existingBlocks.map(({ id: _id, created_at: _ca, ...rest }) => rest);
-          await supabase.from('magazine_blocks').insert(restoreRows).catch(e =>
-            console.error('[magazineService] Block restore failed:', e)
-          );
+          const restoreRows = existingBlocks.map(({ id: _id, created_at: _ca, updated_at: _ua, ...rest }) => rest);
+          const { error: restoreErr } = await supabase.from('magazine_blocks').insert(restoreRows);
+          if (restoreErr) {
+            console.error('[magazineService] Block restore failed — blocks lost!', restoreErr);
+            return {
+              data: null,
+              error: new Error(`Post saved but blocks failed to restore. Post ID: ${savedPost.id}. Manual recovery needed.`),
+              slugChanged,
+              resolvedSlug,
+              blockRestoreFailed: true
+            };
+          }
+          console.log('[magazineService] Blocks restored from backup');
+        } else {
+          return {
+            data: null,
+            error: new Error(`Post saved but no blocks could be inserted. Post ID: ${savedPost.id}. Content lost.`),
+            slugChanged,
+            resolvedSlug,
+            blockInsertFailed: true
+          };
         }
-        throw blocksErr;
+      } else {
+        blocksPersisted = true;
       }
+    } else {
+      blocksPersisted = true; // Empty content is valid
     }
 
     const result = mapPostFromDb(savedPost);
     result.content = formData.content || [];
-    return { data: result, error: null, slugChanged, resolvedSlug, isNewRecord: !isDbId && !existingDbId };
+    return {
+      data: result,
+      error: null,
+      slugChanged,
+      resolvedSlug,
+      isNewRecord: !isDbId && !existingDbId,
+      blocksPersisted // Client can verify blocks were saved successfully
+    };
   } catch (err) {
     console.error('[magazineService] savePost:', err);
     return { data: null, error: err, slugChanged: false, resolvedSlug: formData.slug };

@@ -5808,15 +5808,31 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
     setFormData(u); await save(u);
   };
 
-  // Autosave every 25s if dirty
+  // Autosave every 25s if dirty — with request deduplication to prevent race conditions
   const dirtyRef = useRef(false);
+  const saveInFlightRef = useRef(false);
   useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
+
+  // Stable autosave callback that doesn't depend on `save` to prevent effect thrashing
+  const autosaveCallback = useCallback(async () => {
+    if (!dirtyRef.current || saveInFlightRef.current) return; // Skip if not dirty or already saving
+    saveInFlightRef.current = true;
+    try {
+      setFormData(fd => {
+        save(fd).finally(() => { saveInFlightRef.current = false; });
+        return fd;
+      });
+    } catch (_) {
+      saveInFlightRef.current = false;
+    }
+  }, []); // Empty deps: autosaveCallback is stable and won't cause effect to re-run
+
   useEffect(() => {
     autosaveRef.current = setInterval(() => {
-      if (dirtyRef.current) setFormData(fd => { save(fd); return fd; });
+      autosaveCallback();
     }, 25000);
     return () => clearInterval(autosaveRef.current);
-  }, [save]);
+  }, [autosaveCallback]); // Now depends on stable autosaveCallback, not on `save`
 
   // Cmd+S / Ctrl+S to save
   useEffect(() => {

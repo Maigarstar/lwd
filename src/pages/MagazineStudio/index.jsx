@@ -740,15 +740,19 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
       featured: false,
       _lastEdited: new Date().toISOString(),
     };
-    // Optimistically add to list, then persist to DB
-    setLocalPosts(prev => [newPost, ...prev]);
-    setModeAndId('article-edit', tempId);
+    // Save to DB FIRST (blocking) before opening editor to ensure we have a real UUID
     const { data: saved, error } = await savePost(newPost);
-    if (!error && saved) {
-      // Replace temp entry with DB record (real UUID)
-      setLocalPosts(prev => prev.map(p => p.id === tempId ? { ...saved, _lastEdited: saved.updatedAt || new Date().toISOString() } : p));
-      setModeAndId('article-edit', saved.id);
+    if (error) {
+      showToast('Failed to create article: ' + (error.message || 'unknown error'), 'error');
+      return;
     }
+    if (!saved) {
+      showToast('Failed to create article: no response', 'error');
+      return;
+    }
+    // Only after successful DB save, add to list and open editor with real ID
+    setLocalPosts(prev => [{ ...saved, _lastEdited: saved.updatedAt || new Date().toISOString() }, ...prev]);
+    setModeAndId('article-edit', saved.id);
   };
 
   const handleSavePost = useCallback(async (updated) => {
