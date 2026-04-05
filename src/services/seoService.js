@@ -290,3 +290,72 @@ export async function removePrimaryPage(conflictKey) {
     .eq('conflict_key', conflictKey);
   if (error) throw new Error(error.message);
 }
+
+// ── IndexNow — real-time discovery ping ───────────────────────────────────────
+
+const SITE_URL_BASE  = "https://www.luxuryweddingdirectory.co.uk";
+const INDEX_NOW_URL  = "https://api.indexnow.org/indexnow";
+
+// In-process cache for the IndexNow key (avoids DB hit on every publish)
+let _indexNowKey  = null;
+let _indexNowTs   = 0;
+const KEY_CACHE_MS = 60 * 60 * 1000; // 1 hour
+
+async function getIndexNowKey() {
+  const now = Date.now();
+  if (_indexNowKey && now - _indexNowTs < KEY_CACHE_MS) return _indexNowKey;
+
+  const { data } = await supabase
+    .from("platform_settings")
+    .select("value")
+    .eq("key", "seo_indexnow_key")
+    .maybeSingle();
+
+  _indexNowKey = data?.value?.trim() || null;
+  _indexNowTs  = now;
+  return _indexNowKey;
+}
+
+/**
+ * Pings IndexNow with one or more absolute URLs.
+ * Silently no-ops if no IndexNow key is configured.
+ * @param {string|string[]} urls
+ * @returns {Promise<{ok:boolean, status?:number, error?:string}>}
+ */
+export async function pingIndexNow(urls) {
+  try {
+    const key = await getIndexNowKey();
+    if (!key) return { ok: false, error: "no_key" };
+
+    const urlList = (Array.isArray(urls) ? urls : [urls]).filter(Boolean);
+    if (!urlList.length) return { ok: false, error: "no_urls" };
+
+    const res = await fetch(INDEX_NOW_URL, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+      body:    JSON.stringify({
+        host:        "www.luxuryweddingdirectory.co.uk",
+        key,
+        keyLocation: `${SITE_URL_BASE}/${key}.txt`,
+        urlList,
+      }),
+    });
+
+    return { ok: res.status === 200 || res.status === 202, status: res.status };
+  } catch (err) {
+    console.warn("[seoService] IndexNow ping failed:", err);
+    return { ok: false, error: err.message };
+  }
+}
+
+/**
+ * Convenience wrapper for magazine articles.
+ * Builds the canonical URL from category + article slug and pings IndexNow.
+ * @param {string} categorySlug
+ * @param {string} articleSlug
+ */
+export async function pingIndexNowForArticle(categorySlug, articleSlug) {
+  if (!categorySlug || !articleSlug) return;
+  const url = `${SITE_URL_BASE}/magazine/${categorySlug}/${articleSlug}`;
+  return pingIndexNow(url);
+}

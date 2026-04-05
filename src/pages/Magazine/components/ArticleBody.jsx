@@ -14,110 +14,113 @@ const MoodboardGridBlock = lazy(() => import('./blocks/MoodboardGridBlock'));
 
 const FS = "Georgia, 'Times New Roman', serif";
 
-// ── Gallery Lightbox ──────────────────────────────────────────────────────────
-function GalleryLightbox({ images, startIndex, onClose, isLight }) {
-  const T = getMagTheme(isLight);
+// Inject spin keyframe once (used by VideoEmbedWithLoader skeleton)
+if (typeof document !== 'undefined' && !document.getElementById('ab-spin-kf')) {
+  const s = document.createElement('style');
+  s.id = 'ab-spin-kf';
+  s.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+  document.head.appendChild(s);
+}
+
+// ── Gallery Lightbox (professional — swipe, keyboard, dots, credits) ────────────
+function GalleryLightbox({ images, startIndex, onClose }) {
   const [idx, setIdx] = useState(startIndex);
+  const touchStartX = useRef(null);
+  const total = images.length;
 
-  const prev = useCallback((e) => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length); }, [images.length]);
-  const next = useCallback((e) => { e.stopPropagation(); setIdx(i => (i + 1) % images.length); }, [images.length]);
+  const prev = useCallback((e) => { e?.stopPropagation(); setIdx(i => (i - 1 + total) % total); }, [total]);
+  const next = useCallback((e) => { e?.stopPropagation(); setIdx(i => (i + 1) % total); }, [total]);
 
-  const img = images[idx];
-  const src = typeof img === 'string' ? img : img?.src;
+  const img    = images[idx];
+  const src    = typeof img === 'string' ? img : img?.src;
   const caption = typeof img === 'object' ? (img.caption || img.alt || '') : '';
-  const credit = typeof img === 'object' ? img.credit : '';
+  const credit  = typeof img === 'object' ? img.credit : '';
 
   const handleKey = useCallback((e) => {
-    if (e.key === 'ArrowLeft') setIdx(i => (i - 1 + images.length) % images.length);
-    if (e.key === 'ArrowRight') setIdx(i => (i + 1) % images.length);
-    if (e.key === 'Escape') onClose();
-  }, [images.length, onClose]);
+    if (e.key === 'ArrowLeft')  prev();
+    if (e.key === 'ArrowRight') next();
+    if (e.key === 'Escape')     onClose();
+  }, [prev, next, onClose]);
+
+  const onTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
+  const onTouchEnd   = (e) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) > 48) dx < 0 ? next() : prev();
+    touchStartX.current = null;
+  };
+
+  // Formatted counter: 01 / 12
+  const counter = `${String(idx + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
 
   return (
     <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 9999,
-        background: 'rgba(0,0,0,0.94)', backdropFilter: 'blur(8px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer',
-      }}
-      onClick={onClose}
-      onKeyDown={handleKey}
-      tabIndex={-1}
-      ref={el => el?.focus()}
+      style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(4,3,2,0.96)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+      onClick={onClose} onKeyDown={handleKey} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}
+      tabIndex={-1} ref={el => el?.focus()}
     >
       {/* Close */}
-      <button onClick={onClose} style={{
-        position: 'absolute', top: 24, right: 28, background: 'none', border: 'none',
-        color: 'rgba(245,240,232,0.6)', fontSize: 28, cursor: 'pointer', lineHeight: 1,
-        padding: 4,
-      }}>✕</button>
+      <button onClick={onClose}
+        style={{ position: 'absolute', top: 20, right: 24, background: 'none', border: 'none', color: 'rgba(245,240,232,0.5)', fontSize: 24, cursor: 'pointer', lineHeight: 1, padding: 6, transition: 'color 0.2s' }}
+        onMouseEnter={e => e.currentTarget.style.color = '#f5f0e8'} onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.5)'}>✕</button>
 
       {/* Counter */}
-      <div style={{
-        position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)',
-        fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.4)', letterSpacing: '0.1em',
-      }}>
-        {idx + 1} / {images.length}
-      </div>
+      <div style={{ position: 'absolute', top: 26, left: '50%', transform: 'translateX(-50%)', fontFamily: FU, fontSize: 10, color: 'rgba(245,240,232,0.35)', letterSpacing: '0.18em' }}>{counter}</div>
 
-      {/* Prev */}
-      {images.length > 1 && (
-        <button onClick={prev} style={{
-          position: 'absolute', left: 20, background: 'none', border: 'none',
-          color: 'rgba(245,240,232,0.55)', fontSize: 32, cursor: 'pointer',
-          padding: '12px 16px', transition: 'color 0.2s',
-        }}
-          onMouseEnter={e => e.currentTarget.style.color = '#f5f0e8'}
-          onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.55)'}
-        >‹</button>
+      {/* Prev arrow */}
+      {total > 1 && (
+        <button onClick={prev}
+          style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(245,240,232,0.5)', width: 48, height: 48, borderRadius: '50%', cursor: 'pointer', fontSize: 22, lineHeight: '48px', textAlign: 'center', transition: 'all 0.2s' }}
+          onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}18`; e.currentTarget.style.borderColor = `${GOLD}40`; e.currentTarget.style.color = GOLD; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(245,240,232,0.5)'; }}>
+          ‹
+        </button>
       )}
 
       {/* Image */}
-      <div style={{ maxWidth: '88vw', maxHeight: '84vh', display: 'flex', flexDirection: 'column', gap: 14 }} onClick={e => e.stopPropagation()}>
+      <div style={{ maxWidth: '84vw', maxHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }} onClick={e => e.stopPropagation()}>
         <img src={src} alt={caption}
-          style={{
-            maxWidth: '88vw', maxHeight: '78vh',
-            objectFit: 'contain', display: 'block', borderRadius: 2,
-          }}
+          style={{ maxWidth: '84vw', maxHeight: '72vh', objectFit: 'contain', display: 'block', borderRadius: 2, transition: 'opacity 0.25s ease' }}
         />
         {(caption || credit) && (
           <div style={{ textAlign: 'center' }}>
-            {caption && <p style={{ fontFamily: FU, fontSize: 12, color: 'rgba(245,240,232,0.55)', margin: 0, fontStyle: 'italic' }}>{caption}</p>}
-            {credit && <p style={{ fontFamily: FU, fontSize: 10, color: `${GOLD}80`, margin: '4px 0 0', letterSpacing: '0.08em' }}>© {credit}</p>}
+            {caption && <p style={{ fontFamily: FU, fontSize: 12, color: 'rgba(245,240,232,0.5)', margin: 0, fontStyle: 'italic' }}>{caption}</p>}
+            {credit && <p style={{ fontFamily: FU, fontSize: 10, color: `${GOLD}90`, margin: '5px 0 0', letterSpacing: '0.1em' }}>© {credit}</p>}
           </div>
         )}
-        {/* Like · Rate · Share */}
-        <div style={{
-          borderTop: '1px solid rgba(255,255,255,0.08)',
-          paddingTop: 12,
-        }}>
-          <ImageInteractionBar
-            mediaId={typeof img === 'object' ? img.media_id || null : null}
-            listingId={typeof img === 'object' ? img.listing_id || null : null}
-            imageUrl={src}
-            listingName={typeof img === 'object' ? (img.listing_name || img.credit || null) : null}
-          />
-        </div>
+        <ImageInteractionBar
+          mediaId={typeof img === 'object' ? img.media_id || null : null}
+          listingId={typeof img === 'object' ? img.listing_id || null : null}
+          imageUrl={src}
+          listingName={typeof img === 'object' ? (img.listing_name || img.credit || null) : null}
+        />
       </div>
 
-      {/* Next */}
-      {images.length > 1 && (
-        <button onClick={next} style={{
-          position: 'absolute', right: 20, background: 'none', border: 'none',
-          color: 'rgba(245,240,232,0.55)', fontSize: 32, cursor: 'pointer',
-          padding: '12px 16px', transition: 'color 0.2s',
-        }}
-          onMouseEnter={e => e.currentTarget.style.color = '#f5f0e8'}
-          onMouseLeave={e => e.currentTarget.style.color = 'rgba(245,240,232,0.55)'}
-        >›</button>
+      {/* Next arrow */}
+      {total > 1 && (
+        <button onClick={next}
+          style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(245,240,232,0.5)', width: 48, height: 48, borderRadius: '50%', cursor: 'pointer', fontSize: 22, lineHeight: '48px', textAlign: 'center', transition: 'all 0.2s' }}
+          onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}18`; e.currentTarget.style.borderColor = `${GOLD}40`; e.currentTarget.style.color = GOLD; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(245,240,232,0.5)'; }}>
+          ›
+        </button>
+      )}
+
+      {/* Dot indicators */}
+      {total > 1 && total <= 12 && (
+        <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+          {images.map((_, j) => (
+            <button key={j} onClick={() => setIdx(j)}
+              style={{ width: j === idx ? 20 : 6, height: 3, borderRadius: 2, border: 'none', cursor: 'pointer', padding: 0, background: j === idx ? GOLD : 'rgba(245,240,232,0.25)', transition: 'all 0.25s ease' }} />
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
 // ── Slider block ──────────────────────────────────────────────────────────────
-function SliderBlock({ images = [], autoplay = false, isLight }) {
+function SliderBlock({ images = [], autoplay = false, isLight, onLightbox }) {
   const [idx, setIdx] = useState(0);
   const timerRef = useRef(null);
   const GOLD_L = GOLD;
@@ -133,10 +136,13 @@ function SliderBlock({ images = [], autoplay = false, isLight }) {
   const img = images[idx];
   const src = typeof img === 'string' ? img : img?.src;
   const cap = typeof img === 'object' ? img.caption : '';
+  const focal = typeof img === 'object' ? (img.focal || img.focalPoint || 'center') : 'center';
   return (
     <figure style={{ margin: '40px 0', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'relative' }}>
-        <img src={src} alt={cap || ''} style={{ width: '100%', display: 'block', borderRadius: 2, maxHeight: 520, objectFit: 'cover' }} />
+        <img src={src} alt={cap || ''} loading="lazy"
+          onClick={onLightbox ? () => onLightbox({ images, startIndex: idx }) : undefined}
+          style={{ width: '100%', display: 'block', borderRadius: 2, maxHeight: 520, objectFit: 'cover', objectPosition: focal, cursor: onLightbox ? 'zoom-in' : 'default' }} />
         {total > 1 && (
           <>
             <button onClick={prev} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.45)', border: 'none', color: '#fff', width: 36, height: 36, borderRadius: '50%', cursor: 'pointer', fontSize: 18, lineHeight: '36px', textAlign: 'center' }}>‹</button>
@@ -155,16 +161,23 @@ function SliderBlock({ images = [], autoplay = false, isLight }) {
 }
 
 // ── Masonry block ─────────────────────────────────────────────────────────────
-function MasonryBlock({ images = [], columns = 2 }) {
+function MasonryBlock({ images = [], columns = 2, onLightbox }) {
   if (!images.length) return null;
+  const allImgs = images.filter(img => typeof img === 'string' ? img : img?.src);
   return (
     <div style={{ margin: '40px 0', columns, columnGap: 12 }}>
-      {images.map((img, i) => {
+      {allImgs.map((img, i) => {
         const src = typeof img === 'string' ? img : img?.src;
         const cap = typeof img === 'object' ? img.caption : '';
+        const focal = typeof img === 'object' ? (img.focal || img.focalPoint || 'center') : 'center';
         return (
-          <figure key={i} style={{ breakInside: 'avoid', margin: '0 0 12px' }}>
-            <img src={src} alt={cap || ''} style={{ width: '100%', display: 'block', borderRadius: 2 }} />
+          <figure key={i} style={{ breakInside: 'avoid', margin: '0 0 12px', cursor: onLightbox ? 'zoom-in' : 'default' }}>
+            <img src={src} alt={cap || ''} loading="lazy"
+              onClick={onLightbox ? () => onLightbox({ images: allImgs, startIndex: i }) : undefined}
+              style={{ width: '100%', display: 'block', borderRadius: 2, objectFit: 'cover', objectPosition: focal, transition: 'opacity 0.2s' }}
+              onMouseEnter={onLightbox ? e => e.currentTarget.style.opacity = '0.88' : undefined}
+              onMouseLeave={onLightbox ? e => e.currentTarget.style.opacity = '1' : undefined}
+            />
             {cap && <figcaption style={{ fontFamily: FU, fontSize: 10, color: 'rgba(150,140,130,0.75)', marginTop: 4, fontStyle: 'italic' }}>{cap}</figcaption>}
           </figure>
         );
@@ -174,38 +187,52 @@ function MasonryBlock({ images = [], columns = 2 }) {
 }
 
 // ── Dual Image block ──────────────────────────────────────────────────────────
-function DualImageBlock({ imageA, imageB, layout = '50/50' }) {
+function DualImageBlock({ imageA, imageB, layout = '50/50', onLightbox }) {
   const widths = { '60/40': ['60%', '40%'], '40/60': ['40%', '60%'] };
   const [wA, wB] = widths[layout] || ['50%', '50%'];
-  const renderImg = (img, w) => {
+  const dualImgs = [imageA, imageB].filter(Boolean);
+  const renderImg = (img, w, imgIdx) => {
     const src = typeof img === 'string' ? img : img?.src;
     const cap = typeof img === 'object' ? img.caption : '';
+    const focal = typeof img === 'object' ? (img.focal || img.focalPoint || 'center') : 'center';
     return (
-      <figure style={{ flex: `0 0 ${w}`, margin: 0 }}>
-        <img src={src} alt={cap || ''} style={{ width: '100%', display: 'block', borderRadius: 2, objectFit: 'cover', aspectRatio: '4/3' }} />
+      <figure style={{ flex: `0 0 ${w}`, margin: 0, cursor: onLightbox ? 'zoom-in' : 'default' }}>
+        <img src={src} alt={cap || ''} loading="lazy"
+          onClick={onLightbox ? () => onLightbox({ images: dualImgs, startIndex: imgIdx }) : undefined}
+          style={{ width: '100%', display: 'block', borderRadius: 2, objectFit: 'cover', objectPosition: focal, aspectRatio: '4/3', transition: 'opacity 0.2s' }}
+          onMouseEnter={onLightbox ? e => e.currentTarget.style.opacity = '0.88' : undefined}
+          onMouseLeave={onLightbox ? e => e.currentTarget.style.opacity = '1' : undefined}
+        />
         {cap && <figcaption style={{ fontFamily: FU, fontSize: 10, color: 'rgba(150,140,130,0.75)', marginTop: 4, fontStyle: 'italic' }}>{cap}</figcaption>}
       </figure>
     );
   };
   return (
     <div style={{ margin: '40px 0', display: 'flex', gap: 12 }}>
-      {imageA && renderImg(imageA, wA)}
-      {imageB && renderImg(imageB, wB)}
+      {imageA && renderImg(imageA, wA, 0)}
+      {imageB && renderImg(imageB, wB, 1)}
     </div>
   );
 }
 
 // ── Lookbook block ────────────────────────────────────────────────────────────
-function LookbookBlock({ images = [], columns = 3 }) {
+function LookbookBlock({ images = [], columns = 3, onLightbox }) {
   if (!images.length) return null;
+  const allImgs = images.filter(img => typeof img === 'string' ? img : img?.src);
   return (
     <div style={{ margin: '40px 0', display: 'grid', gridTemplateColumns: `repeat(${columns}, 1fr)`, gap: 8 }}>
-      {images.map((img, i) => {
+      {allImgs.map((img, i) => {
         const src = typeof img === 'string' ? img : img?.src;
         const label = typeof img === 'object' ? (img.label || img.caption) : '';
+        const focal = typeof img === 'object' ? (img.focal || img.focalPoint || 'center') : 'center';
         return (
-          <figure key={i} style={{ margin: 0 }}>
-            <img src={src} alt={label || ''} style={{ width: '100%', display: 'block', borderRadius: 2, objectFit: 'cover', aspectRatio: '3/4' }} />
+          <figure key={i} style={{ margin: 0, cursor: onLightbox ? 'zoom-in' : 'default' }}>
+            <img src={src} alt={label || ''} loading="lazy"
+              onClick={onLightbox ? () => onLightbox({ images: allImgs, startIndex: i }) : undefined}
+              style={{ width: '100%', display: 'block', borderRadius: 2, objectFit: 'cover', objectPosition: focal, aspectRatio: '3/4', transition: 'opacity 0.2s' }}
+              onMouseEnter={onLightbox ? e => e.currentTarget.style.opacity = '0.88' : undefined}
+              onMouseLeave={onLightbox ? e => e.currentTarget.style.opacity = '1' : undefined}
+            />
             {label && <figcaption style={{ fontFamily: FU, fontSize: 10, color: 'rgba(150,140,130,0.75)', marginTop: 4, textAlign: 'center' }}>{label}</figcaption>}
           </figure>
         );
@@ -215,20 +242,27 @@ function LookbookBlock({ images = [], columns = 3 }) {
 }
 
 // ── Before/After block ────────────────────────────────────────────────────────
-function BeforeAfterBlock({ before, after, beforeLabel = 'Before', afterLabel = 'After' }) {
-  const renderSide = (img, label) => {
+function BeforeAfterBlock({ before, after, beforeLabel = 'Before', afterLabel = 'After', onLightbox }) {
+  const baImgs = [before, after].filter(Boolean);
+  const renderSide = (img, label, imgIdx) => {
     const src = typeof img === 'string' ? img : img?.src;
+    const focal = typeof img === 'object' ? (img.focal || img.focalPoint || 'center') : 'center';
     return (
-      <figure style={{ flex: 1, margin: 0, position: 'relative' }}>
-        <img src={src} alt={label} style={{ width: '100%', display: 'block', borderRadius: 2, objectFit: 'cover', aspectRatio: '4/3' }} />
+      <figure style={{ flex: 1, margin: 0, position: 'relative', cursor: onLightbox ? 'zoom-in' : 'default' }}>
+        <img src={src} alt={label} loading="lazy"
+          onClick={onLightbox ? () => onLightbox({ images: baImgs, startIndex: imgIdx }) : undefined}
+          style={{ width: '100%', display: 'block', borderRadius: 2, objectFit: 'cover', objectPosition: focal, aspectRatio: '4/3', transition: 'opacity 0.2s' }}
+          onMouseEnter={onLightbox ? e => e.currentTarget.style.opacity = '0.88' : undefined}
+          onMouseLeave={onLightbox ? e => e.currentTarget.style.opacity = '1' : undefined}
+        />
         <div style={{ position: 'absolute', top: 10, left: 10, background: 'rgba(0,0,0,0.6)', color: '#fff', fontFamily: FU, fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 2 }}>{label}</div>
       </figure>
     );
   };
   return (
     <div style={{ margin: '40px 0', display: 'flex', gap: 12 }}>
-      {before && renderSide(before, beforeLabel)}
-      {after && renderSide(after, afterLabel)}
+      {before && renderSide(before, beforeLabel, 0)}
+      {after  && renderSide(after,  afterLabel,  1)}
     </div>
   );
 }
@@ -251,6 +285,37 @@ function VideoGalleryBlock({ videos = [] }) {
         </figure>
       ))}
     </div>
+  );
+}
+
+// ── Video embed with loading skeleton ────────────────────────────────────────
+function VideoEmbedWithLoader({ embedUrl, caption, MUTED }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <figure style={{ margin: '40px 0' }}>
+      <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: 2, background: '#0f0d0a' }}>
+        {/* Skeleton shown until iframe fires onLoad */}
+        {!loaded && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', border: '2px solid rgba(201,168,76,0.25)', borderTopColor: '#C9A84C', animation: 'spin 0.9s linear infinite' }} />
+            <span style={{ fontFamily: FU, fontSize: 10, color: 'rgba(201,168,76,0.5)', letterSpacing: '0.12em' }}>Loading video…</span>
+          </div>
+        )}
+        <iframe
+          src={embedUrl}
+          title={caption || 'Embedded video'}
+          onLoad={() => setLoaded(true)}
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none', opacity: loaded ? 1 : 0, transition: 'opacity 0.4s ease' }}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+      {caption && (
+        <figcaption style={{ fontFamily: FU, fontSize: 11, color: MUTED, marginTop: 10, fontStyle: 'italic' }}>
+          {caption}
+        </figcaption>
+      )}
+    </figure>
   );
 }
 
@@ -583,40 +648,23 @@ export default function ArticleBody({ content = [], isLight = true }) {
             };
             const embedUrl = getEmbedUrl(block.url);
             if (!embedUrl) return null;
-            return (
-              <figure key={i} style={{ margin: '40px 0' }}>
-                <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: 2 }}>
-                  <iframe
-                    src={embedUrl}
-                    title={block.caption || 'Embedded video'}
-                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-                {block.caption && (
-                  <figcaption style={{ fontFamily: FU, fontSize: 11, color: MUTED, marginTop: 10, fontStyle: 'italic' }}>
-                    {block.caption}
-                  </figcaption>
-                )}
-              </figure>
-            );
+            return <VideoEmbedWithLoader key={i} embedUrl={embedUrl} caption={block.caption} MUTED={MUTED} />;
           }
 
           case 'slider':
-            return <SliderBlock key={i} images={block.images || []} autoplay={block.autoplay} isLight={isLight} />;
+            return <SliderBlock key={i} images={block.images || []} autoplay={block.autoplay} isLight={isLight} onLightbox={setLightbox} />;
 
           case 'masonry':
-            return <MasonryBlock key={i} images={block.images || []} columns={block.columns || 2} />;
+            return <MasonryBlock key={i} images={block.images || []} columns={block.columns || 2} onLightbox={setLightbox} />;
 
           case 'dual_image':
-            return <DualImageBlock key={i} imageA={block.imageA} imageB={block.imageB} layout={block.layout} />;
+            return <DualImageBlock key={i} imageA={block.imageA} imageB={block.imageB} layout={block.layout} onLightbox={setLightbox} />;
 
           case 'lookbook':
-            return <LookbookBlock key={i} images={block.images || []} columns={block.columns || 3} />;
+            return <LookbookBlock key={i} images={block.images || []} columns={block.columns || 3} onLightbox={setLightbox} />;
 
           case 'before_after':
-            return <BeforeAfterBlock key={i} before={block.before} after={block.after} beforeLabel={block.beforeLabel} afterLabel={block.afterLabel} />;
+            return <BeforeAfterBlock key={i} before={block.before} after={block.after} beforeLabel={block.beforeLabel} afterLabel={block.afterLabel} onLightbox={setLightbox} />;
 
           case 'video_gallery':
             return <VideoGalleryBlock key={i} videos={block.videos || []} />;

@@ -3,17 +3,60 @@ import { useIsMobile } from '../../components/profile/ProfileDesignSystem';
 import {
   getS, themeVars, FU, FD, Field, Input, Textarea, Select, Toggle,
   StatusBadge, GoldBtn, GhostBtn, Divider, SectionLabel,
-  TONE_OPTIONS, computeWordCount, computeReadingTime, computeStatuses,
+  TONE_OPTIONS, computeWordCount, computeReadingTime, computeStatuses, DARK_S,
 } from './StudioShared';
 import { POSTS, getRelatedPosts } from '../Magazine/data/posts';
 import { CATEGORIES } from '../Magazine/data/categories';
 import { fetchCategories } from '../../services/magazineService';
+import { pingIndexNowForArticle } from '../../services/seoService';
 import ArticleBody from '../Magazine/components/ArticleBody';
 import TiptapEditor from './TiptapEditor';
 import MagazineMediaUploader from './MagazineMediaUploader';
 import { ContentIntelligencePanel, ContentScoreBadge, computeContentIntelligence } from './ContentIntelligence';
+import MediaLibrary from './MediaLibrary';
 
 const GOLD = '#c9a96e';
+// Luxury panel background — warm dark charcoal with amber undertone, complements gold
+const PANEL_BG   = '#1a1510';
+const PANEL_BDR  = 'rgba(201,169,110,0.1)'; // gold-tinted border, warmer than neutral
+
+// Canvas is always dark — "lights out" editorial writing mode
+const CANVAS_BG  = '#161614';
+// Dark-mode-safe input/button colours for use inside the always-dark canvas
+const C_INPUT_BG  = 'rgba(245,240,232,0.05)';
+const C_INPUT_BD  = 'rgba(245,240,232,0.1)';
+const C_INPUT_TXT = 'rgba(245,240,232,0.8)';
+const C_BTN_BD    = 'rgba(245,240,232,0.1)';
+const C_BTN_TXT   = 'rgba(245,240,232,0.55)';
+
+// Compress + upload an image file to Supabase magazine bucket, returns public URL
+async function compressAndUploadImage(file) {
+  const { supabase } = await import('../../lib/supabaseClient');
+  let toUpload = file;
+  if (file.size > 120 * 1024 && !file.type.includes('gif')) {
+    try {
+      const bmp = await createImageBitmap(file);
+      const MAX = 2400;
+      const scale = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
+      const w = Math.round(bmp.width * scale);
+      const h = Math.round(bmp.height * scale);
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(bmp, 0, 0, w, h);
+      bmp.close();
+      const blob = await new Promise(res => cv.toBlob(res, 'image/webp', 0.88));
+      if (blob && blob.size < file.size)
+        toUpload = new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), { type: 'image/webp' });
+    } catch (_) {}
+  }
+  const now = new Date();
+  const folder = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const ext = toUpload.name.split('.').pop();
+  const path = `${folder}/mag_${crypto.randomUUID().slice(0, 8)}.${ext}`;
+  const { error } = await supabase.storage.from('magazine').upload(path, toUpload, { upsert: false, contentType: toUpload.type });
+  if (error) throw error;
+  return supabase.storage.from('magazine').getPublicUrl(path).data.publicUrl;
+}
 
 // Hook: merge static CATEGORIES with DB-only categories (e.g. newly created ones)
 function useAllCategories() {
@@ -54,6 +97,16 @@ function useAIGenerate(formData, tone) {
         'generate-seo-title':  `Write an SEO-optimised title (under 60 chars) for a ${context.tone} article titled "${context.title}". Return only the title.`,
         'generate-meta':       `Write a meta description (under 155 chars) for this article titled "${context.title}". Excerpt: ${context.excerpt}. Return only the meta description.`,
         'generate-tags':       `Generate 5–8 relevant SEO tags for an article titled "${context.title}" in ${context.category}. Return comma-separated tags only.`,
+        // Canvas slash commands
+        'canvas-paragraph':    `Write a rich editorial paragraph (3–5 sentences) for a ${context.tone} article titled "${context.title}" in ${context.category}. Existing content so far:\n${context.content}\n\nContinue naturally. Return only the paragraph text, no HTML tags.`,
+        'canvas-intro':        `Write an elegant opening paragraph (2–3 sentences, italic-worthy) for a ${context.tone} article titled "${context.title}". Make it evocative and draw the reader in. Return only the paragraph text.`,
+        'canvas-expand':       `Expand and enrich this text for a ${context.tone} magazine article — add detail, texture, and editorial voice. Original: ${context.blockText}. Return only the expanded text.`,
+        'canvas-rewrite':      `Rewrite this text with elevated ${context.tone} editorial voice. Keep the meaning but improve style and flow. Original: ${context.blockText}. Return only the rewritten text.`,
+        'canvas-h2':           `Write a compelling H2 section heading for a ${context.tone} article titled "${context.title}". Existing content: ${context.content}. Return only the heading text (no markdown, no #).`,
+        'canvas-h3':           `Write a concise H3 subheading for a ${context.tone} article titled "${context.title}". Existing content: ${context.content}. Return only the subheading text.`,
+        'canvas-quote':        `Write a striking pull quote (one powerful sentence) from a ${context.tone} piece about "${context.title}". Return only the quote text.`,
+        'canvas-takeaway':     `Write a concise "key takeaway" bullet list (3 items) for a ${context.tone} article titled "${context.title}". Existing content: ${context.content}. Return each item on a new line, no bullet symbols.`,
+        'canvas-conclusion':   `Write a short, memorable closing paragraph (2–3 sentences) for a ${context.tone} article titled "${context.title}". Existing content: ${context.content}. Return only the paragraph.`,
       };
 
       const prompt = prompts[action];
@@ -953,6 +1006,23 @@ function TemplatePicker({ onSelect, onClose }) {
   );
 }
 
+// ── Block accordion helper (collapses advanced fields) ────────────────────────
+function BlockAccordion({ label, children, S, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ marginTop: 4 }}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', background: 'none', border: 'none', borderTop: `1px solid ${S?.border || 'rgba(245,240,232,0.08)'}`, cursor: 'pointer', fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, transition: 'opacity 0.15s' }}>
+        <span>{label}</span>
+        <span style={{ fontSize: 9, opacity: 0.5, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.25s ease' }}>▾</span>
+      </button>
+      <div style={{ maxHeight: open ? '800px' : '0', overflow: 'hidden', transition: 'max-height 0.25s ease' }}>
+        <div style={{ paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 2 }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
 // ── Block editor per type ──────────────────────────────────────────────────────
 function BlockEditor({ block, onChange }) {
   const upd = (key, val) => onChange({ ...block, [key]: val });
@@ -1358,13 +1428,19 @@ function BlockEditor({ block, onChange }) {
     case 'divider':
       return <div style={{ fontFamily: FU, fontSize: 10, color: S.muted, padding: '6px 0' }}>✦ Ornamental divider, no configuration needed</div>;
 
-    case 'shop_the_story':
+    case 'shop_the_story': {
+      const [_stsAdv, _setStsAdv] = [false, () => {}]; // placeholder — categories always shown
       return (
         <>
-          <Field label="Headline">
-            <Input value={block.headline} onChange={v => upd('headline', v)} placeholder="Shop the Story" />
-          </Field>
-          <Field label="Categories / Tabs">
+          {/* Basic */}
+          <div style={{ borderBottom: `1px solid ${S.border}`, paddingBottom: 12, marginBottom: 4 }}>
+            <div style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, marginBottom: 10 }}>Basic</div>
+            <Field label="Headline">
+              <Input value={block.headline} onChange={v => upd('headline', v)} placeholder="Shop the Story" />
+            </Field>
+          </div>
+          {/* Categories */}
+          <BlockAccordion label="Categories / Tabs" S={S} defaultOpen>
             {(block.categories || []).map((cat, i) => (
               <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 6, marginBottom: 6 }}>
                 <Input value={cat.label} onChange={v => { const c = [...block.categories]; c[i] = { ...c[i], label: v }; upd('categories', c); }} placeholder="Tab label" />
@@ -1377,16 +1453,22 @@ function BlockEditor({ block, onChange }) {
               style={{ width: '100%', padding: '7px', background: 'none', border: `1px dashed color-mix(in srgb, ${S.gold} 25%, transparent)`, color: S.gold, fontFamily: FU, fontSize: 10, cursor: 'pointer', borderRadius: 2 }}>
               + Add Category
             </button>
-          </Field>
+          </BlockAccordion>
         </>
       );
+    }
 
     case 'mood_board': {
       const imgs = block.images || ['', ''];
       return (
         <>
-          <Field label="Title"><Input value={block.title} onChange={v => upd('title', v)} placeholder="Mood board title" /></Field>
-          <Field label="Images">
+          {/* Basic */}
+          <div style={{ borderBottom: `1px solid ${S.border}`, paddingBottom: 12, marginBottom: 4 }}>
+            <div style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, marginBottom: 10 }}>Basic</div>
+            <Field label="Title"><Input value={block.title} onChange={v => upd('title', v)} placeholder="Mood board title" /></Field>
+          </div>
+          {/* Images */}
+          <BlockAccordion label={`Images (${imgs.filter(Boolean).length})`} S={S} defaultOpen>
             {imgs.map((img, i) => (
               <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
                 <Input value={img} onChange={v => { const a = [...imgs]; a[i] = v; upd('images', a); }} placeholder={`Image ${i + 1} URL`} style={{ flex: 1 }} />
@@ -1398,7 +1480,7 @@ function BlockEditor({ block, onChange }) {
               style={{ width: '100%', padding: '7px', background: 'none', border: `1px dashed color-mix(in srgb, ${S.gold} 25%, transparent)`, color: S.gold, fontFamily: FU, fontSize: 10, cursor: 'pointer', borderRadius: 2 }}>
               + Add Image
             </button>
-          </Field>
+          </BlockAccordion>
         </>
       );
     }
@@ -1418,12 +1500,19 @@ function BlockEditor({ block, onChange }) {
       const updD = (key, val) => upd('designer', { ...d, [key]: val });
       return (
         <>
-          <Field label="Brand Name"><Input value={d.name} onChange={v => updD('name', v)} placeholder="Brand / designer name" /></Field>
-          <Field label="Country"><Input value={d.country} onChange={v => updD('country', v)} placeholder="Country of origin" /></Field>
-          <Field label="Hero Image URL"><Input value={d.heroImage} onChange={v => updD('heroImage', v)} placeholder="https://…" /></Field>
-          <Field label="Story"><Textarea value={d.story} onChange={v => updD('story', v)} placeholder="Brand story" /></Field>
-          <Field label="Signature Quote"><Input value={d.signature} onChange={v => updD('signature', v)} placeholder="Signature brand quote" /></Field>
-          <Field label="CTA Label"><Input value={d.ctaLabel} onChange={v => updD('ctaLabel', v)} placeholder="Discover the Collection" /></Field>
+          {/* Basic — always visible */}
+          <div style={{ borderBottom: `1px solid ${S.border}`, paddingBottom: 12, marginBottom: 4 }}>
+            <div style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, marginBottom: 10 }}>Basic</div>
+            <Field label="Brand Name *"><Input value={d.name} onChange={v => updD('name', v)} placeholder="Brand / designer name" /></Field>
+            <Field label="Hero Image URL"><Input value={d.heroImage} onChange={v => updD('heroImage', v)} placeholder="https://…" /></Field>
+          </div>
+          {/* Advanced — collapsed by default */}
+          <BlockAccordion label="Advanced Options" S={S}>
+            <Field label="Country"><Input value={d.country} onChange={v => updD('country', v)} placeholder="Country of origin" /></Field>
+            <Field label="Brand Story"><Textarea value={d.story} onChange={v => updD('story', v)} placeholder="Brand story" /></Field>
+            <Field label="Signature Quote"><Input value={d.signature} onChange={v => updD('signature', v)} placeholder="Signature brand quote" /></Field>
+            <Field label="CTA Label"><Input value={d.ctaLabel} onChange={v => updD('ctaLabel', v)} placeholder="Discover the Collection" /></Field>
+          </BlockAccordion>
         </>
       );
     }
@@ -1600,14 +1689,13 @@ function BlockEditor({ block, onChange }) {
       return (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-            <Field label="Venue Name"><Input value={block.name || ''} onChange={v => upd('name', v)} placeholder="Venue name" /></Field>
+            <Field label="Venue Name *"><Input value={block.name || ''} onChange={v => upd('name', v)} placeholder="Venue name" /></Field>
             <Field label="Location"><Input value={block.location || ''} onChange={v => upd('location', v)} placeholder="City, Country" /></Field>
           </div>
           <Field label="Description"><Textarea value={block.description || ''} onChange={v => upd('description', v)} placeholder="A short description of the venue…" minHeight={80} /></Field>
-          <div style={{ marginTop: 8 }}>
-            <div style={{ fontFamily: FU, fontSize: 9, color: S.muted, marginBottom: 6, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Venue Image</div>
+          <BlockAccordion label={block.src ? '✓ Venue Image' : 'Venue Image'} S={S} defaultOpen={!!block.src}>
             <MagazineMediaUploader value={vsMediaVal} onChange={v => onChange({ ...block, src: v?.src || '', alt: v?.alt || '', caption: v?.caption || '', credit: v?.credit || '', focal: v?.focal || 'center' })} type="image" />
-          </div>
+          </BlockAccordion>
         </>
       );
     }
@@ -1616,23 +1704,25 @@ function BlockEditor({ block, onChange }) {
       const vcVendors = block.vendors || [];
       return (
         <>
-          <Field label="Heading"><Input value={block.heading || ''} onChange={v => upd('heading', v)} placeholder="Credits" /></Field>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-            {vcVendors.map((vendor, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 6 }}>
-                <Input value={vendor.role || ''} onChange={v => { const a = [...vcVendors]; a[i] = { ...a[i], role: v }; upd('vendors', a); }} placeholder="Role (e.g. Photography)" />
-                <Input value={vendor.name || ''} onChange={v => { const a = [...vcVendors]; a[i] = { ...a[i], name: v }; upd('vendors', a); }} placeholder="Vendor name" />
-                <Input value={vendor.url || ''} onChange={v => { const a = [...vcVendors]; a[i] = { ...a[i], url: v }; upd('vendors', a); }} placeholder="Website URL (optional)" />
-                <button onClick={() => upd('vendors', vcVendors.filter((_, j) => j !== i))} style={{
-                  background: 'none', border: `1px solid ${S.border}`, color: S.muted, cursor: 'pointer', padding: '0 8px', borderRadius: 2, fontSize: 12,
-                }}>✕</button>
-              </div>
-            ))}
-          </div>
-          <button onClick={() => upd('vendors', [...vcVendors, { role: '', name: '', url: '' }])} style={{
-            width: '100%', padding: '7px', background: 'none', border: `1px dashed color-mix(in srgb, ${S.gold} 25%, transparent)`,
-            color: S.gold, fontFamily: FU, fontSize: 10, cursor: 'pointer', borderRadius: 2,
-          }}>+ Add Vendor</button>
+          <Field label="Section Heading"><Input value={block.heading || ''} onChange={v => upd('heading', v)} placeholder="Credits" /></Field>
+          <BlockAccordion label={`Vendors (${vcVendors.length})`} S={S} defaultOpen>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+              {vcVendors.map((vendor, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 6 }}>
+                  <Input value={vendor.role || ''} onChange={v => { const a = [...vcVendors]; a[i] = { ...a[i], role: v }; upd('vendors', a); }} placeholder="Role" />
+                  <Input value={vendor.name || ''} onChange={v => { const a = [...vcVendors]; a[i] = { ...a[i], name: v }; upd('vendors', a); }} placeholder="Name" />
+                  <Input value={vendor.url || ''} onChange={v => { const a = [...vcVendors]; a[i] = { ...a[i], url: v }; upd('vendors', a); }} placeholder="URL (optional)" />
+                  <button onClick={() => upd('vendors', vcVendors.filter((_, j) => j !== i))} style={{
+                    background: 'none', border: `1px solid ${S.border}`, color: S.muted, cursor: 'pointer', padding: '0 8px', borderRadius: 2, fontSize: 12,
+                  }}>✕</button>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => upd('vendors', [...vcVendors, { role: '', name: '', url: '' }])} style={{
+              width: '100%', padding: '7px', background: 'none', border: `1px dashed color-mix(in srgb, ${S.gold} 25%, transparent)`,
+              color: S.gold, fontFamily: FU, fontSize: 10, cursor: 'pointer', borderRadius: 2,
+            }}>+ Add Vendor</button>
+          </BlockAccordion>
         </>
       );
     }
@@ -1765,7 +1855,7 @@ function AddBlockPicker({ onAdd, onClose }) {
  * Converts a YouTube, Vimeo, or direct video URL to an embeddable form.
  * Returns { type: 'youtube'|'vimeo'|'direct', embedUrl } or null.
  */
-export function getVideoEmbed(url) {
+function getVideoEmbed(url) {
   if (!url) return null;
   const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
   if (ytMatch) {
@@ -2272,6 +2362,9 @@ function MetaPanel({ formData, onChange, tone, onToneChange }) {
   const updAuthor = (key, val) => onChange({ ...formData, author: { ...formData.author, [key]: val } });
   const { runAI, loading: aiLoading, error: aiError } = useAIGenerate(formData, tone);
   const [linksOpen, setLinksOpen] = useState(false);
+  const [coverLibOpen, setCoverLibOpen] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const coverUploadRef = useRef(null);
 
   const allCats = useAllCategories();
   const catOptions = allCats.map(c => ({ value: c.id, label: c.label }));
@@ -2389,15 +2482,67 @@ function MetaPanel({ formData, onChange, tone, onToneChange }) {
         </Field>
       </div>
       <Divider />
-      <Field label="Cover Image URL">
-        <Input value={formData.coverImage} onChange={v => upd('coverImage', v)} placeholder="https://images.unsplash.com/…" />
-        {formData.coverImage && (
-          <img src={formData.coverImage} alt="" style={{ width: '100%', marginTop: 8, borderRadius: 2, maxHeight: 130, objectFit: 'cover' }} />
+      {/* ── Featured / Cover Image ── */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--s-muted, rgba(245,240,232,0.45))', marginBottom: 8 }}>
+          Featured Image
+        </div>
+        {/* Hidden upload input */}
+        <input ref={coverUploadRef} type="file" accept="image/*" style={{ display: 'none' }}
+          onChange={async e => {
+            const f = e.target.files?.[0]; if (!f) return;
+            setCoverUploading(true);
+            try { const url = await compressAndUploadImage(f); onChange({ ...formData, coverImage: url }); }
+            catch (err) { console.error('Cover image upload failed', err); }
+            finally { setCoverUploading(false); e.target.value = ''; }
+          }} />
+        {formData.coverImage ? (
+          <div style={{ position: 'relative', borderRadius: 3, overflow: 'hidden', marginBottom: 8 }}>
+            <img src={formData.coverImage} alt={formData.coverImageAlt || ''} style={{ width: '100%', maxHeight: 160, objectFit: 'cover', objectPosition: formData.heroFocalPoint || 'center', display: 'block' }} />
+            <div style={{ position: 'absolute', top: 6, right: 6, display: 'flex', gap: 4 }}>
+              <button onClick={() => coverUploadRef.current?.click()} disabled={coverUploading}
+                style={{ fontFamily: FU, fontSize: 8, padding: '3px 8px', borderRadius: 2, background: 'rgba(0,0,0,0.65)', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.8)', cursor: 'pointer' }}>
+                {coverUploading ? '…' : '⬆'}
+              </button>
+              <button onClick={() => setCoverLibOpen(true)}
+                style={{ fontFamily: FU, fontSize: 8, padding: '3px 8px', borderRadius: 2, background: `${GOLD}cc`, border: 'none', color: '#1a1714', cursor: 'pointer', fontWeight: 700 }}>
+                Replace
+              </button>
+              <button onClick={() => onChange({ ...formData, coverImage: '' })}
+                style={{ fontFamily: FU, fontSize: 8, padding: '3px 8px', borderRadius: 2, background: 'rgba(0,0,0,0.65)', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.8)', cursor: 'pointer' }}>
+                ✕
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <button onClick={() => coverUploadRef.current?.click()} disabled={coverUploading}
+              style={{ flex: 1, height: 80, background: 'var(--s-input-bg, rgba(245,240,232,0.04))', border: `1px dashed ${GOLD}40`, borderRadius: 3, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <span style={{ fontSize: 16, opacity: 0.4 }}>⬆</span>
+              <span style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.1em' }}>{coverUploading ? 'Uploading…' : 'Upload'}</span>
+            </button>
+            <button onClick={() => setCoverLibOpen(true)}
+              style={{ flex: 1, height: 80, background: 'var(--s-input-bg, rgba(245,240,232,0.04))', border: `1px dashed rgba(245,240,232,0.1)`, borderRadius: 3, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <span style={{ fontSize: 16, opacity: 0.4 }}>⊞</span>
+              <span style={{ fontFamily: FU, fontSize: 8, color: 'var(--s-muted, rgba(245,240,232,0.45))', letterSpacing: '0.1em' }}>Library</span>
+            </button>
+          </div>
         )}
-      </Field>
-      <Field label="Cover Image Alt Text">
-        <Input value={formData.coverImageAlt} onChange={v => upd('coverImageAlt', v)} placeholder="Describe the image for accessibility" />
-      </Field>
+        {formData.coverImage && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <input value={formData.coverImageAlt || ''} onChange={e => upd('coverImageAlt', e.target.value)} placeholder="Alt text (accessibility)"
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--s-input-bg, rgba(245,240,232,0.04))', border: '1px solid var(--s-input-border, rgba(245,240,232,0.1))', color: 'var(--s-text, #f5f0e8)', fontFamily: FU, fontSize: 11, padding: '6px 9px', borderRadius: 2, outline: 'none' }} />
+            <input value={formData.coverImageCredit || ''} onChange={e => upd('coverImageCredit', e.target.value)} placeholder="Photo credit (optional)"
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--s-input-bg, rgba(245,240,232,0.04))', border: '1px solid var(--s-input-border, rgba(245,240,232,0.1))', color: 'var(--s-text, #f5f0e8)', fontFamily: FU, fontSize: 11, padding: '6px 9px', borderRadius: 2, outline: 'none' }} />
+          </div>
+        )}
+        <MediaLibrary
+          open={coverLibOpen}
+          onClose={() => setCoverLibOpen(false)}
+          bucket="magazine"
+          onSelect={img => { upd('coverImage', img.url); if (img.alt) upd('coverImageAlt', img.alt); if (img.credit) upd('coverImageCredit', img.credit); }}
+        />
+      </div>
       <Field label="Tags" hint="Comma-separated, amalfi, italy, venues">
         <Input
           value={Array.isArray(formData.tags) ? formData.tags.join(', ') : formData.tags || ''}
@@ -2493,6 +2638,7 @@ function MetaPanel({ formData, onChange, tone, onToneChange }) {
 function SEOPanel({ formData, onChange, tone }) {
   const upd = (key, val) => onChange({ ...formData, [key]: val });
   const wc = computeWordCount(formData.content);
+  const [ogLibOpen, setOgLibOpen] = useState(false);
   const rt = computeReadingTime(wc);
   const { runAI, loading: aiLoading, error: aiError } = useAIGenerate(formData, tone);
   const [tagInput, setTagInput] = useState('');
@@ -2677,11 +2823,24 @@ function SEOPanel({ formData, onChange, tone }) {
       <Field label="OG Description">
         <Textarea value={formData.ogDescription} onChange={v => upd('ogDescription', v)} placeholder={formData.metaDescription || formData.excerpt || 'OG description…'} minHeight={60} />
       </Field>
-      <Field label="OG Image URL" hint="1200×630px recommended for social sharing">
-        <Input value={formData.ogImage} onChange={v => upd('ogImage', v)} placeholder={formData.coverImage || 'https://…'} />
+      <Field label="OG Image" hint="1200×630px recommended">
         {(formData.ogImage || formData.coverImage) && (
-          <img src={formData.ogImage || formData.coverImage} alt="" style={{ width: '100%', aspectRatio: '1200/630', objectFit: 'cover', marginTop: 8, borderRadius: 2 }} />
+          <div style={{ position: 'relative', marginBottom: 6 }}>
+            <img src={formData.ogImage || formData.coverImage} alt="" style={{ width: '100%', aspectRatio: '1200/630', objectFit: 'cover', borderRadius: 2, display: 'block' }} />
+            <button onClick={() => setOgLibOpen(true)}
+              style={{ position: 'absolute', bottom: 5, right: 5, fontFamily: FU, fontSize: 8, padding: '3px 7px', borderRadius: 2, background: `${GOLD}cc`, border: 'none', color: '#1a1714', cursor: 'pointer', fontWeight: 700 }}>
+              Change
+            </button>
+          </div>
         )}
+        {!formData.ogImage && !formData.coverImage && (
+          <button onClick={() => setOgLibOpen(true)}
+            style={{ width: '100%', padding: '10px', background: 'var(--s-input-bg, rgba(245,240,232,0.04))', border: `1px dashed ${GOLD}40`, borderRadius: 2, cursor: 'pointer', fontFamily: FU, fontSize: 9, color: GOLD }}>
+            Select OG Image from Library
+          </button>
+        )}
+        <Input value={formData.ogImage} onChange={v => upd('ogImage', v)} placeholder={formData.coverImage || 'https://… or select above'} />
+        <MediaLibrary open={ogLibOpen} onClose={() => setOgLibOpen(false)} onSelect={img => upd('ogImage', img.url)} />
       </Field>
     </div>
   );
@@ -3376,11 +3535,24 @@ function HeroPreviewPane({ formData, isLight }) {
 function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpublish, onSave, saving, intel, focusKeyword, onKeywordChange, onOpenIntelligence, S }) {
   const allCats = useAllCategories();
   const { runAI, loading: aiLoading } = useAIGenerate(formData, tone);
-  const [open, setOpen] = useState({ status: true, publish: false, author: false, excerpt: false, seo: false, image: false, typography: false, intelligence: true, links: false });
+  const [open, setOpen] = useState({ status: true, publish: false, author: false, excerpt: false, seo: false, image: false, typography: false, intelligence: true, links: false, features: false });
   const toggle = (k) => setOpen(p => ({ ...p, [k]: !p[k] }));
   const upd = (k, v) => onChange({ ...formData, [k]: v });
+  const [sidebarTab, setSidebarTab] = useState('document'); // 'document' | 'ai'
+  const [statusMachineOpen, setStatusMachineOpen] = useState(false);
+  const [aiWriterTopic, setAiWriterTopic] = useState('');
+  const [aiWriterTone, setAiWriterTone] = useState('Luxury Editorial');
+  const [aiWriterWordCount, setAiWriterWordCount] = useState(600);
 
   const isSched = formData.scheduledDate && !formData.published && new Date(formData.scheduledDate) > new Date();
+  const wfStatus = formData.workflowStatus || (formData.published ? 'published' : 'draft');
+  const WF_STATES = [
+    { key: 'draft',     label: 'Draft',     color: S.muted,    icon: '○' },
+    { key: 'review',    label: 'In Review',  color: '#818cf8',  icon: '◎' },
+    { key: 'published', label: 'Published', color: S.success,  icon: '●' },
+    { key: 'archived',  label: 'Archived',  color: S.faint,    icon: '◌' },
+  ];
+  const currentWF = WF_STATES.find(s => s.key === wfStatus) || WF_STATES[0];
   const statusLabel = formData.published ? 'Published' : isSched ? 'Scheduled' : 'Draft';
   const statusColor = formData.published ? S.success : isSched ? '#818cf8' : S.muted;
 
@@ -3418,16 +3590,111 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
   );
 
   return (
-    <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', background: S.surface, borderLeft: `1px solid ${S.border}`, overflowY: 'auto', height: '100%' }}>
-      {/* Header */}
-      <div style={{ padding: '14px 16px 12px', borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
-        <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 5 }}>Document</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: FU, fontSize: 10, fontWeight: 700, color: statusColor, letterSpacing: '0.08em', textTransform: 'uppercase' }}>● {statusLabel}</span>
-          {formData.featured && <span style={{ fontFamily: FU, fontSize: 8, color: GOLD, padding: '2px 6px', border: `1px solid ${GOLD}30`, borderRadius: 2 }}>Featured</span>}
-          {formData.trending && <span style={{ fontFamily: FU, fontSize: 8, color: '#818cf8', padding: '2px 6px', border: '1px solid rgba(129,140,248,0.3)', borderRadius: 2 }}>Trending</span>}
+    <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', background: S.surface, borderLeft: `1px solid ${S.border}`, height: '100%', overflow: 'hidden' }}>
+      {/* Header + status badge */}
+      <div style={{ padding: '12px 16px 10px', borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.18em', textTransform: 'uppercase' }}>Document</div>
+          {/* Clickable workflow status badge */}
+          <button onClick={() => setStatusMachineOpen(o => !o)}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, background: `color-mix(in srgb, ${currentWF.color} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${currentWF.color} 28%, transparent)`, borderRadius: 12, padding: '3px 9px 3px 7px', cursor: 'pointer', outline: 'none', fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: currentWF.color, transition: 'all 0.15s' }}>
+            <span>{currentWF.icon}</span>{currentWF.label}<span style={{ fontSize: 7, opacity: 0.5 }}>▾</span>
+          </button>
+        </div>
+        {/* Status machine dropdown */}
+        {statusMachineOpen && (
+          <div style={{ marginTop: 8, background: S.surfaceUp || S.surface, border: `1px solid ${S.border}`, borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ padding: '7px 10px 5px', fontFamily: FU, fontSize: 8, color: S.faint, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Move to…</div>
+            {WF_STATES.map(st => (
+              <button key={st.key} onClick={() => {
+                const isPublishing = st.key === 'published' && wfStatus !== 'published';
+                const isUnpublishing = st.key !== 'published' && wfStatus === 'published';
+                if (isPublishing) onPublish();
+                else if (isUnpublishing) onUnpublish();
+                upd('workflowStatus', st.key);
+                setStatusMachineOpen(false);
+              }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: wfStatus === st.key ? `color-mix(in srgb, ${st.color} 8%, transparent)` : 'none', border: 'none', borderTop: `1px solid ${S.border}`, cursor: 'pointer', outline: 'none', fontFamily: FU, fontSize: 10, color: wfStatus === st.key ? st.color : S.muted, textAlign: 'left', transition: 'background 0.1s' }}>
+                <span style={{ color: st.color, fontSize: 11 }}>{st.icon}</span>
+                <span style={{ fontWeight: wfStatus === st.key ? 700 : 400 }}>{st.label}</span>
+                {wfStatus === st.key && <span style={{ marginLeft: 'auto', fontSize: 9, color: st.color }}>✓</span>}
+              </button>
+            ))}
+          </div>
+        )}
+        {/* Feature flag chips */}
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+          {formData.isFeatured    && <span style={{ fontFamily: FU, fontSize: 8, color: GOLD,      padding: '2px 6px', border: `1px solid ${GOLD}30`,           borderRadius: 2 }}>Featured</span>}
+          {formData.homepageFeature && <span style={{ fontFamily: FU, fontSize: 8, color: '#22c55e', padding: '2px 6px', border: '1px solid rgba(34,197,94,0.3)',  borderRadius: 2 }}>Homepage</span>}
+          {formData.editorsChoice   && <span style={{ fontFamily: FU, fontSize: 8, color: '#a78bfa', padding: '2px 6px', border: '1px solid rgba(167,139,250,0.3)',borderRadius: 2 }}>Editor's Pick</span>}
+          {formData.trending        && <span style={{ fontFamily: FU, fontSize: 8, color: '#818cf8', padding: '2px 6px', border: '1px solid rgba(129,140,248,0.3)',borderRadius: 2 }}>Trending</span>}
         </div>
       </div>
+
+      {/* Tab bar */}
+      <div style={{ display: 'flex', borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
+        {[['document', 'Document'], ['ai', '✦ AI Writer']].map(([tab, label]) => (
+          <button key={tab} onClick={() => setSidebarTab(tab)}
+            style={{ flex: 1, padding: '9px 4px', background: 'none', border: 'none', borderBottom: sidebarTab === tab ? `2px solid ${GOLD}` : '2px solid transparent', fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: sidebarTab === tab ? GOLD : S.muted, cursor: 'pointer', transition: 'all 0.15s' }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── AI WRITER TAB ─────────────────────────────────────────────────────── */}
+      {sidebarTab === 'ai' && (
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {/* Coming soon header */}
+          <div style={{ padding: '28px 20px 20px', textAlign: 'center', borderBottom: `1px solid ${S.border}` }}>
+            <div style={{ fontSize: 28, marginBottom: 10 }}>✦</div>
+            <div style={{ fontFamily: FD, fontSize: 20, color: S.text, fontWeight: 400, marginBottom: 6 }}>AI Writer</div>
+            <div style={{ fontFamily: FU, fontSize: 10, color: S.muted, lineHeight: 1.6 }}>Generate full article drafts, outlines, and sections from a brief. Powered by Claude.</div>
+          </div>
+          {/* Placeholder form */}
+          <div style={{ padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, marginBottom: 5 }}>Topic or Brief</div>
+              <textarea value={aiWriterTopic} onChange={e => setAiWriterTopic(e.target.value)} rows={4} placeholder="e.g. A guide to choosing the perfect villa wedding venue in Tuscany…" style={{ width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text, fontFamily: FU, fontSize: 12, padding: '8px 10px', borderRadius: 2, outline: 'none', resize: 'vertical', lineHeight: 1.5 }} />
+            </div>
+            <div>
+              <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, marginBottom: 5 }}>Tone</div>
+              <select value={aiWriterTone} onChange={e => setAiWriterTone(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text, fontFamily: FU, fontSize: 12, padding: '7px 9px', borderRadius: 2, outline: 'none', cursor: 'pointer' }}>
+                {TONE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, marginBottom: 5 }}>Target Word Count</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[400, 600, 900, 1400].map(n => (
+                  <button key={n} onClick={() => setAiWriterWordCount(n)}
+                    style={{ flex: 1, padding: '6px 2px', borderRadius: 2, cursor: 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, background: aiWriterWordCount === n ? `${GOLD}18` : 'none', border: `1px solid ${aiWriterWordCount === n ? GOLD : S.border}`, color: aiWriterWordCount === n ? GOLD : S.muted, transition: 'all 0.15s' }}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button disabled style={{ marginTop: 6, padding: '10px', background: `${GOLD}14`, border: `1px solid ${GOLD}40`, color: GOLD, fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', borderRadius: 2, cursor: 'not-allowed', opacity: 0.6 }}>
+              ✦ Generate Draft — Coming Soon
+            </button>
+            <div style={{ fontFamily: FU, fontSize: 10, color: S.faint, textAlign: 'center', lineHeight: 1.5 }}>
+              AI Writer will generate a full structured draft directly into your canvas. Available in the next release.
+            </div>
+            {/* Outline / Section generators — also coming soon */}
+            <div style={{ borderTop: `1px solid ${S.border}`, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontFamily: FU, fontSize: 8, color: S.faint, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Coming Soon</div>
+              {['Generate Outline', 'Write Intro Only', 'Expand This Section', 'Suggest Headline Variants'].map(label => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', background: `${GOLD}06`, border: `1px solid ${S.border}`, borderRadius: 2, opacity: 0.5 }}>
+                  <span style={{ fontFamily: FU, fontSize: 10, color: S.muted }}>{label}</span>
+                  <span style={{ fontFamily: FU, fontSize: 8, color: S.faint }}>Soon</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── DOCUMENT TAB ──────────────────────────────────────────────────────── */}
+      {sidebarTab === 'document' && <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
 
       {/* Status & Visibility */}
       <ACC id="status" title="Status & Visibility">
@@ -3437,7 +3704,7 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
             { k: 'Published', active: formData.published,              color: S.success },
           ].map(({ k, active, color }) => (
             <button key={k} onClick={() => k === 'Published' ? onPublish() : onUnpublish()}
-              style={{ flex: 1, padding: '6px 4px', borderRadius: 2, cursor: 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', background: active ? `${color}18` : 'none', border: `1px solid ${active ? color : S.border}`, color: active ? color : S.muted, transition: 'all 0.15s' }}>
+              style={{ flex: 1, padding: '6px 4px', borderRadius: 2, cursor: 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', background: active ? S.faint : 'none', border: `1px solid ${active ? color : S.border}`, color: active ? color : S.muted, transition: 'all 0.15s' }}>
               {k}
             </button>
           ))}
@@ -3454,21 +3721,42 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
 
       {/* Publish & Schedule */}
       <ACC id="publish" title="Publish & Schedule">
-        <div>
-          <Lbl>Schedule Date</Lbl>
-          <FI type="datetime-local" value={formData.scheduledDate || ''} onChange={v => upd('scheduledDate', v)} />
-        </div>
-        <div>
-          <Lbl>Publish Date</Lbl>
-          <FI type="datetime-local" value={formData.publishedAt || ''} onChange={v => upd('publishedAt', v)} />
-        </div>
-        <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-          {!formData.published
-            ? <GoldBtn small onClick={onPublish} style={{ flex: 1 }}>Publish Now</GoldBtn>
-            : <GhostBtn small onClick={onUnpublish} style={{ flex: 1 }}>Unpublish</GhostBtn>
-          }
-          <GhostBtn small onClick={() => onSave()} style={{ flex: 1 }}>{saving ? 'Saving…' : 'Save Draft'}</GhostBtn>
-        </div>
+        {(() => {
+          // Convert ISO/datetime-local string → local datetime-local value (YYYY-MM-DDThh:mm)
+          const toLocalDT = (iso) => {
+            if (!iso) return '';
+            const d = new Date(iso);
+            if (isNaN(d)) return iso.slice(0, 16); // already local format
+            const pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+          };
+          const nowDT = toLocalDT(new Date().toISOString());
+          const dtStyle = { ...inp, colorScheme: 'dark' }; // makes native picker chrome light/readable
+          return (
+            <>
+              <div>
+                <Lbl>Publish Date</Lbl>
+                <input type="datetime-local" style={dtStyle}
+                  value={toLocalDT(formData.publishedAt) || nowDT}
+                  onChange={e => upd('publishedAt', e.target.value)} />
+              </div>
+              <div>
+                <Lbl>Schedule Future Date</Lbl>
+                <input type="datetime-local" style={dtStyle}
+                  value={toLocalDT(formData.scheduledDate)}
+                  onChange={e => upd('scheduledDate', e.target.value || null)}
+                  placeholder="Leave empty for manual publish" />
+              </div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                {!formData.published
+                  ? <GoldBtn small onClick={onPublish} style={{ flex: 1 }}>Publish Now</GoldBtn>
+                  : <GhostBtn small onClick={onUnpublish} style={{ flex: 1 }}>Unpublish</GhostBtn>
+                }
+                <GhostBtn small onClick={() => onSave()} style={{ flex: 1 }}>{saving ? 'Saving…' : 'Save Draft'}</GhostBtn>
+              </div>
+            </>
+          );
+        })()}
       </ACC>
 
       {/* Author & Category */}
@@ -3611,6 +3899,133 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
         <FI value={formData.internalLinks || ''} onChange={v => upd('internalLinks', v)} placeholder="/wedding-venues/italy/amalfi" rows={3} />
         <div style={{ fontFamily: FU, fontSize: 9, color: S.faint }}>One URL per line</div>
       </ACC>
+
+      {/* Feature Flags */}
+      <ACC id="features" title="Feature Flags" icon="◈">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={!!formData.isFeatured} onChange={e => upd('isFeatured', e.target.checked)} style={{ accentColor: GOLD, width: 14, height: 14 }} />
+            <div>
+              <div style={{ fontFamily: FU, fontSize: 12, color: S.text }}>Featured article</div>
+              <div style={{ fontFamily: FU, fontSize: 9, color: S.faint }}>Promoted in Featured sections</div>
+            </div>
+          </label>
+          {formData.isFeatured && (
+            <div style={{ marginLeft: 22 }}>
+              <Lbl>Featured Until</Lbl>
+              <FI type="datetime-local" value={formData.featuredUntil || ''} onChange={v => upd('featuredUntil', v)} />
+            </div>
+          )}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={!!formData.homepageFeature} onChange={e => upd('homepageFeature', e.target.checked)} style={{ accentColor: '#22c55e', width: 14, height: 14 }} />
+            <div>
+              <div style={{ fontFamily: FU, fontSize: 12, color: S.text }}>Homepage feature</div>
+              <div style={{ fontFamily: FU, fontSize: 9, color: S.faint }}>Shown in homepage hero or spotlight</div>
+            </div>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={!!formData.categoryFeature} onChange={e => upd('categoryFeature', e.target.checked)} style={{ accentColor: '#38bdf8', width: 14, height: 14 }} />
+            <div>
+              <div style={{ fontFamily: FU, fontSize: 12, color: S.text }}>Category feature</div>
+              <div style={{ fontFamily: FU, fontSize: 9, color: S.faint }}>Pinned at top of its category page</div>
+            </div>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={!!formData.editorsChoice} onChange={e => upd('editorsChoice', e.target.checked)} style={{ accentColor: '#a78bfa', width: 14, height: 14 }} />
+            <div>
+              <div style={{ fontFamily: FU, fontSize: 12, color: S.text }}>Editor's Pick</div>
+              <div style={{ fontFamily: FU, fontSize: 9, color: S.faint }}>Earns "Editor's Choice" badge</div>
+            </div>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={!!formData.trending} onChange={e => upd('trending', e.target.checked)} style={{ accentColor: '#818cf8', width: 14, height: 14 }} />
+            <div>
+              <div style={{ fontFamily: FU, fontSize: 12, color: S.text }}>Trending</div>
+              <div style={{ fontFamily: FU, fontSize: 9, color: S.faint }}>Shown in Trending strips</div>
+            </div>
+          </label>
+        </div>
+      </ACC>
+
+      </div>}{/* end document tab */}
+    </div>
+  );
+}
+
+// ── Slash command definitions ─────────────────────────────────────────────────
+const SLASH_COMMANDS = [
+  { group: 'Generate',   action: 'canvas-paragraph', label: 'Paragraph',    desc: 'Write a new editorial paragraph',   icon: '¶' },
+  { group: 'Generate',   action: 'canvas-intro',     label: 'Intro Lead',   desc: 'Evocative opening paragraph',        icon: 'I' },
+  { group: 'Generate',   action: 'canvas-h2',        label: 'Heading H2',   desc: 'Section heading',                   icon: 'H₂' },
+  { group: 'Generate',   action: 'canvas-h3',        label: 'Heading H3',   desc: 'Subheading',                        icon: 'H₃' },
+  { group: 'Generate',   action: 'canvas-quote',     label: 'Pull Quote',   desc: 'Striking single-sentence quote',    icon: '"' },
+  { group: 'Generate',   action: 'canvas-conclusion',label: 'Conclusion',   desc: 'Closing paragraph',                 icon: '◉' },
+  { group: 'Transform',  action: 'canvas-expand',    label: 'Expand',       desc: 'Enrich and expand current text',    icon: '↗' },
+  { group: 'Transform',  action: 'canvas-rewrite',   label: 'Rewrite',      desc: 'Elevate voice and style',           icon: '↻' },
+  { group: 'Transform',  action: 'canvas-takeaway',  label: 'Key Takeaways',desc: 'Extract 3 bullet takeaways',        icon: '✓' },
+];
+
+function SlashCommandPalette({ query, onSelect, onClose, loading }) {
+  const [idx, setIdx] = useState(0);
+  const filtered = query
+    ? SLASH_COMMANDS.filter(c => c.label.toLowerCase().includes(query.toLowerCase()) || c.action.includes(query.toLowerCase()))
+    : SLASH_COMMANDS;
+
+  useEffect(() => { setIdx(0); }, [query]);
+
+  useEffect(() => {
+    const kd = (e) => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setIdx(i => Math.min(i + 1, filtered.length - 1)); }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); setIdx(i => Math.max(i - 1, 0)); }
+      if (e.key === 'Enter')     { e.preventDefault(); if (filtered[idx]) onSelect(filtered[idx]); }
+      if (e.key === 'Escape')    { e.preventDefault(); onClose(); }
+    };
+    window.addEventListener('keydown', kd, true);
+    return () => window.removeEventListener('keydown', kd, true);
+  }, [filtered, idx, onSelect, onClose]);
+
+  if (!filtered.length) return null;
+
+  let lastGroup = null;
+  return (
+    <div style={{
+      position: 'absolute', zIndex: 1000, top: '100%', left: 0,
+      width: 280, background: '#fff', border: '1px solid rgba(0,0,0,0.12)',
+      borderRadius: 6, boxShadow: '0 8px 32px rgba(0,0,0,0.14)', overflow: 'hidden',
+      marginTop: 4,
+    }}
+      onMouseDown={e => e.preventDefault()}
+    >
+      <div style={{ padding: '8px 12px 6px', borderBottom: '1px solid rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.16em', textTransform: 'uppercase' }}>✦ AI Commands</span>
+        {query && <span style={{ fontFamily: FU, fontSize: 9, color: '#aaa' }}>/{query}</span>}
+        {loading && <span style={{ marginLeft: 'auto', fontFamily: FU, fontSize: 9, color: GOLD }}>generating…</span>}
+      </div>
+      <div style={{ maxHeight: 280, overflowY: 'auto' }}>
+        {filtered.map((cmd, i) => {
+          const showGroup = cmd.group !== lastGroup;
+          lastGroup = cmd.group;
+          return (
+            <div key={cmd.action}>
+              {showGroup && (
+                <div style={{ padding: '6px 12px 3px', fontFamily: FU, fontSize: 7, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#ccc' }}>{cmd.group}</div>
+              )}
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', cursor: 'pointer', background: i === idx ? `${GOLD}0e` : 'transparent', transition: 'background 0.1s' }}
+                onMouseEnter={() => setIdx(i)}
+                onClick={() => onSelect(cmd)}
+              >
+                <div style={{ width: 28, height: 28, borderRadius: 4, background: i === idx ? `${GOLD}18` : 'rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FD, fontSize: 14, color: i === idx ? GOLD : '#888', flexShrink: 0 }}>{cmd.icon}</div>
+                <div>
+                  <div style={{ fontFamily: FU, fontSize: 11, fontWeight: 600, color: i === idx ? GOLD : '#333' }}>{cmd.label}</div>
+                  <div style={{ fontFamily: FU, fontSize: 9, color: '#aaa', marginTop: 1 }}>{cmd.desc}</div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ padding: '6px 12px', borderTop: '1px solid rgba(0,0,0,0.06)', fontFamily: FU, fontSize: 8, color: '#ccc' }}>↑↓ navigate · Enter select · Esc dismiss</div>
     </div>
   );
 }
@@ -3717,9 +4132,19 @@ const ART = {
 };
 
 // ── Single editable canvas block ──────────────────────────────────────────────
-function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChange, onDelete, onMoveUp, onMoveDown, total, S }) {
+function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChange, onDelete, onMoveUp, onMoveDown, total, S, canvasAI, isCore }) {
+  // Canvas is always dark — "lights out" mode regardless of studio theme toggle
+  const isLight = false;
   const textRef  = useRef(null);
+  const uploadRef = useRef(null); // for inline image upload in image blocks
   const [hovered, setHovered] = useState(false);
+  const [slashQuery, setSlashQuery] = useState(null); // null = closed, string = open with filter text
+  const [aiLoading, setAiLoading]   = useState(false);
+  const [uploading, setUploading]   = useState(false);
+  const [galleryLibOpen, setGalleryLibOpen] = useState(false); // hoisted — must not be inside conditional
+  const [imageLibOpen, setImageLibOpen]     = useState(false); // for single-image block library picker
+  const [altGenerating, setAltGenerating]   = useState(false);
+  const prevSrcRef = useRef(''); // tracks last src we ran alt-gen for — prevents re-runs
 
   useEffect(() => {
     if (isActive && textRef.current && block.text !== undefined) {
@@ -3735,17 +4160,66 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
     }
   }, [isActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Close slash palette when block deactivated
+  useEffect(() => { if (!isActive) setSlashQuery(null); }, [isActive]);
+
+  // Auto-generate alt text when a new image src is set and alt is empty
+  useEffect(() => {
+    const src = block.src;
+    if (!src || block.alt || !canvasAI || src === prevSrcRef.current) return;
+    prevSrcRef.current = src;
+    const filename = src.split('/').pop()?.split('?')[0]?.replace(/[-_]/g, ' ').replace(/\.\w+$/, '').trim() || '';
+    setAltGenerating(true);
+    const capturedBlock = block;
+    canvasAI('canvas-image-alt', filename).then(text => {
+      if (text) onChange({ ...capturedBlock, alt: text });
+      setAltGenerating(false);
+    }).catch(() => setAltGenerating(false));
+  }, [block.src]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const commit = useCallback(() => {
     if (textRef.current) onChange({ ...block, text: textRef.current.innerHTML });
     onDeactivate();
   }, [block, onChange, onDeactivate]);
+
+  const handleSlashSelect = useCallback(async (cmd) => {
+    if (!canvasAI) return;
+    setSlashQuery(null);
+    setAiLoading(true);
+    // Clear the slash text from contentEditable
+    if (textRef.current) {
+      const raw = textRef.current.innerText || '';
+      const slashIdx = raw.lastIndexOf('/');
+      if (slashIdx !== -1) textRef.current.innerText = raw.slice(0, slashIdx);
+    }
+    try {
+      const result = await canvasAI(cmd.action, block.text);
+      if (result && textRef.current) {
+        const existing = textRef.current.innerHTML;
+        textRef.current.innerHTML = existing + (existing ? '<br>' : '') + result;
+        onChange({ ...block, text: textRef.current.innerHTML });
+      }
+    } catch {}
+    setAiLoading(false);
+  }, [canvasAI, block, onChange]);
 
   const kd = useCallback((e) => {
     const m = e.metaKey || e.ctrlKey;
     if (m && e.key === 'b') { e.preventDefault(); document.execCommand('bold'); }
     if (m && e.key === 'i') { e.preventDefault(); document.execCommand('italic'); }
     if (m && e.key === 'k') { e.preventDefault(); const u = window.prompt('URL:', 'https://'); if (u) document.execCommand('createLink', false, u); }
-    if (e.key === 'Escape' || (m && e.key === 'Enter')) { e.preventDefault(); textRef.current?.blur(); }
+    if (e.key === 'Escape' || (m && e.key === 'Enter')) { e.preventDefault(); setSlashQuery(null); textRef.current?.blur(); }
+  }, []);
+
+  const handleInput = useCallback(() => {
+    if (!textRef.current) return;
+    const text = textRef.current.innerText || '';
+    const slashIdx = text.lastIndexOf('/');
+    if (slashIdx !== -1 && (slashIdx === 0 || text[slashIdx - 1] === '\n')) {
+      setSlashQuery(text.slice(slashIdx + 1));
+    } else {
+      setSlashQuery(null);
+    }
   }, []);
 
   const show = hovered || isActive;
@@ -3757,31 +4231,39 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
     borderRadius: 3,
     transition: 'outline 0.12s',
     cursor: isActive ? 'text' : 'pointer',
+    // Core blocks get a persistent subtle left accent
+    ...(isCore ? { borderLeft: `2px solid rgba(201,168,76,0.3)`, paddingLeft: 12, marginLeft: -14 } : {}),
   };
 
-  // Side controls
-  const sideCtrl = show && (
+  // Side controls — core badge always visible, move/delete only on hover
+  const sideCtrl = (show || isCore) && (
     <div style={{ position: 'absolute', right: -44, top: 0, display: 'flex', flexDirection: 'column', gap: 3 }} onClick={e => e.stopPropagation()}>
-      {index > 0 && <button onClick={onMoveUp} title="Move up" style={{ width: 30, height: 30, borderRadius: 2, background: 'rgba(250,248,244,0.95)', border: '1px solid rgba(0,0,0,0.1)', color: '#888', cursor: 'pointer', fontSize: 12 }}>↑</button>}
-      {index < total - 1 && <button onClick={onMoveDown} title="Move down" style={{ width: 30, height: 30, borderRadius: 2, background: 'rgba(250,248,244,0.95)', border: '1px solid rgba(0,0,0,0.1)', color: '#888', cursor: 'pointer', fontSize: 12 }}>↓</button>}
-      <button onClick={onDelete} title="Delete" style={{ width: 30, height: 30, borderRadius: 2, background: 'rgba(250,248,244,0.95)', border: '1px solid rgba(224,85,85,0.25)', color: '#e05555', cursor: 'pointer', fontSize: 12 }}>✕</button>
+      {show && !isCore && index > 0 && <button onClick={onMoveUp} title="Move up" style={{ width: 30, height: 30, borderRadius: 2, background: 'rgba(250,248,244,0.95)', border: '1px solid rgba(0,0,0,0.1)', color: '#888', cursor: 'pointer', fontSize: 12 }}>↑</button>}
+      {show && !isCore && index < total - 1 && <button onClick={onMoveDown} title="Move down" style={{ width: 30, height: 30, borderRadius: 2, background: 'rgba(250,248,244,0.95)', border: '1px solid rgba(0,0,0,0.1)', color: '#888', cursor: 'pointer', fontSize: 12 }}>↓</button>}
+      {isCore
+        ? <div title="Core block — cannot be deleted" style={{ width: 30, height: 20, borderRadius: 2, background: `${GOLD}15`, border: `1px solid ${GOLD}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FU, fontSize: 6, fontWeight: 700, letterSpacing: '0.1em', color: GOLD, cursor: 'default' }}>CORE</div>
+        : show && <button onClick={onDelete} title="Delete block" style={{ width: 30, height: 30, borderRadius: 2, background: 'rgba(250,248,244,0.95)', border: '1px solid rgba(224,85,85,0.25)', color: '#e05555', cursor: 'pointer', fontSize: 12 }}>✕</button>
+      }
     </div>
   );
 
-  // Block type label
-  const typeLabel = hovered && !isActive && (
-    <div style={{ position: 'absolute', top: -16, left: 2, fontFamily: FU, fontSize: 7, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD, opacity: 0.65, pointerEvents: 'none' }}>
-      {block.type}
+  // Block type label — ◈ CORE badge always visible; block type label on hover only
+  const typeLabel = (hovered || isCore) && !isActive && (
+    <div style={{ position: 'absolute', top: -16, left: 2, display: 'flex', alignItems: 'center', gap: 5, pointerEvents: 'none' }}>
+      {hovered && <span style={{ fontFamily: FU, fontSize: 7, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: GOLD, opacity: 0.65 }}>{block.type}</span>}
+      {isCore && <span style={{ fontFamily: FU, fontSize: 6, fontWeight: 700, letterSpacing: '0.12em', color: GOLD, background: `${GOLD}15`, border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '1px 4px' }}>◈ CORE</span>}
     </div>
   );
 
   const t = block.type;
 
   // Text-based blocks (shared edit/display logic)
+  const artTextColor   = isLight ? '#2a2722' : 'rgba(245,240,232,0.88)';
+  const artHeadColor   = isLight ? '#0f0e0b' : '#f5f0e8';
   const textStyle =
-    t === 'intro'     ? ART.intro :
-    t === 'paragraph' ? ART.paragraph :
-    t === 'heading'   ? (block.level === 3 ? ART.h3 : block.level === 4 ? ART.h4 : ART.h2) :
+    t === 'intro'     ? { ...ART.intro,     color: artTextColor } :
+    t === 'paragraph' ? { ...ART.paragraph, color: artTextColor } :
+    t === 'heading'   ? (block.level === 3 ? { ...ART.h3, color: artHeadColor } : block.level === 4 ? { ...ART.h4, color: artHeadColor } : { ...ART.h2, color: artHeadColor }) :
     null;
 
   if (textStyle) {
@@ -3806,53 +4288,86 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
         {typeLabel}
         {/* Inline format bar — shown when block is active */}
         {isActive && (
-          <div style={{ display: 'flex', gap: 4, marginBottom: 6, flexWrap: 'wrap', alignItems: 'center' }} onMouseDown={e => e.preventDefault()}>
-            {/* Formatting */}
+          <div style={{ display: 'flex', gap: 3, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center', padding: '5px 6px', borderRadius: 3, background: 'rgba(245,240,232,0.04)', border: `1px solid ${C_INPUT_BD}` }} onMouseDown={e => e.preventDefault()}>
+            {/* Style */}
             {[
-              { cmd: 'bold',         label: <b>B</b> },
-              { cmd: 'italic',       label: <i>I</i> },
-              { cmd: 'underline',    label: <u>U</u> },
-              { cmd: 'strikeThrough',label: <s>S</s> },
-            ].map(({ cmd, label }) => (
-              <button key={cmd} onClick={() => document.execCommand(cmd)}
-                style={{ width: 24, height: 24, borderRadius: 2, background: 'none', border: '1px solid rgba(0,0,0,0.12)', color: '#555', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              { cmd: 'bold',          label: <b style={{ fontWeight: 800 }}>B</b>,  title: 'Bold' },
+              { cmd: 'italic',        label: <i>I</i>,                               title: 'Italic' },
+              { cmd: 'underline',     label: <u>U</u>,                               title: 'Underline' },
+              { cmd: 'strikeThrough', label: <s>S</s>,                               title: 'Strikethrough' },
+              { cmd: 'superscript',   label: <span>x<sup style={{ fontSize: 8 }}>2</sup></span>, title: 'Superscript' },
+              { cmd: 'subscript',     label: <span>x<sub style={{ fontSize: 8 }}>2</sub></span>, title: 'Subscript' },
+            ].map(({ cmd, label, title }) => (
+              <button key={cmd} onClick={() => document.execCommand(cmd)} title={title}
+                style={{ minWidth: 24, height: 24, padding: '0 4px', borderRadius: 2, background: 'none', border: `1px solid ${C_BTN_BD}`, color: C_BTN_TXT, cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {label}
               </button>
             ))}
-            <div style={{ width: 1, height: 18, background: 'rgba(0,0,0,0.1)' }} />
+            <div style={{ width: 1, height: 16, background: C_BTN_BD, margin: '0 2px' }} />
+            {/* Lists */}
+            {[
+              { cmd: 'insertUnorderedList', label: '≡', title: 'Bullet list' },
+              { cmd: 'insertOrderedList',   label: '①', title: 'Numbered list' },
+              { cmd: 'indent',              label: '→', title: 'Indent' },
+              { cmd: 'outdent',             label: '←', title: 'Outdent' },
+            ].map(({ cmd, label, title }) => (
+              <button key={cmd} onClick={() => document.execCommand(cmd)} title={title}
+                style={{ width: 24, height: 24, borderRadius: 2, background: 'none', border: `1px solid ${C_BTN_BD}`, color: C_BTN_TXT, cursor: 'pointer', fontSize: 12 }}>
+                {label}
+              </button>
+            ))}
+            <div style={{ width: 1, height: 16, background: C_BTN_BD, margin: '0 2px' }} />
+            {/* Alignment */}
+            {[
+              { cmd: 'justifyLeft',   label: '⟵', title: 'Align left' },
+              { cmd: 'justifyCenter', label: '↔',  title: 'Centre' },
+              { cmd: 'justifyRight',  label: '⟶', title: 'Align right' },
+            ].map(({ cmd, label, title }) => (
+              <button key={cmd} onClick={() => document.execCommand(cmd)} title={title}
+                style={{ width: 24, height: 24, borderRadius: 2, background: 'none', border: `1px solid ${C_BTN_BD}`, color: C_BTN_TXT, cursor: 'pointer', fontSize: 12 }}>
+                {label}
+              </button>
+            ))}
+            <div style={{ width: 1, height: 16, background: C_BTN_BD, margin: '0 2px' }} />
             {/* Font family */}
             <select value={block.fontFamily || ''} onChange={e => onChange({ ...block, fontFamily: e.target.value || undefined })}
-              style={{ fontFamily: FU, fontSize: 9, padding: '2px 4px', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 2, background: '#fff', color: '#555', cursor: 'pointer', height: 24 }}>
-              <option value="">Default font</option>
+              style={{ fontFamily: FU, fontSize: 9, padding: '2px 4px', border: `1px solid ${C_BTN_BD}`, borderRadius: 2, background: 'rgba(245,240,232,0.06)', color: C_BTN_TXT, cursor: 'pointer', height: 24, maxWidth: 100 }}>
+              <option value="">Font…</option>
               {FONT_FAMILIES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
             </select>
             {/* Font size */}
             <select value={block.fontSize || ''} onChange={e => onChange({ ...block, fontSize: e.target.value ? parseInt(e.target.value) : undefined })}
-              style={{ fontFamily: FU, fontSize: 9, padding: '2px 4px', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 2, background: '#fff', color: '#555', cursor: 'pointer', height: 24, width: 60 }}>
-              <option value="">Default</option>
-              {[12,14,16,18,20,22,24,28,32,36,40,48].map(s => <option key={s} value={s}>{s}px</option>)}
+              style={{ fontFamily: FU, fontSize: 9, padding: '2px 4px', border: `1px solid ${C_BTN_BD}`, borderRadius: 2, background: 'rgba(245,240,232,0.06)', color: C_BTN_TXT, cursor: 'pointer', height: 24, width: 58 }}>
+              <option value="">Size…</option>
+              {[12,14,16,18,20,22,24,28,32,36,40,48].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
             {/* Text color */}
-            <label title="Text color" style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer', fontFamily: FU, fontSize: 9, color: '#666' }}>
-              A<input type="color" value={block.color || '#2a2722'} onChange={e => onChange({ ...block, color: e.target.value })}
-                style={{ width: 22, height: 22, padding: 0, border: 'none', borderRadius: 2, cursor: 'pointer' }} />
+            <label title="Text colour" style={{ display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer', fontFamily: FU, fontSize: 10, color: C_BTN_TXT, border: `1px solid ${C_BTN_BD}`, borderRadius: 2, padding: '0 4px', height: 24 }}>
+              A<input type="color" value={block.color || '#f5f0e8'} onChange={e => onChange({ ...block, color: e.target.value })}
+                style={{ width: 18, height: 18, padding: 0, border: 'none', borderRadius: 1, cursor: 'pointer', background: 'none' }} />
             </label>
             {/* Link */}
-            <button onClick={() => { const u = window.prompt('URL:', 'https://'); if (u) document.execCommand('createLink', false, u); }}
-              style={{ width: 24, height: 24, borderRadius: 2, background: 'none', border: '1px solid rgba(0,0,0,0.12)', color: '#555', cursor: 'pointer', fontSize: 11 }}>🔗</button>
-            {/* Alignment */}
-            {['justifyLeft','justifyCenter','justifyRight'].map((cmd, i) => (
-              <button key={cmd} onClick={() => document.execCommand(cmd)}
-                style={{ width: 24, height: 24, borderRadius: 2, background: 'none', border: '1px solid rgba(0,0,0,0.12)', color: '#555', cursor: 'pointer', fontSize: 11 }}>
-                {['⬤','◉','●'][i]}
-              </button>
-            ))}
+            <button title="Insert link" onClick={() => { const u = window.prompt('URL:', 'https://'); if (u) document.execCommand('createLink', false, u); }}
+              style={{ width: 24, height: 24, borderRadius: 2, background: 'none', border: `1px solid ${C_BTN_BD}`, color: C_BTN_TXT, cursor: 'pointer', fontSize: 11 }}>🔗</button>
+            {/* Clear formatting */}
+            <button title="Clear formatting" onClick={() => document.execCommand('removeFormat')}
+              style={{ width: 24, height: 24, borderRadius: 2, background: 'none', border: `1px solid ${C_BTN_BD}`, color: C_BTN_TXT, cursor: 'pointer', fontSize: 10 }}>✕</button>
           </div>
         )}
         {isActive
-          ? <div ref={textRef} contentEditable suppressContentEditableWarning onBlur={commit} onKeyDown={kd} style={{ ...customStyle, outline: 'none', minHeight: 32, caretColor: GOLD }} />
-          : <div style={customStyle} dangerouslySetInnerHTML={{ __html: block.text || `<span style="opacity:0.3;font-style:italic">Click to write…</span>` }} />
+          ? <div ref={textRef} contentEditable suppressContentEditableWarning onBlur={commit} onKeyDown={kd} onInput={handleInput}
+              style={{ ...customStyle, outline: 'none', minHeight: 32, caretColor: GOLD, ...(aiLoading ? { opacity: 0.45 } : {}) }} />
+          : <div style={customStyle} dangerouslySetInnerHTML={{ __html: block.text || `<span style="opacity:0.22;font-style:italic">Click to write…</span>` }} />
         }
+        {aiLoading && <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.1em', marginTop: 4, opacity: 0.75 }}>✦ Aura is writing…</div>}
+        {slashQuery !== null && (
+          <SlashCommandPalette
+            query={slashQuery}
+            onSelect={handleSlashSelect}
+            onClose={() => setSlashQuery(null)}
+            loading={aiLoading}
+          />
+        )}
         {sideCtrl}
       </div>
     );
@@ -3864,10 +4379,10 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
         {typeLabel}
         <blockquote style={{ borderLeft: `3px solid ${GOLD}`, margin: '36px 0', padding: '4px 0 4px 28px' }}>
           {isActive
-            ? <div ref={textRef} contentEditable suppressContentEditableWarning onBlur={commit} onKeyDown={kd} style={{ fontFamily: 'Georgia,serif', fontSize: 22, fontStyle: 'italic', lineHeight: 1.5, color: '#2a2722', outline: 'none', caretColor: GOLD }} />
-            : <div style={{ fontFamily: 'Georgia,serif', fontSize: 22, fontStyle: 'italic', lineHeight: 1.5, color: '#2a2722' }} dangerouslySetInnerHTML={{ __html: block.text || '<span style="opacity:0.3">Pull quote…</span>' }} />
+            ? <div ref={textRef} contentEditable suppressContentEditableWarning onBlur={commit} onKeyDown={kd} style={{ fontFamily: 'Georgia,serif', fontSize: 22, fontStyle: 'italic', lineHeight: 1.5, color: 'rgba(245,240,232,0.88)', outline: 'none', caretColor: GOLD }} />
+            : <div style={{ fontFamily: 'Georgia,serif', fontSize: 22, fontStyle: 'italic', lineHeight: 1.5, color: 'rgba(245,240,232,0.88)' }} dangerouslySetInnerHTML={{ __html: block.text || '<span style="opacity:0.25">Pull quote…</span>' }} />
           }
-          {block.attribution && <div style={{ fontFamily: FU, fontSize: 12, color: '#999', marginTop: 12, fontStyle: 'normal' }}>— {block.attribution}</div>}
+          {block.attribution && <div style={{ fontFamily: FU, fontSize: 12, color: 'rgba(245,240,232,0.38)', marginTop: 12, fontStyle: 'normal' }}>— {block.attribution}</div>}
         </blockquote>
         {sideCtrl}
       </div>
@@ -3878,24 +4393,91 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
     return (
       <div style={{ ...wrapStyle, margin: '32px 0' }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={!isActive ? onActivate : undefined}>
         {typeLabel}
+        {/* Hidden file input for direct image upload */}
+        <input ref={uploadRef} type="file" accept="image/*" style={{ display: 'none' }}
+          onChange={async e => {
+            const f = e.target.files?.[0]; if (!f) return;
+            setUploading(true);
+            try {
+              const url = await compressAndUploadImage(f);
+              onChange({ ...block, src: url });
+            } catch (err) {
+              console.error('Image upload failed', err);
+            } finally {
+              setUploading(false);
+              e.target.value = '';
+            }
+          }}
+        />
         <figure style={{ margin: 0 }}>
           {block.src
-            ? <img src={block.src} alt={block.alt || ''} style={{ width: '100%', borderRadius: 2, display: 'block' }} />
-            : <div style={{ background: 'rgba(0,0,0,0.04)', height: 200, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed rgba(0,0,0,0.12)' }}>
-                <span style={{ fontFamily: FU, fontSize: 11, color: '#aaa' }}>Click to add image</span>
+            ? <div style={{ position: 'relative', borderRadius: 2, overflow: 'hidden' }}>
+                <img src={block.src} alt={block.alt || ''} loading="lazy"
+                  style={{ width: '100%', display: 'block', objectFit: 'cover', objectPosition: block.focal || 'center' }} />
+                {/* Replace overlay — shown on hover (not active) or when active */}
+                {(hovered || isActive) && (
+                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: isActive ? 0 : 1, pointerEvents: isActive ? 'none' : 'auto', transition: 'opacity 0.15s' }}>
+                    <button onClick={e => { e.stopPropagation(); onActivate(); uploadRef.current?.click(); }}
+                      style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#fff', background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 2, padding: '6px 14px', cursor: 'pointer' }}>
+                      Replace Image
+                    </button>
+                    <button onClick={e => { e.stopPropagation(); onActivate(); }}
+                      style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD, background: 'rgba(0,0,0,0.6)', border: `1px solid ${GOLD}50`, borderRadius: 2, padding: '6px 14px', cursor: 'pointer' }}>
+                      Edit
+                    </button>
+                  </div>
+                )}
+              </div>
+            : <div style={{ background: C_INPUT_BG, height: 200, borderRadius: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, border: `1px dashed ${C_INPUT_BD}`, cursor: 'pointer' }}
+                onClick={() => uploadRef.current?.click()}>
+                <span style={{ fontFamily: FU, fontSize: 10, color: C_BTN_TXT, letterSpacing: '0.08em' }}>Drop image here or</span>
+                <span style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, border: `1px solid ${GOLD}50`, borderRadius: 2, padding: '4px 12px' }}>⬆ Upload Image</span>
               </div>
           }
           {isActive && (
             <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <input value={block.src || ''} onChange={e => onChange({ ...block, src: e.target.value })} placeholder="Image URL https://…"
-                style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, outline: 'none' }} />
-              <input value={block.caption || ''} onChange={e => onChange({ ...block, caption: e.target.value })} placeholder="Caption (optional)"
-                style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, outline: 'none' }} />
-              <button onClick={onDeactivate} style={{ alignSelf: 'flex-start', fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>Done</button>
+              {/* Upload / replace button + library picker */}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => uploadRef.current?.click()} disabled={uploading}
+                  style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: uploading ? C_BTN_TXT : GOLD, background: 'none', border: `1px solid ${uploading ? C_BTN_BD : GOLD + '50'}`, borderRadius: 2, padding: '5px 12px', cursor: uploading ? 'default' : 'pointer', opacity: uploading ? 0.6 : 1 }}>
+                  {uploading ? '⏳ Uploading…' : (block.src ? '⬆ Replace' : '⬆ Upload Image')}
+                </button>
+                <button onClick={() => setImageLibOpen(true)}
+                  style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C_BTN_TXT, background: 'none', border: `1px solid ${C_BTN_BD}`, borderRadius: 2, padding: '5px 12px', cursor: 'pointer' }}>
+                  ⊞ Library
+                </button>
+              </div>
+              {/* URL fallback */}
+              <input className="canvas-input" value={block.src || ''} onChange={e => onChange({ ...block, src: e.target.value })} placeholder="Or paste image URL https://…"
+                style={{ width: '100%', boxSizing: 'border-box', background: C_INPUT_BG, border: `1px solid ${C_INPUT_BD}`, borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, color: C_INPUT_TXT, outline: 'none' }} />
+              <div style={{ position: 'relative' }}>
+                <input className="canvas-input" value={block.alt || ''} onChange={e => onChange({ ...block, alt: e.target.value })}
+                  placeholder={altGenerating ? '✦ Aura is writing alt text…' : 'Alt text (accessibility)'}
+                  style={{ width: '100%', boxSizing: 'border-box', background: C_INPUT_BG, border: `1px solid ${altGenerating ? GOLD + '50' : C_INPUT_BD}`, borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, color: C_INPUT_TXT, outline: 'none' }} />
+                {altGenerating && <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.06em', pointerEvents: 'none' }}>AI</span>}
+              </div>
+              <input className="canvas-input" value={block.caption || ''} onChange={e => onChange({ ...block, caption: e.target.value })} placeholder="Caption (optional)"
+                style={{ width: '100%', boxSizing: 'border-box', background: C_INPUT_BG, border: `1px solid ${C_INPUT_BD}`, borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, color: C_INPUT_TXT, outline: 'none' }} />
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <span style={{ fontFamily: FU, fontSize: 9, color: C_BTN_TXT, letterSpacing: '0.08em' }}>Focal:</span>
+                {['top','center','bottom'].map(fp => (
+                  <button key={fp} onClick={() => onChange({ ...block, focal: fp })}
+                    style={{ fontFamily: FU, fontSize: 8, padding: '3px 8px', borderRadius: 2, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', background: (block.focal || 'center') === fp ? `${GOLD}18` : 'none', border: `1px solid ${(block.focal || 'center') === fp ? GOLD : C_BTN_BD}`, color: (block.focal || 'center') === fp ? GOLD : C_BTN_TXT }}>
+                    {fp}
+                  </button>
+                ))}
+                <button onClick={onDeactivate} style={{ marginLeft: 'auto', fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>Done</button>
+              </div>
             </div>
           )}
-          {!isActive && block.caption && <figcaption style={{ fontFamily: FU, fontSize: 12, color: '#999', marginTop: 10, textAlign: 'center', fontStyle: 'italic' }}>{block.caption}</figcaption>}
+          {!isActive && block.caption && <figcaption style={{ fontFamily: FU, fontSize: 12, color: 'rgba(245,240,232,0.35)', marginTop: 10, textAlign: 'center', fontStyle: 'italic' }}>{block.caption}</figcaption>}
         </figure>
+        <MediaLibrary
+          open={imageLibOpen}
+          onClose={() => setImageLibOpen(false)}
+          bucket="magazine"
+          onSelect={img => { onChange({ ...block, src: img.url, alt: block.alt || img.title || '' }); setImageLibOpen(false); }}
+        />
         {sideCtrl}
       </div>
     );
@@ -4249,7 +4831,320 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
     );
   }
 
-  // Fallback for gallery, video, etc.
+  // ── Gallery block (uses MediaLibrary picker) ──────────────────────────────
+  if (t === 'gallery') {
+    const imgs = (block.images || []).map(img =>
+      typeof img === 'string' ? { src: img, alt: '', caption: '', credit: '', focal: 'center' }
+        : (img || { src: '', alt: '', caption: '', credit: '', focal: 'center' })
+    );
+    const filled = imgs.filter(img => img.src);
+    const cols = Math.min(Math.max(filled.length, 1), 3);
+    return (
+      <div style={{ ...wrapStyle, margin: '24px 0' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        {/* Preview grid */}
+        {filled.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 4, borderRadius: 3, overflow: 'hidden' }}>
+            {filled.map((img, i) => (
+              <div key={i} style={{ position: 'relative', aspectRatio: '4/3', background: '#f0ede8', overflow: 'hidden' }}>
+                <img src={img.src} alt={img.alt || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: img.focal || 'center', display: 'block' }} />
+              </div>
+            ))}
+          </div>
+        )}
+        {filled.length === 0 && (
+          <div style={{ height: 120, background: 'rgba(0,0,0,0.03)', borderRadius: 3, border: '1px dashed rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <span style={{ fontSize: 18, opacity: 0.3 }}>⊞</span>
+            <span style={{ fontFamily: FU, fontSize: 11, color: '#aaa' }}>Click to add gallery images</span>
+          </div>
+        )}
+        {/* Edit controls */}
+        {isActive && (
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* Image list */}
+            {imgs.map((img, i) => img.src ? (
+              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: 'rgba(0,0,0,0.02)', borderRadius: 3, padding: '8px 10px' }}>
+                <img src={img.src} alt="" style={{ width: 56, height: 42, objectFit: 'cover', borderRadius: 2, flexShrink: 0, objectPosition: img.focal || 'center' }} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <input value={img.alt || ''} onChange={e => { const a = [...imgs]; a[i] = { ...a[i], alt: e.target.value }; onChange({ ...block, images: a }); }} placeholder="Alt text"
+                    style={{ width: '100%', boxSizing: 'border-box', background: '#fff', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 2, padding: '4px 7px', fontFamily: FU, fontSize: 10, outline: 'none' }} />
+                  <input value={img.caption || ''} onChange={e => { const a = [...imgs]; a[i] = { ...a[i], caption: e.target.value }; onChange({ ...block, images: a }); }} placeholder="Caption"
+                    style={{ width: '100%', boxSizing: 'border-box', background: '#fff', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 2, padding: '4px 7px', fontFamily: FU, fontSize: 10, outline: 'none' }} />
+                </div>
+                <button onClick={() => onChange({ ...block, images: imgs.filter((_, j) => j !== i) })}
+                  style={{ background: 'none', border: '1px solid rgba(224,85,85,0.2)', color: '#e05555', borderRadius: 2, padding: '4px 7px', fontFamily: FU, fontSize: 9, cursor: 'pointer', flexShrink: 0 }}>✕</button>
+              </div>
+            ) : null)}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setGalleryLibOpen(true)}
+                style={{ flex: 1, padding: '7px', background: `${GOLD}0e`, border: `1px solid ${GOLD}50`, color: GOLD, fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', cursor: 'pointer', borderRadius: 2 }}>⊞ Select from Library</button>
+              <button onClick={onDeactivate} style={{ fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 12px', cursor: 'pointer' }}>Done</button>
+            </div>
+          </div>
+        )}
+        <MediaLibrary
+          open={galleryLibOpen}
+          onClose={() => setGalleryLibOpen(false)}
+          bucket="magazine"
+          multiple
+          preSelected={imgs.map(i => i.src).filter(Boolean)}
+          onSelectMany={(selected) => {
+            const existing = imgs.filter(i => i.src);
+            const merged = [...existing];
+            for (const s of selected) {
+              if (!merged.some(m => m.src === s.url)) merged.push({ src: s.url, alt: s.alt || '', caption: s.caption || '', credit: s.credit || '', focal: s.focal || 'center' });
+            }
+            onChange({ ...block, images: merged });
+          }}
+        />
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  // ── Video block (YouTube / Vimeo / direct mp4) ────────────────────────────
+  if (t === 'video') {
+    const url = block.url || block.src || '';
+    const getEmbedInfo = (u) => {
+      if (!u) return null;
+      const yt = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{11})/);
+      if (yt) return { type: 'youtube', url: `https://www.youtube.com/embed/${yt[1]}?rel=0` };
+      const vm = u.match(/(?:vimeo\.com\/)(\d+)/);
+      if (vm) return { type: 'vimeo', url: `https://player.vimeo.com/video/${vm[1]}` };
+      if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(u)) return { type: 'direct', url: u };
+      return null;
+    };
+    const embed = getEmbedInfo(url);
+    return (
+      <div style={{ ...wrapStyle, margin: '24px 0' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        {embed ? (
+          <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 3, overflow: 'hidden', background: '#000' }}>
+            {embed.type === 'direct'
+              ? <video src={embed.url} controls poster={block.poster} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <iframe src={embed.url} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} title="Video" />
+            }
+          </div>
+        ) : (
+          <div style={{ height: 140, background: 'rgba(0,0,0,0.04)', borderRadius: 3, border: '1px dashed rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <span style={{ fontSize: 28, opacity: 0.25 }}>▶</span>
+            <span style={{ fontFamily: FU, fontSize: 11, color: '#aaa' }}>Click to add video</span>
+          </div>
+        )}
+        {isActive && (
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <input value={url} onChange={e => onChange({ ...block, url: e.target.value, src: e.target.value })} placeholder="YouTube, Vimeo, or .mp4 URL"
+              style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, outline: 'none' }} />
+            {url && (
+              <div style={{ fontFamily: FU, fontSize: 9, color: embed ? '#5a9' : '#e07050', letterSpacing: '0.1em' }}>
+                {embed ? `✓ ${embed.type} detected` : '⚠ Paste a YouTube, Vimeo, or .mp4 URL'}
+              </div>
+            )}
+            <input value={block.caption || ''} onChange={e => onChange({ ...block, caption: e.target.value })} placeholder="Caption (optional)"
+              style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, outline: 'none' }} />
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+              {['autoplay','muted','loop'].map(opt => (
+                <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontFamily: FU, fontSize: 9, color: '#666' }}>
+                  <input type="checkbox" checked={!!block[opt]} onChange={e => onChange({ ...block, [opt]: e.target.checked })} style={{ accentColor: GOLD }} />
+                  {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                </label>
+              ))}
+              <button onClick={onDeactivate} style={{ marginLeft: 'auto', fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>Done</button>
+            </div>
+          </div>
+        )}
+        {!isActive && block.caption && <div style={{ fontFamily: FU, fontSize: 12, color: '#999', marginTop: 8, fontStyle: 'italic', textAlign: 'center' }}>{block.caption}</div>}
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  // ── Slider block canvas preview ───────────────────────────────────────────
+  if (t === 'slider') {
+    const slides = (block.images || []).map(img =>
+      typeof img === 'string' ? { src: img } : img
+    ).filter(img => img?.src);
+    const [slideIdx, setSlideIdx] = useState(0);
+    const cur = slides[slideIdx] || null;
+    return (
+      <div style={{ ...wrapStyle, margin: '24px 0' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        {cur ? (
+          <div style={{ position: 'relative', borderRadius: 3, overflow: 'hidden', background: '#f0ede8' }}>
+            <img src={cur.src} alt={cur.alt || ''} style={{ width: '100%', maxHeight: 380, objectFit: 'cover', objectPosition: cur.focal || 'center', display: 'block' }} />
+            {slides.length > 1 && (
+              <>
+                <button onClick={e => { e.stopPropagation(); setSlideIdx(i => (i - 1 + slides.length) % slides.length); }}
+                  style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.45)', border: 'none', color: '#fff', width: 34, height: 34, borderRadius: '50%', cursor: 'pointer', fontSize: 18, lineHeight: '34px', textAlign: 'center' }}>‹</button>
+                <button onClick={e => { e.stopPropagation(); setSlideIdx(i => (i + 1) % slides.length); }}
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.45)', border: 'none', color: '#fff', width: 34, height: 34, borderRadius: '50%', cursor: 'pointer', fontSize: 18, lineHeight: '34px', textAlign: 'center' }}>›</button>
+                <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 5 }}>
+                  {slides.map((_, j) => (
+                    <button key={j} onClick={e => { e.stopPropagation(); setSlideIdx(j); }}
+                      style={{ width: j === slideIdx ? 18 : 5, height: 3, borderRadius: 2, border: 'none', padding: 0, cursor: 'pointer', background: j === slideIdx ? GOLD : 'rgba(255,255,255,0.5)', transition: 'all 0.2s' }} />
+                  ))}
+                </div>
+              </>
+            )}
+            <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.5)', color: '#fff', fontFamily: FU, fontSize: 9, padding: '2px 7px', borderRadius: 2 }}>
+              {slideIdx + 1} / {slides.length}
+            </div>
+          </div>
+        ) : (
+          <div style={{ height: 160, background: 'rgba(0,0,0,0.03)', borderRadius: 3, border: '1px dashed rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <span style={{ fontSize: 22, opacity: 0.25 }}>◁▷</span>
+            <span style={{ fontFamily: FU, fontSize: 11, color: '#aaa' }}>Click to add slider images</span>
+          </div>
+        )}
+        {cur?.caption && !isActive && <div style={{ fontFamily: FU, fontSize: 11, color: '#999', marginTop: 6, fontStyle: 'italic' }}>{cur.caption}</div>}
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  // ── Masonry block canvas preview ──────────────────────────────────────────
+  if (t === 'masonry') {
+    const imgs = (block.images || []).map(img =>
+      typeof img === 'string' ? { src: img } : img
+    ).filter(img => img?.src);
+    const cols = block.columns || 2;
+    return (
+      <div style={{ ...wrapStyle, margin: '24px 0' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        {imgs.length > 0 ? (
+          <div style={{ columns: cols, columnGap: 8 }}>
+            {imgs.map((img, i) => (
+              <figure key={i} style={{ breakInside: 'avoid', margin: '0 0 8px' }}>
+                <img src={img.src} alt={img.alt || ''} loading="lazy"
+                  style={{ width: '100%', display: 'block', borderRadius: 2, objectFit: 'cover', objectPosition: img.focal || 'center' }} />
+              </figure>
+            ))}
+          </div>
+        ) : (
+          <div style={{ height: 140, background: 'rgba(0,0,0,0.03)', borderRadius: 3, border: '1px dashed rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <span style={{ fontSize: 20, opacity: 0.25 }}>⊟</span>
+            <span style={{ fontFamily: FU, fontSize: 11, color: '#aaa' }}>Click to add masonry images</span>
+          </div>
+        )}
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  // ── Lookbook block canvas preview ─────────────────────────────────────────
+  if (t === 'lookbook') {
+    const imgs = (block.images || []).map(img =>
+      typeof img === 'string' ? { src: img } : img
+    ).filter(img => img?.src);
+    const cols = block.columns || 3;
+    return (
+      <div style={{ ...wrapStyle, margin: '24px 0' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        {imgs.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 6 }}>
+            {imgs.map((img, i) => (
+              <figure key={i} style={{ margin: 0, overflow: 'hidden', borderRadius: 2 }}>
+                <img src={img.src} alt={img.alt || ''} loading="lazy"
+                  style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', objectPosition: img.focal || 'center', display: 'block' }} />
+                {block.showLabels && img.label && (
+                  <div style={{ fontFamily: FU, fontSize: 9, color: '#888', padding: '4px 0', textAlign: 'center' }}>{img.label}</div>
+                )}
+              </figure>
+            ))}
+          </div>
+        ) : (
+          <div style={{ height: 140, background: 'rgba(0,0,0,0.03)', borderRadius: 3, border: '1px dashed rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <span style={{ fontSize: 20, opacity: 0.25 }}>◧</span>
+            <span style={{ fontFamily: FU, fontSize: 11, color: '#aaa' }}>Click to add lookbook images</span>
+          </div>
+        )}
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  // ── Dual Image block canvas preview ───────────────────────────────────────
+  if (t === 'dual_image') {
+    const imgA = block.imageA;
+    const imgB = block.imageB;
+    const layoutMap = { '60/40': ['60%', '40%'], '40/60': ['40%', '60%'] };
+    const [wA, wB] = layoutMap[block.layout] || ['50%', '50%'];
+    const hasAny = imgA?.src || imgB?.src;
+    return (
+      <div style={{ ...wrapStyle, margin: '24px 0' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        {hasAny ? (
+          <div style={{ display: 'flex', gap: 8 }}>
+            {imgA?.src && (
+              <figure style={{ flex: `0 0 ${wA}`, margin: 0, overflow: 'hidden', borderRadius: 2 }}>
+                <img src={imgA.src} alt={imgA.alt || ''} loading="lazy"
+                  style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', objectPosition: imgA.focal || 'center', display: 'block' }} />
+              </figure>
+            )}
+            {imgB?.src && (
+              <figure style={{ flex: `0 0 ${wB}`, margin: 0, overflow: 'hidden', borderRadius: 2 }}>
+                <img src={imgB.src} alt={imgB.alt || ''} loading="lazy"
+                  style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', objectPosition: imgB.focal || 'center', display: 'block' }} />
+              </figure>
+            )}
+          </div>
+        ) : (
+          <div style={{ height: 120, background: 'rgba(0,0,0,0.03)', borderRadius: 3, border: '1px dashed rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+            <span style={{ fontFamily: FU, fontSize: 9, color: '#bbb', letterSpacing: '0.1em' }}>LEFT ▪ RIGHT</span>
+          </div>
+        )}
+        {block.caption && !isActive && <div style={{ fontFamily: FU, fontSize: 11, color: '#999', marginTop: 6, fontStyle: 'italic' }}>{block.caption}</div>}
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  // ── Before / After block canvas preview ───────────────────────────────────
+  if (t === 'before_after') {
+    const before = block.before;
+    const after  = block.after;
+    const hasAny = before?.src || after?.src;
+    return (
+      <div style={{ ...wrapStyle, margin: '24px 0' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        {hasAny ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {[{ img: before, label: block.beforeLabel || 'Before' }, { img: after, label: block.afterLabel || 'After' }].map(({ img, label }, i) => (
+              <figure key={i} style={{ margin: 0, position: 'relative', overflow: 'hidden', borderRadius: 2 }}>
+                {img?.src
+                  ? <img src={img.src} alt={img.alt || label} loading="lazy" style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', objectPosition: img.focal || 'center', display: 'block' }} />
+                  : <div style={{ aspectRatio: '4/3', background: 'rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FU, fontSize: 9, color: '#ccc' }}>{label}</div>
+                }
+                <div style={{ position: 'absolute', bottom: 8, left: 8, background: 'rgba(0,0,0,0.55)', color: '#fff', fontFamily: FU, fontSize: 8, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: 2 }}>{label}</div>
+              </figure>
+            ))}
+          </div>
+        ) : (
+          <div style={{ height: 120, background: 'rgba(0,0,0,0.03)', borderRadius: 3, border: '1px dashed rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+            <span style={{ fontFamily: FU, fontSize: 9, color: '#bbb', letterSpacing: '0.1em' }}>BEFORE ▪ AFTER</span>
+          </div>
+        )}
+        {block.caption && !isActive && <div style={{ fontFamily: FU, fontSize: 11, color: '#999', marginTop: 6, fontStyle: 'italic' }}>{block.caption}</div>}
+        {sideCtrl}
+      </div>
+    );
+  }
+
+  // Fallback for any unrecognised block types
   return (
     <div style={{ ...wrapStyle, padding: '14px 16px', background: 'rgba(0,0,0,0.02)', borderRadius: 4, border: '1px solid rgba(0,0,0,0.06)', margin: '16px 0' }}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={!isActive ? onActivate : undefined}>
@@ -4268,8 +5163,157 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
   );
 }
 
+// ── Canvas top toolbar ────────────────────────────────────────────────────────
+const TOOLBAR_MENUS = [
+  {
+    label: 'Hero',
+    icon: '◉',
+    items: [
+      { label: 'Cinematic — full bleed',    action: 'hero-cinematic' },
+      { label: 'Editorial — text dominant', action: 'hero-editorial' },
+      { label: 'Split — 50/50 image+text',  action: 'hero-split' },
+      { label: 'Minimalist — no image',     action: 'hero-minimal' },
+      { label: 'Dark full-bleed',           action: 'hero-dark' },
+    ],
+  },
+  {
+    label: 'Text',
+    icon: 'T',
+    items: [
+      { label: 'Heading H2',   type: 'heading',   level: 2 },
+      { label: 'Heading H3',   type: 'heading',   level: 3 },
+      { label: 'Paragraph',    type: 'paragraph' },
+      { label: 'Intro Lead',   type: 'intro' },
+      { label: 'Pull Quote',   type: 'quote' },
+    ],
+  },
+  {
+    label: 'Media',
+    icon: '◻',
+    items: [
+      { label: 'Image',         type: 'image' },
+      { label: 'Gallery Grid',  type: 'gallery' },
+      { label: 'Video Embed',   type: 'video' },
+      { label: 'Slider',        type: 'slider' },
+      { label: 'Masonry Grid',  type: 'masonry' },
+      { label: 'Lookbook',      type: 'lookbook' },
+    ],
+  },
+  {
+    label: 'Design',
+    icon: '✦',
+    items: [
+      { label: 'Display Section', type: 'display_section' },
+      { label: 'Sticky Scroll',   type: 'sticky_section' },
+      { label: 'Sidebar Layout',  type: 'sidebar_layout' },
+      { label: 'Divider',         type: 'divider' },
+      { label: 'Section Divider', type: 'section_divider' },
+    ],
+  },
+  {
+    label: 'Commerce',
+    icon: '£',
+    items: [
+      { label: 'Venue Listing',    type: 'listing_embed' },
+      { label: 'Showcase',         type: 'showcase_embed' },
+      { label: 'Affiliate Product',type: 'affiliate_product' },
+    ],
+  },
+];
+
+const HERO_PRESETS = {
+  'hero-cinematic': { heroLayout: 'cinematic', heroHeight: 560, heroOverlay: 0.5 },
+  'hero-editorial': { heroLayout: 'editorial', heroHeight: 420, heroOverlay: 0.25 },
+  'hero-split':     { heroLayout: 'split',     heroHeight: 480, heroOverlay: 0 },
+  'hero-minimal':   { heroLayout: 'minimal',   heroHeight: 0,   heroOverlay: 0 },
+  'hero-dark':      { heroLayout: 'dark',      heroHeight: 600, heroOverlay: 0.68 },
+};
+
+function CanvasToolbar({ formData, onChange, onAddBlock, SS, viewport = 'desktop', onViewport }) {
+  const [openMenu, setOpenMenu] = useState(null);
+  const bg      = SS?.surface  || '#161614';
+  const border  = SS?.border   || 'rgba(245,240,232,0.07)';
+  const textClr = SS?.muted    || 'rgba(245,240,232,0.45)';
+
+  const handleItem = (menu, item) => {
+    setOpenMenu(null);
+    if (item.action && HERO_PRESETS[item.action]) {
+      onChange({ ...formData, ...HERO_PRESETS[item.action] });
+    } else if (item.type) {
+      onAddBlock(item.type, item.level);
+    }
+  };
+
+  return (
+    <div style={{ height: 36, flexShrink: 0, background: bg, borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', padding: '0 14px', gap: 1, position: 'relative', zIndex: 10 }}>
+      {/* Divider from top bar */}
+      <div style={{ width: 1, height: 18, background: border, marginRight: 10 }} />
+      {TOOLBAR_MENUS.map(menu => (
+        <div key={menu.label} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setOpenMenu(o => o === menu.label ? null : menu.label)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              fontFamily: FU, fontSize: 9, fontWeight: openMenu === menu.label ? 700 : 500,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              padding: '4px 10px', borderRadius: 2, cursor: 'pointer',
+              background: openMenu === menu.label ? `${GOLD}14` : 'none',
+              border: openMenu === menu.label ? `1px solid ${GOLD}50` : '1px solid transparent',
+              color: openMenu === menu.label ? GOLD : textClr,
+              transition: 'all 0.1s',
+            }}
+            onMouseEnter={e => { if (openMenu !== menu.label) { e.currentTarget.style.color = GOLD; e.currentTarget.style.borderColor = `${GOLD}30`; } }}
+            onMouseLeave={e => { if (openMenu !== menu.label) { e.currentTarget.style.color = textClr; e.currentTarget.style.borderColor = 'transparent'; } }}
+          >
+            <span style={{ fontSize: 10 }}>{menu.icon}</span>
+            {menu.label}
+            <span style={{ fontSize: 7, opacity: 0.45 }}>▾</span>
+          </button>
+          {openMenu === menu.label && (
+            <div
+              style={{ position: 'absolute', top: '100%', left: 0, zIndex: 300, width: 210, background: '#1a1714', border: `1px solid ${border}`, borderRadius: 4, boxShadow: '0 12px 40px rgba(0,0,0,0.5)', overflow: 'hidden', marginTop: 3 }}
+              onMouseLeave={() => setOpenMenu(null)}
+            >
+              <div style={{ padding: '7px 12px 5px', borderBottom: `1px solid ${border}` }}>
+                <span style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: GOLD, opacity: 0.8 }}>{menu.label}</span>
+              </div>
+              {menu.items.map(item => (
+                <button key={item.label} onClick={() => handleItem(menu, item)}
+                  style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', padding: '8px 14px', fontFamily: FU, fontSize: 10, color: 'rgba(245,240,232,0.7)', background: 'none', border: 'none', cursor: 'pointer', transition: 'background 0.1s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}14`; e.currentTarget.style.color = GOLD; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'rgba(245,240,232,0.7)'; }}>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      {openMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 299 }} onClick={() => setOpenMenu(null)} />}
+
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
+      {/* Viewport toggle */}
+      {onViewport && (
+        <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          {[
+            { key: 'desktop', icon: '⊞', title: 'Desktop' },
+            { key: 'tablet',  icon: '▭', title: 'Tablet' },
+            { key: 'mobile',  icon: '▯', title: 'Mobile' },
+          ].map(v => (
+            <button key={v.key} title={v.title} onClick={() => onViewport(v.key)}
+              style={{ width: 26, height: 22, borderRadius: 2, cursor: 'pointer', border: `1px solid ${viewport === v.key ? `${GOLD}60` : 'transparent'}`, background: viewport === v.key ? `${GOLD}14` : 'none', color: viewport === v.key ? GOLD : textClr, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.1s' }}>
+              {v.icon}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Editable Article Canvas ───────────────────────────────────────────────────
-function EditableCanvas({ formData, onChange, activeBlockIdx, setActiveBlockIdx, showTemplate, setShowTemplate, S }) {
+function EditableCanvas({ formData, onChange, activeBlockIdx, setActiveBlockIdx, showTemplate, setShowTemplate, S, canvasAI, isLight = true, viewport = 'desktop' }) {
   const blocks  = formData.content || [];
   const titleRef = useRef(null);
   const sfRef    = useRef(null);
@@ -4319,8 +5363,9 @@ function EditableCanvas({ formData, onChange, activeBlockIdx, setActiveBlockIdx,
     ]},
   ];
 
-  const addBlock = (type) => {
+  const addBlock = (type, level) => {
     const nb = defaultBlock ? defaultBlock(type) : { type, text: '' };
+    if (level) nb.level = level;
     onChange({ ...formData, content: [...blocks, nb] });
     setTimeout(() => setActiveBlockIdx(blocks.length), 60);
     setAddOpen(false);
@@ -4328,11 +5373,22 @@ function EditableCanvas({ formData, onChange, activeBlockIdx, setActiveBlockIdx,
 
   const articleWidth = formData.layout === 'narrow' ? 640 : 720;
 
+  // Viewport preview scaling
+  const vpWidth  = viewport === 'mobile' ? 390 : viewport === 'tablet' ? 768 : null;
+  const vpScale  = viewport === 'mobile' ? 0.55 : viewport === 'tablet' ? 0.72 : 1;
+  const isScaled = viewport !== 'desktop';
+
   return (
-    <div
-      style={{ flex: 1, overflowY: 'auto', background: '#fafaf8', position: 'relative' }}
-      onClick={() => { if (activeBlockIdx !== null) setActiveBlockIdx(null); if (heroFocus) setHeroFocus(null); }}
-    >
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: CANVAS_BG }}>
+      {/* Placeholder colour for dark canvas inputs */}
+      <style>{`.canvas-input::placeholder { color: rgba(245,240,232,0.28); }`}</style>
+      {/* ── Scrollable canvas area ── */}
+      <div
+        style={{ flex: 1, overflowY: 'auto', position: 'relative' }}
+        onClick={() => { if (activeBlockIdx !== null) setActiveBlockIdx(null); if (heroFocus) setHeroFocus(null); }}
+      >
+      {/* Viewport scale wrapper — shrinks canvas to device width when tablet/mobile */}
+      <div style={isScaled ? { width: vpWidth, margin: '24px auto', boxShadow: '0 8px 48px rgba(0,0,0,0.28)', transformOrigin: 'top center', transform: `scale(${vpScale})`, transformBox: 'border-box', marginBottom: `calc(24px - ${vpWidth}px * ${1 - vpScale})` } : undefined}>
       {/* Hero band */}
       {formData.coverImage ? (
         <div style={{ position: 'relative', height: 340, overflow: 'hidden', background: '#111', flexShrink: 0 }}>
@@ -4347,17 +5403,17 @@ function EditableCanvas({ formData, onChange, activeBlockIdx, setActiveBlockIdx,
           </div>
         </div>
       ) : (
-        <div style={{ background: '#f0ede8', padding: '48px 48px 36px', borderBottom: '1px solid rgba(0,0,0,0.06)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ background: isLight ? '#f0ede8' : '#1e1c18', padding: '48px 48px 36px', borderBottom: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)'}` }} onClick={e => e.stopPropagation()}>
           {formData.categoryLabel && <div style={{ fontFamily: FU, fontSize: 9, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 14 }}>{formData.categoryLabel}</div>}
           {heroFocus === 'title'
-            ? <div ref={titleRef} contentEditable suppressContentEditableWarning onBlur={e => { onChange({ ...formData, title: e.currentTarget.innerText }); setHeroFocus(null); }} onKeyDown={e => { if (e.key === 'Escape' || (e.key === 'Enter' && !e.shiftKey)) { e.preventDefault(); titleRef.current?.blur(); } }} style={{ fontFamily: FD, fontSize: 'clamp(28px,3.5vw,52px)', fontWeight: 400, color: '#0f0e0b', lineHeight: 1.1, outline: 'none', cursor: 'text', borderBottom: `1px solid ${GOLD}60`, caretColor: GOLD }} />
-            : <div onClick={() => setHeroFocus('title')} style={{ fontFamily: FD, fontSize: 'clamp(28px,3.5vw,52px)', fontWeight: 400, color: formData.title ? '#0f0e0b' : 'rgba(0,0,0,0.2)', lineHeight: 1.1, cursor: 'pointer' }}>{formData.title || 'Click to add title…'}</div>
+            ? <div ref={titleRef} contentEditable suppressContentEditableWarning onBlur={e => { onChange({ ...formData, title: e.currentTarget.innerText }); setHeroFocus(null); }} onKeyDown={e => { if (e.key === 'Escape' || (e.key === 'Enter' && !e.shiftKey)) { e.preventDefault(); titleRef.current?.blur(); } }} style={{ fontFamily: FD, fontSize: 'clamp(28px,3.5vw,52px)', fontWeight: 400, color: isLight ? '#0f0e0b' : '#f5f0e8', lineHeight: 1.1, outline: 'none', cursor: 'text', borderBottom: `1px solid ${GOLD}60`, caretColor: GOLD }} />
+            : <div onClick={() => setHeroFocus('title')} style={{ fontFamily: FD, fontSize: 'clamp(28px,3.5vw,52px)', fontWeight: 400, color: formData.title ? (isLight ? '#0f0e0b' : '#f5f0e8') : (isLight ? 'rgba(0,0,0,0.2)' : 'rgba(245,240,232,0.2)'), lineHeight: 1.1, cursor: 'pointer' }}>{formData.title || 'Click to add title…'}</div>
           }
           {(formData.standfirst || heroFocus === 'standfirst') && (
             <div style={{ marginTop: 18 }} onClick={e => e.stopPropagation()}>
               {heroFocus === 'standfirst'
-                ? <div ref={sfRef} contentEditable suppressContentEditableWarning onBlur={e => { onChange({ ...formData, standfirst: e.currentTarget.innerText }); setHeroFocus(null); }} style={{ fontFamily: 'Georgia,serif', fontSize: 19, fontStyle: 'italic', lineHeight: 1.65, color: '#555', outline: 'none', caretColor: GOLD }} />
-                : <div onClick={() => setHeroFocus('standfirst')} style={{ fontFamily: 'Georgia,serif', fontSize: 19, fontStyle: 'italic', lineHeight: 1.65, color: '#555', cursor: 'pointer' }}>{formData.standfirst}</div>
+                ? <div ref={sfRef} contentEditable suppressContentEditableWarning onBlur={e => { onChange({ ...formData, standfirst: e.currentTarget.innerText }); setHeroFocus(null); }} style={{ fontFamily: 'Georgia,serif', fontSize: 19, fontStyle: 'italic', lineHeight: 1.65, color: isLight ? '#555' : 'rgba(245,240,232,0.55)', outline: 'none', caretColor: GOLD }} />
+                : <div onClick={() => setHeroFocus('standfirst')} style={{ fontFamily: 'Georgia,serif', fontSize: 19, fontStyle: 'italic', lineHeight: 1.65, color: isLight ? '#555' : 'rgba(245,240,232,0.55)', cursor: 'pointer' }}>{formData.standfirst}</div>
               }
             </div>
           )}
@@ -4393,6 +5449,8 @@ function EditableCanvas({ formData, onChange, activeBlockIdx, setActiveBlockIdx,
             onMoveDown={() => moveBlock(i, 1)}
             total={blocks.length}
             S={S}
+            canvasAI={canvasAI}
+            isCore={i < 2}
           />
         ))}
 
@@ -4437,15 +5495,23 @@ function EditableCanvas({ formData, onChange, activeBlockIdx, setActiveBlockIdx,
           )}
         </div>
       </div>
+      </div>{/* end viewport scale wrapper */}
+      </div>{/* end scrollable area */}
     </div>
   );
 }
 
 // ── Main ArticleEditor ─────────────────────────────────────────────────────────
-export default function ArticleEditor({ initialPost, onBack, onSaveToParent, saving = false, isLight = false }) {
+export default function ArticleEditor({ initialPost, onBack, onSaveToParent, saving = false, isLight = false, onToggleTheme }) {
   const S = getS(false); // Canvas is always light (article feel); sidebar adapts
   const [formData, setFormData]         = useState(() => JSON.parse(JSON.stringify(initialPost)));
-  const [activeBlockIdx, setActiveBlockIdx] = useState(null);
+  const [activeBlockIdx, setActiveBlockIdx] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem(`mag-active-${initialPost.id}`);
+      if (stored !== null) { const n = parseInt(stored, 10); if (!isNaN(n)) return n; }
+    } catch {}
+    return null;
+  });
   const [tone, setTone]                 = useState(initialPost.tone || 'Luxury Editorial');
   const [dirty, setDirty]               = useState(false);
   const [lastSaved, setLastSaved]       = useState(null);
@@ -4453,17 +5519,80 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   const [focusKeyword, setFocusKeyword] = useState('');
   const [showIntelPanel, setShowIntelPanel] = useState(false);
   const [showTemplate, setShowTemplate] = useState((initialPost.content || []).length === 0);
-  const [sidebarLight, setSidebarLight] = useState(isLight);
-  const SS = getS(sidebarLight); // Sidebar theme (can differ from canvas)
+  const [viewport, setViewport] = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
+  const [phoneView, setPhoneView] = useState('editor'); // 'editor' | 'sidebar'
+  const SS = getS(isLight); // Theme driven by parent (MagazineStudio toggle)
   const autosaveRef = useRef(null);
+  const isPhone = useIsMobile(600);
 
   const contentIntel = useMemo(() => computeContentIntelligence(formData, focusKeyword), [formData, focusKeyword]);
 
   const updateForm = useCallback(data => { setFormData(data); setDirty(true); }, []);
 
+  // handleAddBlock — lifted from EditableCanvas so CanvasToolbar can live in the top bar
+  const handleAddBlock = useCallback((type, level) => {
+    const nb = defaultBlock(type);
+    if (level) nb.level = level;
+    setFormData(fd => {
+      const blocks = fd.content || [];
+      const next = { ...fd, content: [...blocks, nb] };
+      setDirty(true);
+      setTimeout(() => setActiveBlockIdx(blocks.length), 60);
+      return next;
+    });
+  }, []);
+
+  // canvasAI — passed to EditableCanvas → CanvasBlock for slash command generation
+  const canvasAI = useCallback(async (action, blockText) => {
+    try {
+      const ctx = {
+        title: formData.title || '',
+        category: formData.categoryLabel || formData.category || '',
+        tone,
+        content: (formData.content || []).filter(b => b.text).map(b => b.text).join('\n\n').replace(/<[^>]+>/g, '').slice(0, 600),
+        blockText: blockText ? String(blockText).replace(/<[^>]+>/g, '').slice(0, 400) : '',
+      };
+      const prompts = {
+        'canvas-paragraph':  `Write a rich editorial paragraph (3–5 sentences) for a ${ctx.tone} article titled "${ctx.title}". Continue naturally from:\n${ctx.content}\nReturn only the paragraph.`,
+        'canvas-intro':      `Write an elegant opening paragraph (2–3 sentences) for a ${ctx.tone} article titled "${ctx.title}". Make it evocative. Return only the paragraph.`,
+        'canvas-expand':     `Expand and enrich this text for a ${ctx.tone} magazine article. Original: ${ctx.blockText}. Return only the expanded text.`,
+        'canvas-rewrite':    `Rewrite with elevated ${ctx.tone} editorial voice. Original: ${ctx.blockText}. Return only the rewritten text.`,
+        'canvas-h2':         `Write a compelling H2 section heading for a ${ctx.tone} article titled "${ctx.title}". Return only the heading text (no # or markup).`,
+        'canvas-h3':         `Write a concise H3 subheading for a ${ctx.tone} article titled "${ctx.title}". Return only the subheading text.`,
+        'canvas-quote':      `Write a striking pull quote (one sentence) for a ${ctx.tone} piece titled "${ctx.title}". Return only the quote.`,
+        'canvas-takeaway':   `Write 3 concise key takeaways for a ${ctx.tone} article titled "${ctx.title}". Return each on a new line, no bullets.`,
+        'canvas-conclusion': `Write a short memorable closing paragraph (2–3 sentences) for a ${ctx.tone} article titled "${ctx.title}". Return only the paragraph.`,
+        'canvas-image-alt':  `Write a concise, descriptive SEO alt text (10–15 words) for a luxury wedding photograph used in a ${ctx.tone} article titled "${ctx.title}" (${ctx.category}). Image filename hint: ${ctx.blockText}. Return ONLY the alt text — no quotes, no punctuation at end.`,
+      };
+      const prompt = prompts[action];
+      if (!prompt) return null;
+      const { data } = await import('../../lib/supabaseClient').then(m =>
+        m.supabase.functions.invoke('ai-generate', { body: { prompt, model: 'auto', maxTokens: 300 } })
+      ).catch(() => ({ data: null }));
+      return data?.text?.trim() || null;
+    } catch { return null; }
+  }, [formData, tone]);
+
   const save = useCallback(async (data = formData) => {
+    // Required field validation
+    if (!data.categorySlug && !data.category) {
+      setSaveLabel('⚠ Set a category');
+      setTimeout(() => setSaveLabel(null), 3000);
+      return;
+    }
+    if (!data.slug) {
+      setSaveLabel('⚠ Slug required');
+      setTimeout(() => setSaveLabel(null), 3000);
+      return;
+    }
     setSaveLabel('Saving…');
     const result = await onSaveToParent({ ...data, tone });
+    if (result === null) {
+      // Save failed — parent already showed toast; keep dirty so user knows
+      setSaveLabel('✕ Save failed');
+      setTimeout(() => setSaveLabel(null), 3000);
+      return;
+    }
     if (result?.savedId && result.savedId !== data.id) setFormData(fd => ({ ...fd, id: result.savedId }));
     setDirty(false);
     setLastSaved(new Date());
@@ -4473,7 +5602,10 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
 
   const publish = async () => {
     const u = { ...formData, published: true, publishedAt: new Date().toISOString(), tone };
-    setFormData(u); await save(u);
+    setFormData(u);
+    await save(u);
+    // Ping IndexNow so search engines discover the article immediately (non-blocking)
+    pingIndexNowForArticle(u.category_slug || u.categorySlug, u.slug).catch(() => {});
   };
   const unpublish = async () => {
     const u = { ...formData, published: false, tone };
@@ -4481,11 +5613,25 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   };
 
   // Autosave every 25s if dirty
+  const dirtyRef = useRef(false);
+  useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
   useEffect(() => {
     autosaveRef.current = setInterval(() => {
-      setDirty(d => { if (d) { setFormData(fd => { save(fd); return fd; }); return false; } return d; });
+      if (dirtyRef.current) setFormData(fd => { save(fd); return fd; });
     }, 25000);
     return () => clearInterval(autosaveRef.current);
+  }, [save]);
+
+  // Cmd+S / Ctrl+S to save
+  useEffect(() => {
+    const ks = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        setFormData(fd => { save(fd); return fd; });
+      }
+    };
+    window.addEventListener('keydown', ks);
+    return () => window.removeEventListener('keydown', ks);
   }, [save]);
 
   // Warn on unload
@@ -4495,7 +5641,16 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
     return () => window.removeEventListener('beforeunload', h);
   }, [dirty]);
 
-  const statuses = computeStatuses(formData);
+  // Persist active block to sessionStorage so it survives page reload
+  useEffect(() => {
+    try {
+      const key = `mag-active-${formData.id}`;
+      if (activeBlockIdx !== null) sessionStorage.setItem(key, String(activeBlockIdx));
+      else sessionStorage.removeItem(key);
+    } catch {}
+  }, [activeBlockIdx, formData.id]);
+
+  const statuses = computeStatuses(formData, SS);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100%', background: SS.surface, overflow: 'hidden' }}>
@@ -4505,20 +5660,21 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
           onSelect={t => {
             const nc = t.content.map(b => ({ ...b }));
             updateForm({ ...formData, content: nc });
+            setTimeout(() => setActiveBlockIdx(0), 60);
             setShowTemplate(false);
           }}
           onClose={() => setShowTemplate(false)}
         />
       )}
 
-      {/* Top bar */}
-      <div style={{ height: 48, flexShrink: 0, background: SS.surface, borderBottom: `1px solid ${SS.border}`, display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px 0 12px' }}>
+      {/* Top bar — always dark, matches panel colour */}
+      <div style={{ height: 48, flexShrink: 0, background: PANEL_BG, borderBottom: `1px solid ${PANEL_BDR}`, display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px 0 12px' }}>
         <button onClick={() => { if (dirty && !window.confirm('Unsaved changes. Leave?')) return; onBack(); }}
-          style={{ background: 'none', border: 'none', color: SS.muted, cursor: 'pointer', fontFamily: FU, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0 }}>
+          style={{ background: 'none', border: 'none', color: DARK_S.muted, cursor: 'pointer', fontFamily: FU, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0 }}>
           ← Articles
         </button>
-        <div style={{ width: 1, height: 18, background: SS.border, flexShrink: 0 }} />
-        <span style={{ fontFamily: FD, fontSize: 14, color: SS.text, flex: '0 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ width: 1, height: 18, background: PANEL_BDR, flexShrink: 0 }} />
+        <span style={{ fontFamily: FD, fontSize: 14, color: DARK_S.text, flex: '0 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {formData.title || 'Untitled Article'}
         </span>
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
@@ -4526,16 +5682,18 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
         </div>
         <div style={{ flex: 1 }} />
         {/* Save state */}
-        <div style={{ fontFamily: FU, fontSize: 9, color: dirty ? SS.warn : SS.success, flexShrink: 0, letterSpacing: '0.06em' }}>
+        <div style={{ fontFamily: FU, fontSize: 9, color: dirty ? DARK_S.warn : DARK_S.success, flexShrink: 0, letterSpacing: '0.06em' }}>
           {saveLabel || (dirty ? '● Unsaved' : (lastSaved ? `✓ ${lastSaved.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''))}
         </div>
         {/* Intelligence badge */}
         <ContentScoreBadge score={contentIntel.score} grade={contentIntel.grade} gradeColor={contentIntel.gradeColor} onClick={() => setShowIntelPanel(p => !p)} />
-        {/* Sidebar theme */}
-        <button onClick={() => setSidebarLight(l => !l)} title="Toggle sidebar theme"
-          style={{ background: 'none', border: `1px solid ${SS.border}`, color: SS.muted, fontSize: 12, padding: '3px 7px', cursor: 'pointer', borderRadius: 2, flexShrink: 0 }}>
-          {sidebarLight ? '☾' : '☀'}
-        </button>
+        {/* Theme toggle — calls parent so one state controls everything */}
+        {onToggleTheme && (
+          <button onClick={onToggleTheme} title={isLight ? 'Switch to dark mode' : 'Switch to light mode'}
+            style={{ background: 'none', border: `1px solid ${PANEL_BDR}`, color: DARK_S.muted, fontSize: 12, padding: '3px 7px', cursor: 'pointer', borderRadius: 2, flexShrink: 0, outline: 'none' }}>
+            {isLight ? '☾' : '☀'}
+          </button>
+        )}
         {/* Publish */}
         {!formData.published
           ? <GoldBtn small onClick={publish}>Publish</GoldBtn>
@@ -4543,35 +5701,57 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
         }
       </div>
 
+      {/* Canvas toolbar — always dark, matches top bar / panel colour */}
+      <CanvasToolbar formData={formData} onChange={updateForm} onAddBlock={handleAddBlock} SS={{ ...DARK_S, surface: PANEL_BG, border: PANEL_BDR }} viewport={viewport} onViewport={setViewport} />
+
+      {/* Phone view toggle bar */}
+      {isPhone && (
+        <div style={{ display: 'flex', background: SS.surface, borderBottom: `1px solid ${SS.border}`, flexShrink: 0 }}>
+          {['editor', 'sidebar'].map(v => (
+            <button key={v} onClick={() => setPhoneView(v)}
+              style={{ flex: 1, padding: '9px 0', background: phoneView === v ? `${GOLD}12` : 'none', border: 'none', borderBottom: phoneView === v ? `2px solid ${GOLD}` : '2px solid transparent', color: phoneView === v ? GOLD : SS.muted, fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
+              {v === 'editor' ? 'Canvas' : 'Settings'}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* 3-zone layout: canvas | doc sidebar | intel panel */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         {/* Left (dominant): Editable Article Canvas */}
+        {(!isPhone || phoneView === 'editor') && (
         <EditableCanvas
           formData={formData} onChange={updateForm}
           activeBlockIdx={activeBlockIdx} setActiveBlockIdx={setActiveBlockIdx}
           showTemplate={showTemplate} setShowTemplate={setShowTemplate}
           S={SS}
+          canvasAI={canvasAI}
+          isLight={isLight}
+          viewport={viewport}
         />
+        )}
 
         {/* Right: Document Sidebar */}
+        {(!isPhone || phoneView === 'sidebar') && (
         <DocSidebar
           formData={formData} onChange={updateForm}
           tone={tone} onToneChange={setTone}
           onPublish={publish} onUnpublish={unpublish} onSave={save} saving={saving}
           intel={contentIntel} focusKeyword={focusKeyword} onKeywordChange={setFocusKeyword}
           onOpenIntelligence={() => setShowIntelPanel(p => !p)}
-          S={SS}
+          S={{ ...DARK_S, surface: PANEL_BG, surfaceUp: '#221a12', border: PANEL_BDR, inputBg: 'rgba(201,169,110,0.04)', inputBorder: 'rgba(201,169,110,0.1)' }}
         />
+        )}
 
         {/* Far right: Intelligence slide-in panel */}
         {showIntelPanel && (
-          <div style={{ width: 360, flexShrink: 0, background: SS.surface, borderLeft: `1px solid ${SS.border}`, overflowY: 'auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '16px', borderBottom: `1px solid ${SS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ width: 360, flexShrink: 0, background: PANEL_BG, borderLeft: `1px solid ${PANEL_BDR}`, overflowY: 'auto', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '16px', borderBottom: `1px solid ${PANEL_BDR}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
               <div>
                 <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 4 }}>✦ Intelligence</div>
-                <div style={{ fontFamily: FD, fontSize: 20, color: SS.text, fontWeight: 400 }}>Content Analysis</div>
+                <div style={{ fontFamily: FD, fontSize: 20, color: DARK_S.text, fontWeight: 400 }}>Content Analysis</div>
               </div>
-              <button onClick={() => setShowIntelPanel(false)} style={{ background: 'none', border: 'none', color: SS.muted, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>✕</button>
+              <button onClick={() => setShowIntelPanel(false)} style={{ background: 'none', border: 'none', color: DARK_S.muted, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>✕</button>
             </div>
             <div style={{ flex: 1, overflowY: 'auto' }}>
               <ContentIntelligencePanel formData={formData} focusKeyword={focusKeyword} onKeywordChange={setFocusKeyword} S={SS} />

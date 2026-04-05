@@ -753,9 +753,12 @@ export default function EmailMarketingModule({ C, defaultTab, onNavigate }) {
       {/* Header */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
         <div>
-          <h1 style={{ fontFamily:'var(--font-heading)', fontSize:22, fontWeight:700, color:C.white, margin:0 }}>Email Marketing</h1>
-          <p style={{ fontFamily:'var(--font-body)', fontSize:13, color:C.grey, margin:'2px 0 0' }}>
-            Campaigns, templates and audience management
+          <div style={{ fontFamily:'var(--font-body)', fontSize:9, letterSpacing:'3px', textTransform:'uppercase', color:GOLD, marginBottom:6 }}>
+            ✦ Marketing
+          </div>
+          <h1 style={{ fontFamily:'var(--font-heading)', fontSize:22, fontWeight:400, color:C.white, margin:0 }}>Email Marketing</h1>
+          <p style={{ fontFamily:'var(--font-body)', fontSize:12, color:C.grey, margin:'4px 0 0', fontWeight:300 }}>
+            Campaigns, newsletters, and audience management.
           </p>
         </div>
         <div style={{ display:'flex', gap:10, alignItems:'center' }}>

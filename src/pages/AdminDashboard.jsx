@@ -46,6 +46,7 @@ import PlatformSettingsModule from "./AdminModules/PlatformSettingsModule";
 import TeamModule from "./AdminModules/TeamModule";
 import SeoModule from "./AdminModules/SeoModule";
 import AiSeoStudioModule from "./AdminModules/AiSeoStudioModule";
+import SitemapModule from "./AdminModules/SitemapModule";
 import ConnectedDataModule from "./AdminModules/ConnectedDataModule";
 import SocialStudioModule from "./AdminModules/SocialStudioModule";
 import ShowcaseStudioModule from "./AdminModules/ShowcaseStudioModule";
@@ -320,6 +321,7 @@ const NAV_SECTIONS = [
     items: [
       { key: "seo",           label: "SEO",           icon: "⊡" },
       { key: "ai-seo-studio", label: "AI SEO Studio", icon: "✦" },
+      { key: "sitemaps",      label: "Sitemaps",      icon: "⊟" },
     ],
   },
   {
@@ -11647,6 +11649,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "newsletter-builder": return <EmailBuilderModule C={C} mode="newsletter" onBack={() => setActiveTab('newsletter')} />;
       case "seo":           return <SeoModule C={C} />;
       case "ai-seo-studio": return <AiSeoStudioModule C={C} />;
+      case "sitemaps":      return <SitemapModule isLight={!darkMode} />;
       case "crm":               return <CRMModule C={C} />;
       case "events":            return <EventsModule key="events" C={C} darkMode={darkMode} onBuilderModeChange={setEventsBuilderActive} />;
       case "event-studio":      return <EventsModule key="event-studio" C={C} darkMode={darkMode} onBuilderModeChange={setEventsBuilderActive} startInBuilder />;

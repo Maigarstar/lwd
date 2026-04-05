@@ -1826,8 +1826,12 @@ export default function PlatformIntelligenceModule({ C }) {
     <div style={{ width: "100%" }}>
 
       {/* ── Page header ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, padding: '28px 40px 0' }}>
         <div>
+          <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "3px",
+            textTransform: "uppercase", color: C.gold, marginBottom: 6 }}>
+            ✦ Intelligence Centre
+          </div>
           <h2 style={{ fontFamily: GD, fontSize: 22, color: C.off, margin: 0, fontWeight: 400 }}>
             Platform Intelligence
           </h2>

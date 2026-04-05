@@ -101,19 +101,19 @@ export function computeReadingTime(wordCount) {
   return Math.max(1, Math.round(wordCount / 200));
 }
 
-export function computeStatuses(post) {
+export function computeStatuses(post, theme = S) {
   const wc = computeWordCount(post.content);
   const statuses = [];
-  if (post.published) statuses.push({ label: 'Published', color: S.success });
+  if (post.published) statuses.push({ label: 'Published', color: theme.success });
   else if (post.scheduledDate && new Date(post.scheduledDate) > new Date())
-    statuses.push({ label: 'Scheduled', color: S.info });
-  else statuses.push({ label: 'Draft', color: S.faint });
-  if (post.featured)       statuses.push({ label: 'Featured',        color: S.gold });
-  if (post.editorsChoice)  statuses.push({ label: "Editor's Choice", color: S.purple });
+    statuses.push({ label: 'Scheduled', color: theme.info });
+  else statuses.push({ label: 'Draft', color: theme.muted });
+  if (post.featured)       statuses.push({ label: 'Featured',        color: theme.gold });
+  if (post.editorsChoice)  statuses.push({ label: "Editor's Choice", color: theme.purple });
   const needsSEO = !post.excerpt || !post.seoTitle || !post.metaDescription;
-  if (needsSEO) statuses.push({ label: 'Needs SEO', color: S.warn });
+  if (needsSEO) statuses.push({ label: 'Needs SEO', color: theme.warn });
   if (wc < 300 && (post.content || []).length > 0)
-    statuses.push({ label: 'Thin Content', color: S.error });
+    statuses.push({ label: 'Thin Content', color: theme.error });
   return statuses;
 }
 

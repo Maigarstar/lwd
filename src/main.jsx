@@ -17,6 +17,7 @@ import CookieBanner          from "./components/CookieBanner";
 import SiteFooter            from "./components/sections/SiteFooter.jsx";
 import GlobalAdminBar        from "./components/admin/GlobalAdminBar.jsx";
 import GlobalCompare         from "./compare/GlobalCompare.jsx";
+import GlobalSeoHead         from "./components/seo/GlobalSeoHead.jsx";
 
 // ── Apply saved theme CSS variables BEFORE React renders ─────────────────────
 applyThemeToDocument();
@@ -1066,6 +1067,9 @@ function App() {
 
         {/* ── GDPR cookie banner ── */}
         <CookieBanner />
+
+        {/* ── Site-wide SEO head tags — RSS discovery + verification codes ── */}
+        <GlobalSeoHead />
 
             </ChatProvider>
           </ShortlistProvider>

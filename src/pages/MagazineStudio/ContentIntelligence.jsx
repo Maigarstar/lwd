@@ -345,12 +345,12 @@ export function ContentIntelligencePanel({ formData, focusKeyword, onKeywordChan
   const [section, setSection] = useState('overview'); // 'overview' | 'nlp' | 'issues' | 'passes'
   const intel = useMemo(() => computeContentIntelligence(formData, focusKeyword), [formData, focusKeyword]);
 
-  const bg        = 'rgba(0,0,0,0.25)';
-  const border    = 'rgba(255,255,255,0.07)';
+  const bg        = 'transparent'; // outer container owns the bg color
+  const border    = 'rgba(201,169,110,0.1)';
   const text      = '#f5f0e8';
-  const muted     = 'rgba(255,255,255,0.45)';
-  const faint     = 'rgba(255,255,255,0.22)';
-  const surface   = 'rgba(255,255,255,0.04)';
+  const muted     = 'rgba(245,240,232,0.45)';
+  const faint     = 'rgba(245,240,232,0.22)';
+  const surface   = 'rgba(201,169,110,0.05)';
 
   const { score, grade, gradeColor, breakdown, issues, passes, nlpCoverage, nlpPct, powerWordsFound, readability, wordCount, imageCount, headingCount, internalLinks, wt, it } = intel;
 

@@ -999,9 +999,13 @@ export default function ReportingHubModule({ C }) {
   const [selectedVendor, setSelectedVendor] = useState(null); // { id, name }
 
   return (
-    <div style={{ width: "100%" }}>
+    <div style={{ width: "100%", padding: "28px 40px" }}>
       {/* Page header */}
       <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "3px",
+          textTransform: "uppercase", color: C.gold, marginBottom: 6 }}>
+          ✦ Intelligence Centre
+        </div>
         <h2 style={{ fontFamily: GD, fontSize: 22, color: C.off, margin: 0, fontWeight: 400 }}>
           Reporting Hub
         </h2>

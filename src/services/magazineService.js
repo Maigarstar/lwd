@@ -65,6 +65,29 @@ const POST_FIELD_MAP = {
   ogTitle:             'og_title',
   ogDescription:       'og_description',
   ogImage:             'og_image',
+  // Editorial workflow (added 20260404)
+  workflowStatus:      'workflow_status',
+  statusChangedAt:     'status_changed_at',
+  reviewedBy:          'reviewed_by',
+  // Feature flags (added 20260404)
+  isFeatured:          'is_featured',
+  featuredUntil:       'featured_until',
+  homepageFeature:     'homepage_feature',
+  categoryFeature:     'category_feature',
+  // editorsChoice already mapped above → 'editors_choice'
+  // AI Writer fields (added 20260404)
+  aiTopic:             'ai_topic',
+  aiTone:              'ai_tone',
+  aiWordCount:         'ai_word_count',
+  aiOutline:           'ai_outline',
+  aiGenerated:         'ai_generated',
+  aiLastGeneratedAt:   'ai_last_generated_at',
+  aiMetadata:          'ai_metadata',
+  // Editorial Intelligence score (added 20260405)
+  contentScore:            'content_score',
+  contentScoreGrade:       'content_score_grade',
+  contentScoreBreakdown:   'content_score_breakdown',
+  contentScoreUpdatedAt:   'content_score_updated_at',
 };
 
 // Keys NOT written to magazine_posts (stored elsewhere or derived)
@@ -184,12 +207,22 @@ export async function savePost(formData) {
   try {
     // Detect whether the incoming ID is a real DB UUID
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const isDbId = formData.id && UUID_RE.test(formData.id);
+    let isDbId = formData.id && UUID_RE.test(formData.id);
+
+    // For non-UUID IDs (seed/static articles): check if a DB record already exists
+    // with this slug — if so, update it instead of inserting a duplicate each session
+    let existingDbId = null;
+    if (!isDbId && formData.slug) {
+      const { data: existing } = await supabase
+        .from('magazine_posts').select('id').eq('slug', formData.slug).maybeSingle();
+      if (existing?.id) { existingDbId = existing.id; isDbId = true; }
+    }
+    const effectiveId = isDbId ? (existingDbId || formData.id) : null;
 
     // 1. Resolve slug collisions
     const { slug: resolvedSlug, changed: slugChanged } = await resolveSlug(
       formData.slug || slugify(formData.title || 'untitled'),
-      isDbId ? formData.id : null
+      effectiveId
     );
 
     // 2. Build DB row
@@ -197,14 +230,14 @@ export async function savePost(formData) {
     row.updated_at = new Date().toISOString();
     if (!isDbId) delete row.id; // let Postgres generate a real UUID
 
-    // 3. Upsert post (on conflict on slug, update)
+    // 3. Upsert post
     let savedPost;
     if (isDbId) {
-      // Update existing
+      // Update existing (real UUID or found-by-slug)
       const { data, error } = await supabase
         .from('magazine_posts')
         .update(row)
-        .eq('id', formData.id)
+        .eq('id', effectiveId)
         .select()
         .single();
       if (error) throw error;
@@ -240,7 +273,7 @@ export async function savePost(formData) {
 
     const result = mapPostFromDb(savedPost);
     result.content = formData.content || [];
-    return { data: result, error: null, slugChanged, resolvedSlug };
+    return { data: result, error: null, slugChanged, resolvedSlug, isNewRecord: !isDbId && !existingDbId };
   } catch (err) {
     console.error('[magazineService] savePost:', err);
     return { data: null, error: err, slugChanged: false, resolvedSlug: formData.slug };

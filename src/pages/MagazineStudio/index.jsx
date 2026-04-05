@@ -416,140 +416,147 @@ function ArticleList({ posts, onEdit, onNew, onDuplicate, onDelete, onBack, onBu
         </div>
       )}
 
-      {/* Table */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      {/* Sort bar */}
+      <div style={{ padding: '6px 20px', background: S.bg || S.surface, borderBottom: `1px solid ${S.border}`, display: 'flex', gap: 2, alignItems: 'center', flexShrink: 0 }}>
+        <span style={{ fontFamily: FU, fontSize: 9, color: S.faint, letterSpacing: '0.1em', textTransform: 'uppercase', marginRight: 6 }}>Sort</span>
+        {[
+          { label: 'Newest',   col: 'date',   dir: 'desc' },
+          { label: 'Oldest',   col: 'date',   dir: 'asc'  },
+          { label: 'A → Z',    col: 'title',  dir: 'asc'  },
+          { label: 'Score ↑',  col: 'score',  dir: 'desc' },
+          { label: 'Words ↑',  col: 'words',  dir: 'desc' },
+        ].map(({ label, col, dir }) => {
+          const active = sortCol === col && sortDir === dir;
+          return (
+            <button key={label} onClick={() => { setSortCol(col); setSortDir(dir); }}
+              style={{ fontFamily: FU, fontSize: 9, fontWeight: active ? 700 : 400, padding: '3px 9px', borderRadius: 10, background: active ? `${GOLD_V}14` : 'none', border: `1px solid ${active ? GOLD_V + '60' : S.border}`, color: active ? GOLD_V : S.faint, cursor: 'pointer', transition: 'all 0.12s' }}>
+              {label}
+            </button>
+          );
+        })}
+        <div style={{ flex: 1 }} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
+          <input type="checkbox" checked={allSelected} onChange={toggleAll} style={{ accentColor: GOLD_V, cursor: 'pointer' }} />
+          <span style={{ fontFamily: FU, fontSize: 9, color: S.faint }}>All</span>
+        </label>
+      </div>
+
+      {/* Card grid */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 32px' }}>
         {filtered.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', fontFamily: FU, fontSize: 14, color: S.muted }}>No articles match your filters.</div>
+          <div style={{ padding: '60px 40px', textAlign: 'center', fontFamily: FU, fontSize: 13, color: S.muted }}>No articles match your filters.</div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${S.border}` }}>
-                <th style={{ padding: '10px 8px 10px 20px', width: 40 }}>
-                  <input type="checkbox" checked={allSelected} onChange={toggleAll} style={{ accentColor: GOLD_V, cursor: 'pointer' }} />
-                </th>
-                {[
-                  { label: '',          col: null,     w: 100  },
-                  { label: 'Title',     col: 'title',  w: null },
-                  { label: 'Author',    col: null,     w: 130  },
-                  { label: 'Category',  col: null,     w: 110  },
-                  { label: 'Status',    col: 'status', w: 150  },
-                  { label: 'Score',     col: 'score',  w: 65   },
-                  { label: 'Words',     col: 'words',  w: 65   },
-                  { label: 'Scheduled', col: null,     w: 105  },
-                  { label: 'Date',      col: 'date',   w: 95   },
-                  { label: '',          col: null,     w: 120  },
-                ].map(({ label, col, w }, i) => (
-                  <th key={i} onClick={col ? () => toggleSort(col) : undefined}
-                    style={{
-                      padding: i === 9 ? '10px 20px 10px 8px' : '10px 8px',
-                      fontFamily: FU, fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase',
-                      color: col && sortCol === col ? S.gold : S.muted,
-                      textAlign: i === 9 ? 'right' : 'left',
-                      whiteSpace: 'nowrap', cursor: col ? 'pointer' : 'default', userSelect: 'none',
-                      width: w || undefined,
-                    }}
-                  >
-                    {label}{col && sortCol === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(post => {
-                const statuses  = computeStatuses(post);
-                const wc        = computeWordCount(post.content);
-                const intel     = post._intel;
-                const sched     = isSched(post);
-                const isChecked = selected.has(post.id);
-                return (
-                  <tr key={post.id}
-                    style={{ borderBottom: `1px solid ${S.border}`, transition: 'background 0.1s', cursor: 'pointer', background: isChecked ? 'rgba(201,168,76,0.05)' : 'transparent' }}
-                    onMouseEnter={e => { if (!isChecked) e.currentTarget.style.background = S.surfaceUp; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = isChecked ? 'rgba(201,168,76,0.05)' : 'transparent'; }}
-                    onClick={() => onEdit(post.id)}
-                  >
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+            {filtered.map(post => {
+              const statuses  = computeStatuses(post);
+              const wc        = computeWordCount(post.content);
+              const intel     = post._intel;
+              const sched     = isSched(post);
+              const isChecked = selected.has(post.id);
+              const primaryStatus = sched ? { label: 'Scheduled', color: '#818cf8' } : statuses[0];
+              return (
+                <div key={post.id}
+                  onClick={() => onEdit(post.id)}
+                  style={{ position: 'relative', background: isChecked ? `${GOLD_V}08` : S.surface, border: `1px solid ${isChecked ? GOLD_V + '40' : S.border}`, borderRadius: 3, overflow: 'hidden', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s' }}
+                  onMouseEnter={e => { if (!isChecked) { e.currentTarget.style.borderColor = `${GOLD_V}30`; e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.25)'; } }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = isChecked ? `${GOLD_V}40` : S.border; e.currentTarget.style.boxShadow = 'none'; }}
+                >
+                  {/* Cover image */}
+                  <div style={{ position: 'relative', aspectRatio: '16/9', background: S.surfaceUp, overflow: 'hidden' }}>
+                    {post.coverImage
+                      ? <img src={post.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.4s ease' }}
+                          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
+                          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'} />
+                      : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.15 }}>
+                          <span style={{ fontFamily: FD, fontSize: 32 }}>◻</span>
+                        </div>
+                    }
+                    {/* Gradient overlay */}
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 60%)', pointerEvents: 'none' }} />
                     {/* Checkbox */}
-                    <td style={{ padding: '12px 8px 12px 20px', width: 40 }} onClick={e => { e.stopPropagation(); toggleRow(post.id); }}>
-                      <input type="checkbox" checked={isChecked} onChange={() => toggleRow(post.id)} style={{ accentColor: GOLD_V, cursor: 'pointer' }} />
-                    </td>
-                    {/* Thumb */}
-                    <td style={{ padding: '12px 8px', width: 100 }}>
-                      <div style={{ width: 86, height: 58, borderRadius: 2, overflow: 'hidden', background: S.surfaceUp }}>
-                        {post.coverImage && <img src={post.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} />}
+                    <div style={{ position: 'absolute', top: 8, left: 8 }} onClick={e => { e.stopPropagation(); toggleRow(post.id); }}>
+                      <input type="checkbox" checked={isChecked} onChange={() => toggleRow(post.id)} style={{ accentColor: GOLD_V, cursor: 'pointer', width: 14, height: 14 }} />
+                    </div>
+                    {/* Status badge overlay */}
+                    {primaryStatus && (
+                      <div style={{ position: 'absolute', top: 8, right: 8 }}>
+                        <StatusBadge label={primaryStatus.label} color={primaryStatus.color} />
                       </div>
-                    </td>
+                    )}
+                    {/* Intel score overlay */}
+                    <div style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(0,0,0,0.55)', borderRadius: 2, padding: '2px 6px', display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: intel.gradeColor }}>{intel.score}</span>
+                      <span style={{ fontFamily: FU, fontSize: 7, color: intel.gradeColor, opacity: 0.8 }}>{intel.grade}</span>
+                    </div>
+                    {/* Category overlay */}
+                    {(post.categoryLabel || post.category) && (
+                      <div style={{ position: 'absolute', bottom: 8, left: 8 }}>
+                        <span style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD_V, background: 'rgba(0,0,0,0.5)', padding: '2px 6px', borderRadius: 2 }}>
+                          {post.categoryLabel || post.category}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card body */}
+                  <div style={{ padding: '12px 14px 10px' }}>
                     {/* Title */}
-                    <td style={{ padding: '10px 8px' }}>
-                      <div style={{ fontFamily: FD, fontSize: 15, color: S.text, lineHeight: 1.3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: 260 }}>
-                        {post.title}
+                    <div style={{ fontFamily: FD, fontSize: 16, color: S.text, lineHeight: 1.35, marginBottom: 5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {post.title || 'Untitled'}
+                    </div>
+                    {/* Excerpt */}
+                    {post.excerpt && (
+                      <div style={{ fontFamily: FU, fontSize: 11, color: S.muted, lineHeight: 1.5, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {post.excerpt}
                       </div>
-                      {post.excerpt && (
-                        <div style={{ fontFamily: FU, fontSize: 11, color: S.muted, marginTop: 3, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: 260 }}>
-                          {post.excerpt}
+                    )}
+                    {/* Meta row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      {post.author && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          {post.author.avatar && <img src={post.author.avatar} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', opacity: 0.8 }} />}
+                          <span style={{ fontFamily: FU, fontSize: 10, color: S.muted }}>{post.author.name?.split(' ')[0]}</span>
                         </div>
                       )}
-                    </td>
-                    {/* Author */}
-                    <td style={{ padding: '10px 8px', width: 130 }}>
-                      {post.author ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                          {post.author.avatar && <img src={post.author.avatar} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, opacity: 0.85 }} />}
-                          <span style={{ fontFamily: FU, fontSize: 11, color: S.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 90 }}>
-                            {post.author.name?.split(' ')[0]}
-                          </span>
-                        </div>
-                      ) : <span style={{ color: S.faint, fontSize: 11 }}>—</span>}
-                    </td>
-                    {/* Category */}
-                    <td style={{ padding: '10px 8px', width: 110 }}>
-                      <span style={{ fontFamily: FU, fontSize: 11, color: S.gold, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                        {post.categoryLabel || post.category}
-                      </span>
-                    </td>
-                    {/* Status */}
-                    <td style={{ padding: '10px 8px', width: 150 }}>
-                      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                        {sched
-                          ? <StatusBadge label="Scheduled" color="#818cf8" />
-                          : statuses.slice(0, 2).map(s => <StatusBadge key={s.label} label={s.label} color={s.color} />)
-                        }
-                        {intel.score < 55 && <StatusBadge label="Low Score" color={S.error} />}
+                      {post.author && <span style={{ color: S.faint, fontSize: 9 }}>·</span>}
+                      <span style={{ fontFamily: FU, fontSize: 10, color: S.faint }}>{formatDate(post.date)}</span>
+                      {wc > 0 && <>
+                        <span style={{ color: S.faint, fontSize: 9 }}>·</span>
+                        <span style={{ fontFamily: FU, fontSize: 10, color: S.faint }}>{wc.toLocaleString()} words</span>
+                      </>}
+                      {sched && <>
+                        <span style={{ color: S.faint, fontSize: 9 }}>·</span>
+                        <span style={{ fontFamily: FU, fontSize: 10, color: '#818cf8' }}>Sched {formatDate(post.scheduledDate)}</span>
+                      </>}
+                    </div>
+                    {/* Feature flag chips */}
+                    {(post.isFeatured || post.editorsChoice || post.homepageFeature) && (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+                        {post.isFeatured      && <span style={{ fontFamily: FU, fontSize: 7, color: GOLD_V,     padding: '2px 5px', border: `1px solid ${GOLD_V}30`,           borderRadius: 2, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Featured</span>}
+                        {post.homepageFeature && <span style={{ fontFamily: FU, fontSize: 7, color: '#22c55e',  padding: '2px 5px', border: '1px solid rgba(34,197,94,0.3)',  borderRadius: 2, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Homepage</span>}
+                        {post.editorsChoice   && <span style={{ fontFamily: FU, fontSize: 7, color: '#a78bfa',  padding: '2px 5px', border: '1px solid rgba(167,139,250,0.3)',borderRadius: 2, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Editor's Pick</span>}
                       </div>
-                    </td>
-                    {/* Score */}
-                    <td style={{ padding: '10px 8px', width: 65 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
-                        <span style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 700, color: intel.gradeColor }}>{intel.score}</span>
-                        <span style={{ fontFamily: FU, fontSize: 8, color: intel.gradeColor, opacity: 0.7 }}>{intel.grade}</span>
-                      </div>
-                    </td>
-                    {/* Words */}
-                    <td style={{ padding: '10px 8px', width: 65 }}>
-                      <span style={{ fontFamily: FU, fontSize: 12, color: S.muted }}>{wc > 0 ? wc.toLocaleString() : '—'}</span>
-                    </td>
-                    {/* Scheduled */}
-                    <td style={{ padding: '10px 8px', width: 105 }}>
-                      <span style={{ fontFamily: FU, fontSize: 10, color: sched ? '#818cf8' : S.faint }}>
-                        {sched ? formatDate(post.scheduledDate) : '—'}
-                      </span>
-                    </td>
-                    {/* Date */}
-                    <td style={{ padding: '10px 8px', width: 95 }}>
-                      <span style={{ fontFamily: FU, fontSize: 10, color: S.muted }}>{formatDate(post.date)}</span>
-                    </td>
+                    )}
                     {/* Actions */}
-                    <td style={{ padding: '10px 20px 10px 8px', textAlign: 'right', width: 120 }} onClick={e => e.stopPropagation()}>
-                      <div style={{ display: 'flex', gap: 5, justifyContent: 'flex-end' }}>
-                        <button onClick={() => onEdit(post.id)} style={{ fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 8px', borderRadius: 2, background: 'none', border: `1px solid ${S.border}`, color: S.muted, cursor: 'pointer' }}>Edit</button>
-                        <button onClick={() => onDuplicate(post.id)} style={{ fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 8px', borderRadius: 2, background: 'none', border: `1px solid ${S.border}`, color: S.muted, cursor: 'pointer' }}>Dupe</button>
-                        <button onClick={() => onDelete(post.id)} style={{ fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 8px', borderRadius: 2, background: 'none', border: `1px solid rgba(224,85,85,0.25)`, color: S.error, cursor: 'pointer' }}>✕</button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    <div style={{ display: 'flex', gap: 5, borderTop: `1px solid ${S.border}`, paddingTop: 9 }} onClick={e => e.stopPropagation()}>
+                      <button onClick={() => onEdit(post.id)}
+                        style={{ flex: 1, fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '5px 4px', borderRadius: 2, background: `${GOLD_V}0e`, border: `1px solid ${GOLD_V}40`, color: GOLD_V, cursor: 'pointer' }}>
+                        Edit
+                      </button>
+                      <button onClick={() => onDuplicate(post.id)}
+                        style={{ fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '5px 9px', borderRadius: 2, background: 'none', border: `1px solid ${S.border}`, color: S.muted, cursor: 'pointer' }}>
+                        Dupe
+                      </button>
+                      <button onClick={() => onDelete(post.id)}
+                        style={{ fontFamily: FU, fontSize: 8, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '5px 9px', borderRadius: 2, background: 'none', border: '1px solid rgba(224,85,85,0.22)', color: S.error, cursor: 'pointer' }}>
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
@@ -660,7 +667,17 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
 
   const handleSavePost = useCallback(async (updated) => {
     setSaving(true);
-    const { data: saved, error, slugChanged, resolvedSlug } = await savePost(updated);
+    // Compute Editorial Intelligence score and persist it alongside the post.
+    // Empty focus keyword → objective score (no keyword bonus/penalty).
+    const intel = computeContentIntelligence(updated, '');
+    const withScore = {
+      ...updated,
+      contentScore:          intel.score,
+      contentScoreGrade:     intel.grade,
+      contentScoreBreakdown: intel.breakdown,
+      contentScoreUpdatedAt: new Date().toISOString(),
+    };
+    const { data: saved, error, slugChanged, resolvedSlug } = await savePost(withScore);
     setSaving(false);
     if (error) {
       showToast('Save failed, ' + (error.message || 'unknown error'), 'error');
@@ -921,6 +938,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
             allPosts={localPosts}
             saving={saving}
             isLight={studioLight}
+            onToggleTheme={() => setStudioLight(l => !l)}
             onSaveToParent={async (updated, isDuplicate) => {
               if (isDuplicate) {
                 // Duplicate: save to DB and go to list

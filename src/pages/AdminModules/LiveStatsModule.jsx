@@ -1669,6 +1669,19 @@ export default function LiveStatsModule({ C }) {
         }
       `}</style>
 
+      {/* ── Page header ─────────────────────────────────────────────────── */}
+      <div style={{ padding: "20px 28px 16px", borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+        <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "3px", textTransform: "uppercase", color: GOLD, marginBottom: 5 }}>
+          ✦ Intelligence
+        </div>
+        <h2 style={{ fontFamily: GD, fontSize: 22, fontWeight: 400, color: white, margin: "0 0 3px" }}>
+          Live Stats
+        </h2>
+        <p style={{ fontFamily: NU, fontSize: 12, color: grey, margin: 0, fontWeight: 300 }}>
+          Real-time visitor intelligence — sessions, intent signals, and high-value alerts.
+        </p>
+      </div>
+
       {/* ── KPI strip ───────────────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(8,1fr)", gap: 1, background: border, borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
         {[
