@@ -10,3 +10,14 @@ export function getRegionPageConfig(regionSlug) {
   // For now, return null to indicate no custom config
   return null;
 }
+
+/**
+ * Save region page config
+ * Stub for Phase 2.1 admin panel
+ */
+export async function saveRegionPageConfig(regionSlug, config) {
+  // Phase 2.1: Persist premium page config to database
+  // For now, this is a no-op
+  console.log(`[regionPageConfig] saveRegionPageConfig called for ${regionSlug}`, config);
+  return { success: true, config };
+}
