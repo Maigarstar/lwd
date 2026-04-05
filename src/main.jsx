@@ -75,6 +75,7 @@ import ArtistryPage from "./pages/Artistry/ArtistryPage.jsx";
 import MagazineHomePage     from "./pages/Magazine/MagazineHomePage.jsx";
 import CategoryPage          from "./pages/Magazine/CategoryPage.jsx";
 import MagazineArticlePage  from "./pages/Magazine/MagazineArticlePage.jsx";
+import MagazinePreviewPage  from "./pages/Magazine/MagazinePreviewPage.jsx";
 import FashionLandingPage   from "./pages/Magazine/FashionLandingPage.jsx";
 const MagazineStudio         = lazy(() => import("./pages/MagazineStudio/index.jsx"));
 import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
@@ -296,7 +297,8 @@ function pathToState(pathname) {
   if (parts[0] === "magazine" && parts.length === 1) return { page: "magazine" };
   if (parts[0] === "magazine" && parts[1] === "category" && parts.length === 3) return { page: "magazine-category", magazineCategoryId: parts[2] };
   if (parts[0] === "magazine" && parts[1] === "fashion" && parts.length === 2) return { page: "magazine-fashion" };
-  if (parts[0] === "magazine" && parts.length === 2 && parts[1] !== "category" && parts[1] !== "fashion") return { page: "magazine-article", magazineSlug: parts[1] };
+  if (parts[0] === "magazine" && parts[1] === "preview" && parts.length === 2) return { page: "magazine-preview" };
+  if (parts[0] === "magazine" && parts.length === 2 && parts[1] !== "category" && parts[1] !== "fashion" && parts[1] !== "preview") return { page: "magazine-article", magazineSlug: parts[1] };
   // Static routes: non-location single-segment paths (admin, about, contact, etc.)
   if (parts.length === 1 && statics[parts[0]]) return { page: statics[parts[0]] };
 
@@ -840,6 +842,9 @@ function App() {
             onToggleLight={() => setMagazineLight(l => !l)}
             footerNav={footerNav}
           />
+        )}
+        {page === "magazine-preview" && (
+          <MagazinePreviewPage />
         )}
         {page === "magazine-article" && (
           <MagazineArticlePage

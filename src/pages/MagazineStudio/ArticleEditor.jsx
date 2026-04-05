@@ -13,6 +13,7 @@ import ArticleBody from '../Magazine/components/ArticleBody';
 import TiptapEditor from './TiptapEditor';
 import MagazineMediaUploader from './MagazineMediaUploader';
 import { ContentIntelligencePanel, ContentScoreBadge, computeContentIntelligence } from './ContentIntelligence';
+import { generateArticleBody, generateOutline, countBlockWords, LOADING_MESSAGES } from '../../services/taigenicWriterService';
 import MediaLibrary from './MediaLibrary';
 
 const GOLD = '#c9a96e';
@@ -3543,6 +3544,13 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
   const [aiWriterTopic, setAiWriterTopic] = useState('');
   const [aiWriterTone, setAiWriterTone] = useState('Luxury Editorial');
   const [aiWriterWordCount, setAiWriterWordCount] = useState(600);
+  const [coverLibOpen, setCoverLibOpen] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [aiWriterLoading, setAiWriterLoading] = useState(false);
+  const [aiWriterDraft, setAiWriterDraft] = useState(null);
+  const [aiWriterError, setAiWriterError] = useState('');
+  const [aiWriterMode, setAiWriterMode] = useState('replace');
+  const [aiWriterLoadMsg, setAiWriterLoadMsg] = useState('');
 
   const isSched = formData.scheduledDate && !formData.published && new Date(formData.scheduledDate) > new Date();
   const wfStatus = formData.workflowStatus || (formData.published ? 'published' : 'draft');
@@ -3641,55 +3649,201 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
         ))}
       </div>
 
-      {/* ── AI WRITER TAB ─────────────────────────────────────────────────────── */}
+      {/* ── TAIGENIC AI WRITER TAB ────────────────────────────────────────────── */}
       {sidebarTab === 'ai' && (
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {/* Coming soon header */}
-          <div style={{ padding: '28px 20px 20px', textAlign: 'center', borderBottom: `1px solid ${S.border}` }}>
-            <div style={{ fontSize: 28, marginBottom: 10 }}>✦</div>
-            <div style={{ fontFamily: FD, fontSize: 20, color: S.text, fontWeight: 400, marginBottom: 6 }}>AI Writer</div>
-            <div style={{ fontFamily: FU, fontSize: 10, color: S.muted, lineHeight: 1.6 }}>Generate full article drafts, outlines, and sections from a brief. Powered by Claude.</div>
-          </div>
-          {/* Placeholder form */}
-          <div style={{ padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div>
-              <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, marginBottom: 5 }}>Topic or Brief</div>
-              <textarea value={aiWriterTopic} onChange={e => setAiWriterTopic(e.target.value)} rows={4} placeholder="e.g. A guide to choosing the perfect villa wedding venue in Tuscany…" style={{ width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text, fontFamily: FU, fontSize: 12, padding: '8px 10px', borderRadius: 2, outline: 'none', resize: 'vertical', lineHeight: 1.5 }} />
-            </div>
-            <div>
-              <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, marginBottom: 5 }}>Tone</div>
-              <select value={aiWriterTone} onChange={e => setAiWriterTone(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text, fontFamily: FU, fontSize: 12, padding: '7px 9px', borderRadius: 2, outline: 'none', cursor: 'pointer' }}>
-                {TONE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, marginBottom: 5 }}>Target Word Count</div>
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+
+          {/* ── LOADING STATE ── */}
+          {aiWriterLoading && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', gap: 22 }}>
+              {/* Pulsing gold glyph */}
+              <div style={{ fontSize: 32, color: GOLD, animation: 'taigenic-pulse 1.8s ease-in-out infinite' }}>✦</div>
+              <style>{`@keyframes taigenic-pulse{0%,100%{opacity:0.4;transform:scale(0.92)}50%{opacity:1;transform:scale(1.08)}}`}</style>
+              <div style={{ fontFamily: FD, fontSize: 18, color: S.text, fontWeight: 400, textAlign: 'center', lineHeight: 1.5 }}>
+                {aiWriterLoadMsg || 'Taigenic is writing…'}
+              </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                {[400, 600, 900, 1400].map(n => (
-                  <button key={n} onClick={() => setAiWriterWordCount(n)}
-                    style={{ flex: 1, padding: '6px 2px', borderRadius: 2, cursor: 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, background: aiWriterWordCount === n ? `${GOLD}18` : 'none', border: `1px solid ${aiWriterWordCount === n ? GOLD : S.border}`, color: aiWriterWordCount === n ? GOLD : S.muted, transition: 'all 0.15s' }}>
-                    {n}
-                  </button>
+                {[0,1,2].map(i => (
+                  <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: GOLD, opacity: 0.7, animation: `taigenic-dot 1.4s ${i * 0.28}s ease-in-out infinite` }} />
                 ))}
               </div>
+              <style>{`@keyframes taigenic-dot{0%,80%,100%{transform:scale(0.6);opacity:0.3}40%{transform:scale(1);opacity:1}}`}</style>
+              <button onClick={() => setAiWriterLoading(false)}
+                style={{ fontFamily: FU, fontSize: 9, color: S.faint, background: 'none', border: `1px solid ${S.border}`, padding: '5px 14px', borderRadius: 2, cursor: 'pointer', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                Cancel
+              </button>
             </div>
-            <button disabled style={{ marginTop: 6, padding: '10px', background: `${GOLD}14`, border: `1px solid ${GOLD}40`, color: GOLD, fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', borderRadius: 2, cursor: 'not-allowed', opacity: 0.6 }}>
-              ✦ Generate Draft — Coming Soon
-            </button>
-            <div style={{ fontFamily: FU, fontSize: 10, color: S.faint, textAlign: 'center', lineHeight: 1.5 }}>
-              AI Writer will generate a full structured draft directly into your canvas. Available in the next release.
-            </div>
-            {/* Outline / Section generators — also coming soon */}
-            <div style={{ borderTop: `1px solid ${S.border}`, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ fontFamily: FU, fontSize: 8, color: S.faint, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Coming Soon</div>
-              {['Generate Outline', 'Write Intro Only', 'Expand This Section', 'Suggest Headline Variants'].map(label => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', background: `${GOLD}06`, border: `1px solid ${S.border}`, borderRadius: 2, opacity: 0.5 }}>
-                  <span style={{ fontFamily: FU, fontSize: 10, color: S.muted }}>{label}</span>
-                  <span style={{ fontFamily: FU, fontSize: 8, color: S.faint }}>Soon</span>
+          )}
+
+          {/* ── DRAFT PREVIEW STATE ── */}
+          {!aiWriterLoading && aiWriterDraft && (() => {
+            const draftIntel = computeContentIntelligence({ ...formData, content: aiWriterDraft.blocks }, focusKeyword);
+            return (
+              <div style={{ padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* Taigenic header */}
+                <div style={{ textAlign: 'center', paddingBottom: 14, borderBottom: `1px solid ${S.border}` }}>
+                  <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 4 }}>✦ Taigenic</div>
+                  <div style={{ fontFamily: FD, fontSize: 18, color: S.text, fontWeight: 400 }}>Draft Ready</div>
                 </div>
-              ))}
+                {/* Stats row */}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ flex: 1, padding: '10px 8px', background: `${GOLD}08`, border: `1px solid ${GOLD}20`, borderRadius: 2, textAlign: 'center' }}>
+                    <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: GOLD }}>{aiWriterDraft.wordCount}</div>
+                    <div style={{ fontFamily: FU, fontSize: 8, color: S.faint, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 2 }}>words</div>
+                  </div>
+                  <div style={{ flex: 1, padding: '10px 8px', background: `${draftIntel.gradeColor}10`, border: `1px solid ${draftIntel.gradeColor}28`, borderRadius: 2, textAlign: 'center' }}>
+                    <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: draftIntel.gradeColor }}>{draftIntel.score}</div>
+                    <div style={{ fontFamily: FU, fontSize: 8, color: S.faint, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 2 }}>score {draftIntel.grade}</div>
+                  </div>
+                </div>
+                {/* NLP terms detected */}
+                {aiWriterDraft.nlpTermsUsed?.length > 0 && (
+                  <div>
+                    <div style={{ fontFamily: FU, fontSize: 8, color: S.faint, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>NLP Terms Woven In</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {aiWriterDraft.nlpTermsUsed.slice(0, 8).map(t => (
+                        <span key={t} style={{ fontFamily: FU, fontSize: 8, color: GOLD, background: `${GOLD}10`, border: `1px solid ${GOLD}25`, borderRadius: 2, padding: '2px 6px' }}>{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Replace / Append toggle */}
+                <div>
+                  <div style={{ fontFamily: FU, fontSize: 8, color: S.faint, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Insert Mode</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[['replace', 'Replace All'], ['append', 'Append']].map(([v, l]) => (
+                      <button key={v} onClick={() => setAiWriterMode(v)}
+                        style={{ flex: 1, padding: '7px 4px', borderRadius: 2, cursor: 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, background: aiWriterMode === v ? `${GOLD}18` : 'none', border: `1px solid ${aiWriterMode === v ? GOLD : S.border}`, color: aiWriterMode === v ? GOLD : S.muted, transition: 'all 0.15s' }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Insert button */}
+                <button onClick={() => {
+                  const newBlocks = aiWriterDraft.blocks;
+                  const existing  = formData.content || [];
+                  onChange({ ...formData, content: aiWriterMode === 'replace' ? newBlocks : [...existing, ...newBlocks] });
+                  setAiWriterDraft(null);
+                  setSidebarTab('document');
+                }}
+                  style={{ padding: '11px', background: `linear-gradient(135deg, ${GOLD}, #b8922f)`, border: 'none', color: '#1a1208', fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', borderRadius: 2, cursor: 'pointer' }}>
+                  ✦ Insert into Article
+                </button>
+                {/* Try again */}
+                <button onClick={() => setAiWriterDraft(null)}
+                  style={{ padding: '8px', background: 'none', border: `1px solid ${S.border}`, color: S.muted, fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', borderRadius: 2, cursor: 'pointer' }}>
+                  ← Try Again
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* ── BRIEF FORM STATE ── */}
+          {!aiWriterLoading && !aiWriterDraft && (
+            <div style={{ padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Taigenic header */}
+              <div style={{ textAlign: 'center', paddingBottom: 14, borderBottom: `1px solid ${S.border}` }}>
+                <div style={{ fontFamily: FU, fontSize: 8, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 4 }}>✦ Taigenic</div>
+                <div style={{ fontFamily: FD, fontSize: 20, color: S.text, fontWeight: 400, marginBottom: 4 }}>AI Writer</div>
+                <div style={{ fontFamily: FU, fontSize: 10, color: S.faint, lineHeight: 1.5 }}>Generates a full structured draft — editorial voice, NLP signals, image placements.</div>
+              </div>
+              {/* Error */}
+              {aiWriterError && (
+                <div style={{ padding: '8px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 2, fontFamily: FU, fontSize: 10, color: '#ef4444', lineHeight: 1.4 }}>
+                  {aiWriterError}
+                </div>
+              )}
+              {/* Topic brief */}
+              <div>
+                <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, marginBottom: 5 }}>Topic or Brief</div>
+                <textarea value={aiWriterTopic} onChange={e => setAiWriterTopic(e.target.value)} rows={4}
+                  placeholder={`e.g. ${formData.categoryLabel === 'Destinations' ? 'A guide to coastal wedding venues on the Amalfi Coast' : 'An editorial piece about choosing the right wedding photographer'}…`}
+                  style={{ width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text, fontFamily: FU, fontSize: 12, padding: '8px 10px', borderRadius: 2, outline: 'none', resize: 'vertical', lineHeight: 1.5 }} />
+              </div>
+              {/* Tone */}
+              <div>
+                <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, marginBottom: 5 }}>Tone</div>
+                <select value={aiWriterTone} onChange={e => setAiWriterTone(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text, fontFamily: FU, fontSize: 12, padding: '7px 9px', borderRadius: 2, outline: 'none', cursor: 'pointer' }}>
+                  {TONE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              {/* Length */}
+              <div>
+                <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, marginBottom: 5 }}>Length</div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[['Short', 400], ['Medium', 700], ['Long', 1000], ['Deep', 1400]].map(([l, n]) => (
+                    <button key={n} onClick={() => setAiWriterWordCount(n)}
+                      style={{ flex: 1, padding: '6px 2px', borderRadius: 2, cursor: 'pointer', fontFamily: FU, fontSize: 8, fontWeight: 600, background: aiWriterWordCount === n ? `${GOLD}18` : 'none', border: `1px solid ${aiWriterWordCount === n ? GOLD : S.border}`, color: aiWriterWordCount === n ? GOLD : S.muted, transition: 'all 0.15s' }}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Generate full draft */}
+              <button
+                onClick={async () => {
+                  if (!aiWriterTopic.trim() && !formData.title) {
+                    setAiWriterError('Add a brief or article title first.');
+                    return;
+                  }
+                  setAiWriterError('');
+                  setAiWriterLoading(true);
+                  // Cycle loading messages
+                  let msgIdx = 0;
+                  setAiWriterLoadMsg(LOADING_MESSAGES[0]);
+                  const msgTimer = setInterval(() => {
+                    msgIdx = (msgIdx + 1) % LOADING_MESSAGES.length;
+                    setAiWriterLoadMsg(LOADING_MESSAGES[msgIdx]);
+                  }, 2200);
+                  try {
+                    const result = await generateArticleBody({
+                      brief:         aiWriterTopic,
+                      title:         formData.title,
+                      category:      formData.categoryLabel || formData.category,
+                      tone:          aiWriterTone,
+                      focusKeyword:  focusKeyword,
+                    });
+                    setAiWriterDraft(result);
+                  } catch (err) {
+                    setAiWriterError(err.message || 'Generation failed. Check Admin → AI Settings.');
+                  } finally {
+                    clearInterval(msgTimer);
+                    setAiWriterLoading(false);
+                  }
+                }}
+                style={{ marginTop: 4, padding: '11px', background: `linear-gradient(135deg, ${GOLD}, #b8922f)`, border: 'none', color: '#1a1208', fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', borderRadius: 2, cursor: 'pointer' }}>
+                ✦ Generate Full Draft
+              </button>
+              {/* Outline only */}
+              <button
+                onClick={async () => {
+                  if (!aiWriterTopic.trim() && !formData.title) {
+                    setAiWriterError('Add a brief or article title first.');
+                    return;
+                  }
+                  setAiWriterError('');
+                  setAiWriterLoading(true);
+                  setAiWriterLoadMsg('Generating outline…');
+                  try {
+                    const headings = await generateOutline({
+                      brief:    aiWriterTopic,
+                      title:    formData.title,
+                      category: formData.categoryLabel || formData.category,
+                    });
+                    if (headings.length === 0) throw new Error('No headings returned.');
+                    setAiWriterDraft({ blocks: headings, wordCount: 0, nlpTermsUsed: [] });
+                  } catch (err) {
+                    setAiWriterError(err.message || 'Outline failed.');
+                  } finally {
+                    setAiWriterLoading(false);
+                  }
+                }}
+                style={{ padding: '8px', background: 'none', border: `1px solid ${S.border}`, color: S.muted, fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', borderRadius: 2, cursor: 'pointer' }}>
+                Generate Outline Only →
+              </button>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -3823,10 +3977,47 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
 
       {/* Featured Image */}
       <ACC id="image" title="Featured Image" icon="◻">
+        {/* Thumbnail preview */}
+        {formData.coverImage && (
+          <div style={{ position: 'relative', borderRadius: 2, overflow: 'hidden', aspectRatio: '16/9', marginBottom: 2 }}>
+            <img src={formData.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <button onClick={() => upd('coverImage', '')}
+              style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.65)', border: 'none', color: 'rgba(245,240,232,0.8)', width: 22, height: 22, borderRadius: '50%', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+              title="Remove image">✕</button>
+          </div>
+        )}
+        {/* Upload + Library row */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          <label style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px 6px', background: coverUploading ? `${GOLD}10` : 'none', border: `1px dashed ${GOLD}50`, borderRadius: 2, cursor: coverUploading ? 'not-allowed' : 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, color: coverUploading ? `${GOLD}80` : GOLD, letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'all 0.15s' }}>
+            <input type="file" accept="image/*" style={{ display: 'none' }} disabled={coverUploading}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setCoverUploading(true);
+                try {
+                  const url = await compressAndUploadImage(file);
+                  upd('coverImage', url);
+                } catch (err) {
+                  console.error('Cover upload failed', err);
+                } finally {
+                  setCoverUploading(false);
+                  e.target.value = '';
+                }
+              }}
+            />
+            {coverUploading ? '↑ Uploading…' : '↑ Upload'}
+          </label>
+          <button onClick={() => setCoverLibOpen(true)}
+            style={{ flex: 1, padding: '8px 6px', background: 'none', border: `1px solid ${S.border}`, borderRadius: 2, cursor: 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, color: S.muted, letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}50`; e.currentTarget.style.color = GOLD; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.color = S.muted; }}>
+            ◻ Library
+          </button>
+        </div>
+        {/* URL fallback */}
         <div>
-          <Lbl>Cover Image URL</Lbl>
+          <Lbl>Or paste URL</Lbl>
           <FI value={formData.coverImage} onChange={v => upd('coverImage', v)} placeholder="https://…" />
-          {formData.coverImage && <div style={{ marginTop: 8, borderRadius: 2, overflow: 'hidden', aspectRatio: '16/9' }}><img src={formData.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /></div>}
         </div>
         <div>
           <Lbl>Alt Text</Lbl>
@@ -3838,6 +4029,7 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
             {[['editorial','Editorial'],['split','Split'],['cinematic','Cinematic'],['minimal','Minimal'],['banner','Banner']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
+        <MediaLibrary open={coverLibOpen} onClose={() => setCoverLibOpen(false)} onSelect={img => { upd('coverImage', img.url); setCoverLibOpen(false); }} />
       </ACC>
 
       {/* Typography */}
@@ -5694,6 +5886,17 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
             {isLight ? '☾' : '☀'}
           </button>
         )}
+        {/* Preview — opens article in new tab (WordPress-style) */}
+        <button
+          onClick={() => {
+            try { sessionStorage.setItem('lwd:article-preview', JSON.stringify(formData)); } catch (_) {}
+            window.open('/magazine/preview', '_blank', 'noopener');
+          }}
+          style={{ background: 'none', border: `1px solid ${PANEL_BDR}`, color: DARK_S.muted, fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '5px 11px', cursor: 'pointer', borderRadius: 2, flexShrink: 0, outline: 'none', transition: 'all 0.15s' }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}60`; e.currentTarget.style.color = GOLD; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = PANEL_BDR; e.currentTarget.style.color = DARK_S.muted; }}>
+          Preview ↗
+        </button>
         {/* Publish */}
         {!formData.published
           ? <GoldBtn small onClick={publish}>Publish</GoldBtn>
