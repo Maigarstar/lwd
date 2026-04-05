@@ -3678,6 +3678,18 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
           {/* ── DRAFT PREVIEW STATE ── */}
           {!aiWriterLoading && aiWriterDraft && (() => {
             const draftIntel = computeContentIntelligence({ ...formData, content: aiWriterDraft.blocks }, focusKeyword);
+
+            // Check keyword placement
+            const draftText = aiWriterDraft.blocks.map(b => b.text || '').join('\n').toLowerCase();
+            const keywordPlacement = focusKeyword ? {
+              inTitle: formData.title?.toLowerCase().includes(focusKeyword.toLowerCase()),
+              inIntro: draftText.split('\n')[0]?.toLowerCase().includes(focusKeyword.toLowerCase()),
+              inHeadings: (aiWriterDraft.blocks || [])
+                .filter(b => b.type === 'heading')
+                .some(b => b.text?.toLowerCase().includes(focusKeyword.toLowerCase())),
+              count: (draftText.match(new RegExp(focusKeyword, 'gi')) || []).length,
+            } : null;
+
             return (
               <div style={{ padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {/* Taigenic header */}
@@ -3696,6 +3708,18 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                     <div style={{ fontFamily: FU, fontSize: 8, color: S.faint, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 2 }}>score {draftIntel.grade}</div>
                   </div>
                 </div>
+                {/* Keyword placement chips */}
+                {keywordPlacement && (
+                  <div>
+                    <div style={{ fontFamily: FU, fontSize: 8, color: S.faint, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Focus Keyword Placement</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {keywordPlacement.inTitle && <span style={{ fontFamily: FU, fontSize: 8, color: '#22c55e', background: '#22c55e15', border: '1px solid #22c55e30', borderRadius: 2, padding: '2px 6px' }}>✓ Title</span>}
+                      {keywordPlacement.inIntro && <span style={{ fontFamily: FU, fontSize: 8, color: '#22c55e', background: '#22c55e15', border: '1px solid #22c55e30', borderRadius: 2, padding: '2px 6px' }}>✓ Intro</span>}
+                      {keywordPlacement.inHeadings && <span style={{ fontFamily: FU, fontSize: 8, color: '#22c55e', background: '#22c55e15', border: '1px solid #22c55e30', borderRadius: 2, padding: '2px 6px' }}>✓ Headings</span>}
+                      {keywordPlacement.count > 0 && <span style={{ fontFamily: FU, fontSize: 8, color: GOLD, background: `${GOLD}10`, border: `1px solid ${GOLD}30`, borderRadius: 2, padding: '2px 6px' }}>{keywordPlacement.count}x used</span>}
+                    </div>
+                  </div>
+                )}
                 {/* NLP terms detected */}
                 {aiWriterDraft.nlpTermsUsed?.length > 0 && (
                   <div>
@@ -3723,7 +3747,21 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                 <button onClick={() => {
                   const newBlocks = aiWriterDraft.blocks;
                   const existing  = formData.content || [];
-                  onChange({ ...formData, content: aiWriterMode === 'replace' ? newBlocks : [...existing, ...newBlocks] });
+                  const now = new Date().toISOString();
+
+                  // Add metadata fields
+                  const updatedFormData = {
+                    ...formData,
+                    content: aiWriterMode === 'replace' ? newBlocks : [...existing, ...newBlocks],
+                    aiGenerated: true,
+                    aiLastGeneratedAt: now,
+                    aiModel: aiWriterDraft.model || 'anthropic-claude-3',
+                    aiTopic: aiWriterTopic,
+                    aiTone: aiWriterTone,
+                    aiWordCount: aiWriterDraft.wordCount,
+                  };
+
+                  onChange(updatedFormData);
                   setAiWriterDraft(null);
                   setSidebarTab('document');
                 }}
