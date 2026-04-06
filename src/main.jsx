@@ -3,6 +3,9 @@ import { useState, useEffect, useRef, StrictMode, lazy, Suspense } from "react";
 import { createRoot }           from "react-dom/client";
 import { HelmetProvider }       from "react-helmet-async";
 
+// ── Global Mobile Stylesheet (Premium mobile-first stabilization) ──
+import "./mobile.css";
+
 import { applyThemeToDocument } from "./theme/ThemeLoader";
 import { getDefaultMode } from "./theme/tokens";
 import { ShortlistProvider } from "./shortlist/ShortlistContext";

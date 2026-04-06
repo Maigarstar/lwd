@@ -698,7 +698,7 @@ export default function AdvertisePage({ onNavigateHome, onNavigateListYourBusine
                 style={{
                   fontFamily: NU, fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
                   textTransform: "uppercase", color: "#0d0b09", background: "#D4AC50",
-                  border: "none", padding: "18px 0", borderRadius: 2, cursor: "pointer",
+                  border: "none", padding: "18px 0", minHeight: "48px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 2, cursor: "pointer",
                   transition: "background 0.2s, box-shadow 0.2s",
                   boxShadow: "0 8px 32px rgba(201,168,76,0.2)",
                 }}
