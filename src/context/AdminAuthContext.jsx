@@ -19,6 +19,12 @@ export function AdminAuthProvider({ children }) {
     // the single source of truth so we're resilient to Strict Mode double-mounts
     // and any AbortError from getSession() lock contention.
     let loaded = false;
+
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setAdmin(session.user);
