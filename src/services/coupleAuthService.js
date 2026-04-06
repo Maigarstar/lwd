@@ -111,7 +111,7 @@ export const getCurrentCouple = async () => {
       .from("couples")
       .select("*")
       .eq("user_id", authData.user.id)
-      .single();
+      .maybeSingle();
 
     if (coupleError) return { data: null, error: coupleError.message };
     if (!coupleData) return { data: null, error: "Couple record not found" };

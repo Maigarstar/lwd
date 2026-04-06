@@ -85,6 +85,17 @@ export const TONE_OPTIONS = [
   'Custom Brand Voice',
 ];
 
+export const TONE_PRESETS = [
+  { key: 'Luxury Editorial',    label: 'Editorial',    desc: 'Authoritative, refined' },
+  { key: 'Wedding Romance',     label: 'Romantic',     desc: 'Emotional, intimate' },
+  { key: 'Vogue Style',         label: 'Modern Luxury', desc: 'Contemporary, aspirational' },
+  { key: 'Tatler Style',        label: 'Classic',      desc: 'Timeless, sophisticated' },
+  { key: 'Travel Luxe',         label: 'Destination',  desc: 'Place-centric, discovery' },
+  { key: 'Fashion Editorial',   label: 'Fashion',      desc: 'Trend-forward, visual' },
+  { key: 'Soft Informative',    label: 'Informative',  desc: 'Helpful, approachable' },
+  { key: 'SEO Optimised Luxury', label: 'SEO Luxury',  desc: 'Search-optimised, editorial' },
+];
+
 // ── Article status computation ─────────────────────────────────────────────────
 export function computeWordCount(content = []) {
   return content.reduce((total, block) => {

@@ -3,7 +3,7 @@ import { useIsMobile } from '../../components/profile/ProfileDesignSystem';
 import {
   getS, themeVars, FU, FD, Field, Input, Textarea, Select, Toggle,
   StatusBadge, GoldBtn, GhostBtn, Divider, SectionLabel,
-  TONE_OPTIONS, computeWordCount, computeReadingTime, computeStatuses, DARK_S,
+  TONE_OPTIONS, TONE_PRESETS, computeWordCount, computeReadingTime, computeStatuses, DARK_S,
 } from './StudioShared';
 import { POSTS, getRelatedPosts } from '../Magazine/data/posts';
 import { CATEGORIES } from '../Magazine/data/categories';
@@ -3770,19 +3770,20 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                     ))}
                   </div>
                 </div>
-                {/* Insert button */}
+                {/* Accept Draft */}
                 <button onClick={() => {
-                  const newBlocks = aiWriterDraft.blocks;
+                  const newBlocks = aiWriterDraft.blocks.map(b => ({ ...b, id: crypto.randomUUID() }));
                   const existing  = formData.content || [];
                   const now = new Date().toISOString();
 
-                  // Add metadata fields
                   const updatedFormData = {
                     ...formData,
                     content: aiWriterMode === 'replace' ? newBlocks : [...existing, ...newBlocks],
                     aiGenerated: true,
                     aiLastGeneratedAt: now,
                     aiModel: aiWriterDraft.model || 'anthropic-claude-3',
+                    aiProvider: 'taigenic',
+                    aiPromptVersion: 'v1-editorial',
                     aiTopic: aiWriterTopic,
                     aiTone: aiWriterTone,
                     aiWordCount: aiWriterDraft.wordCount,
@@ -3793,12 +3794,28 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                   setSidebarTab('document');
                 }}
                   style={{ padding: '11px', background: `linear-gradient(135deg, ${GOLD}, #b8922f)`, border: 'none', color: '#1a1208', fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', borderRadius: 2, cursor: 'pointer' }}>
-                  ✦ Insert into Article
+                  ✦ Accept Draft
                 </button>
-                {/* Try again */}
-                <button onClick={() => setAiWriterDraft(null)}
+                {/* Regenerate */}
+                <button onClick={() => {
+                  setAiWriterDraft(null);
+                  setAiWriterError('');
+                  // Re-trigger generate with same brief
+                  setTimeout(() => {
+                    const genBtn = document.querySelector('[data-taigenic-generate]');
+                    if (genBtn) genBtn.click();
+                  }, 100);
+                }}
+                  style={{ padding: '8px', background: 'none', border: `1px solid ${GOLD}40`, color: GOLD, fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', borderRadius: 2, cursor: 'pointer' }}>
+                  ↻ Regenerate
+                </button>
+                {/* Discard */}
+                <button onClick={() => {
+                  setAiWriterDraft(null);
+                  setAiWriterError('');
+                }}
                   style={{ padding: '8px', background: 'none', border: `1px solid ${S.border}`, color: S.muted, fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', borderRadius: 2, cursor: 'pointer' }}>
-                  ← Try Again
+                  ✕ Discard
                 </button>
               </div>
             );
@@ -3825,10 +3842,23 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                   placeholder={`e.g. ${formData.categoryLabel === 'Destinations' ? 'A guide to coastal wedding venues on the Amalfi Coast' : 'An editorial piece about choosing the right wedding photographer'}…`}
                   style={{ width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text, fontFamily: FU, fontSize: 12, padding: '8px 10px', borderRadius: 2, outline: 'none', resize: 'vertical', lineHeight: 1.5 }} />
               </div>
-              {/* Tone */}
+              {/* Tone presets */}
               <div>
                 <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, marginBottom: 5 }}>Tone</div>
-                <select value={aiWriterTone} onChange={e => setAiWriterTone(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text, fontFamily: FU, fontSize: 12, padding: '7px 9px', borderRadius: 2, outline: 'none', cursor: 'pointer' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                  {TONE_PRESETS.map(t => (
+                    <button key={t.key} onClick={() => setAiWriterTone(t.key)}
+                      style={{ padding: '6px 8px', borderRadius: 2, cursor: 'pointer', textAlign: 'left',
+                        background: aiWriterTone === t.key ? `${GOLD}18` : 'transparent',
+                        border: `1px solid ${aiWriterTone === t.key ? GOLD : S.border}`,
+                        transition: 'all 0.15s' }}>
+                      <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, color: aiWriterTone === t.key ? GOLD : S.text }}>{t.label}</div>
+                      <div style={{ fontFamily: FU, fontSize: 7, color: S.faint, marginTop: 1 }}>{t.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                {/* Fallback: full list for edge tones */}
+                <select value={aiWriterTone} onChange={e => setAiWriterTone(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.faint, fontFamily: FU, fontSize: 9, padding: '5px 6px', borderRadius: 2, outline: 'none', cursor: 'pointer', marginTop: 4 }}>
                   {TONE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
@@ -3846,6 +3876,7 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
               </div>
               {/* Generate full draft */}
               <button
+                data-taigenic-generate
                 onClick={async () => {
                   if (!aiWriterTopic.trim() && !formData.title) {
                     setAiWriterError('Add a brief or article title first.');
@@ -4000,42 +4031,6 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
           <AIBtn action="generate-meta" field="metaDescription" />
         </div>
         <div>
-          <Lbl right="primary">Primary Category</Lbl>
-          <select value={formData.category || ''} onChange={e => {
-            const c = allCats.find(x => x.id === e.target.value);
-            // Remove from secondary if it was there
-            const sec = (formData.secondaryCategories || []).filter(id => id !== e.target.value);
-            onChange({ ...formData, category: e.target.value, categoryLabel: c?.label || e.target.value, secondaryCategories: sec });
-          }} style={{ ...inp, cursor: 'pointer' }}>
-            <option value="">Select category…</option>
-            {allCats.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-          </select>
-        </div>
-        {/* Secondary categories — all cats except the primary */}
-        <div>
-          <Lbl>Also appears in</Lbl>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 2 }}>
-            {allCats.filter(c => c.id !== formData.category).map(c => {
-              const active = (formData.secondaryCategories || []).includes(c.id);
-              return (
-                <button key={c.id} onMouseDown={e => {
-                  e.preventDefault();
-                  const sec = formData.secondaryCategories || [];
-                  upd('secondaryCategories', active ? sec.filter(id => id !== c.id) : [...sec, c.id]);
-                }} style={{
-                  fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.06em',
-                  padding: '3px 8px', borderRadius: 2, cursor: 'pointer', outline: 'none',
-                  background: active ? `${GOLD}18` : 'none',
-                  border: `1px solid ${active ? `${GOLD}60` : S.border}`,
-                  color: active ? GOLD : S.muted, transition: 'all 0.12s',
-                }}>
-                  {active ? '✓ ' : ''}{c.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div>
           <Lbl>Tone</Lbl>
           <select value={tone} onChange={e => onToneChange(e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
             {TONE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
@@ -4044,6 +4039,42 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
         <div>
           <Lbl>Reading Time (min)</Lbl>
           <FI type="number" value={formData.readingTime} onChange={v => upd('readingTime', parseInt(v) || 0)} placeholder="e.g. 8" />
+        </div>
+      </ACC>
+
+      {/* ── Primary Category — standalone ── */}
+      <ACC id="primary-cat" title="Primary Category" badge={formData.categoryLabel ? { text: formData.categoryLabel, color: GOLD } : null}>
+        <select value={formData.category || ''} onChange={e => {
+          const c = allCats.find(x => x.id === e.target.value);
+          const sec = (formData.secondaryCategories || []).filter(id => id !== e.target.value);
+          onChange({ ...formData, category: e.target.value, categoryLabel: c?.label || e.target.value, secondaryCategories: sec });
+        }} style={{ ...inp, cursor: 'pointer', fontSize: 13 }}>
+          <option value="">Select category…</option>
+          {allCats.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+      </ACC>
+
+      {/* ── Also Appears In — secondary tagging ── */}
+      <ACC id="secondary-cats" title="Also Appears In">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+          {allCats.filter(c => c.id !== formData.category).map(c => {
+            const active = (formData.secondaryCategories || []).includes(c.id);
+            return (
+              <button key={c.id} onMouseDown={e => {
+                e.preventDefault();
+                const sec = formData.secondaryCategories || [];
+                upd('secondaryCategories', active ? sec.filter(id => id !== c.id) : [...sec, c.id]);
+              }} style={{
+                fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.06em',
+                padding: '3px 8px', borderRadius: 2, cursor: 'pointer', outline: 'none',
+                background: active ? `${GOLD}18` : 'none',
+                border: `1px solid ${active ? `${GOLD}60` : S.border}`,
+                color: active ? GOLD : S.muted, transition: 'all 0.12s',
+              }}>
+                {active ? '✓ ' : ''}{c.label}
+              </button>
+            );
+          })}
         </div>
       </ACC>
 
@@ -5189,25 +5220,25 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
             }
           </div>
         ) : (
-          <div style={{ height: 140, background: 'rgba(0,0,0,0.04)', borderRadius: 3, border: '1px dashed rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <span style={{ fontSize: 28, opacity: 0.25 }}>▶</span>
-            <span style={{ fontFamily: FU, fontSize: 11, color: '#aaa' }}>Click to add video</span>
+          <div style={{ height: 140, background: 'var(--s-input-bg, rgba(245,240,232,0.04))', borderRadius: 3, border: '1px dashed var(--s-input-border, rgba(245,240,232,0.1))', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <span style={{ fontSize: 28, opacity: 0.25, color: 'var(--s-text, #f5f0e8)' }}>▶</span>
+            <span style={{ fontFamily: FU, fontSize: 11, color: 'var(--s-muted, rgba(245,240,232,0.45))' }}>Click to add video</span>
           </div>
         )}
         {isActive && (
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
             <input value={url} onChange={e => onChange({ ...block, url: e.target.value, src: e.target.value })} placeholder="YouTube, Vimeo, or .mp4 URL"
-              style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, outline: 'none' }} />
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--s-input-bg, rgba(245,240,232,0.04))', border: '1px solid var(--s-input-border, rgba(245,240,232,0.1))', color: 'var(--s-text, #f5f0e8)', borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, outline: 'none' }} />
             {url && (
-              <div style={{ fontFamily: FU, fontSize: 9, color: embed ? '#5a9' : '#e07050', letterSpacing: '0.1em' }}>
+              <div style={{ fontFamily: FU, fontSize: 9, color: embed ? 'var(--s-success, #5aaa78)' : 'var(--s-error, #e05555)', letterSpacing: '0.1em' }}>
                 {embed ? `✓ ${embed.type} detected` : '⚠ Paste a YouTube, Vimeo, or .mp4 URL'}
               </div>
             )}
             <input value={block.caption || ''} onChange={e => onChange({ ...block, caption: e.target.value })} placeholder="Caption (optional)"
-              style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, outline: 'none' }} />
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--s-input-bg, rgba(245,240,232,0.04))', border: '1px solid var(--s-input-border, rgba(245,240,232,0.1))', color: 'var(--s-text, #f5f0e8)', borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, outline: 'none' }} />
             <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
               {['autoplay','muted','loop'].map(opt => (
-                <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontFamily: FU, fontSize: 9, color: '#666' }}>
+                <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontFamily: FU, fontSize: 9, color: 'var(--s-muted, rgba(245,240,232,0.45))' }}>
                   <input type="checkbox" checked={!!block[opt]} onChange={e => onChange({ ...block, [opt]: e.target.checked })} style={{ accentColor: GOLD }} />
                   {opt.charAt(0).toUpperCase() + opt.slice(1)}
                 </label>
@@ -5216,7 +5247,7 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
             </div>
           </div>
         )}
-        {!isActive && block.caption && <div style={{ fontFamily: FU, fontSize: 12, color: '#999', marginTop: 8, fontStyle: 'italic', textAlign: 'center' }}>{block.caption}</div>}
+        {!isActive && block.caption && <div style={{ fontFamily: FU, fontSize: 12, color: 'var(--s-muted, rgba(245,240,232,0.45))', marginTop: 8, fontStyle: 'italic', textAlign: 'center' }}>{block.caption}</div>}
         {sideCtrl}
       </div>
     );
@@ -5783,6 +5814,7 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   const [phoneView, setPhoneView] = useState('editor'); // 'editor' | 'sidebar'
   const SS = getS(isLight); // Theme driven by parent (MagazineStudio toggle)
   const autosaveRef = useRef(null);
+  const saveInFlightRef = useRef(false);
   const isPhone = useIsMobile(600);
 
   const contentIntel = useMemo(() => computeContentIntelligence(formData, focusKeyword), [formData, focusKeyword]);
@@ -5834,7 +5866,10 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   }, [formData, tone]);
 
   const save = useCallback(async (data = formData) => {
-    // Required field validation
+    // Prevent double saves — one save at a time
+    if (saveInFlightRef.current) return null;
+
+    // Required field validation (no lock needed)
     if (!data.categorySlug && !data.category) {
       setSaveLabel('⚠ Set a category');
       setTimeout(() => setSaveLabel(null), 3000);
@@ -5845,20 +5880,25 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
       setTimeout(() => setSaveLabel(null), 3000);
       return;
     }
+
+    saveInFlightRef.current = true;
     setSaveLabel('Saving…');
-    const result = await onSaveToParent({ ...data, tone, focusKeyword: formData.focusKeyword });
-    if (result === null) {
-      // Save failed — parent already showed toast; keep dirty so user knows
-      setSaveLabel('✕ Save failed');
-      setTimeout(() => setSaveLabel(null), 3000);
-      return;
+    try {
+      const result = await onSaveToParent({ ...data, tone, focusKeyword: formData.focusKeyword });
+      if (result === null) {
+        setSaveLabel('✕ Save failed');
+        setTimeout(() => setSaveLabel(null), 3000);
+        return;
+      }
+      if (result?.savedId && result.savedId !== data.id) setFormData(fd => ({ ...fd, id: result.savedId }));
+      if (result?.slug && result.slug !== data.slug) setFormData(fd => ({ ...fd, slug: result.slug }));
+      setDirty(false);
+      setLastSaved(new Date());
+      setSaveLabel('✓ Saved');
+      setTimeout(() => setSaveLabel(null), 2500);
+    } finally {
+      saveInFlightRef.current = false;
     }
-    if (result?.savedId && result.savedId !== data.id) setFormData(fd => ({ ...fd, id: result.savedId }));
-    if (result?.slug && result.slug !== data.slug) setFormData(fd => ({ ...fd, slug: result.slug }));
-    setDirty(false);
-    setLastSaved(new Date());
-    setSaveLabel('✓ Saved');
-    setTimeout(() => setSaveLabel(null), 2500);
   }, [formData, tone, onSaveToParent]);
 
   const publish = async () => {
@@ -5873,23 +5913,14 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
     setFormData(u); await save(u);
   };
 
-  // Autosave every 25s if dirty — with request deduplication to prevent race conditions
+  // Autosave every 25s if dirty — save() already guards with saveInFlightRef
   const dirtyRef = useRef(false);
-  const saveInFlightRef = useRef(false);
   useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
 
-  // Stable autosave callback that doesn't depend on `save` to prevent effect thrashing
+  // Stable autosave callback — save() handles deduplication via saveInFlightRef
   const autosaveCallback = useCallback(async () => {
-    if (!dirtyRef.current || saveInFlightRef.current) return; // Skip if not dirty or already saving
-    saveInFlightRef.current = true;
-    try {
-      setFormData(fd => {
-        save(fd).finally(() => { saveInFlightRef.current = false; });
-        return fd;
-      });
-    } catch (_) {
-      saveInFlightRef.current = false;
-    }
+    if (!dirtyRef.current) return;
+    setFormData(fd => { save(fd); return fd; });
   }, []); // Empty deps: autosaveCallback is stable and won't cause effect to re-run
 
   useEffect(() => {

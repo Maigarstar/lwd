@@ -15,9 +15,10 @@ export const getCoupleProfile = async (coupleId) => {
       .from("couples")
       .select("*")
       .eq("id", coupleId)
-      .single();
+      .maybeSingle();
 
     if (error) return { data: null, error: error.message };
+    if (!data) return { data: null, error: "Couple not found" };
     return { data, error: null };
   } catch (err) {
     return { data: null, error: err.message };
