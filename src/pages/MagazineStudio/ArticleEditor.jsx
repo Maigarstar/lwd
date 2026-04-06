@@ -13,7 +13,9 @@ import ArticleBody from '../Magazine/components/ArticleBody';
 import TiptapEditor from './TiptapEditor';
 import MagazineMediaUploader from './MagazineMediaUploader';
 import { ContentIntelligencePanel, ContentScoreBadge, computeContentIntelligence } from './ContentIntelligence';
-import { generateArticleBody, generateOutline, countBlockWords, LOADING_MESSAGES } from '../../services/taigenicWriterService';
+import LiveSeoPanel, { SeoScorePill } from './LiveSeoPanel';
+import AiDraftPreview from './AiDraftPreview';
+import { generateArticleBody, generateOutline, generateContentBrief, updateGenerationOutcome, countBlockWords, LOADING_MESSAGES } from '../../services/taigenicWriterService';
 import MediaLibrary from './MediaLibrary';
 import InternalLinksSection from './InternalLinksSection';
 
@@ -3560,7 +3562,7 @@ function HeroPreviewPane({ formData, isLight }) {
 }
 
 // ── Document Sidebar ──────────────────────────────────────────────────────────
-function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpublish, onSave, saving, intel, focusKeyword, onKeywordChange, onOpenIntelligence, S }) {
+function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpublish, onSave, saving, intel, focusKeyword, onKeywordChange, onOpenIntelligence, S, aiDraft, onAiDraft, aiDraftLoading, onAiDraftLoading }) {
   const allCats = useAllCategories();
   const { runAI, loading: aiLoading } = useAIGenerate(formData, tone);
   const [open, setOpen] = useState({ status: true, publish: false, author: false, excerpt: false, seo: false, image: false, typography: false, intelligence: true, links: false, features: false });
@@ -3573,11 +3575,15 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
   const [aiWriterWordCount, setAiWriterWordCount] = useState(600);
   const [coverLibOpen, setCoverLibOpen] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
-  const [aiWriterLoading, setAiWriterLoading] = useState(false);
-  const [aiWriterDraft, setAiWriterDraft] = useState(null);
+  const aiWriterLoading = aiDraftLoading;
+  const setAiWriterLoading = onAiDraftLoading;
+  const aiWriterDraft = aiDraft;
+  const setAiWriterDraft = onAiDraft;
   const [aiWriterError, setAiWriterError] = useState('');
   const [aiWriterMode, setAiWriterMode] = useState('replace');
   const [aiWriterLoadMsg, setAiWriterLoadMsg] = useState('');
+  const [contentBrief, setContentBrief] = useState(null);
+  const [briefLoading, setBriefLoading] = useState(false);
 
   const isSched = formData.scheduledDate && !formData.published && new Date(formData.scheduledDate) > new Date();
   const wfStatus = formData.workflowStatus || (formData.published ? 'published' : 'draft');
@@ -3787,9 +3793,20 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                     aiTopic: aiWriterTopic,
                     aiTone: aiWriterTone,
                     aiWordCount: aiWriterDraft.wordCount,
+                    // Auto-fill SEO fields from structured draft output
+                    ...(aiWriterDraft.seoTitle && !formData.seoTitle ? { seoTitle: aiWriterDraft.seoTitle } : {}),
+                    ...(aiWriterDraft.metaDescription && !formData.metaDescription ? { metaDescription: aiWriterDraft.metaDescription } : {}),
                   };
 
                   onChange(updatedFormData);
+                  // Log outcome: accepted
+                  if (aiWriterDraft.logId) {
+                    updateGenerationOutcome(aiWriterDraft.logId, {
+                      outcome: 'accepted',
+                      blocksAccepted: newBlocks.length,
+                      blocksRejected: 0,
+                    });
+                  }
                   setAiWriterDraft(null);
                   setSidebarTab('document');
                 }}
@@ -3798,6 +3815,10 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                 </button>
                 {/* Regenerate */}
                 <button onClick={() => {
+                  // Log outcome: regenerated
+                  if (aiWriterDraft?.logId) {
+                    updateGenerationOutcome(aiWriterDraft.logId, { outcome: 'regenerated' });
+                  }
                   setAiWriterDraft(null);
                   setAiWriterError('');
                   // Re-trigger generate with same brief
@@ -3811,6 +3832,9 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                 </button>
                 {/* Discard */}
                 <button onClick={() => {
+                  if (aiWriterDraft?.logId) {
+                    updateGenerationOutcome(aiWriterDraft.logId, { outcome: 'rejected' });
+                  }
                   setAiWriterDraft(null);
                   setAiWriterError('');
                 }}
@@ -3835,6 +3859,120 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                   {aiWriterError}
                 </div>
               )}
+
+              {/* ── Content Brief Generator ── */}
+              {!contentBrief && (
+                <div style={{ borderBottom: `1px solid ${S.border}`, paddingBottom: 14 }}>
+                  <button
+                    disabled={briefLoading}
+                    onClick={async () => {
+                      const topic = aiWriterTopic.trim() || formData.title;
+                      if (!topic) {
+                        setAiWriterError('Enter a topic or article title first.');
+                        return;
+                      }
+                      setAiWriterError('');
+                      setBriefLoading(true);
+                      try {
+                        const brief = await generateContentBrief({
+                          topic,
+                          category: formData.categoryLabel || formData.category,
+                        });
+                        setContentBrief(brief);
+                        if (brief.toneRecommendation) setAiWriterTone(brief.toneRecommendation);
+                        if (brief.summary && !aiWriterTopic.trim()) setAiWriterTopic(brief.summary);
+                      } catch (err) {
+                        setAiWriterError(err.message || 'Brief generation failed.');
+                      } finally {
+                        setBriefLoading(false);
+                      }
+                    }}
+                    style={{ width: '100%', padding: '9px', background: 'none', border: `1px solid ${GOLD}40`, color: GOLD, fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', borderRadius: 2, cursor: briefLoading ? 'wait' : 'pointer', opacity: briefLoading ? 0.6 : 1 }}>
+                    {briefLoading ? 'Generating Brief…' : '✦ Generate Content Brief'}
+                  </button>
+                  <div style={{ fontFamily: FU, fontSize: 8, color: S.faint, marginTop: 5, lineHeight: 1.4, textAlign: 'center' }}>
+                    AI-powered pre-writing intelligence — keywords, structure, tone
+                  </div>
+                </div>
+              )}
+
+              {/* ── Content Brief Display ── */}
+              {contentBrief && (
+                <div style={{ borderBottom: `1px solid ${S.border}`, paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD }}>✦ Content Brief</span>
+                    <button onClick={() => setContentBrief(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FU, fontSize: 8, color: S.faint, padding: 0 }}>✕ Clear</button>
+                  </div>
+                  {/* Summary */}
+                  {contentBrief.summary && (
+                    <div style={{ fontFamily: FU, fontSize: 10, color: S.text, lineHeight: 1.5, fontStyle: 'italic', opacity: 0.8 }}>
+                      {contentBrief.summary}
+                    </div>
+                  )}
+                  {/* Keywords */}
+                  {contentBrief.keywords?.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: S.muted, marginBottom: 4 }}>Keywords</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                        {contentBrief.keywords.map((kw, i) => (
+                          <span key={i} style={{ fontFamily: FU, fontSize: 8, padding: '2px 7px', borderRadius: 8, background: i === 0 ? `${GOLD}18` : 'rgba(245,240,232,0.04)', border: `1px solid ${i === 0 ? GOLD + '40' : S.border}`, color: i === 0 ? GOLD : S.muted }}>
+                            {kw}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Suggested headings */}
+                  {contentBrief.headings?.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: S.muted, marginBottom: 4 }}>Suggested Structure</div>
+                      {contentBrief.headings.map((h, i) => (
+                        <div key={i} style={{ fontFamily: FU, fontSize: 9, color: S.text, padding: '3px 0', paddingLeft: h.level === 3 ? 12 : 0, opacity: h.level === 3 ? 0.7 : 1 }}>
+                          <span style={{ fontSize: 7, color: S.faint, marginRight: 4 }}>{h.level === 3 ? 'H3' : 'H2'}</span>
+                          {h.text}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Tone + Word target */}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {contentBrief.toneRecommendation && (
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: S.muted, marginBottom: 2 }}>Tone</div>
+                        <div style={{ fontFamily: FU, fontSize: 9, color: GOLD }}>{contentBrief.toneRecommendation}</div>
+                      </div>
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: S.muted, marginBottom: 2 }}>Target</div>
+                      <div style={{ fontFamily: FU, fontSize: 9, color: S.text }}>{contentBrief.wordTarget} words</div>
+                    </div>
+                  </div>
+                  {/* FAQs */}
+                  {contentBrief.faqs?.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: S.muted, marginBottom: 4 }}>Suggested FAQs</div>
+                      {contentBrief.faqs.map((faq, i) => (
+                        <div key={i} style={{ padding: '4px 0', borderBottom: i < contentBrief.faqs.length - 1 ? `1px solid ${S.border}` : 'none' }}>
+                          <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, color: S.text, lineHeight: 1.3 }}>Q: {faq.question}</div>
+                          <div style={{ fontFamily: FU, fontSize: 8, color: S.faint, lineHeight: 1.4, marginTop: 2 }}>A: {faq.answer}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* NLP terms */}
+                  {contentBrief.nlpTerms?.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: S.muted, marginBottom: 4 }}>NLP Terms to Include</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                        {contentBrief.nlpTerms.map((t, i) => (
+                          <span key={i} style={{ fontFamily: FU, fontSize: 7, padding: '1px 6px', borderRadius: 8, background: 'rgba(245,240,232,0.03)', border: `1px solid ${S.border}`, color: S.faint }}>{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Topic brief */}
               <div>
                 <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, marginBottom: 5 }}>Topic or Brief</div>
@@ -5812,6 +5950,9 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   const [showTemplate, setShowTemplate] = useState((initialPost.content || []).length === 0);
   const [viewport, setViewport] = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
   const [phoneView, setPhoneView] = useState('editor'); // 'editor' | 'sidebar'
+  // Lifted AI draft state — shared between DocSidebar (brief form) and AiDraftPreview (canvas)
+  const [aiDraft, setAiDraft] = useState(null);  // { blocks, wordCount, nlpTermsUsed, model }
+  const [aiDraftLoading, setAiDraftLoading] = useState(false);
   const SS = getS(isLight); // Theme driven by parent (MagazineStudio toggle)
   const autosaveRef = useRef(null);
   const saveInFlightRef = useRef(false);
@@ -5912,6 +6053,52 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
     const u = { ...formData, published: false, tone };
     setFormData(u); await save(u);
   };
+
+  // ── AI Draft handlers ─────────────────────────────────────────────────
+  const handleAcceptBlocks = useCallback((selectedBlocks) => {
+    const now = new Date().toISOString();
+    setFormData(fd => ({
+      ...fd,
+      content: [...(fd.content || []), ...selectedBlocks],
+      aiGenerated: true,
+      aiLastGeneratedAt: now,
+    }));
+    setDirty(true);
+    setAiDraft(null);
+  }, []);
+
+  const handleRegenerateSection = useCallback(async (sectionId, headingText) => {
+    // Regenerate a single section via AI
+    try {
+      const { supabase } = await import('../../lib/supabaseClient');
+      const prompt = `Write a rich editorial section for a ${tone} magazine article titled "${formData.title}".
+Section heading: "${headingText}". Category: ${formData.categoryLabel || formData.category || ''}.
+Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY the paragraph text, no headings.`;
+      const { data } = await supabase.functions.invoke('ai-generate', {
+        body: { prompt, model: 'auto', maxTokens: 600 },
+      });
+      if (data?.text) {
+        // Replace the section's paragraph blocks with new content
+        setAiDraft(prev => {
+          if (!prev) return prev;
+          const newBlocks = [...prev.blocks];
+          let inSection = false;
+          for (let i = 0; i < newBlocks.length; i++) {
+            if (newBlocks[i].id === sectionId) { inSection = true; continue; }
+            if (inSection && (newBlocks[i].type === 'heading' || newBlocks[i].type === 'subheading' || newBlocks[i].type === 'intro')) break;
+            if (inSection && newBlocks[i].type === 'paragraph') {
+              newBlocks[i] = { ...newBlocks[i], text: data.text.trim(), id: crypto.randomUUID() };
+              // Only replace first paragraph, remove extras
+              break;
+            }
+          }
+          return { ...prev, blocks: newBlocks };
+        });
+      }
+    } catch (err) {
+      console.error('[Taigenic] Section regenerate failed:', err);
+    }
+  }, [tone, formData]);
 
   // Autosave every 25s if dirty — save() already guards with saveInFlightRef
   const dirtyRef = useRef(false);
@@ -6069,17 +6256,33 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
 
       {/* 3-zone layout: canvas | doc sidebar | intel panel */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
-        {/* Left (dominant): Editable Article Canvas */}
+        {/* Left (dominant): Editable Article Canvas — or AI Draft Preview */}
         {(!isPhone || phoneView === 'editor') && (
-        <EditableCanvas
-          formData={formData} onChange={updateForm}
-          activeBlockIdx={activeBlockIdx} setActiveBlockIdx={setActiveBlockIdx}
-          showTemplate={showTemplate} setShowTemplate={setShowTemplate}
-          S={SS}
-          canvasAI={canvasAI}
-          isLight={isLight}
-          viewport={viewport}
-        />
+          aiDraft ? (
+            <AiDraftPreview
+              draft={aiDraft}
+              formData={formData}
+              focusKeyword={focusKeyword}
+              tone={tone}
+              onAcceptAll={() => handleAcceptBlocks(aiDraft.blocks.map(b => ({ ...b, id: crypto.randomUUID() })))}
+              onAcceptBlocks={handleAcceptBlocks}
+              onRegenerate={handleRegenerateSection}
+              onRegenerateAll={() => { setAiDraft(null); /* DocSidebar re-triggers */ }}
+              onDiscard={() => setAiDraft(null)}
+              isLight={isLight}
+              S={SS}
+            />
+          ) : (
+            <EditableCanvas
+              formData={formData} onChange={updateForm}
+              activeBlockIdx={activeBlockIdx} setActiveBlockIdx={setActiveBlockIdx}
+              showTemplate={showTemplate} setShowTemplate={setShowTemplate}
+              S={SS}
+              canvasAI={canvasAI}
+              isLight={isLight}
+              viewport={viewport}
+            />
+          )
         )}
 
         {/* Right: Document Sidebar */}
@@ -6091,6 +6294,19 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
           intel={contentIntel} focusKeyword={focusKeyword} onKeywordChange={setFocusKeyword}
           onOpenIntelligence={() => setShowIntelPanel(p => !p)}
           S={{ ...DARK_S, surface: PANEL_BG, surfaceUp: '#221a12', border: PANEL_BDR, inputBg: 'rgba(201,169,110,0.04)', inputBorder: 'rgba(201,169,110,0.1)' }}
+          aiDraft={aiDraft} onAiDraft={setAiDraft}
+          aiDraftLoading={aiDraftLoading} onAiDraftLoading={setAiDraftLoading}
+        />
+        )}
+
+        {/* Live SEO Score — always visible */}
+        {!isPhone && (
+        <LiveSeoPanel
+          formData={formData}
+          focusKeyword={focusKeyword}
+          onKeywordChange={setFocusKeyword}
+          onOpenIntelligence={() => setShowIntelPanel(p => !p)}
+          S={SS}
         />
         )}
 

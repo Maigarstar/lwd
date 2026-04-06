@@ -568,6 +568,79 @@ export async function searchArticlesFullText(query = '', options = {}) {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// INTERNAL ARTICLE LINK SUGGESTIONS
+// Finds published articles related to the current article's content/keywords.
+// Used by the SEO panel to suggest internal links proactively.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * suggestArticleLinks({ title, content, tags, categorySlug, currentPostId, focusKeyword })
+ * Returns: Array of { id, slug, title, categoryLabel, score, matchedTerms }
+ * Sorted by relevance score descending. Max 5 results.
+ */
+export async function suggestArticleLinks({ title, content, tags, categorySlug, currentPostId, focusKeyword }) {
+  if (!isSupabaseAvailable()) return [];
+
+  // Build a bag of terms from the current article
+  const terms = new Set();
+  if (focusKeyword) focusKeyword.toLowerCase().split(/\s+/).forEach(w => w.length > 3 && terms.add(w));
+  if (title) title.toLowerCase().split(/\s+/).forEach(w => w.length > 3 && terms.add(w));
+  if (Array.isArray(tags)) tags.forEach(t => terms.add(t.toLowerCase()));
+
+  // Extract key nouns from content blocks (first 8 headings + intro)
+  if (Array.isArray(content)) {
+    content
+      .filter(b => b.type === 'heading' || b.type === 'intro')
+      .slice(0, 8)
+      .forEach(b => {
+        const txt = (b.text || '').replace(/<[^>]*>/g, '').toLowerCase();
+        txt.split(/\s+/).forEach(w => w.length > 4 && terms.add(w));
+      });
+  }
+
+  if (terms.size === 0) return [];
+
+  // Fetch published articles (exclude current)
+  const { data: articles } = await fetchPublishedArticles({ limit: 200 });
+  if (!articles || articles.length === 0) return [];
+
+  const stopWords = new Set(['about','their','there','these','those','which','would','could','should','being','after','before','between','through','during','without','within']);
+
+  const scored = articles
+    .filter(a => a.id !== currentPostId)
+    .map(article => {
+      const haystack = [
+        article.title,
+        article.excerpt,
+        ...(Array.isArray(article.tags) ? article.tags : []),
+        article.categoryLabel,
+      ].filter(Boolean).join(' ').toLowerCase();
+
+      let score = 0;
+      const matchedTerms = [];
+
+      for (const term of terms) {
+        if (stopWords.has(term)) continue;
+        if (haystack.includes(term)) {
+          score += term.length > 6 ? 3 : 1; // longer terms = stronger signal
+          matchedTerms.push(term);
+        }
+      }
+
+      // Boost same category
+      if (categorySlug && article.categorySlug === categorySlug) score += 2;
+
+      return { id: article.id, slug: article.slug, title: article.title, categoryLabel: article.categoryLabel, score, matchedTerms };
+    })
+    .filter(a => a.score >= 3)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  return scored;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // CATEGORIES
 // ═══════════════════════════════════════════════════════════════════════════════
 

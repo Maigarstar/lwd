@@ -88,8 +88,18 @@ OUTPUT FORMAT — return ONLY valid JSON array, no markdown, no commentary:
   { "type": "paragraph",  "text": "..." },
   { "type": "image_hint", "caption": "Descriptive caption hint for the editor" },
   { "type": "quote",      "text": "...", "attribution": "..." },
+  { "type": "faq",        "question": "...", "answer": "..." },
+  { "type": "meta",       "title": "SEO title under 60 chars", "description": "Meta description 140-155 chars" },
   ...
 ]
+
+STRUCTURE REQUIREMENTS:
+1. Start with one "intro" block (2-3 evocative sentences)
+2. Then 3-5 sections, each starting with a "heading" block (level 2) followed by 1-3 "paragraph" blocks
+3. Include at least one "quote" block with attribution
+4. Include ${imageTarget} "image_hint" blocks placed after vivid passages
+5. End with 2-3 "faq" blocks (question + answer pairs targeting "People Also Ask")
+6. End with exactly one "meta" block containing seoTitle and metaDescription
 
 STRICT RULES:
 - Return ONLY the JSON array. No intro text, no explanation.
@@ -97,6 +107,8 @@ STRICT RULES:
 - "image_hint" blocks must have a "caption" field describing what image should go there.
 - "quote" blocks must have both "text" and "attribution" fields.
 - "heading" blocks must have "level": 2.
+- "faq" blocks must have both "question" and "answer" fields.
+- "meta" block must have "title" (under 60 chars) and "description" (140-155 chars).
 - Never pad with filler paragraphs — every sentence earns its place.`;
 }
 
@@ -149,6 +161,10 @@ function parseBlocks(raw) {
         level:   b.level || (b.type === 'heading' ? 2 : undefined),
         // image_hint blocks: no src, wide flag for editorial placement
         ...(b.type === 'image_hint' ? { src: '', alt: '', wide: true } : {}),
+        // FAQ blocks: question + answer
+        ...(b.type === 'faq' ? { question: (b.question || '').trim(), answer: (b.answer || '').trim() } : {}),
+        // Meta blocks: SEO title + description (extracted by caller, not rendered as content)
+        ...(b.type === 'meta' ? { seoTitle: (b.title || '').trim(), metaDescription: (b.description || '').trim() } : {}),
       }))
       // Convert image_hint to the editor's 'image' type
       .map(b => b.type === 'image_hint' ? { ...b, type: 'image' } : b);
@@ -167,6 +183,32 @@ export function detectUsedNlpTerms(blocks = [], category = '') {
   return terms.filter(t => allText.includes(t.toLowerCase()));
 }
 
+// ── Log generation to ai_generation_logs (fire-and-forget) ──────────────────
+async function logGeneration(entry) {
+  try {
+    const { supabase } = await import('../lib/supabaseClient');
+    await supabase.from('ai_generation_logs').insert(entry);
+  } catch (_) {
+    // Non-critical — never block the UI
+  }
+}
+
+// ── Update log outcome after user action ────────────────────────────────────
+export async function updateGenerationOutcome(logId, outcome) {
+  if (!logId) return;
+  try {
+    const { supabase } = await import('../lib/supabaseClient');
+    await supabase.from('ai_generation_logs').update({
+      outcome: outcome.outcome,
+      blocks_accepted: outcome.blocksAccepted ?? null,
+      blocks_rejected: outcome.blocksRejected ?? null,
+      outcome_at: new Date().toISOString(),
+    }).eq('id', logId);
+  } catch (_) {
+    // Non-critical
+  }
+}
+
 // ── Main: generate full article body ─────────────────────────────────────────
 export async function generateArticleBody({ brief, title, category, tone, focusKeyword }) {
   const categoryKey = (category || 'default').toLowerCase();
@@ -178,6 +220,7 @@ export async function generateArticleBody({ brief, title, category, tone, focusK
   const userPrompt   = buildUserPrompt(brief, title, category, focusKeyword);
 
   const { supabase } = await import('../lib/supabaseClient');
+  const t0 = Date.now();
   const { data, error } = await supabase.functions.invoke('ai-generate', {
     body: {
       feature:      'taigenic-writer',
@@ -186,6 +229,7 @@ export async function generateArticleBody({ brief, title, category, tone, focusK
       maxTokens:    4000,
     },
   });
+  const latencyMs = Date.now() - t0;
 
   if (error || !data?.text) {
     throw new Error(error?.message || 'AI generation failed — check AI Settings in Admin.');
@@ -196,13 +240,139 @@ export async function generateArticleBody({ brief, title, category, tone, focusK
     throw new Error('Could not parse AI output. Try again or adjust your brief.');
   }
 
+  // Extract meta block (SEO title + description) — separate from content blocks
+  const metaBlock = blocks.find(b => b.type === 'meta');
+  const contentBlocks = blocks.filter(b => b.type !== 'meta');
+
+  const wordCount    = countBlockWords(contentBlocks);
+  const nlpTermsUsed = detectUsedNlpTerms(contentBlocks, categoryKey);
+  const faqs         = contentBlocks.filter(b => b.type === 'faq');
+
+  // Fire-and-forget: log this generation
+  const logId = crypto.randomUUID ? crypto.randomUUID() : `log-${Date.now()}`;
+  logGeneration({
+    id:               logId,
+    feature:          'taigenic-writer',
+    topic:            brief,
+    title,
+    category:         categoryKey,
+    tone,
+    focus_keyword:    focusKeyword,
+    word_target:      wordTarget,
+    word_count:       wordCount,
+    block_count:      contentBlocks.length,
+    nlp_terms_used:   nlpTermsUsed,
+    nlp_coverage:     nlpTerms.length > 0 ? nlpTermsUsed.length / nlpTerms.length : 0,
+    provider:         data.provider || 'ai',
+    model:            data.model || '',
+    tokens_in:        data.usage?.prompt_tokens ?? null,
+    tokens_out:       data.usage?.completion_tokens ?? null,
+    latency_ms:       latencyMs,
+    seo_title_generated:   metaBlock?.seoTitle || null,
+    meta_desc_generated:   metaBlock?.metaDescription || null,
+    faq_count:             faqs.length,
+  });
+
   return {
-    blocks,
-    wordCount:    countBlockWords(blocks),
-    nlpTermsUsed: detectUsedNlpTerms(blocks, categoryKey),
+    blocks: contentBlocks,
+    wordCount,
+    nlpTermsUsed,
     provider:     data.provider || 'ai',
     model:        data.model    || '',
+    logId,
+    // Structured extras
+    seoTitle:        metaBlock?.seoTitle || '',
+    metaDescription: metaBlock?.metaDescription || '',
+    faqs,
   };
+}
+
+// ── Generate content brief ──────────────────────────────────────────────────
+// Returns: { keywords, headings, wordTarget, toneRecommendation, nlpTerms, summary }
+export async function generateContentBrief({ topic, category }) {
+  const categoryKey = (category || 'default').toLowerCase();
+  const wt = WORD_TARGETS[categoryKey] || WORD_TARGETS['default'];
+  const nlpTerms = NLP_TERMS[categoryKey] || NLP_TERMS['default'] || [];
+
+  const prompt = `You are an SEO content strategist for a luxury wedding directory. Generate a content brief for:
+
+Topic: "${topic}"
+Category: ${category || 'general'}
+
+Return ONLY valid JSON (no markdown, no commentary):
+{
+  "keywords": ["primary keyword", "secondary keyword 1", "secondary keyword 2", "long-tail keyword 1", "long-tail keyword 2"],
+  "headings": [
+    { "level": 2, "text": "H2 heading suggestion" },
+    { "level": 2, "text": "H2 heading suggestion" },
+    { "level": 2, "text": "H2 heading suggestion" },
+    { "level": 2, "text": "H2 heading suggestion" },
+    { "level": 3, "text": "H3 sub-heading suggestion" },
+    { "level": 3, "text": "H3 sub-heading suggestion" }
+  ],
+  "wordTarget": ${wt.target},
+  "toneRecommendation": "One of: Luxury Editorial, Vogue Style, Travel Luxe, Wedding Romance, Elegant Sales, Soft Informative, SEO Optimised Luxury",
+  "faqs": [
+    { "question": "FAQ question 1", "answer": "Brief suggested answer" },
+    { "question": "FAQ question 2", "answer": "Brief suggested answer" },
+    { "question": "FAQ question 3", "answer": "Brief suggested answer" }
+  ],
+  "summary": "One sentence summary of what this article should cover and its angle."
+}
+
+RULES:
+- Keywords must be specific to luxury weddings, not generic
+- Headings should follow a logical editorial flow
+- FAQs should target "People Also Ask" style queries
+- Tone recommendation should match the topic and category
+- Return ONLY the JSON object`;
+
+  const { supabase } = await import('../lib/supabaseClient');
+  const t0 = Date.now();
+  const { data, error } = await supabase.functions.invoke('ai-generate', {
+    body: {
+      feature: 'taigenic-brief',
+      userPrompt: prompt,
+      maxTokens: 1200,
+    },
+  });
+  const latencyMs = Date.now() - t0;
+
+  if (error || !data?.text) {
+    throw new Error(error?.message || 'Brief generation failed.');
+  }
+
+  try {
+    const cleaned = data.text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+    const brief = JSON.parse(cleaned);
+
+    // Fire-and-forget log
+    logGeneration({
+      feature:       'taigenic-brief',
+      topic,
+      category:      categoryKey,
+      word_target:   brief.wordTarget || wt.target,
+      provider:      data.provider || 'ai',
+      model:         data.model || '',
+      tokens_in:     data.usage?.prompt_tokens ?? null,
+      tokens_out:    data.usage?.completion_tokens ?? null,
+      latency_ms:    latencyMs,
+      faq_count:     (brief.faqs || []).length,
+      metadata:      { keywords: brief.keywords, tone: brief.toneRecommendation },
+    });
+
+    return {
+      keywords:           brief.keywords || [],
+      headings:           brief.headings || [],
+      wordTarget:         brief.wordTarget || wt.target,
+      toneRecommendation: brief.toneRecommendation || 'Luxury Editorial',
+      faqs:               brief.faqs || [],
+      nlpTerms:           nlpTerms.slice(0, 10),
+      summary:            brief.summary || '',
+    };
+  } catch (_) {
+    throw new Error('Could not parse brief. Try again.');
+  }
 }
 
 // ── Generate outline only (headings) ─────────────────────────────────────────
