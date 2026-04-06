@@ -324,13 +324,39 @@
   }
 
   /* ───────────────────────────────────────────────────────────────────────
-     IMAGES & MEDIA — Optimization for Mobile
+     IMAGES & MEDIA — Optimization for Mobile (CLS Prevention)
      ─────────────────────────────────────────────────────────────────────── */
 
   img {
     max-width: 100% !important;
     height: auto !important;
     display: block !important;
+    /* Reserve space before load — prevents CLS */
+    aspect-ratio: auto !important;
+  }
+
+  /* Hero and featured images — common 16:9 ratio */
+  [class*="hero"] img,
+  [class*="Hero"] img,
+  [class*="featured"] img,
+  [class*="Featured"] img {
+    aspect-ratio: 16 / 9 !important;
+  }
+
+  /* Card images — 4:3 ratio (standard for venue photos) */
+  [class*="card"] img,
+  [class*="Card"] img,
+  [class*="item"] img,
+  [class*="Item"] img {
+    aspect-ratio: 4 / 3 !important;
+  }
+
+  /* Profile/portrait images — 3:4 ratio */
+  [class*="profile"] img,
+  [class*="Profile"] img,
+  [class*="avatar"] img,
+  [class*="Avatar"] img {
+    aspect-ratio: 3 / 4 !important;
   }
 
   /* Prevent overflow on images */
@@ -338,11 +364,12 @@
     width: 100% !important;
   }
 
-  /* Video responsive */
+  /* Video responsive — 16:9 standard */
   video,
   iframe {
     max-width: 100% !important;
     height: auto !important;
+    aspect-ratio: 16 / 9 !important;
   }
 
   /* ───────────────────────────────────────────────────────────────────────
