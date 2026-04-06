@@ -18,6 +18,8 @@ import AiDraftPreview from './AiDraftPreview';
 import { generateArticleBody, generateOutline, generateContentBrief, updateGenerationOutcome, countBlockWords, LOADING_MESSAGES } from '../../services/taigenicWriterService';
 import MediaLibrary from './MediaLibrary';
 import InternalLinksSection from './InternalLinksSection';
+import ReferenceModal from './ReferenceModal';
+import { saveReference, loadReferences, deleteReference, autoSuggestReferences } from '../../services/referenceService';
 
 const GOLD = '#c9a96e';
 // Luxury panel background — warm dark charcoal with amber undertone, complements gold
@@ -414,6 +416,7 @@ function defaultBlock(type) {
     case 'video_embed':       return { id, type, url: '', caption: '', credit: '' };
     case 'venue_spotlight':   return { id, type, name: '', location: '', description: '', src: '', alt: '', caption: '', credit: '', focal: 'center' };
     case 'vendor_credits':    return { id, type, heading: 'Credits', vendors: [{ role: '', name: '', url: '' }] };
+    case 'reference':         return { id, type, entityType: '', entityId: '', slug: '', label: '', subtitle: '', image: '', url: '', tier: '', referenceTier: 'linked' };
     default:                return { id, type };
   }
 }
@@ -5196,6 +5199,68 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
     );
   }
 
+  // ── Reference Block (Content → Commerce) ──────────────────────────────────
+  if (t === 'reference') {
+    const tierColors = {
+      showcase: { bg: `${GOLD}15`, border: `${GOLD}30`, label: 'Showcase', color: GOLD },
+      featured: { bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.2)', label: 'Featured', color: '#10b981' },
+      premium:  { bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.2)', label: 'Premium', color: '#8b5cf6' },
+      linked:   { bg: `${GOLD}08`, border: `${GOLD}18`, label: 'Linked', color: GOLD },
+      mentioned:{ bg: 'rgba(245,240,232,0.03)', border: 'rgba(245,240,232,0.08)', label: 'Mentioned', color: '#888' },
+    };
+    const tc = tierColors[block.referenceTier] || tierColors.linked;
+    const typeIcons = { listing: '◆', showcase: '✦', article: '¶' };
+
+    return (
+      <div style={{ ...wrapStyle, margin: '20px 0' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        <div style={{
+          border: `1px solid ${tc.border}`, borderRadius: 4, overflow: 'hidden',
+          background: tc.bg, display: 'grid', gridTemplateColumns: block.image ? '100px 1fr' : '1fr',
+          minHeight: 72,
+        }}>
+          {block.image && (
+            <div style={{ background: `url(${block.image}) center/cover`, position: 'relative' }}>
+              <div style={{ position: 'absolute', top: 6, left: 6, fontSize: 12, opacity: 0.8 }}>{typeIcons[block.entityType] || '⊕'}</div>
+            </div>
+          )}
+          <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {!block.image && <span style={{ fontSize: 12, color: tc.color }}>{typeIcons[block.entityType] || '⊕'}</span>}
+              <span style={{ fontFamily: FD, fontSize: 16, fontWeight: 400, color: '#0f0e0b', lineHeight: 1.2 }}>{block.label || 'Select a reference…'}</span>
+              <span style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, padding: '1px 6px', borderRadius: 8, background: tc.border, color: tc.color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{tc.label}</span>
+            </div>
+            {block.subtitle && <div style={{ fontFamily: FU, fontSize: 10, color: '#888' }}>{block.subtitle}</div>}
+            {block.url && <div style={{ fontFamily: FU, fontSize: 9, color: GOLD, opacity: 0.7 }}>{block.url}</div>}
+          </div>
+        </div>
+        {isActive && (
+          <div style={{ padding: '10px 16px', borderTop: `1px solid ${tc.border}`, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', background: 'rgba(245,240,232,0.02)' }}>
+            <button onClick={() => {
+              // Open reference modal (dispatches to parent)
+              const evt = new CustomEvent('lwd:open-reference-modal', { detail: { blockId: block.id } });
+              window.dispatchEvent(evt);
+            }}
+              style={{ fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '5px 12px', cursor: 'pointer', fontWeight: 600 }}>
+              ✦ Search & Link
+            </button>
+            <select value={block.referenceTier || 'linked'} onChange={e => onChange({...block, referenceTier: e.target.value})}
+              style={{ fontFamily: FU, fontSize: 9, background: 'rgba(245,240,232,0.03)', border: `1px solid ${GOLD}20`, color: '#888', borderRadius: 2, padding: '4px 6px', cursor: 'pointer' }}>
+              <option value="mentioned">Mentioned</option>
+              <option value="linked">Linked</option>
+              <option value="featured">Featured</option>
+              <option value="sponsored">Sponsored</option>
+            </select>
+            <button onClick={onDeactivate} style={{ marginLeft: 'auto', fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>Done</button>
+          </div>
+        )}
+        {sideCtrl}
+      </div>
+    );
+  }
+
   // ── Affiliate Product Block ────────────────────────────────────────────────
   if (t === 'affiliate_product' || t === 'product_tile') {
     const cols = block.columns || 3;
@@ -5785,6 +5850,7 @@ function EditableCanvas({ formData, onChange, activeBlockIdx, setActiveBlockIdx,
       { type: 'divider',         label: 'Divider',         icon: '—' },
     ]},
     { group: 'Commerce', items: [
+      { type: 'reference',        label: 'Reference',         icon: '⊕' },
       { type: 'listing_embed',   label: 'Venue Listing',    icon: '⊙' },
       { type: 'showcase_embed',  label: 'Showcase',         icon: '✦' },
       { type: 'affiliate_product', label: 'Affiliate Product', icon: '£' },
@@ -5953,6 +6019,11 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   // Lifted AI draft state — shared between DocSidebar (brief form) and AiDraftPreview (canvas)
   const [aiDraft, setAiDraft] = useState(null);  // { blocks, wordCount, nlpTermsUsed, model }
   const [aiDraftLoading, setAiDraftLoading] = useState(false);
+  // Reference system state
+  const [refModalOpen, setRefModalOpen] = useState(false);
+  const [refHighlightText, setRefHighlightText] = useState('');
+  const [articleRefs, setArticleRefs] = useState([]);
+  const [refSuggestions, setRefSuggestions] = useState([]);
   const SS = getS(isLight); // Theme driven by parent (MagazineStudio toggle)
   const autosaveRef = useRef(null);
   const saveInFlightRef = useRef(false);
@@ -5961,6 +6032,91 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   const contentIntel = useMemo(() => computeContentIntelligence(formData, focusKeyword), [formData, focusKeyword]);
 
   const updateForm = useCallback(data => { setFormData(data); setDirty(true); }, []);
+
+  // ── Reference system handlers ──
+  // Load references on mount
+  useEffect(() => {
+    if (formData.id) {
+      loadReferences(formData.id).then(setArticleRefs).catch(() => {});
+    }
+  }, [formData.id]);
+
+  // Auto-suggest references (debounced, when content is substantial)
+  const refSuggestTimer = useRef(null);
+  useEffect(() => {
+    const wc = computeWordCount(formData.content);
+    if (wc < 150) { setRefSuggestions([]); return; }
+    clearTimeout(refSuggestTimer.current);
+    refSuggestTimer.current = setTimeout(() => {
+      autoSuggestReferences({
+        title: formData.title,
+        content: formData.content,
+        tags: formData.tags,
+        categorySlug: formData.categorySlug,
+        currentPostId: formData.id,
+        focusKeyword,
+        existingRefs: articleRefs,
+      }).then(setRefSuggestions).catch(() => setRefSuggestions([]));
+    }, 3000);
+    return () => clearTimeout(refSuggestTimer.current);
+  }, [formData.title, formData.content, formData.tags, focusKeyword, articleRefs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleInsertReference = useCallback((ref) => {
+    // Insert as reference block in content
+    const nb = defaultBlock('reference');
+    Object.assign(nb, {
+      entityType: ref.entityType,
+      entityId: ref.entityId,
+      slug: ref.slug,
+      label: ref.label,
+      subtitle: ref.subtitle,
+      image: ref.image,
+      url: ref.url,
+      tier: ref.tier,
+      referenceTier: 'linked',
+    });
+    setFormData(fd => {
+      const blocks = fd.content || [];
+      return { ...fd, content: [...blocks, nb] };
+    });
+    setDirty(true);
+
+    // Persist to article_references table
+    if (formData.id) {
+      saveReference({
+        postId: formData.id,
+        entityType: ref.entityType,
+        entityId: ref.entityId,
+        slug: ref.slug,
+        label: ref.label,
+        url: ref.url,
+        anchorText: refHighlightText || null,
+        referenceTier: 'linked',
+        image: ref.image,
+        subtitle: ref.subtitle,
+        tier: ref.tier,
+        position: (formData.content || []).length,
+      }).then(({ data }) => {
+        if (data) setArticleRefs(prev => [...prev, { ...data, entityType: ref.entityType, entityId: ref.entityId, label: ref.label }]);
+      });
+    }
+  }, [formData.id, formData.content, refHighlightText]);
+
+  const handleRemoveReference = useCallback((refId) => {
+    deleteReference(refId).then(() => {
+      setArticleRefs(prev => prev.filter(r => r.id !== refId));
+    });
+  }, []);
+
+  // Listen for reference modal open events from CanvasBlock
+  useEffect(() => {
+    const handler = (e) => {
+      setRefHighlightText('');
+      setRefModalOpen(true);
+    };
+    window.addEventListener('lwd:open-reference-modal', handler);
+    return () => window.removeEventListener('lwd:open-reference-modal', handler);
+  }, []);
 
   // handleAddBlock — lifted from EditableCanvas so CanvasToolbar can live in the top bar
   const handleAddBlock = useCallback((type, level) => {
@@ -6325,6 +6481,15 @@ Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY t
             </div>
           </div>
         )}
+
+        {/* Reference Modal */}
+        <ReferenceModal
+          open={refModalOpen}
+          onClose={() => setRefModalOpen(false)}
+          onSelect={handleInsertReference}
+          highlightedText={refHighlightText}
+          currentPostId={formData.id}
+        />
       </div>
     </div>
   );

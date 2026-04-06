@@ -7,7 +7,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { FU, FD } from './StudioShared';
 import { computeContentIntelligence } from './ContentIntelligence';
-import { suggestArticleLinks } from '../../services/magazineService';
+import { autoSuggestReferences } from '../../services/referenceService';
 
 const GOLD = '#c9a96e';
 
@@ -44,7 +44,7 @@ function analyzeHeadings(content) {
 }
 
 // ── Priority actions ────────────────────────────────────────────────────
-function generateActions(intel, kwData, headings, formData, focusKeyword) {
+function generateActions(intel, kwData, headings, formData, focusKeyword, refCount = 0) {
   const actions = [];
 
   if (intel.wordCount < intel.wt.target) {
@@ -93,6 +93,13 @@ function generateActions(intel, kwData, headings, formData, focusKeyword) {
     }
   }
 
+  // Reference density
+  if (refCount === 0 && intel.wordCount > 300) {
+    actions.push({ priority: 'medium', text: 'Add references to listings or articles' });
+  } else if (refCount < 2 && intel.wordCount > 500) {
+    actions.push({ priority: 'low', text: `Add ${2 - refCount} more references` });
+  }
+
   const order = { high: 0, medium: 1, low: 2 };
   return actions.sort((a, b) => order[a.priority] - order[b.priority]).slice(0, 5);
 }
@@ -110,24 +117,26 @@ export default function LiveSeoPanel({ formData, focusKeyword, onKeywordChange, 
   const intel    = useMemo(() => computeContentIntelligence(formData, focusKeyword), [formData, focusKeyword]);
   const kwData   = useMemo(() => computeKeywordDensity(formData.content, focusKeyword), [formData.content, focusKeyword]);
   const headings = useMemo(() => analyzeHeadings(formData.content), [formData.content]);
-  const actions  = useMemo(() => generateActions(intel, kwData, headings, formData, focusKeyword), [intel, kwData, headings, formData, focusKeyword]);
+  const actions  = useMemo(() => generateActions(intel, kwData, headings, formData, focusKeyword, refCount), [intel, kwData, headings, formData, focusKeyword, refCount]);
 
-  // Internal article link suggestions (debounced — only runs when content is substantial)
+  // Reference suggestions — listings, showcases, articles (debounced)
   const [linkSuggestions, setLinkSuggestions] = useState([]);
   const linkTimerRef = useRef(null);
+  const refCount = useMemo(() => (formData.content || []).filter(b => b.type === 'reference' || b.type === 'listing_embed' || b.type === 'showcase_embed').length, [formData.content]);
   useEffect(() => {
     if (intel.wordCount < 200) { setLinkSuggestions([]); return; }
     clearTimeout(linkTimerRef.current);
     linkTimerRef.current = setTimeout(() => {
-      suggestArticleLinks({
+      autoSuggestReferences({
         title: formData.title,
         content: formData.content,
         tags: formData.tags,
         categorySlug: formData.categorySlug,
         currentPostId: formData.id,
         focusKeyword,
+        existingRefs: [],
       }).then(setLinkSuggestions).catch(() => setLinkSuggestions([]));
-    }, 2000); // 2s debounce — not on every keystroke
+    }, 3000); // 3s debounce
     return () => clearTimeout(linkTimerRef.current);
   }, [formData.title, formData.content, formData.tags, formData.categorySlug, focusKeyword, intel.wordCount]);
 
@@ -227,6 +236,7 @@ export default function LiveSeoPanel({ formData, focusKeyword, onKeywordChange, 
             { label: 'Links',      right: `${intel.internalLinks}`, ok: intel.internalLinks >= 2, partial: intel.internalLinks >= 1 },
             { label: 'Images',     right: `${intel.imageCount} / ${intel.it.target}`, ok: intel.imageCount >= intel.it.target, partial: intel.imageCount >= intel.it.min },
             { label: 'NLP',        right: `${intel.nlpFound}/${intel.nlpTotal}`, ok: intel.nlpPct >= 0.7, partial: intel.nlpPct >= 0.4 },
+            { label: 'Refs',       right: `${refCount} / 3`, ok: refCount >= 3, partial: refCount >= 1 },
             { label: 'Meta',       right: `${(formData.seoTitle || formData.title) ? '✓' : '—'} / ${(formData.metaDescription || formData.excerpt) ? '✓' : '—'}`, ok: !!(formData.seoTitle || formData.title) && !!(formData.metaDescription || formData.excerpt), partial: !!(formData.seoTitle || formData.title) || !!(formData.metaDescription || formData.excerpt) },
           ].map(m => (
             <div key={m.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
@@ -264,33 +274,39 @@ export default function LiveSeoPanel({ formData, focusKeyword, onKeywordChange, 
           )}
         </div>
 
-        {/* ── Internal link suggestions ── */}
+        {/* ── Reference suggestions (listings, showcases, articles) ── */}
         {linkSuggestions.length > 0 && (
           <div style={{ padding: '10px 12px', borderTop: `1px solid ${bdr}` }}>
             <div style={{ fontSize: 7, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: muted, marginBottom: 7 }}>
-              Link to These Articles
+              Suggested References
             </div>
-            {linkSuggestions.map((s, i) => (
-              <div key={s.id} style={{
-                padding: '5px 0',
-                borderBottom: i < linkSuggestions.length - 1 ? `1px solid ${bdr}` : 'none',
-              }}>
-                <div style={{
-                  fontFamily: FU, fontSize: 9, color: text, lineHeight: 1.3,
-                  cursor: 'pointer', opacity: 0.8,
-                }}
-                  title={`/magazine/${s.slug}`}
-                  onClick={() => {
-                    navigator.clipboard?.writeText(`/magazine/${s.slug}`);
-                  }}
-                >
-                  {s.title}
+            {linkSuggestions.slice(0, 5).map((s, i) => {
+              const typeIcons = { listing: '◆', showcase: '✦', article: '¶' };
+              const typeColors = { listing: GOLD, showcase: '#8b5cf6', article: '#10b981' };
+              return (
+                <div key={`${s.entityType}-${s.entityId}`} style={{
+                  padding: '5px 0',
+                  borderBottom: i < Math.min(linkSuggestions.length, 5) - 1 ? `1px solid ${bdr}` : 'none',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 8, color: typeColors[s.entityType] || muted }}>{typeIcons[s.entityType] || '○'}</span>
+                    <div style={{
+                      fontFamily: FU, fontSize: 9, color: text, lineHeight: 1.3,
+                      cursor: 'pointer', opacity: 0.8, flex: 1, overflow: 'hidden',
+                      textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}
+                      title={s.url}
+                      onClick={() => navigator.clipboard?.writeText(s.url)}
+                    >
+                      {s.label}
+                    </div>
+                  </div>
+                  <div style={{ fontFamily: FU, fontSize: 7, color: faint, marginTop: 1, paddingLeft: 12 }}>
+                    {s.reason || s.subtitle}
+                  </div>
                 </div>
-                <div style={{ fontFamily: FU, fontSize: 7, color: faint, marginTop: 1 }}>
-                  {s.categoryLabel || ''} · {s.matchedTerms.slice(0, 3).join(', ')}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
