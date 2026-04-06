@@ -5229,17 +5229,16 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
           <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 3 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {!block.image && <span style={{ fontSize: 12, color: tc.color }}>{typeIcons[block.entityType] || '⊕'}</span>}
-              <span style={{ fontFamily: FD, fontSize: 16, fontWeight: 400, color: '#0f0e0b', lineHeight: 1.2 }}>{block.label || 'Select a reference…'}</span>
+              <span style={{ fontFamily: FD, fontSize: 16, fontWeight: 400, color: '#f5f0e8', lineHeight: 1.2 }}>{block.label || 'Select a reference…'}</span>
               <span style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, padding: '1px 6px', borderRadius: 8, background: tc.border, color: tc.color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{tc.label}</span>
             </div>
-            {block.subtitle && <div style={{ fontFamily: FU, fontSize: 10, color: '#888' }}>{block.subtitle}</div>}
+            {block.subtitle && <div style={{ fontFamily: FU, fontSize: 10, color: 'rgba(245,240,232,0.5)' }}>{block.subtitle}</div>}
             {block.url && <div style={{ fontFamily: FU, fontSize: 9, color: GOLD, opacity: 0.7 }}>{block.url}</div>}
           </div>
         </div>
         {isActive && (
-          <div style={{ padding: '10px 16px', borderTop: `1px solid ${tc.border}`, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', background: 'rgba(245,240,232,0.02)' }}>
+          <div style={{ padding: '10px 16px', borderTop: `1px solid ${tc.border}`, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', background: 'rgba(0,0,0,0.15)' }}>
             <button onClick={() => {
-              // Open reference modal (dispatches to parent)
               const evt = new CustomEvent('lwd:open-reference-modal', { detail: { blockId: block.id } });
               window.dispatchEvent(evt);
             }}
@@ -5247,7 +5246,7 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
               ✦ Search & Link
             </button>
             <select value={block.referenceTier || 'linked'} onChange={e => onChange({...block, referenceTier: e.target.value})}
-              style={{ fontFamily: FU, fontSize: 9, background: 'rgba(245,240,232,0.03)', border: `1px solid ${GOLD}20`, color: '#888', borderRadius: 2, padding: '4px 6px', cursor: 'pointer' }}>
+              style={{ fontFamily: FU, fontSize: 9, background: 'rgba(0,0,0,0.3)', border: `1px solid ${GOLD}20`, color: 'rgba(245,240,232,0.6)', borderRadius: 2, padding: '4px 6px', cursor: 'pointer' }}>
               <option value="mentioned">Mentioned</option>
               <option value="linked">Linked</option>
               <option value="featured">Featured</option>
