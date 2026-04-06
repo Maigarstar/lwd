@@ -117,12 +117,12 @@ export default function LiveSeoPanel({ formData, focusKeyword, onKeywordChange, 
   const intel    = useMemo(() => computeContentIntelligence(formData, focusKeyword), [formData, focusKeyword]);
   const kwData   = useMemo(() => computeKeywordDensity(formData.content, focusKeyword), [formData.content, focusKeyword]);
   const headings = useMemo(() => analyzeHeadings(formData.content), [formData.content]);
+  const refCount = useMemo(() => (formData.content || []).filter(b => b.type === 'reference' || b.type === 'listing_embed' || b.type === 'showcase_embed').length, [formData.content]);
   const actions  = useMemo(() => generateActions(intel, kwData, headings, formData, focusKeyword, refCount), [intel, kwData, headings, formData, focusKeyword, refCount]);
 
   // Reference suggestions — listings, showcases, articles (debounced)
   const [linkSuggestions, setLinkSuggestions] = useState([]);
   const linkTimerRef = useRef(null);
-  const refCount = useMemo(() => (formData.content || []).filter(b => b.type === 'reference' || b.type === 'listing_embed' || b.type === 'showcase_embed').length, [formData.content]);
   useEffect(() => {
     if (intel.wordCount < 200) { setLinkSuggestions([]); return; }
     clearTimeout(linkTimerRef.current);
