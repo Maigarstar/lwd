@@ -851,23 +851,44 @@ export default function ImmersiveSearch({
           </button>
 
           {/* Ask Aura — Step 1 */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 28 }}>
-            <div style={{ width: 20, height: 1, background: "rgba(245,240,232,0.1)" }} />
-            <span style={{ fontFamily: NU, fontSize: 12, color: "rgba(245,240,232,0.28)", letterSpacing: "0.04em" }}>or</span>
-            <div style={{ width: 20, height: 1, background: "rgba(245,240,232,0.1)" }} />
-            <button
-              onClick={openAuraMode}
-              style={{
-                background: "none", border: "none", cursor: "pointer", padding: 0,
-                fontFamily: NU, fontSize: 12, letterSpacing: "0.08em",
-                color: "rgba(201,168,76,0.5)", transition: "color 0.25s ease",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = GOLD)}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(201,168,76,0.5)")}
-            >
-              Not sure? Ask Aura →
-            </button>
-          </div>
+          <button
+            onClick={openAuraMode}
+            style={{
+              marginTop:      32,
+              display:        "flex",
+              alignItems:     "center",
+              justifyContent: "space-between",
+              width:          "100%",
+              maxWidth:       480,
+              background:     "rgba(201,168,76,0.05)",
+              border:         "1px solid rgba(201,168,76,0.18)",
+              borderRadius:   2,
+              padding:        "16px 20px",
+              cursor:         "pointer",
+              transition:     "border-color 0.25s ease, background 0.25s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "rgba(201,168,76,0.4)";
+              e.currentTarget.style.background  = "rgba(201,168,76,0.08)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "rgba(201,168,76,0.18)";
+              e.currentTarget.style.background  = "rgba(201,168,76,0.05)";
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <span style={{ color: GOLD, fontSize: 14, opacity: 0.8 }}>✦</span>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontFamily: NU, fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", color: GOLD }}>
+                  Ask Aura
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 11, color: "rgba(245,240,232,0.35)", marginTop: 2, letterSpacing: "0.02em" }}>
+                  Describe your wedding in words
+                </div>
+              </div>
+            </div>
+            <span style={{ color: "rgba(201,168,76,0.4)", fontSize: 14 }}>→</span>
+          </button>
         </div>
       )}
 
@@ -1142,104 +1163,160 @@ export default function ImmersiveSearch({
           ...stepTransition,
           justifyContent: "center",
           alignItems:     "flex-start",
-          paddingTop:     "clamp(40px, 8vh, 100px)",
+          paddingTop:     "clamp(20px, 4vh, 56px)",
         }}>
-          {/* Back to steps */}
-          <button
-            onClick={() => { setStepIn(false); setTimeout(() => { setAuraMode(false); setStep(step); setStepIn(true); }, 320); }}
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: "rgba(245,240,232,0.35)", fontFamily: NU, fontSize: 11,
-              letterSpacing: "0.14em", textTransform: "uppercase",
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "0 0 48px", transition: "color 0.25s ease",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = WHITE)}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(245,240,232,0.35)")}
-          >
-            <span style={{ fontSize: 13, opacity: 0.7 }}>←</span> Back
-          </button>
+          {/* ── Ambient blooms ── */}
+          {/* Purple bloom — top left */}
+          <div aria-hidden="true" style={{
+            position: "absolute", top: "-10%", left: "-8%",
+            width: 600, height: 500, borderRadius: "50%",
+            background: "radial-gradient(ellipse, rgba(167,139,250,0.13) 0%, transparent 70%)",
+            pointerEvents: "none", zIndex: 0,
+          }} />
+          {/* Secondary gold bloom — bottom right */}
+          <div aria-hidden="true" style={{
+            position: "absolute", bottom: "-5%", right: "-5%",
+            width: 400, height: 360, borderRadius: "50%",
+            background: "radial-gradient(ellipse, rgba(201,168,76,0.07) 0%, transparent 70%)",
+            pointerEvents: "none", zIndex: 0,
+          }} />
+          {/* Green accent bloom — mid right */}
+          <div aria-hidden="true" style={{
+            position: "absolute", top: "40%", right: "-10%",
+            width: 300, height: 300, borderRadius: "50%",
+            background: "radial-gradient(ellipse, rgba(107,163,163,0.06) 0%, transparent 70%)",
+            pointerEvents: "none", zIndex: 0,
+          }} />
 
-          {/* Aura wordmark */}
-          <p style={{ fontFamily: NU, fontSize: 10, letterSpacing: "0.28em", color: GOLD, textTransform: "uppercase", margin: "0 0 22px" }}>
-            ✦ Aura
-          </p>
 
-          {/* Heading */}
-          <h1 style={{
-            fontFamily: GD, fontWeight: 400, margin: "0 0 14px", color: WHITE,
-            fontSize: "clamp(36px, 5.5vw, 72px)",
-            lineHeight: 1.06, letterSpacing: "-0.022em",
-            maxWidth: 700,
+          {/* ── AURA watermark ── */}
+          <div aria-hidden="true" style={{
+            position:      "absolute",
+            top:           "50%",
+            left:          "50%",
+            transform:     "translate(-50%, -50%)",
+            fontFamily:    GD,
+            fontSize:      "clamp(160px, 22vw, 320px)",
+            fontWeight:    700,
+            fontStyle:     "italic",
+            color:         WHITE,
+            opacity:       0.028,
+            letterSpacing: "-8px",
+            lineHeight:    1,
+            pointerEvents: "none",
+            userSelect:    "none",
+            whiteSpace:    "nowrap",
+            zIndex:        0,
           }}>
-            Describe your<br />perfect wedding
-          </h1>
-          <p style={{ fontFamily: NU, fontSize: 14, color: MUTED, margin: "0 0 48px", letterSpacing: "0.02em" }}>
-            Tell Aura what you're imagining — she'll find it.
-          </p>
-
-          {/* Luxury prompt input */}
-          <div style={{ position: "relative", width: "100%", maxWidth: 680 }}>
-            <textarea
-              ref={auraInputRef}
-              value={auraQuery}
-              onChange={(e) => setAuraQuery(e.target.value)}
-              onFocus={() => setAuraFocused(true)}
-              onBlur={() => setAuraFocused(false)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAuraSubmit(); } }}
-              placeholder="A villa in Tuscany for 80 guests in September, with a garden ceremony…"
-              rows={3}
-              style={{
-                width:         "100%",
-                boxSizing:     "border-box",
-                background:    "rgba(15,14,11,0.6)",
-                border:        `1px solid ${auraFocused ? "rgba(201,168,76,0.55)" : "rgba(255,255,255,0.1)"}`,
-                borderRadius:  2,
-                padding:       "22px 24px",
-                color:         WHITE,
-                fontFamily:    NU,
-                fontSize:      16,
-                lineHeight:    1.6,
-                letterSpacing: "0.01em",
-                caretColor:    GOLD,
-                outline:       "none",
-                resize:        "none",
-                boxShadow:     auraFocused
-                  ? "0 0 0 3px rgba(201,168,76,0.07), 0 8px 40px rgba(0,0,0,0.5)"
-                  : "0 4px 24px rgba(0,0,0,0.35)",
-                transition:    "border-color 0.3s ease, box-shadow 0.35s ease",
-              }}
-            />
-            {/* Submit */}
-            <button
-              onClick={handleAuraSubmit}
-              disabled={!auraQuery.trim()}
-              style={{
-                position:      "absolute",
-                bottom:        16,
-                right:         16,
-                background:    auraQuery.trim() ? GOLD : "rgba(201,168,76,0.18)",
-                border:        "none",
-                borderRadius:  2,
-                padding:       "10px 22px",
-                cursor:        auraQuery.trim() ? "pointer" : "default",
-                color:         auraQuery.trim() ? "#0a0906" : "rgba(201,168,76,0.4)",
-                fontFamily:    NU,
-                fontSize:      11,
-                fontWeight:    700,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                transition:    "background 0.25s ease, color 0.25s ease",
-              }}
-            >
-              Ask Aura →
-            </button>
+            AURA
           </div>
 
-          {/* Hint */}
-          <p style={{ fontFamily: NU, fontSize: 11, color: "rgba(245,240,232,0.2)", margin: "16px 0 0", letterSpacing: "0.04em" }}>
-            Press Enter to send · Shift+Enter for new line
-          </p>
+          {/* ── Content (above blooms + watermark) ── */}
+          <div style={{ position: "relative", zIndex: 1, width: "100%" }}>
+
+            {/* Back */}
+            <button
+              onClick={() => { setStepIn(false); setTimeout(() => { setAuraMode(false); setStep(step); setStepIn(true); }, 320); }}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: "rgba(245,240,232,0.28)", fontFamily: NU, fontSize: 11,
+                letterSpacing: "0.14em", textTransform: "uppercase",
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "0 0 36px", transition: "color 0.25s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = WHITE)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(245,240,232,0.28)")}
+            >
+              <span style={{ fontSize: 13, opacity: 0.7 }}>←</span> Back
+            </button>
+
+            {/* Aura wordmark — purple */}
+            <p style={{ fontFamily: NU, fontSize: 10, letterSpacing: "0.28em", color: "rgba(124,95,192,0.85)", textTransform: "uppercase", margin: "0 0 20px", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: "#7C5FC0" }}>✦</span> Aura
+            </p>
+
+            {/* Heading */}
+            <h1 style={{
+              fontFamily: GD, fontWeight: 400, margin: "0 0 12px", color: WHITE,
+              fontSize: "clamp(40px, 6vw, 80px)",
+              lineHeight: 1.04, letterSpacing: "-0.025em",
+              maxWidth: 680,
+            }}>
+              Describe your<br />
+              <span style={{ fontStyle: "italic", color: "rgba(124,95,192,0.9)" }}>perfect wedding</span>
+            </h1>
+            <p style={{ fontFamily: NU, fontSize: 14, color: MUTED, margin: "0 0 36px", letterSpacing: "0.02em", maxWidth: 480 }}>
+              Tell Aura what you're imagining, she'll find it.
+            </p>
+
+            {/* Textarea */}
+            <div style={{ position: "relative", width: "100%", maxWidth: 680 }}>
+              <textarea
+                ref={auraInputRef}
+                value={auraQuery}
+                onChange={(e) => setAuraQuery(e.target.value)}
+                onFocus={() => setAuraFocused(true)}
+                onBlur={() => setAuraFocused(false)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAuraSubmit(); } }}
+                placeholder="A villa in Tuscany for 80 guests in September, with a garden ceremony…"
+                rows={4}
+                style={{
+                  width:         "100%",
+                  boxSizing:     "border-box",
+                  background:    "rgba(12,10,16,0.65)",
+                  border:        `1px solid ${auraFocused ? "rgba(167,139,250,0.55)" : "rgba(167,139,250,0.15)"}`,
+                  borderRadius:  3,
+                  padding:       "22px 24px 64px",
+                  color:         WHITE,
+                  fontFamily:    NU,
+                  fontSize:      16,
+                  lineHeight:    1.65,
+                  letterSpacing: "0.01em",
+                  caretColor:    "#A78BFA",
+                  outline:       "none",
+                  resize:        "none",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                  boxShadow:     auraFocused
+                    ? "0 0 0 3px rgba(167,139,250,0.08), 0 12px 48px rgba(0,0,0,0.5)"
+                    : "0 4px 32px rgba(0,0,0,0.4)",
+                  transition:    "border-color 0.3s ease, box-shadow 0.35s ease",
+                }}
+              />
+              {/* Submit */}
+              <button
+                onClick={handleAuraSubmit}
+                disabled={!auraQuery.trim()}
+                style={{
+                  position:      "absolute",
+                  bottom:        14,
+                  right:         14,
+                  background:    auraQuery.trim()
+                    ? "linear-gradient(135deg, #7C5FC0, #7C5FC0)"
+                    : "rgba(124,95,192,0.12)",
+                  border:        "none",
+                  borderRadius:  3,
+                  padding:       "10px 24px",
+                  cursor:        auraQuery.trim() ? "pointer" : "default",
+                  color:         auraQuery.trim() ? "#fff" : "rgba(167,139,250,0.35)",
+                  fontFamily:    NU,
+                  fontSize:      11,
+                  fontWeight:    700,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  transition:    "background 0.25s ease, color 0.25s ease",
+                  boxShadow:     auraQuery.trim() ? "0 4px 20px rgba(124,95,192,0.35)" : "none",
+                }}
+              >
+                Ask Aura →
+              </button>
+            </div>
+
+            {/* Hint */}
+            <p style={{ fontFamily: NU, fontSize: 11, color: "rgba(245,240,232,0.18)", margin: "14px 0 0", letterSpacing: "0.04em" }}>
+              Press Enter to send · Shift+Enter for new line
+            </p>
+          </div>
         </div>
       )}
 

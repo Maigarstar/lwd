@@ -62,6 +62,7 @@ import ReportingHubModule from "./AdminModules/ReportingHubModule";
 import MarketIntelligenceModule from "./AdminModules/MarketIntelligenceModule";
 import EventsModule from "./AdminModules/EventsModule";
 import SiteContentModule from "./AdminModules/SiteContentModule";
+import ReverseProspectingModule from "./AdminModules/ReverseProspectingModule";
 import CategoryPagePreview from "../components/admin/CategoryPagePreview";
 import { fetchClickSummary, fetchBatchClickCounts } from "../services/adminOutboundClicksService";
 import { fetchPostBySlug, fetchPosts, deletePost as deleteMagazinePost } from "../services/magazineService";
@@ -314,6 +315,7 @@ const NAV_SECTIONS = [
       { key: "pipeline-builder",       label: "Pipeline Builder",       icon: "⊠" },
       { key: "partner-enquiries",      label: "Partner Enquiries",      icon: "⊛" },
       { key: "advertise-leads",        label: "Advertise Leads",        icon: "⊡" },
+      { key: "reverse-prospecting",   label: "Reverse Prospecting",    icon: "⟲" },
     ],
   },
   {
@@ -11700,6 +11702,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "menu":            return <MenuModule C={C} />;
       case "footer":          return <FooterModule C={C} />;
       case "site-content":    return <SiteContentModule key="site-content" C={C} darkMode={darkMode} />;
+      case "reverse-prospecting": return <ReverseProspectingModule C={C} />;
       default:              return <OverviewModule C={C} />;
     }
   };

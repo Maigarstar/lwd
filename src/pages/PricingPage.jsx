@@ -27,11 +27,14 @@ const TIERS = [
       "Basic analytics dashboard",
       "LWD verified badge",
       "Location & category placement",
+      "Mentioned in magazine articles",
     ],
     notIncluded: [
       "Priority search placement",
       "Video story embed",
-      "Advanced analytics + ROI panel",
+      "Magazine article references with link",
+      "\"Featured In\" badge on your profile",
+      "Advanced analytics + editorial attribution",
       "Monthly performance reports",
       "Showcase editorial feature",
     ],
@@ -51,14 +54,18 @@ const TIERS = [
       "Priority placement in search results",
       "Up to 40 portfolio images",
       "Video story embed (1 video)",
+      "Linked references in magazine articles",
+      "\"Featured In\" section on your profile",
       "Full analytics + ROI Intelligence panel",
+      "See which articles drive your enquiries",
       "Touch point funnel & media value",
       "Seasonal insights & booking windows",
       "Country & source traffic breakdown",
       "Featured badge on listing card",
     ],
     notIncluded: [
-      "Showcase editorial feature",
+      "Sponsored article placements with Enquire CTA",
+      "Showcase editorial story + interview",
       "Monthly branded PDF report",
       "Dedicated account manager",
     ],
@@ -78,7 +85,9 @@ const TIERS = [
       "Top editorial placement",
       "Unlimited portfolio images",
       "Up to 3 video embeds",
+      "Sponsored references in articles with Enquire CTA",
       "Showcase editorial story + interview",
+      "Full-funnel attribution: article \u2192 click \u2192 enquiry",
       "Monthly branded performance report (PDF)",
       "Quarterly strategy review call",
       "Dedicated account manager",
@@ -105,6 +114,24 @@ const COMPARE_ROWS = [
     standard: "—",
     featured: "1 video",
     showcase: "Up to 3",
+  },
+  {
+    label: "Magazine references",
+    standard: "Mentioned",
+    featured: "Linked",
+    showcase: "Sponsored + CTA",
+  },
+  {
+    label: "\"Featured In\" on profile",
+    standard: "—",
+    featured: true,
+    showcase: true,
+  },
+  {
+    label: "Editorial attribution",
+    standard: "—",
+    featured: "Click tracking",
+    showcase: "Full-funnel",
   },
   {
     label: "Analytics tier",
@@ -153,6 +180,7 @@ const ROI_DATA = [
     breakeven: "1 booking = 12× return",
     color: "#6b7280",
     detail: "at £18k avg booking value",
+    proof: "Basic analytics to track views & enquiries",
   },
   {
     tier: "Featured",
@@ -160,13 +188,15 @@ const ROI_DATA = [
     breakeven: "1 booking = 10× return",
     color: "#C9A84C",
     detail: "at £35k avg booking value",
+    proof: "See exactly which magazine articles drive your enquiries",
   },
   {
     tier: "Showcase",
     cost: "£6,990/yr",
     breakeven: "1 booking = 10× return",
     color: "#8b5cf6",
-    detail: "with editorial reach",
+    detail: "with editorial reach + sponsored placements",
+    proof: "Full-funnel attribution: article → click → booking",
   },
 ];
 
@@ -174,17 +204,17 @@ const ROI_DATA = [
 
 const TESTIMONIALS = [
   {
-    quote: "Within three months of upgrading to Featured, we had enquiries from couples in New York, Dubai, and Sydney. LWD puts us in front of the right people.",
+    quote: "Within three months of upgrading to Featured, we had enquiries from couples in New York, Dubai, and Sydney. The attribution dashboard showed exactly which articles drove them.",
     name: "Valentina Moretti",
     role: "Villa Moretti, Lake Como",
   },
   {
-    quote: "The analytics panel showed us exactly where our enquiries were coming from. We realigned our photography portfolio to match — bookings followed.",
+    quote: "We could see that one magazine feature on Italian elopements drove 40% of our quarterly enquiries. That data changed how we invest in marketing entirely.",
     name: "James Arden",
     role: "Arden Photography, London",
   },
   {
-    quote: "The Showcase editorial story brought in two seven-figure venue bookings within the first quarter. The ROI speaks for itself.",
+    quote: "The Showcase editorial story had a sponsored enquire button right in the article. Two seven-figure venue bookings came directly from it in the first quarter.",
     name: "Sophie Laurent",
     role: "Château Laurent, Provence",
   },
@@ -212,6 +242,14 @@ const FAQ_ITEMS = [
   {
     q: "What's included in the monthly reports?",
     a: "Showcase tier reports include: total views, enquiry volume, shortlists, outbound clicks, source breakdown by country, media value equivalent, ROI estimate, and a seasonal forward-look. Delivered as a branded PDF each month.",
+  },
+  {
+    q: "How do magazine article references work?",
+    a: "Our editorial team references relevant vendors and venues inside LWD Magazine articles. Standard listings may be mentioned by name. Featured listings get linked references that readers can click through to your profile. Showcase listings get sponsored placements with an Enquire button directly inside the article — so couples can reach you without leaving the story.",
+  },
+  {
+    q: "What is editorial attribution?",
+    a: "Featured and Showcase tiers include attribution tracking that shows you which magazine articles are driving traffic and enquiries to your listing. Showcase goes further with full-funnel tracking: you can see the complete journey from article read, to reference click, to profile visit, to enquiry submission.",
   },
 ];
 
@@ -288,7 +326,7 @@ export default function PricingPage({ onNavigateHome, onNavigateListYourBusiness
             fontFamily: NU, fontSize: 18, color: textMuted, margin: "0 0 48px",
             lineHeight: 1.7, maxWidth: 560, marginLeft: "auto", marginRight: "auto",
           }}>
-            Three tiers. One direction. Chosen by the world's finest wedding professionals.
+            Directory visibility. Magazine editorial. Attribution intelligence. Three tiers, one direction.
           </p>
 
           {/* Billing toggle */}
@@ -530,6 +568,15 @@ export default function PricingPage({ onNavigateHome, onNavigateListYourBusiness
                 <div style={{ fontFamily: NU, fontSize: 12, color: textMuted }}>
                   {row.detail}
                 </div>
+                {row.proof && (
+                  <div style={{
+                    fontFamily: NU, fontSize: 11, color: row.color, marginTop: 12,
+                    paddingTop: 12, borderTop: `1px solid ${dividerColor}`, lineHeight: 1.5,
+                    opacity: 0.85,
+                  }}>
+                    {row.proof}
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -15,6 +15,8 @@ import PhotoGalleryGrid from '../components/cards/editorial/PhotoGalleryGrid';
 import { useBreakpoint } from '../hooks/useWindowWidth';
 import { fetchUpcomingEventsForVenue, formatEventDate, formatEventTime } from '../services/eventService';
 import EventDrawer from '../components/EventDrawer';
+import FeaturedInArticles from '../components/listings/FeaturedInArticles';
+import { captureReferenceAttribution } from '../services/referenceAttributionService';
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 const GD   = 'var(--font-heading-primary)';
@@ -500,6 +502,7 @@ export default function ListingProfilePage({ slug, onBack }) {
 
   // Scroll to top
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [slug]);
+  useEffect(() => { captureReferenceAttribution(); }, []);
 
   // Scroll spy, MUST be before early returns (Rules of Hooks)
   useEffect(() => {
@@ -574,6 +577,7 @@ export default function ListingProfilePage({ slug, onBack }) {
       {hasRooms  && <AccommodationSection roomsTotal={listing.rooms_total} roomsSuites={listing.rooms_suites} roomsMaxGuests={listing.rooms_max_guests} roomsExclusiveUse={listing.rooms_exclusive_use} roomsMinStay={listing.rooms_min_stay} roomsDescription={listing.rooms_description} roomsImages={listing.rooms_images} />}
       {hasDining && <DiningSection diningStyle={listing.dining_style} diningChefName={listing.dining_chef_name} diningInHouse={listing.dining_in_house} diningExternal={listing.dining_external} diningMenuStyles={listing.dining_menu_styles} diningDietary={listing.dining_dietary} diningDescription={listing.dining_description} />}
       {images.length > 0 && <GallerySection images={images} name={name} />}
+      {listing?.id && <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px' }}><FeaturedInArticles entityId={listing.id} entityType="listing" /></div>}
       {faqCategories && <FaqSection faqCategories={faqCategories} faqTitle={listing.faq_title} faqSubtitle={listing.faq_subtitle} />}
       {venueEvents.length > 0 && <EventsSection events={venueEvents} name={name} onEventClick={setDrawerEvent} />}
       <VenueEnquireCard data={{ background: heroImage, headline: `Plan Your Wedding at ${name}`, subline: 'Our team will respond within 24 hours to discuss your vision.', venueName: name }} />

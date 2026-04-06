@@ -70,6 +70,8 @@ import JoinPage from "./pages/JoinPage.jsx";
 import PartnerEnquiryPage from "./pages/PartnerEnquiryPage.jsx";
 import ListYourBusinessPage from "./pages/ListYourBusinessPage.jsx";
 import PricingPage from "./pages/PricingPage.jsx";
+import ListingsPage from "./pages/ListingsPage.jsx";
+import AdvertisePage from "./pages/AdvertisePage.jsx";
 import MostLovedPage from "./pages/MostLovedPage.jsx";
 import ArtistryPage from "./pages/Artistry/ArtistryPage.jsx";
 import MagazineHomePage     from "./pages/Magazine/MagazineHomePage.jsx";
@@ -183,7 +185,9 @@ function stateToPath(pg, opts = {}) {
     case "couple-reset-password":  return "/getting-married/reset-password";
     case "join":                  return "/join";
     case "list-your-business":    return "/list-your-business";
+    case "advertise":             return "/advertise";
     case "pricing":               return "/pricing";
+    case "listings":              return "/listings";
     case "most-loved":            return "/most-loved";
     case "partner-enquiry":       return "/partner-enquiry";
     case "getting-married":  return "/getting-married";
@@ -230,7 +234,7 @@ function pathToState(pathname) {
     category: "category", "the-lwd-standard": "standard",
     about: "about", contact: "contact", partnership: "partnership",
     privacy: "privacy", terms: "terms", cookies: "cookies", "reviews-policy": "reviews-policy", support: "support",
-    admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry", taigenic: "taigenic", "list-your-business": "list-your-business", pricing: "pricing", "most-loved": "most-loved",
+    admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry", taigenic: "taigenic", "list-your-business": "list-your-business", pricing: "pricing", "most-loved": "most-loved", listings: "listings", advertise: "advertise",
   };
   const parts = clean.split("/");
   // Unsubscribe landing page
@@ -614,6 +618,8 @@ function App() {
   const goJoin = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("join"); };
   const goListYourBusiness = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("list-your-business"); };
   const goPricing = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("pricing"); };
+  const goListings = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("listings"); };
+  const goAdvertise = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("advertise"); };
   const goMagazine = () => { setActiveMagazineCategoryId(null); setActiveMagazineSlug(null); setPage("magazine"); };
   const goMagazineCategory = (categoryId) => { setActiveMagazineCategoryId(categoryId); setActiveMagazineSlug(null); setPage("magazine-category"); };
   const goMagazineArticle = (slug) => { setActiveMagazineSlug(slug); setActiveMagazineCategoryId(null); setPage("magazine-article"); };
@@ -810,7 +816,10 @@ function App() {
           );
         })()}
         {page === "artistry-awards" && (
-          <ArtistryPage />
+          <ArtistryPage
+            onNavigateStandard={goHome}
+            onNavigateAbout={goAbout}
+          />
         )}
         {page === "magazine" && (
           <MagazineHomePage
@@ -1011,6 +1020,12 @@ function App() {
             onNavigateAbout={goAbout}
           />
         )}
+        {page === "advertise" && (
+          <AdvertisePage
+            onNavigateHome={goHome}
+            onNavigateListYourBusiness={goListYourBusiness}
+          />
+        )}
         {page === "pricing" && (
           <PricingPage
             onNavigateHome={goHome}
@@ -1021,6 +1036,19 @@ function App() {
             onVendorLogin={goVendorLogin}
             onNavigateStandard={goStandard}
             onNavigateAbout={goAbout}
+          />
+        )}
+        {page === "listings" && (
+          <ListingsPage
+            onBack={goHome}
+            onViewVenue={goVenue}
+            onNavigateHome={goHome}
+            onToggleDark={toggleDark}
+            darkMode={darkMode}
+            onVendorLogin={goVendorLogin}
+            onNavigateStandard={goStandard}
+            onNavigateAbout={goAbout}
+            footerNav={footerNav}
           />
         )}
         {page === "partner-enquiry" && (
