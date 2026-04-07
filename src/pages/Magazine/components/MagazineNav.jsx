@@ -660,14 +660,21 @@ export default function MagazineNav({
         }
         .mag-cats::-webkit-scrollbar { display: none; }
         .mag-cat-btn {
+          display: inline-block !important;
+          visibility: visible !important;
           font-family: ${FU}; font-size: 10px; font-weight: 500;
           letter-spacing: 0.14em; text-transform: uppercase;
           background: none; border: none;
           padding: 14px 18px; cursor: pointer; white-space: nowrap;
           border-bottom: 1px solid transparent;
           transition: color 0.2s, border-color 0.2s, font-weight 0.2s;
+          min-width: auto;
+          opacity: 1 !important;
         }
-        .mag-cat-btn { color: ${isLight ? 'rgba(0,0,0,0.6)' : 'rgba(245,240,232,0.6)'}; }
+        .mag-cat-btn {
+          color: ${isLight ? 'rgba(0,0,0,0.9)' : 'rgba(245,240,232,0.9)'};
+          font-weight: 600 !important;
+        }
         .mag-cat-btn:hover { color: ${catHover}; }
         .mag-cat-btn.active { color: ${isLight ? '#000' : '#f5f0e8'}; font-weight: 500; border-bottom-color: ${GOLD}; }
         .mag-fashion-btn { color: ${catInactive}; position: relative; }
