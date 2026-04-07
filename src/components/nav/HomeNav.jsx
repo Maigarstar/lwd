@@ -66,8 +66,10 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
   const [navItems,    setNavItems]   = useState(FALLBACK_LINKS);
   const [openPanel,   setOpenPanel]  = useState(null); // nav item id | null
   const [branding,    setBranding]   = useState(DEFAULT_BRANDING);
-  const navRef    = useRef(null);
-  const closeTimer = useRef(null);
+  const navRef        = useRef(null);
+  const closeTimer    = useRef(null);
+  const hamburgerRef  = useRef(null); // Track hamburger button for focus restoration
+  const drawerRef     = useRef(null); // Track drawer for focus management
 
   // ── Two-state logic ──────────────────────────────────────────────────────────
   // transparent = on a hero page AND not yet scrolled past threshold
@@ -117,6 +119,62 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
   useEffect(() => {
     document.body.style.overflow = drawerOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
+  }, [drawerOpen]);
+
+  // Focus management: trap focus inside drawer + restore on close
+  useEffect(() => {
+    if (!drawerOpen) return;
+
+    // Store the element that triggered the drawer (hamburger button)
+    const triggerElement = hamburgerRef.current;
+
+    // Focus trap: prevent Tab from escaping drawer
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setDrawerOpen(false);
+        triggerElement?.focus();
+        return;
+      }
+
+      // Tab trap: keep focus within drawer
+      if (e.key === "Tab" && drawerRef.current) {
+        const focusableElements = drawerRef.current.querySelectorAll(
+          "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          // Shift+Tab (reverse)
+          if (document.activeElement === firstElement) {
+            lastElement?.focus();
+            e.preventDefault();
+          }
+        } else {
+          // Tab forward
+          if (document.activeElement === lastElement) {
+            firstElement?.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+
+    // Focus the drawer on open (for accessibility)
+    drawerRef.current?.focus();
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [drawerOpen]);
+
+  // Restore focus when drawer closes
+  useEffect(() => {
+    if (drawerOpen) return;
+    // Give animation time to complete before returning focus
+    const timer = setTimeout(() => {
+      hamburgerRef.current?.focus();
+    }, 350);
+    return () => clearTimeout(timer);
   }, [drawerOpen]);
 
   // Load site branding (logo + layout)
@@ -459,9 +517,12 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
 
         {/* Hamburger, mobile only */}
         <button
+          ref={hamburgerRef}
           className="home-nav-hamburger"
           onClick={() => setDrawerOpen(true)}
-          aria-label="Open menu"
+          aria-label="Open navigation menu"
+          aria-expanded={drawerOpen}
+          aria-controls="home-nav-drawer"
           style={{
             display: "none",
             background: "none",
@@ -503,6 +564,11 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
           />
           {/* Drawer panel */}
           <div
+            ref={drawerRef}
+            id="home-nav-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
             className="home-nav-drawer"
             style={{
               position: "fixed",
@@ -520,6 +586,8 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
               flexDirection: "column",
               padding: "0 0 40px",
               overflowY: "auto",
+              outline: "none",
+              tabIndex: -1,
             }}
           >
             {/* Drawer header */}
