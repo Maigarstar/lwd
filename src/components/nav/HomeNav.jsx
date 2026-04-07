@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useTheme } from "../../theme/ThemeContext";
 import MegaMenuPanel from "./MegaMenuPanel";
+import MobileDrawerAccordion from "./MobileDrawerAccordion";
 
 // ── Site branding defaults ────────────────────────────────────────────────────
 const DEFAULT_BRANDING = {
@@ -545,94 +546,14 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
               </button>
             </div>
 
-            {/* Nav links */}
-            <div style={{ padding: "16px 0" }}>
-              {navItems.map((item) => {
-                const handler = resolveHandler(item, handlers);
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => { setDrawerOpen(false); handler?.(); }}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      textAlign: "left",
-                      background: "none",
-                      border: "none",
-                      cursor: handler ? "pointer" : "default",
-                      padding: "16px 28px",
-                      fontSize: 15,
-                      fontWeight: 400,
-                      color: "rgba(245,240,232,0.7)",
-                      fontFamily: NU,
-                      letterSpacing: "0.3px",
-                      transition: "color 0.2s, background 0.2s",
-                      minHeight: 52,
-                    }}
-                    onTouchStart={(e) => { e.currentTarget.style.color = C.gold; e.currentTarget.style.background = "rgba(201,168,76,0.06)"; }}
-                    onTouchEnd={(e) => { e.currentTarget.style.color = "rgba(245,240,232,0.7)"; e.currentTarget.style.background = "transparent"; }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = C.gold; e.currentTarget.style.background = "rgba(201,168,76,0.06)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(245,240,232,0.7)"; e.currentTarget.style.background = "transparent"; }}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* List Your Business CTA — always visible in drawer */}
-            <div style={{ padding: "12px 24px 8px" }}>
-              <button
-                onClick={() => { setDrawerOpen(false); window.location.href = "/list-your-business"; }}
-                style={{
-                  display:       "block",
-                  width:         "100%",
-                  textAlign:     "center",
-                  fontFamily:    NU,
-                  fontSize:      11,
-                  fontWeight:    700,
-                  letterSpacing: "1.2px",
-                  textTransform: "uppercase",
-                  color:         "#0f0d0a",
-                  background:    "linear-gradient(135deg, #C9A84C, #e8c97a)",
-                  border:        "none",
-                  borderRadius:  4,
-                  padding:       "13px 20px",
-                  cursor:        "pointer",
-                  transition:    "opacity 0.2s",
-                }}
-                onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
-                onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-              >
-                List Your Business
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div style={{ height: 1, background: "rgba(201,168,76,0.12)", margin: "8px 24px" }} />
-
-            {/* Dark mode toggle */}
-            <div style={{ padding: "20px 24px" }}>
-              <button
-                onClick={() => { onToggleDark?.(); }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "rgba(245,240,232,0.5)",
-                  fontFamily: NU,
-                  fontSize: 13,
-                  padding: 0,
-                  minHeight: 44,
-                }}
-              >
-                <span style={{ fontSize: 16 }}>{darkMode ? "☀" : "☽"}</span>
-                <span>{darkMode ? "Light Mode" : "Dark Mode"}</span>
-              </button>
-            </div>
+            {/* Mobile Accordion Drawer — preserves hierarchy, handles mega menus */}
+            <MobileDrawerAccordion
+              navItems={navItems}
+              onClose={() => setDrawerOpen(false)}
+              darkMode={darkMode}
+              onToggleDark={onToggleDark}
+              handlers={handlers}
+            />
           </div>
         </>,
         document.body
