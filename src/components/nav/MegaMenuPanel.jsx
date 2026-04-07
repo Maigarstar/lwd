@@ -95,8 +95,8 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
         right:      0,
         zIndex:     698,
         background: "linear-gradient(to bottom, rgba(20,16,12,0.55), rgba(12,10,8,0.85))",
-        backdropFilter: "blur(10px) saturate(120%)",
-        WebkitBackdropFilter: "blur(10px) saturate(120%)",
+        backdropFilter: "blur(10px) saturate(115%)",
+        WebkitBackdropFilter: "blur(10px) saturate(115%)",
         borderTop:  "1px solid rgba(255, 255, 255, 0.08)",
         borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
         boxShadow:  "inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 40px rgba(0, 0, 0, 0.35)",
@@ -131,7 +131,7 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
       }}>
 
         {/* ── Left: category heading + subcategory grid ── */}
-        <section aria-label={`${item.label} categories`}>
+        <section aria-label={`${item.label} categories`} style={{ paddingTop: 6 }}>
           {/* Section heading */}
           <h2 style={{
             fontFamily: SANS, fontSize: 12, fontWeight: 600,
@@ -159,7 +159,7 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
               gridTemplateColumns: "repeat(2, 1fr)",
               gap: "0 56px",
             }}>
-              {menuItems.map(cat => (
+              {menuItems.map((cat, idx) => (
                 <NavItemLink
                   key={cat.id}
                   item={cat}
@@ -168,6 +168,7 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
                   borderColor={borderColor}
                   showDesc={showDesc}
                   isManual={isManual}
+                  isFirst={idx === 0}
                 />
               ))}
             </div>
@@ -195,7 +196,9 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
                   borderRadius: radius || 4,
                   padding: "10px 22px",
                   transition: "all 0.22s ease",
-                  background: "rgba(201, 168, 76, 0.05)",
+                  background: "rgba(201, 168, 76, 0.06)",
+                  backdropFilter: "blur(2px)",
+                  WebkitBackdropFilter: "blur(2px)",
                   cursor: "pointer",
                 }}
                 onMouseEnter={e => {
@@ -282,7 +285,7 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
 
 // ── Nav item / Category link row ──────────────────────────────────────────────
 
-function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual }) {
+function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual, isFirst }) {
   const [hovered, setHovered] = useState(false);
 
   // Build href based on item type
@@ -307,11 +310,11 @@ function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual 
       style={{
         display: "block",
         padding: "18px 0",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.03)",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.02)",
         textDecoration: "none",
         cursor: "pointer",
-        transition: "all 0.22s ease",
-        transform: hovered ? "translateX(6px)" : "translateX(0)",
+        transition: "transform 0.2s ease, color 0.2s ease",
+        transform: hovered ? "translateX(5px)" : "translateX(0)",
         background: hovered ? "rgba(255, 255, 255, 0.02)" : "transparent",
         animation: `fadeInUp 0.4s ease-out ${itemIndex * 20}ms both`,
       }}
@@ -321,10 +324,11 @@ function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual 
       <div style={{
         fontFamily: "'Gilda Display', 'Cormorant Garamond', Georgia, serif",
         fontSize: 18, fontWeight: 400,
-        letterSpacing: "0.2px",
-        color: hovered ? "#ffffff" : "rgba(255, 255, 255, 0.92)",
+        letterSpacing: isFirst ? "0.3px" : "0.2px",
+        color: hovered ? "#ffffff" : (isFirst ? "#ffffff" : "rgba(255, 255, 255, 0.92)"),
         marginBottom: showDesc && description ? 6 : 0,
-        transition: "color 0.22s ease",
+        transition: "color 0.2s ease, text-shadow 0.2s ease",
+        textShadow: isFirst && !hovered ? "0 0 6px rgba(255, 255, 255, 0.12)" : "none",
       }}>
         {name}
       </div>
