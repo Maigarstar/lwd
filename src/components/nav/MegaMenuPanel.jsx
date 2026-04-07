@@ -94,10 +94,10 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
         left:       0,
         right:      0,
         zIndex:     698,
-        background: bg,
-        borderTop:  `1px solid ${borderColor}`,
-        borderBottom:`1px solid ${borderColor}`,
-        boxShadow:  shadow,
+        background: "#faf8f5",
+        borderTop:  "1px solid rgba(224, 216, 200, 0.6)",
+        borderBottom: "1px solid rgba(224, 216, 200, 0.4)",
+        boxShadow:  "0 12px 32px rgba(0, 0, 0, 0.06)",
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
@@ -105,12 +105,12 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
       <div style={{
         maxWidth: item.panel_full_width ? "100%" : (item.panel_max_width || 1200),
         margin:   "0 auto",
-        padding:  `${padding}px clamp(20px, 5vw, 40px)`,
+        padding:  `56px clamp(40px, 8vw, 60px)`,
         display:  "grid",
         gridTemplateColumns: window.innerWidth < 1024
           ? "1fr"
-          : (hasFeatured ? "1fr 300px" : "1fr"),
-        gap: window.innerWidth < 1024 ? 32 : 56,
+          : (hasFeatured || menuItems.length > 0 ? "1fr 280px" : "1fr"),
+        gap: window.innerWidth < 1024 ? 32 : 48,
         alignItems: "start",
       }}>
 
@@ -118,9 +118,9 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
         <section aria-label={`${item.label} categories`}>
           {/* Section heading */}
           <h2 style={{
-            fontFamily: SANS, fontSize: 10, fontWeight: 700,
-            letterSpacing: "0.14em", textTransform: "uppercase",
-            color: accent, marginBottom: 24,
+            fontFamily: SANS, fontSize: 11, fontWeight: 600,
+            letterSpacing: "0.15em", textTransform: "uppercase",
+            color: accent, marginBottom: 32,
             display: "flex", alignItems: "center", gap: 12,
           }}>
             <span style={{ display: "inline-block", width: 24, height: 1, background: accent }} />
@@ -180,59 +180,87 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
           )}
         </section>
 
-        {/* ── Right: featured article ── */}
+        {/* ── Right: featured article (refined, minimal) ── */}
         {hasFeatured && (
-          <aside aria-label="Featured article">
+          <aside aria-label="Featured article" style={{ animation: "subtle-fade-slide 0.4s ease-out 100ms both" }}>
             <a
               href={`/magazine/${featuredPost.slug}`}
-              style={{ textDecoration: "none", display: "block" }}
+              style={{
+                textDecoration: "none",
+                display: "block",
+                padding: "32px",
+                background: `linear-gradient(135deg, rgba(11, 9, 6, 0.02), rgba(201, 168, 76, 0.04))`,
+                border: "1px solid rgba(201, 168, 76, 0.15)",
+                borderRadius: "8px",
+                position: "sticky",
+                top: "20px",
+              }}
               aria-label={`Featured: ${featuredPost.title}`}
             >
-            <div style={{
-              fontFamily: SANS, fontSize: 9, fontWeight: 700,
-              letterSpacing: "0.12em", textTransform: "uppercase",
-              color: accent, marginBottom: 16,
-            }}>
-              Latest Story
-            </div>
-
-            {featuredPost.featured_image && (
               <div style={{
-                width: "100%", paddingBottom: "62%",
-                position: "relative",
-                background: "#e8e4dc",
-                borderRadius: radius / 2 || 2,
-                overflow: "hidden",
-                marginBottom: 16,
+                fontFamily: SANS, fontSize: 10, fontWeight: 700,
+                letterSpacing: "0.15em", textTransform: "uppercase",
+                color: accent, marginBottom: 20,
+                display: "flex", alignItems: "center", gap: 8,
               }}>
-                <img
-                  src={featuredPost.featured_image}
-                  alt={featuredPost.title}
-                  style={{
-                    position: "absolute", inset: 0,
-                    width: "100%", height: "100%",
-                    objectFit: "cover",
-                    transition: "transform 0.4s ease",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.03)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
-                />
+                <span>✦</span>
+                FEATURED IN MAGAZINE
               </div>
-            )}
 
-            <div style={{
-              fontFamily: SERIF, fontSize: 19, fontWeight: 500,
-              color: textColor, lineHeight: 1.35, marginBottom: 8,
-            }}>
-              {featuredPost.title}
-            </div>
-
-            {featuredPost.read_time && (
-              <div style={{ fontFamily: SANS, fontSize: 11, color: textColor + "70" }}>
-                {featuredPost.read_time} min read
+              <div style={{
+                fontFamily: SERIF, fontSize: 18, fontWeight: 500,
+                letterSpacing: "0.2px",
+                color: "#0b0906", lineHeight: 1.35, marginBottom: 14,
+              }}>
+                {featuredPost.title}
               </div>
-            )}
-          </a>
+
+              {featuredPost.excerpt && (
+                <div style={{
+                  fontFamily: SANS, fontSize: 13, fontWeight: 400,
+                  lineHeight: 1.6,
+                  color: "#5a5045", marginBottom: 16,
+                }}>
+                  {featuredPost.excerpt.substring(0, 100)}...
+                </div>
+              )}
+
+              {featuredPost.read_time && (
+                <div style={{ fontFamily: SANS, fontSize: 12, color: "#8a7d6a", marginBottom: 16 }}>
+                  ⏱️ {featuredPost.read_time} min read
+                </div>
+              )}
+
+              <div style={{
+                fontFamily: SANS, fontSize: 12, fontWeight: 600,
+                letterSpacing: "0.8px", color: accent,
+                textDecoration: "none",
+                transition: "all 0.2s ease",
+                display: "inline-block",
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = "#e8c96a";
+                e.currentTarget.style.textDecoration = "underline";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = accent;
+                e.currentTarget.style.textDecoration = "none";
+              }}>
+                READ MORE →
+              </div>
+            </a>
+            <style>{`
+              @keyframes subtle-fade-slide {
+                from {
+                  opacity: 0;
+                  transform: translateY(8px);
+                }
+                to {
+                  opacity: 1;
+                  transform: translateY(0);
+                }
+              }
+            `}</style>
           </aside>
         )}
       </div>
@@ -264,27 +292,36 @@ function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual 
       href={href}
       style={{
         display: "block",
-        padding: "14px 0",
-        borderBottom: `1px solid ${borderColor}`,
+        padding: "16px 0",
+        borderBottom: `1px solid rgba(224, 216, 200, 0.3)`,
         textDecoration: "none",
+        transition: "all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        transform: hovered ? "translateX(4px)" : "translateX(0)",
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div style={{
-        fontFamily: "'Inter', system-ui, sans-serif",
-        fontSize: 13, fontWeight: 500,
-        color: hovered ? accent : textColor,
-        marginBottom: showDesc && description ? 4 : 0,
-        transition: "color 0.15s",
+        fontFamily: SERIF,
+        fontSize: 15, fontWeight: 500,
+        letterSpacing: "0.3px",
+        color: hovered ? accent : "#0b0906",
+        marginBottom: showDesc && description ? 6 : 0,
+        transition: "color 0.2s ease",
       }}>
         {name}
       </div>
       {showDesc && description && (
         <div style={{
-          fontFamily: "'Inter', system-ui, sans-serif",
-          fontSize: 11, color: textColor + "75",
-          lineHeight: 1.45,
+          fontFamily: SANS,
+          fontSize: 12,
+          fontWeight: 400,
+          color: "#8a7d6a",
+          lineHeight: 1.5,
+          display: "-webkit-box",
+          WebkitLineClamp: 1,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
         }}>
           {description}
         </div>
