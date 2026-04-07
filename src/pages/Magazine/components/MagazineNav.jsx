@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { CATEGORIES } from '../data/categories';
 import { getPostsByCategory, POSTS } from '../data/posts';
 import NewsletterCapture from './NewsletterCapture';
+import MagazineMegaMenu from './MagazineMegaMenu';
 import { useIsMobile } from '../../../components/profile/ProfileDesignSystem';
 
 const supabase = createClient(
@@ -762,52 +763,19 @@ export default function MagazineNav({
           </div>
         </div>
 
-        {/* Category row, desktop only */}
+        {/* Mega menu navigation, desktop only */}
         {!isMobile && (
-          <div className="mag-cats" ref={scrollRef} style={{ position: 'relative' }}>
-            <button
-              data-active={!activeCategoryId ? 'true' : 'false'}
-              className={`mag-cat-btn${!activeCategoryId ? ' active' : ''}`}
-              onClick={onNavigateHome}
-            >
-              All
-            </button>
-            {categories.map(cat => {
-              const isFashion = cat.id === 'fashion';
-              const isActive = activeCategoryId === cat.id;
-              if (isFashion) {
-                return (
-                  <div
-                    key={cat.id}
-                    style={{ position: 'relative' }}
-                    onMouseEnter={openMega}
-                    onMouseLeave={closeMega}
-                  >
-                    <button
-                      data-active={isActive ? 'true' : 'false'}
-                      className={`mag-cat-btn mag-fashion-btn${isActive ? ' active' : ''}${megaOpen ? ' mega-open' : ''}`}
-                      onClick={() => {
-                        if (onNavigateFashion) onNavigateFashion();
-                        else onNavigateCategory && onNavigateCategory(cat.id);
-                      }}
-                    >
-                      {cat.label}
-                      <span style={{ fontSize: 8, marginLeft: 3, opacity: 0.6 }}>▾</span>
-                    </button>
-                  </div>
-                );
-              }
-              return (
-                <button
-                  key={cat.id}
-                  data-active={isActive ? 'true' : 'false'}
-                  className={`mag-cat-btn${isActive ? ' active' : ''}`}
-                  onClick={() => onNavigateCategory && onNavigateCategory(cat.id)}
-                >
-                  {cat.label}
-                </button>
-              );
-            })}
+          <div style={{
+            borderTop: `1px solid ${dividerColor}`,
+            background: navBg,
+            padding: '0 clamp(20px, 4vw, 60px)',
+          }}>
+            <MagazineMegaMenu
+              isLight={isLight}
+              activeCategoryId={activeCategoryId}
+              onNavigateCategory={onNavigateCategory}
+              categories={categories}
+            />
           </div>
         )}
 
