@@ -3,14 +3,11 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": ["/tmp/start-dev.sh"],
       "port": 5176,
       "autoPort": false,
-      "cwd": ".",
-      "env": {
-        "VITE_PORT": "5176"
-      }
+      "cwd": "/Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan"
     }
   ]
 }

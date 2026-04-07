@@ -299,7 +299,7 @@ export async function savePost(formData) {
               blockRestoreFailed: true
             };
           }
-          if (process.env.DEBUG_MAGAZINE) console.log('[magazineService] Blocks restored from backup');
+          if (import.meta.env.VITE_DEBUG_MAGAZINE) console.log('[magazineService] Blocks restored from backup');
         } else {
           return {
             data: null,
@@ -645,23 +645,38 @@ export async function suggestArticleLinks({ title, content, tags, categorySlug, 
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const CAT_FIELD_MAP = {
-  id:               'id',
-  slug:             'slug',
-  name:             'name',
-  label:            'name',           // Alias: form may use 'label'
-  description:      'description',
-  heroImage:        'hero_image',
-  accentColor:      'accent_color',
-  heroTitle:        'hero_title',
-  cardStyle:        'card_style',
-  defaultCardStyle: 'card_style',     // Alias: form may use this
-  sortOrder:        'sort_order',
-  parentSlug:       'parent_category_slug',  // Subcategories support
-  seoTitle:         'seo_title',
-  seoDescription:   'seo_description',
-  metaDescription:  'seo_description', // Alias
-  ogImage:          'og_image',        // OG image for social
-  seoKeywords:      'seo_keywords',
+  id:                    'id',
+  slug:                  'slug',
+  name:                  'name',
+  label:                 'name',           // Alias: form may use 'label'
+  description:           'description',
+  heroImage:             'hero_image',
+  accentColor:           'accent_color',
+  heroTitle:             'hero_title',
+  cardStyle:             'card_style',
+  defaultCardStyle:      'card_style',     // Alias: form may use this
+  sortOrder:             'sort_order',
+  parentSlug:            'parent_category_slug',  // Subcategories support
+  seoTitle:              'seo_title',
+  seoDescription:        'seo_description',
+  metaDescription:       'seo_description', // Alias
+  ogImage:               'og_image',        // OG image for social
+  seoKeywords:           'seo_keywords',
+  // Tier 1: Core AI & Aura Integration (added 20260407)
+  aiDiscoveryEnabled:    'ai_discovery_enabled',
+  aiCuratorPrompt:       'ai_curator_prompt',
+  editorialVoice:        'editorial_voice',
+  discoveryKeywords:     'discovery_keywords',
+  targetAudience:        'target_audience',
+  auraPriority:          'aura_priority',
+  // Tier 1: Homepage & Editorial Promotion (added 20260407)
+  featuredOnHomepage:    'featured_on_homepage',
+  homepageSortOrder:     'homepage_sort_order',
+  isActive:              'is_active',
+  icon:                  'icon',
+  // Tier 2: Content Strategy (added 20260407)
+  contentGuidelines:     'content_guidelines',
+  featuredUntil:         'featured_until',
 };
 
 function mapCatToDb(data) {
@@ -681,7 +696,7 @@ function mapCatToDb(data) {
   }
 
   // Log payload for debugging FK constraint issues (use DEBUG_MAGAZINE env var to enable)
-  if (process.env.DEBUG_MAGAZINE && (data.label || data.slug)) {
+  if (import.meta.env.VITE_DEBUG_MAGAZINE && (data.label || data.slug)) {
     console.log('[mapCatToDb] Saving category:', {
       slug: row.slug,
       name: row.name,

@@ -195,7 +195,7 @@ function SidebarPostRow({ post, onClick, light = false }) {
 }
 
 // ─── Layout A: Full-Width Editorial ──────────────────────────────────────────
-function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, isLight, onToggleLight, footerNav }) {
+function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, onEdit, isLight, onToggleLight, footerNav }) {
   const T = getMagTheme(isLight);
   const goArticle = p => onNavigateArticle && onNavigateArticle(p.slug);
 
@@ -208,6 +208,7 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
         onNavigateHome={onNavigateHome}
         onNavigateCategory={onNavigateCategory}
         onNavigateArticle={goArticle}
+        onEdit={onEdit}
         isLight={isLight}
         onToggleLight={onToggleLight}
         topOffset={60}
@@ -292,7 +293,7 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
 }
 
 // ─── Layout B: Magazine with Sidebar ─────────────────────────────────────────
-function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, isLight, onToggleLight, footerNav }) {
+function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, onEdit, isLight, onToggleLight, footerNav }) {
   const T = getMagTheme(isLight);
   const [sidebarFixed, setSidebarFixed] = useState(false);
   const sidebarAnchorRef = useRef(null);
@@ -317,6 +318,7 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
         onNavigateHome={onNavigateHome}
         onNavigateCategory={onNavigateCategory}
         onNavigateArticle={goArticle}
+        onEdit={onEdit}
         isLight={isLight}
         onToggleLight={onToggleLight}
         topOffset={60}
@@ -509,7 +511,7 @@ function ArticleNotFound({ onNavigateHome }) {
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
-export default function MagazineArticlePage({ slug, onNavigateArticle, onNavigateHome, onNavigateCategory, isLight = false, onToggleLight, footerNav = {} }) {
+export default function MagazineArticlePage({ slug, onNavigateArticle, onNavigateHome, onNavigateCategory, onEdit, isLight = false, onToggleLight, footerNav = {} }) {
   const [post, setPost] = useState(() => getPostBySlug(slug));
   const [loading, setLoading] = useState(true);
 
@@ -530,7 +532,8 @@ export default function MagazineArticlePage({ slug, onNavigateArticle, onNavigat
     ? `${SITE_URL}/magazine/${post.category_slug}/${post.slug}`
     : undefined;
 
-  const sharedProps = { post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, isLight, onToggleLight, footerNav };
+  const handleEdit = () => onEdit && onEdit(post.slug);
+  const sharedProps = { post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, onEdit: handleEdit, isLight, onToggleLight, footerNav };
 
   return (
     <>

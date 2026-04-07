@@ -1077,6 +1077,20 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
 
   const editingPost = localPosts.find(p => p.id === editingId) || null;
 
+  // ── Deep-link: open specific article by slug (from "Edit" on article page) ──
+  useEffect(() => {
+    if (!dbLoaded) return;
+    try {
+      const slug = sessionStorage.getItem('magazineStudio_editSlug');
+      if (!slug) return;
+      sessionStorage.removeItem('magazineStudio_editSlug');
+      const match = localPosts.find(p => p.slug === slug);
+      if (match) {
+        setModeAndId('article-edit', match.id);
+      }
+    } catch {}
+  }, [dbLoaded, localPosts]);
+
   // Safety: if article-edit but post not found (e.g. was a new unsaved article), fall back to list
   // Wait for DB to load first — otherwise DB-only posts aren't in localPosts yet
   useEffect(() => {

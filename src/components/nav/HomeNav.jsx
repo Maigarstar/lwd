@@ -254,6 +254,7 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
         const { data, error } = await supabase
           .from("nav_items")
           .select("*")
+          .eq("section", "directory")
           .order("position", { ascending: true });
 
         if (error) {

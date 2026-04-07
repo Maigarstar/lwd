@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { CATEGORIES } from '../data/categories';
 import { getPostsByCategory, POSTS } from '../data/posts';
 import NewsletterCapture from './NewsletterCapture';
+import MegaMenuPanel from '../../../components/nav/MegaMenuPanel';
 import { useIsMobile } from '../../../components/profile/ProfileDesignSystem';
 
 const supabase = createClient(
@@ -556,33 +557,44 @@ export default function MagazineNav({
   const [categories, setCategories] = useState(CATEGORIES); // Start with static data
   const [loadingCategories, setLoadingCategories] = useState(true);
   const scrollRef = useRef(null);
+  const catBarRef = useRef(null);
   const megaTimeout = useRef(null);
   const isMobile = useIsMobile(768);
 
-  // Load magazine nav items from database
+  // Load magazine categories from master (magazine_categories table via CategoryEditor)
   useEffect(() => {
     async function loadCategories() {
       try {
-        const { data, error } = await supabase
-          .from('mag_nav_items')
+        // Fetch ALL categories from the master source
+        const { data: allCategories, error: categoriesError } = await supabase
+          .from('magazine_categories')
           .select('*')
-          .eq('visible', true)
-          .order('position', { ascending: true });
+          .order('sort_order', { ascending: true });
 
-        if (error) throw error;
+        if (categoriesError) throw categoriesError;
 
-        // Convert database items to category format
-        if (data && data.length > 0) {
-          const dbCategories = data.map(item => ({
-            id: item.slug,
-            label: item.label,
-            slug: item.slug,
-            description: item.description,
-          }));
-          setCategories(dbCategories);
+        if (allCategories && allCategories.length > 0) {
+          // Build tree: attach children to their parents using parentSlug
+          const catMap = {};
+          allCategories.forEach(cat => { catMap[cat.slug] = { ...cat, children: [] }; });
+          allCategories.forEach(cat => {
+            if (cat.parent_category_slug && catMap[cat.parent_category_slug]) {
+              catMap[cat.parent_category_slug].children.push(catMap[cat.slug]);
+            }
+          });
+
+          // Top-level categories = those without a parent
+          const topLevel = allCategories
+            .filter(cat => !cat.parent_category_slug)
+            .map(cat => catMap[cat.slug]);
+
+          setCategories(topLevel);
+          console.log('[MagazineNav] Loaded', topLevel.length, 'categories from magazine_categories master');
+        } else {
+          setCategories(CATEGORIES);
         }
       } catch (err) {
-        console.error('Failed to load magazine categories:', err);
+        console.error('[MagazineNav] Failed to load magazine categories:', err);
         // Fall back to static data
         setCategories(CATEGORIES);
       } finally {
@@ -607,6 +619,13 @@ export default function MagazineNav({
 
   const openMega  = () => { clearTimeout(megaTimeout.current); setMegaOpen(true); };
   const closeMega = () => { megaTimeout.current = setTimeout(() => setMegaOpen(false), 180); };
+
+  // Mega menu panel state for category mega menus
+  const [openMegaPanel, setOpenMegaPanel] = useState(null);
+  const megaPanelTimeout = useRef(null);
+  const openCatMega = (id) => { clearTimeout(megaPanelTimeout.current); setOpenMegaPanel(id); };
+  const startCloseCatMega = () => { megaPanelTimeout.current = setTimeout(() => setOpenMegaPanel(null), 450); };
+  const cancelCloseCatMega = () => { clearTimeout(megaPanelTimeout.current); };
 
   const navBg = isLight ? 'rgba(250,250,248,0.97)' : 'rgba(10,10,10,0.96)';
   const borderColor = scrolled
@@ -763,6 +782,171 @@ export default function MagazineNav({
         </div>
 
         {/* Magazine mega menu is now handled by main navigation HomeNav */}
+
+        {/* Magazine Category Navigation Row */}
+        <div
+          className="mag-cats"
+          ref={(el) => { scrollRef.current = el; catBarRef.current = el; }}
+          style={{
+            background: navBg,
+            borderTop: `1px solid ${dividerColor}`,
+            borderBottom: `1px solid ${dividerColor}`,
+          }}
+        >
+          {/* ALL button */}
+          <button
+            className={`mag-cat-btn ${!activeCategoryId ? 'active' : ''}`}
+            onClick={() => onNavigateCategory && onNavigateCategory(null)}
+            style={{
+              color: !activeCategoryId ? GOLD : catInactive,
+              borderBottomColor: !activeCategoryId ? GOLD : 'transparent',
+            }}
+          >
+            All
+          </button>
+
+          {/* Category buttons (with mega menu support) */}
+          {categories.map(cat => {
+            const isMega = cat.type === 'mega_menu' || cat.type === 'dropdown';
+            const catId = cat.slug || cat.id;
+            const isActive = activeCategoryId === catId;
+
+            if (isMega) {
+              return (
+                <div
+                  key={cat.id}
+                  style={{ position: 'relative', display: 'inline-flex' }}
+                  onMouseEnter={() => openCatMega(cat.id)}
+                  onMouseLeave={startCloseCatMega}
+                >
+                  <button
+                    className={`mag-cat-btn ${isActive ? 'active' : ''}`}
+                    data-active={isActive}
+                    style={{
+                      color: isActive || openMegaPanel === cat.id ? GOLD : catInactive,
+                      borderBottomColor: openMegaPanel === cat.id ? GOLD : (isActive ? GOLD : 'transparent'),
+                      display: 'flex', alignItems: 'center', gap: 4,
+                    }}
+                  >
+                    {cat.label}
+                    <span style={{
+                      fontSize: 8, opacity: 0.5,
+                      transition: 'transform 0.2s',
+                      transform: openMegaPanel === cat.id ? 'rotate(180deg)' : 'rotate(0deg)',
+                    }}>▾</span>
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <button
+                key={cat.id}
+                className={`mag-cat-btn ${isActive ? 'active' : ''}`}
+                data-active={isActive}
+                onClick={() => onNavigateCategory && onNavigateCategory(catId)}
+                style={{
+                  color: isActive ? GOLD : catInactive,
+                  borderBottomColor: isActive ? GOLD : 'transparent',
+                }}
+              >
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Mega Menu Panel (absolute overlay, flush below category bar) ── */}
+        {openMegaPanel && (() => {
+          const megaItem = categories.find(c => c.id === openMegaPanel);
+          if (!megaItem || !megaItem.children || megaItem.children.length === 0) return null;
+          const cols = Math.min(megaItem.children.length, 5);
+          return (
+            <div
+              onMouseEnter={cancelCloseCatMega}
+              onMouseLeave={startCloseCatMega}
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                zIndex: 699,
+                background: isLight
+                  ? 'linear-gradient(to bottom, rgba(250,248,245,0.98), rgba(245,240,232,0.99))'
+                  : 'linear-gradient(to bottom, rgba(8,6,4,0.95), rgba(4,2,0,0.98))',
+                backdropFilter: 'blur(14px)',
+                WebkitBackdropFilter: 'blur(14px)',
+                borderTop: `1px solid ${isLight ? 'rgba(201,168,76,0.12)' : 'rgba(201,168,76,0.15)'}`,
+                borderBottom: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(201,168,76,0.08)'}`,
+                boxShadow: isLight ? '0 6px 24px rgba(0,0,0,0.06)' : '0 8px 32px rgba(0,0,0,0.4)',
+                animation: 'magMegaSlide 0.7s cubic-bezier(0.16, 0.7, 0.3, 1) both',
+              }}
+            >
+              <div style={{
+                maxWidth: 1280, margin: '0 auto',
+                padding: '32px clamp(20px, 4vw, 64px)',
+              }}>
+                {/* Section heading */}
+                <div style={{
+                  fontFamily: FU, fontSize: 10, fontWeight: 600,
+                  letterSpacing: '2px', textTransform: 'uppercase',
+                  color: GOLD, marginBottom: 24,
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <span style={{ width: 20, height: 1, background: `linear-gradient(90deg, ${GOLD}, transparent)` }} />
+                  {megaItem.label}
+                </div>
+                {/* Children grid */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                  gap: '16px 24px',
+                }}>
+                  {megaItem.children.map((child, idx) => (
+                    <a
+                      key={child.id}
+                      href={child.url || `/magazine/${child.slug}`}
+                      style={{
+                        display: 'block', padding: '12px 0 12px 4px',
+                        borderBottom: `1px solid ${isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.04)'}`,
+                        textDecoration: 'none',
+                        transition: 'transform 0.2s, color 0.2s',
+                        fontFamily: FD, fontSize: 15, fontWeight: 400,
+                        letterSpacing: '0.2px',
+                        color: isLight ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.85)',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.transform = 'translateX(4px)';
+                        e.currentTarget.style.color = isLight ? '#000' : '#fff';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.transform = 'translateX(0)';
+                        e.currentTarget.style.color = isLight ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.85)';
+                      }}
+                    >
+                      {child.label}
+                      {child.description && (
+                        <div style={{
+                          fontFamily: FU, fontSize: 11, marginTop: 2,
+                          color: isLight ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)',
+                          fontWeight: 400,
+                        }}>
+                          {child.description}
+                        </div>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              </div>
+              <style>{`
+                @keyframes magMegaSlide {
+                  from { opacity: 0; transform: translateY(-3px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+              `}</style>
+            </div>
+          );
+        })()}
 
         {/* Filter bar, desktop only, shown when filterSubcats provided */}
         {!isMobile && filterSubcats?.length > 0 && (

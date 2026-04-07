@@ -37,6 +37,7 @@ const DEFAULT_LAYOUT = 'curated';
 export default function MagazineHomePage({
   onNavigateArticle,
   onNavigateCategory,
+  onEdit,
   layoutStyle = DEFAULT_LAYOUT,
   isLight = false,
   onToggleLight,
@@ -109,6 +110,7 @@ export default function MagazineHomePage({
         onNavigateHome={() => {}}
         onNavigateCategory={goCategory}
         onNavigateArticle={goArticle}
+        onEdit={onEdit}
         isLight={isLight}
         onToggleLight={onToggleLight}
         topOffset={60}

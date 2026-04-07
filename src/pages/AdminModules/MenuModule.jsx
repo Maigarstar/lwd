@@ -81,6 +81,14 @@ function DeleteDialog({ item, onConfirm, onCancel, C }) {
 export default function MenuModule({ C }) {
   const G = C?.gold || "#c9a84c";
 
+  // ── Tree section selector ─────────────────────────────────────────────
+  const SECTIONS = [
+    { key: "directory", label: "Directory" },
+    { key: "magazine", label: "Magazine" },
+    // Future: { key: "shop", label: "Shop" },
+  ];
+  const [activeSection, setActiveSection] = useState("directory");
+
   // ── Nav items state ─────────────────────────────────────────────────────
   const [allItems, setAllItems]     = useState([]);
   const [tree, setTree]             = useState([]);
@@ -95,7 +103,6 @@ export default function MenuModule({ C }) {
 
   // ── UI state ────────────────────────────────────────────────────────────
   const [leftTab, setLeftTab]         = useState("items"); // "items" | "config" | "branding"
-  // Magazine categories now managed as nav_items children via the Items tab
   const [toast, setToast]             = useState(null);
   const [deleting, setDeleting]       = useState(null);   // item.id being deleted
   const [moving, setMoving]           = useState(null);   // item.id being reordered
@@ -109,11 +116,12 @@ export default function MenuModule({ C }) {
   const leftPanelRef = useRef(null);
   const editorRef    = useRef(null);
 
-  // ── Load nav items ───────────────────────────────────────────────────────
+  // ── Load nav items (filtered by active section) ──────────────────────────
   async function load() {
     const { data, error } = await supabase
       .from("nav_items")
       .select("*")
+      .eq("section", activeSection)
       .order("position", { ascending: true });
     if (error) {
       setToast({ msg: "Failed to load: " + error.message, type: "error" });
@@ -135,7 +143,7 @@ export default function MenuModule({ C }) {
     if (data) setNavConfig({ ...DEFAULT_NAV_CONFIG, ...data });
   }
 
-  useEffect(() => { load(); loadNavConfig(); }, []);
+  useEffect(() => { load(); loadNavConfig(); }, [activeSection]);
 
   // ── Select item (from tree or canvas click) ──────────────────────────────
   function handleSelectItem(item) {
@@ -179,17 +187,17 @@ export default function MenuModule({ C }) {
           .update({ ...form, updated_at: new Date().toISOString() })
           .eq("id", editingItem.id);
         if (error) throw error;
-        const { data } = await supabase.from("nav_items").select("*").order("position", { ascending: true });
+        const { data } = await supabase.from("nav_items").select("*").eq("section", activeSection).order("position", { ascending: true });
         const flat = data || [];
         setAllItems(flat);
         setTree(buildTree(flat));
         const fresh = flat.find(i => i.id === editingItem.id);
         if (fresh) setEditingItem(fresh);
       } else {
-        // Insert new — close panel, toast
+        // Insert new — close panel, toast (tag with current section)
         const siblings = allItems.filter(i => (i.parent_id ?? null) === (form.parent_id ?? null));
         const nextPos  = siblings.length > 0 ? Math.max(...siblings.map(i => i.position)) + 1 : 1;
-        const { error } = await supabase.from("nav_items").insert([{ ...form, position: nextPos }]);
+        const { error } = await supabase.from("nav_items").insert([{ ...form, position: nextPos, section: activeSection }]);
         if (error) throw error;
         handleCloseEditor();
         await load();
@@ -311,6 +319,26 @@ export default function MenuModule({ C }) {
           flexShrink: window.innerWidth < 1400 ? 1 : 0,
           minWidth: 0,
         }}>
+
+          {/* ── Section selector (Directory / Magazine / Shop) ── */}
+          <div style={{
+            display: "flex", gap: 8, marginBottom: 12, alignItems: "center",
+          }}>
+            <span style={{
+              fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.12em",
+              textTransform: "uppercase", color: C?.grey || "#8a7d6a",
+            }}>Tree:</span>
+            {SECTIONS.map(s => (
+              <button key={s.key} onClick={() => { setActiveSection(s.key); handleCloseEditor(); }} style={{
+                background: activeSection === s.key ? (C?.bg || "#0b0906") : "transparent",
+                border: `1px solid ${activeSection === s.key ? G : (C?.border || "#2a2218")}`,
+                borderRadius: 20, padding: "5px 16px", cursor: "pointer",
+                fontFamily: SERIF, fontSize: 13, fontStyle: "italic",
+                color: activeSection === s.key ? G : (C?.grey || "#8a7d6a"),
+                transition: "all 0.2s",
+              }}>{s.label}</button>
+            ))}
+          </div>
 
           {/* Tab switcher */}
           <div style={{

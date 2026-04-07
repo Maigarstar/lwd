@@ -8,6 +8,7 @@ import {
   GoldBtn, GhostBtn, Divider, SectionLabel,
 } from './StudioShared';
 import MagazineMediaUploader from './MagazineMediaUploader';
+import ContentGuidelinesEditor from './ContentGuidelinesEditor';
 import CategoryLayoutCurated    from '../Magazine/categoryLayouts/CategoryLayoutCurated';
 import CategoryLayoutEditorial  from '../Magazine/categoryLayouts/CategoryLayoutEditorial';
 import CategoryLayoutGrid       from '../Magazine/categoryLayouts/CategoryLayoutGrid';
@@ -148,6 +149,132 @@ function SEOPanel({ data, onChange }) {
           value={data.ogImage ?? ''}
           onChange={v => onChange({ ...data, ogImage: v })}
           placeholder={data.heroImage || 'https://...'}
+        />
+      </Field>
+    </div>
+  );
+}
+
+// ── Aura & AI Panel ────────────────────────────────────────────────────────────
+function AuraAIPanel({ data, onChange }) {
+  return (
+    <div>
+      <SectionLabel>Aura & AI</SectionLabel>
+
+      <Toggle
+        label="Enable Aura Discovery"
+        hint="Allow Aura to recommend this category to users"
+        value={data.aiDiscoveryEnabled !== false}
+        onChange={v => onChange({ ...data, aiDiscoveryEnabled: v })}
+      />
+
+      <Field label="AI Curator Prompt" hint="Custom instructions for Aura when curating this category">
+        <Textarea
+          value={data.aiCuratorPrompt ?? ''}
+          onChange={v => onChange({ ...data, aiCuratorPrompt: v })}
+          placeholder="e.g., Fashion-forward luxury wedding dresses with emphasis on sustainable materials..."
+          minHeight={70}
+        />
+      </Field>
+
+      <Field label="Editorial Voice" hint="How this category should sound and feel">
+        <Input
+          value={data.editorialVoice ?? ''}
+          onChange={v => onChange({ ...data, editorialVoice: v })}
+          placeholder="e.g., elegant, luxury-focused, expert-led"
+        />
+      </Field>
+
+      <Field label="Discovery Keywords" hint="Keywords for matching users to this category (comma-separated)">
+        <Textarea
+          value={(data.discoveryKeywords || []).join(', ')}
+          onChange={v => onChange({ ...data, discoveryKeywords: v.split(',').map(k => k.trim()).filter(k => k) })}
+          placeholder="wedding dress, bridal, luxury fashion"
+          minHeight={50}
+        />
+      </Field>
+
+      <Field label="Target Audience" hint="Who is this category primarily for?">
+        <Input
+          value={data.targetAudience ?? ''}
+          onChange={v => onChange({ ...data, targetAudience: v })}
+          placeholder="e.g., luxury brides, age 25-40, destination couples"
+        />
+      </Field>
+
+      <Field label="Aura Priority (0-100)" hint="Higher = Aura will promote this category more aggressively">
+        <Input
+          type="number"
+          min="0"
+          max="100"
+          value={data.auraPriority ?? 50}
+          onChange={v => onChange({ ...data, auraPriority: parseInt(v) || 50 })}
+        />
+      </Field>
+    </div>
+  );
+}
+
+// ── Content Rules Panel ────────────────────────────────────────────────────────
+function ContentRulesPanel({ data, onChange }) {
+  return (
+    <div>
+      <SectionLabel>Content Guidelines</SectionLabel>
+      <ContentGuidelinesEditor
+        value={data.contentGuidelines || {}}
+        onChange={v => onChange({ ...data, contentGuidelines: v })}
+      />
+    </div>
+  );
+}
+
+// ── Homepage & Promotion Panel ─────────────────────────────────────────────────
+function HomepagePromotionPanel({ data, onChange }) {
+  return (
+    <div>
+      <SectionLabel>Homepage & Promotion</SectionLabel>
+
+      <Toggle
+        label="Featured on Homepage"
+        hint="Display this category on the magazine homepage"
+        value={data.featuredOnHomepage === true}
+        onChange={v => onChange({ ...data, featuredOnHomepage: v })}
+      />
+
+      {data.featuredOnHomepage && (
+        <>
+          <Field label="Homepage Sort Order" hint="Lower number = earlier on page">
+            <Input
+              type="number"
+              min="0"
+              value={data.homepageSortOrder ?? 0}
+              onChange={v => onChange({ ...data, homepageSortOrder: parseInt(v) || 0 })}
+            />
+          </Field>
+
+          <Field label="Featured Until (Optional)" hint="When should the featured status expire? Leave empty for indefinite.">
+            <Input
+              type="datetime-local"
+              value={data.featuredUntil?.slice(0, 16) ?? ''}
+              onChange={v => onChange({ ...data, featuredUntil: v ? new Date(v).toISOString() : null })}
+            />
+          </Field>
+        </>
+      )}
+
+      <Toggle
+        label="Category Active"
+        hint="Inactive categories won't appear in navigation or Aura discovery"
+        value={data.isActive !== false}
+        onChange={v => onChange({ ...data, isActive: v })}
+      />
+
+      <Field label="Icon (Optional)" hint="Emoji or icon name for visual branding">
+        <Input
+          value={data.icon ?? ''}
+          onChange={v => onChange({ ...data, icon: v })}
+          placeholder="e.g., 👗, 💍, ✈️"
+          maxLength={2}
         />
       </Field>
     </div>
@@ -421,7 +548,15 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const [creatingNew, setCreatingNew] = useState(false);
-  const [newCatData, setNewCatData] = useState({ slug: '', label: '', description: '', accentColor: '#c9a96e', cardStyle: 'standard', parentSlug: '' });
+  const [newCatData, setNewCatData] = useState({
+    slug: '', label: '', description: '', accentColor: '#c9a96e', cardStyle: 'standard', parentSlug: '',
+    // New AI/Aura fields
+    aiDiscoveryEnabled: true, aiCuratorPrompt: '', editorialVoice: '', discoveryKeywords: [], targetAudience: '', auraPriority: 50,
+    // Homepage promotion
+    featuredOnHomepage: false, homepageSortOrder: 0, isActive: true, icon: '',
+    // Content guidelines
+    contentGuidelines: { tone: '', formality: '', topics: [], rules: [], avoid: [] }, featuredUntil: null,
+  });
   const [newCatError, setNewCatError] = useState(null);
   const [newCatSuccess, setNewCatSuccess] = useState(null);
   const [dbCategories, setDbCategories] = useState([]);  // Track DB categories for validation
@@ -797,9 +932,15 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
             </span>
           </div>
 
-          {/* Scrollable SEO form */}
+          {/* Scrollable form with 6 editorial sections */}
           <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
             <SEOPanel data={data} onChange={d => update(d)} />
+            <Divider style={{ margin: '32px 0' }} />
+            <AuraAIPanel data={data} onChange={d => update(d)} />
+            <Divider style={{ margin: '32px 0' }} />
+            <ContentRulesPanel data={data} onChange={d => update(d)} />
+            <Divider style={{ margin: '32px 0' }} />
+            <HomepagePromotionPanel data={data} onChange={d => update(d)} />
           </div>
         </div>
 
@@ -818,20 +959,18 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
             onClick={e => e.stopPropagation()}
             style={{
               background: S.surface, border: `1px solid ${S.border}`,
-              borderRadius: 4, padding: 32, width: '100%', maxWidth: 480,
+              borderRadius: 4, width: '100%', maxWidth: 480, maxHeight: '90vh',
+              display: 'flex', flexDirection: 'column',
             }}
           >
-            <h2 style={{ fontFamily: FD, fontSize: 24, color: S.text, margin: '0 0 24px 0' }}>
-              Create New Category
-            </h2>
+            <div style={{ padding: 32, paddingBottom: 0 }}>
+              <h2 style={{ fontFamily: FD, fontSize: 24, color: S.text, margin: '0 0 24px 0' }}>
+                Create New Category
+              </h2>
+            </div>
 
-            <Field label="Category Slug (URL)">
-              <Input
-                value={newCatData.slug}
-                onChange={v => setNewCatData(prev => ({ ...prev, slug: v }))}
-                placeholder="e.g., your-category"
-              />
-            </Field>
+            {/* Scrollable content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 32px' }}>
 
             <Field label="Category Name">
               <Input
@@ -839,6 +978,17 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
                 onChange={v => setNewCatData(prev => ({ ...prev, label: v }))}
                 placeholder="e.g., Your Category"
               />
+            </Field>
+
+            <Field label="Category Slug (URL)">
+              <Input
+                value={newCatData.slug}
+                onChange={v => setNewCatData(prev => ({ ...prev, slug: v }))}
+                placeholder="e.g., your-category"
+              />
+              <div style={{ fontFamily: FU, fontSize: 9, color: S.muted, marginTop: 6 }}>
+                Leave empty to auto-generate from category name
+              </div>
             </Field>
 
             <Field label="Description">
@@ -882,39 +1032,149 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
               />
             </Field>
 
-            {newCatError && (
-              <div style={{
-                background: `${S.error}20`,
-                border: `1px solid ${S.error}`,
-                borderRadius: 4,
-                padding: 12,
-                marginBottom: 16,
-                fontFamily: FU,
-                fontSize: 12,
-                color: S.error,
-                lineHeight: 1.5,
-              }}>
-                {newCatError}
+            <Divider />
+
+            <Field label="Enable Aura Discovery">
+              <Toggle
+                label="Allow Aura to recommend this category"
+                value={newCatData.aiDiscoveryEnabled !== false}
+                onChange={v => setNewCatData(prev => ({ ...prev, aiDiscoveryEnabled: v }))}
+              />
+            </Field>
+
+            <Field label="AI Curator Prompt">
+              <Textarea
+                value={newCatData.aiCuratorPrompt ?? ''}
+                onChange={v => setNewCatData(prev => ({ ...prev, aiCuratorPrompt: v }))}
+                placeholder="e.g., Fashion-forward luxury wedding dresses..."
+                minHeight={60}
+              />
+            </Field>
+
+            <Field label="Editorial Voice">
+              <Input
+                value={newCatData.editorialVoice ?? ''}
+                onChange={v => setNewCatData(prev => ({ ...prev, editorialVoice: v }))}
+                placeholder="e.g., elegant, luxury-focused, expert-led"
+              />
+            </Field>
+
+            <Field label="Discovery Keywords">
+              <Textarea
+                value={(newCatData.discoveryKeywords || []).join(', ')}
+                onChange={v => setNewCatData(prev => ({ ...prev, discoveryKeywords: v.split(',').map(k => k.trim()).filter(k => k) }))}
+                placeholder="wedding, luxury, exclusive (comma-separated)"
+                minHeight={50}
+              />
+            </Field>
+
+            <Field label="Target Audience">
+              <Input
+                value={newCatData.targetAudience ?? ''}
+                onChange={v => setNewCatData(prev => ({ ...prev, targetAudience: v }))}
+                placeholder="e.g., luxury brides, age 25-40"
+              />
+            </Field>
+
+            <Field label="Aura Priority (0-100)">
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                value={newCatData.auraPriority ?? 50}
+                onChange={v => setNewCatData(prev => ({ ...prev, auraPriority: parseInt(v) || 50 }))}
+              />
+              <div style={{ fontFamily: FU, fontSize: 9, color: S.muted, marginTop: 3 }}>
+                Higher = more aggressive promotion by Aura
               </div>
+            </Field>
+
+            <Divider />
+
+            <Field label="Featured on Homepage">
+              <Toggle
+                label="Display on magazine homepage"
+                value={newCatData.featuredOnHomepage === true}
+                onChange={v => setNewCatData(prev => ({ ...prev, featuredOnHomepage: v }))}
+              />
+            </Field>
+
+            {newCatData.featuredOnHomepage && (
+              <>
+                <Field label="Homepage Sort Order">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={newCatData.homepageSortOrder ?? 0}
+                    onChange={v => setNewCatData(prev => ({ ...prev, homepageSortOrder: parseInt(v) || 0 }))}
+                  />
+                  <div style={{ fontFamily: FU, fontSize: 9, color: S.muted, marginTop: 3 }}>
+                    Lower = earlier on homepage
+                  </div>
+                </Field>
+
+                <Field label="Featured Until (Optional)">
+                  <Input
+                    type="datetime-local"
+                    value={newCatData.featuredUntil?.slice(0, 16) ?? ''}
+                    onChange={v => setNewCatData(prev => ({ ...prev, featuredUntil: v ? new Date(v).toISOString() : null }))}
+                  />
+                </Field>
+              </>
             )}
 
-            {newCatSuccess && (
-              <div style={{
-                background: `${S.success}20`,
-                border: `1px solid ${S.success}`,
-                borderRadius: 4,
-                padding: 12,
-                marginBottom: 16,
-                fontFamily: FU,
-                fontSize: 12,
-                color: S.success,
-                lineHeight: 1.5,
-              }}>
-                ✓ {newCatSuccess}
-              </div>
-            )}
+            <Field label="Category Active">
+              <Toggle
+                label="Active (live and editable)"
+                value={newCatData.isActive !== false}
+                onChange={v => setNewCatData(prev => ({ ...prev, isActive: v }))}
+              />
+            </Field>
 
-            <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+            <Field label="Icon (Optional)">
+              <Input
+                value={newCatData.icon ?? ''}
+                onChange={v => setNewCatData(prev => ({ ...prev, icon: v }))}
+                placeholder="e.g., 👗, 💍, ✈️"
+                maxLength={2}
+              />
+            </Field>
+
+              {newCatError && (
+                <div style={{
+                  background: `${S.error}20`,
+                  border: `1px solid ${S.error}`,
+                  borderRadius: 4,
+                  padding: 12,
+                  marginBottom: 16,
+                  fontFamily: FU,
+                  fontSize: 12,
+                  color: S.error,
+                  lineHeight: 1.5,
+                }}>
+                  {newCatError}
+                </div>
+              )}
+
+              {newCatSuccess && (
+                <div style={{
+                  background: `${S.success}20`,
+                  border: `1px solid ${S.success}`,
+                  borderRadius: 4,
+                  padding: 12,
+                  marginBottom: 16,
+                  fontFamily: FU,
+                  fontSize: 12,
+                  color: S.success,
+                  lineHeight: 1.5,
+                }}>
+                  ✓ {newCatSuccess}
+                </div>
+              )}
+            </div>
+
+            {/* Button footer */}
+            <div style={{ display: 'flex', gap: 12, marginTop: 24, padding: '0 32px 32px' }}>
               <GoldBtn onClick={async () => {
                 setNewCatError(null);
                 setNewCatSuccess(null);

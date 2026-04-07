@@ -624,7 +624,12 @@ function App() {
   const goMagazineCategory = (categoryId) => { setActiveMagazineCategoryId(categoryId); setActiveMagazineSlug(null); setPage("magazine-category"); };
   const goMagazineArticle = (slug) => { setActiveMagazineSlug(slug); setActiveMagazineCategoryId(null); setPage("magazine-article"); };
   const goMagazineFashion = () => { setActiveMagazineSlug(null); setActiveMagazineCategoryId(null); setPage("magazine-fashion"); };
-  const goMagazineStudio  = () => setPage("magazine-studio");
+  const goMagazineStudio  = (slug) => {
+    if (slug) {
+      try { sessionStorage.setItem('magazineStudio_editSlug', slug); } catch {}
+    }
+    setPage("magazine-studio");
+  };
 
   // ── Centralized footer navigation (passed to every page for SiteFooter) ───
   const footerNav = {
@@ -826,6 +831,7 @@ function App() {
             onNavigateArticle={goMagazineArticle}
             onNavigateCategory={goMagazineCategory}
             onNavigateFashion={goMagazineFashion}
+            onEdit={goMagazineStudio}
             isLight={magazineLight}
             onToggleLight={() => setMagazineLight(l => !l)}
             footerNav={footerNav}
@@ -847,6 +853,7 @@ function App() {
             onNavigateArticle={goMagazineArticle}
             onNavigateHome={goMagazine}
             onNavigateCategory={goMagazineCategory}
+            onEdit={goMagazineStudio}
             isLight={magazineLight}
             onToggleLight={() => setMagazineLight(l => !l)}
             footerNav={footerNav}
@@ -862,6 +869,7 @@ function App() {
             onNavigateHome={goMagazine}
             onNavigateCategory={goMagazineCategory}
             onNavigateFashion={goMagazineFashion}
+            onEdit={goMagazineStudio}
             isLight={magazineLight}
             onToggleLight={() => setMagazineLight(l => !l)}
             footerNav={footerNav}

@@ -98,34 +98,40 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
         right:      0,
         zIndex:     698,
         background: isOnMagazine
-          ? "linear-gradient(to bottom, rgba(8,6,4,0.85), rgba(4,2,0,0.98))"
+          ? "linear-gradient(to bottom, rgba(8,6,4,0.92), rgba(4,2,0,0.98))"
           : "linear-gradient(to bottom, rgba(20,16,12,0.55), rgba(12,10,8,0.85))",
-        backdropFilter: "blur(10px) saturate(115%)",
-        WebkitBackdropFilter: "blur(10px) saturate(115%)",
-        borderTop:  "1px solid rgba(255, 255, 255, 0.08)",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
-        boxShadow:  "inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 40px rgba(0, 0, 0, 0.35)",
-        animation: "glassElevatorEntry 0.25s cubic-bezier(0.22, 1, 0.36, 1) both",
+        backdropFilter: "blur(14px) saturate(120%)",
+        WebkitBackdropFilter: "blur(14px) saturate(120%)",
+        borderTop:  "none",
+        borderBottom: "1px solid rgba(201, 168, 76, 0.08)",
+        boxShadow:  "0 8px 32px rgba(0, 0, 0, 0.4)",
+        animation: "megaSlideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) both",
+        transformOrigin: "top center",
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
+      {/* Visual bridge — subtle gold gradient line connecting nav to panel */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: 1,
+        background: "linear-gradient(90deg, transparent 10%, rgba(201, 168, 76, 0.15) 30%, rgba(201, 168, 76, 0.25) 50%, rgba(201, 168, 76, 0.15) 70%, transparent 90%)",
+      }} />
       <style>{`
-        @keyframes glassElevatorEntry {
+        @keyframes megaSlideDown {
           from {
             opacity: 0;
-            transform: translateY(8px);
+            transform: translateY(-4px) scaleY(0.97);
           }
           to {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scaleY(1);
           }
         }
       `}</style>
       <div style={{
         maxWidth: item.panel_full_width ? "100%" : (item.panel_max_width || 1280),
         margin:   "0 auto",
-        padding:  "56px 64px",
+        padding:  "40px 64px",
         display:  "grid",
         gridTemplateColumns: window.innerWidth < 1024
           ? "1fr"
@@ -157,15 +163,15 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
             }
           `}</style>
 
-          {/* Subcategory grid */}
+          {/* Subcategory grid — adapts columns to item count */}
           {menuItems.length > 0 ? (
             <div style={{
               display: "grid",
               gridTemplateColumns: window.innerWidth < 768
                 ? "1fr"
                 : window.innerWidth < 1024
-                  ? "repeat(2, 1fr)"
-                  : "repeat(5, 1fr)",
+                  ? `repeat(${Math.min(menuItems.length, 2)}, 1fr)`
+                  : `repeat(${Math.min(menuItems.length, 5)}, 1fr)`,
               gap: window.innerWidth < 1024 ? "24px 32px" : "20px 24px",
             }}>
               {menuItems.map((cat, idx) => (
@@ -303,7 +309,7 @@ function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual,
     // Nav item: use slug or url
     href = item.url || (item.slug ? `/${item.slug}` : "#");
   } else {
-    // Magazine category
+    // Magazine category from magazine_categories table
     href = `/magazine/category/${item.slug}`;
   }
 
