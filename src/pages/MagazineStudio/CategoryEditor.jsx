@@ -674,7 +674,7 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
 
         <div style={{ width: 1, height: 20, background: S.border }} />
 
-        {/* Category selector with hierarchy */}
+        {/* Category selector with hierarchy - parents as optgroups, children as options */}
         <select
           value={selectedId}
           onChange={e => { setSelectedId(e.target.value); }}
@@ -684,11 +684,51 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
             outline: 'none',
           }}
         >
-          {allCategories.map(c => (
-            <option key={c.id} value={c.id}>
-              {c.parentSlug ? `  └─ ${c.label}` : c.label}
-            </option>
-          ))}
+          {/* Build category hierarchy: parents as optgroups, children as options */}
+          {(() => {
+            const parentCategories = allCategories.filter(c => !c.parentSlug);
+            const childrenByParent = {};
+            const orphanChildren = [];
+
+            // Group children by parent slug
+            allCategories.forEach(c => {
+              if (c.parentSlug) {
+                // Check if parent exists
+                const parentExists = allCategories.some(p => p.id === c.parentSlug);
+                if (parentExists) {
+                  if (!childrenByParent[c.parentSlug]) {
+                    childrenByParent[c.parentSlug] = [];
+                  }
+                  childrenByParent[c.parentSlug].push(c);
+                } else {
+                  // Parent doesn't exist, show as orphan at root level
+                  orphanChildren.push(c);
+                }
+              }
+            });
+
+            return (
+              <>
+                {/* Parent categories with their children grouped */}
+                {parentCategories.map(parent => (
+                  <optgroup key={parent.id} label={parent.label}>
+                    {childrenByParent[parent.id]?.map(child => (
+                      <option key={child.id} value={child.id}>
+                        {child.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+
+                {/* Orphaned children (whose parent doesn't exist in the system) */}
+                {orphanChildren.length > 0 && orphanChildren.map(child => (
+                  <option key={child.id} value={child.id}>
+                    {child.label}
+                  </option>
+                ))}
+              </>
+            );
+          })()}
         </select>
 
         {/* Create new category button */}
