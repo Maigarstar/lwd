@@ -54,6 +54,7 @@ function ReadingProgress() {
 // ─── Author Card (sidebar) ─────────────────────────────────────────────────────
 function AuthorCard({ author, light = false }) {
   const T = getMagTheme(light);
+  if (!author) return null;
   return (
     <div style={{
       padding: '28px 0',
@@ -356,9 +357,13 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
             </p>
           )}
           <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', paddingBottom: 40 }}>
-            <img src={post.author.avatar} alt={post.author.name} style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover' }} />
-            <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.55)' }}>{post.author.name}</span>
-            <span style={{ color: 'rgba(245,240,232,0.2)' }}>·</span>
+            {post.author && (
+              <>
+                <img src={post.author.avatar} alt={post.author.name} style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover' }} />
+                <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.55)' }}>{post.author.name}</span>
+                <span style={{ color: 'rgba(245,240,232,0.2)' }}>·</span>
+              </>
+            )}
             <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.45)' }}>{formatDate(post.date)}</span>
             <span style={{ color: 'rgba(245,240,232,0.2)' }}>·</span>
             <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.45)' }}>{post.readingTime} min read</span>
