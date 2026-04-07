@@ -125,7 +125,7 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
         gridTemplateColumns: window.innerWidth < 1024
           ? "1fr"
           : (hasFeatured ? "1fr 300px" : "1fr"),
-        columnGap: window.innerWidth < 1024 ? 32 : 64,
+        columnGap: window.innerWidth < 1024 ? 32 : 56,
         rowGap: window.innerWidth < 1024 ? 32 : 56,
         alignItems: "start",
       }}>
@@ -160,8 +160,8 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
                 ? "1fr"
                 : window.innerWidth < 1024
                   ? "repeat(2, 1fr)"
-                  : "repeat(4, 1fr)",
-              gap: window.innerWidth < 1024 ? "24px 32px" : "24px 28px",
+                  : "repeat(5, 1fr)",
+              gap: window.innerWidth < 1024 ? "24px 32px" : "20px 24px",
             }}>
               {menuItems.map((cat, idx) => (
                 <NavItemLink
@@ -313,12 +313,12 @@ function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual,
       href={href}
       style={{
         display: "block",
-        padding: "16px 0",
+        padding: "14px 0",
         borderBottom: "1px solid rgba(255, 255, 255, 0.02)",
         textDecoration: "none",
         cursor: "pointer",
         transition: "transform 0.2s ease, color 0.2s ease",
-        transform: hovered ? "translateX(4px)" : "translateX(0)",
+        transform: hovered ? "translateX(3px)" : "translateX(0)",
         background: hovered ? "rgba(255, 255, 255, 0.02)" : "transparent",
         animation: `fadeInUp 0.4s ease-out ${itemIndex * 20}ms both`,
       }}
@@ -327,10 +327,10 @@ function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual,
     >
       <div style={{
         fontFamily: "'Gilda Display', 'Cormorant Garamond', Georgia, serif",
-        fontSize: window.innerWidth < 1024 ? 18 : 16, fontWeight: 400,
+        fontSize: window.innerWidth < 1024 ? 18 : 15, fontWeight: 400,
         letterSpacing: isFirst ? "0.3px" : "0.2px",
         color: hovered ? "#ffffff" : (isFirst ? "#ffffff" : "rgba(255, 255, 255, 0.92)"),
-        marginBottom: showDesc && description ? 4 : 0,
+        marginBottom: showDesc && description ? 3 : 0,
         transition: "color 0.2s ease, text-shadow 0.2s ease",
         textShadow: isFirst && !hovered ? "0 0 6px rgba(255, 255, 255, 0.12)" : "none",
       }}>
