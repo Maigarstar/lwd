@@ -460,7 +460,8 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
     <>
       <nav
         ref={navRef}
-        aria-label="Main navigation"
+        aria-label="Primary navigation"
+        role="navigation"
         className="home-nav"
         style={{
           position: "fixed",

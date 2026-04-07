@@ -84,7 +84,10 @@ export default function MobileDrawerAccordion({
   return (
     <>
       {/* ─ Main nav items section ─ */}
-      <div style={{ padding: "16px 0", flex: 1, overflowY: "auto" }}>
+      <nav
+        aria-label="Menu sections"
+        style={{ padding: "16px 0", flex: 1, overflowY: "auto" }}
+      >
         {nonCtaItems.map((item) => {
           const isMega = item.type === "mega_menu" || item.type === "dropdown";
           const isExpanded = expandedId === item.id;
@@ -96,6 +99,9 @@ export default function MobileDrawerAccordion({
             <div key={item.id}>
               {/* ─ Top-level item ─ */}
               <button
+                aria-expanded={isMega ? isExpanded : undefined}
+                aria-controls={isMega ? `accordion-${item.id}` : undefined}
+                aria-label={isMega ? `${item.label}, expandable menu` : item.label}
                 onClick={() => {
                   if (isMega) {
                     expandItem(item.id, item.mega_menu_source);
@@ -154,6 +160,9 @@ export default function MobileDrawerAccordion({
               {/* ─ Nested mega menu items (accordion) ─ */}
               {isMega && isExpanded && (
                 <div
+                  id={`accordion-${item.id}`}
+                  role="region"
+                  aria-label={`${item.label} submenu`}
                   style={{
                     maxHeight: isExpanded ? "1000px" : "0px",
                     overflow: "hidden",
@@ -178,6 +187,7 @@ export default function MobileDrawerAccordion({
                     nested.map(nestedItem => (
                       <button
                         key={nestedItem.id}
+                        aria-label={`${item.label}: ${nestedItem.label}`}
                         onClick={() => handleNestedItemClick(nestedItem)}
                         style={{
                           display: "block",
@@ -228,13 +238,13 @@ export default function MobileDrawerAccordion({
             </div>
           );
         })}
-      </div>
+      </nav>
 
       {/* ─ CTA items section (pinned at bottom) ─ */}
       {ctaItems.length > 0 && (
         <>
           <div style={{ height: 1, background: "rgba(201,168,76,0.12)", margin: "8px 24px" }} />
-          <div style={{ padding: "12px 24px 24px" }}>
+          <nav aria-label="Primary actions" style={{ padding: "12px 24px 24px" }}>
             {ctaItems.map(item => {
               const handler = resolveHandler(item, handlers);
               const isOutline = item.cta_style === "outline";
@@ -276,7 +286,7 @@ export default function MobileDrawerAccordion({
                 </button>
               );
             })}
-          </div>
+          </nav>
         </>
       )}
 
@@ -285,6 +295,7 @@ export default function MobileDrawerAccordion({
       <div style={{ padding: "20px 24px" }}>
         <button
           onClick={() => onToggleDark?.()}
+          aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
           style={{
             display: "flex",
             alignItems: "center",

@@ -97,9 +97,9 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
       }}>
 
         {/* ── Left: category heading + subcategory grid ── */}
-        <div>
+        <section aria-label={`${item.label} categories`}>
           {/* Section heading */}
-          <div style={{
+          <h2 style={{
             fontFamily: SANS, fontSize: 10, fontWeight: 700,
             letterSpacing: "0.14em", textTransform: "uppercase",
             color: accent, marginBottom: 24,
@@ -107,7 +107,7 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
           }}>
             <span style={{ display: "inline-block", width: 24, height: 1, background: accent }} />
             {item.label}
-          </div>
+          </h2>
 
           {/* Subcategory grid */}
           {subcategories.length > 0 ? (
@@ -159,14 +159,16 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
               </a>
             </div>
           )}
-        </div>
+        </section>
 
         {/* ── Right: featured article ── */}
         {hasFeatured && (
-          <a
-            href={`/magazine/${featuredPost.slug}`}
-            style={{ textDecoration: "none", display: "block" }}
-          >
+          <aside aria-label="Featured article">
+            <a
+              href={`/magazine/${featuredPost.slug}`}
+              style={{ textDecoration: "none", display: "block" }}
+              aria-label={`Featured: ${featuredPost.title}`}
+            >
             <div style={{
               fontFamily: SANS, fontSize: 9, fontWeight: 700,
               letterSpacing: "0.12em", textTransform: "uppercase",
@@ -212,6 +214,7 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
               </div>
             )}
           </a>
+          </aside>
         )}
       </div>
     </div>
