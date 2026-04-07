@@ -94,7 +94,7 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
         left:       0,
         right:      0,
         zIndex:     698,
-        background: bg,
+        background: "radial-gradient(circle at top, rgba(30,22,14,0.95), rgba(11,9,6,0.98))",
         borderTop:  `1px solid ${borderColor}`,
         borderBottom:`1px solid ${borderColor}`,
         boxShadow:  shadow,
@@ -103,14 +103,15 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
       onMouseLeave={onMouseLeave}
     >
       <div style={{
-        maxWidth: item.panel_full_width ? "100%" : (item.panel_max_width || 1200),
+        maxWidth: item.panel_full_width ? "100%" : (item.panel_max_width || 1280),
         margin:   "0 auto",
-        padding:  `${padding}px clamp(20px, 5vw, 40px)`,
+        padding:  "56px 64px",
         display:  "grid",
         gridTemplateColumns: window.innerWidth < 1024
           ? "1fr"
           : (hasFeatured ? "1fr 300px" : "1fr"),
-        gap: window.innerWidth < 1024 ? 32 : 56,
+        columnGap: window.innerWidth < 1024 ? 32 : 80,
+        rowGap: window.innerWidth < 1024 ? 32 : 56,
         alignItems: "start",
       }}>
 
@@ -118,12 +119,15 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
         <section aria-label={`${item.label} categories`}>
           {/* Section heading */}
           <h2 style={{
-            fontFamily: SANS, fontSize: 10, fontWeight: 700,
-            letterSpacing: "0.14em", textTransform: "uppercase",
-            color: accent, marginBottom: 24,
+            fontFamily: SANS, fontSize: 12, fontWeight: 600,
+            letterSpacing: "2px", textTransform: "uppercase",
+            color: "rgba(201, 168, 76, 0.9)", marginBottom: 32,
             display: "flex", alignItems: "center", gap: 12,
           }}>
-            <span style={{ display: "inline-block", width: 24, height: 1, background: accent }} />
+            <span style={{
+              display: "inline-block", width: 24, height: 1,
+              background: "linear-gradient(90deg, #c9a84c, transparent)",
+            }} />
             {item.label}
           </h2>
 
@@ -158,23 +162,38 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
 
           {/* CTA */}
           {item.has_cta_in_panel && (
-            <div style={{ marginTop: 32 }}>
+            <div style={{ marginTop: 48 }}>
               <a
                 href={ctaHref}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 10,
                   fontFamily: SANS, fontSize: 10, fontWeight: 700,
-                  letterSpacing: "0.1em", textTransform: "uppercase",
-                  color: accent, textDecoration: "none",
-                  border: `1px solid ${accent}`,
+                  letterSpacing: "1.2px", textTransform: "uppercase",
+                  color: "#c9a84c", textDecoration: "none",
+                  border: "1px solid rgba(201, 168, 76, 0.6)",
                   borderRadius: radius || 4,
                   padding: "10px 22px",
-                  transition: "all 0.2s",
+                  transition: "all 0.25s ease",
+                  background: "transparent",
+                  cursor: "pointer",
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = accent; e.currentTarget.style.color = "#fff"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = accent; }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = "rgba(201, 168, 76, 0.08)";
+                  e.currentTarget.style.border = "1px solid #c9a84c";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.border = "1px solid rgba(201, 168, 76, 0.6)";
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
               >
-                {ctaLabel} <span>→</span>
+                {ctaLabel}
+                <span style={{
+                  marginLeft: 6, opacity: 0.7,
+                  transition: "transform 0.2s ease",
+                  display: "inline-block",
+                }} className="cta-arrow">→</span>
               </a>
             </div>
           )}
@@ -259,36 +278,56 @@ function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual 
   const name = item.label || item.name;
   const description = item.description || item.short_description;
 
+  const itemIndex = Math.floor(Math.random() * 100); // For stagger effect
+
   return (
     <a
       href={href}
       style={{
         display: "block",
-        padding: "14px 0",
-        borderBottom: `1px solid ${borderColor}`,
+        padding: "18px 0",
+        borderBottom: `1px solid rgba(255, 255, 255, 0.06)`,
         textDecoration: "none",
+        cursor: "pointer",
+        transition: "all 0.25s ease",
+        transform: hovered ? "translateX(4px)" : "translateX(0)",
+        background: hovered ? "rgba(255, 255, 255, 0.02)" : "transparent",
+        animation: `fadeInUp 0.4s ease-out ${itemIndex * 20}ms both`,
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div style={{
-        fontFamily: "'Inter', system-ui, sans-serif",
-        fontSize: 13, fontWeight: 500,
-        color: hovered ? accent : textColor,
-        marginBottom: showDesc && description ? 4 : 0,
-        transition: "color 0.15s",
+        fontFamily: "'Gilda Display', 'Cormorant Garamond', Georgia, serif",
+        fontSize: 18, fontWeight: 400,
+        letterSpacing: "0.2px",
+        color: hovered ? "#ffffff" : "rgba(255, 255, 255, 0.88)",
+        marginBottom: showDesc && description ? 6 : 0,
+        transition: "color 0.25s ease",
       }}>
         {name}
       </div>
       {showDesc && description && (
         <div style={{
-          fontFamily: "'Inter', system-ui, sans-serif",
-          fontSize: 11, color: textColor + "75",
-          lineHeight: 1.45,
+          fontFamily: SANS,
+          fontSize: 12, color: "rgba(255, 255, 255, 0.65)",
+          lineHeight: 1.5,
         }}>
           {description}
         </div>
       )}
+      <style>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </a>
   );
 }
