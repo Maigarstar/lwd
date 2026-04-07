@@ -125,7 +125,7 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
         gridTemplateColumns: window.innerWidth < 1024
           ? "1fr"
           : (hasFeatured ? "1fr 300px" : "1fr"),
-        columnGap: window.innerWidth < 1024 ? 32 : 56,
+        columnGap: window.innerWidth < 1024 ? 32 : 68,
         rowGap: window.innerWidth < 1024 ? 32 : 56,
         alignItems: "start",
       }}>
@@ -229,7 +229,7 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
 
         {/* ── Right: featured article ── */}
         {hasFeatured && (
-          <aside aria-label="Featured article">
+          <aside aria-label="Featured article" style={{ paddingLeft: 8 }}>
             <a
               href={`/magazine/${featuredPost.slug}`}
               style={{ textDecoration: "none", display: "block" }}
@@ -314,7 +314,8 @@ function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual,
       style={{
         display: "block",
         padding: "14px 0",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.02)",
+        borderBottom: "1px solid",
+        borderImage: "linear-gradient(to right, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)) 1",
         textDecoration: "none",
         cursor: "pointer",
         transition: "transform 0.2s ease, color 0.2s ease",
