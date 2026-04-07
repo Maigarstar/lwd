@@ -94,15 +94,29 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
         left:       0,
         right:      0,
         zIndex:     698,
-        background: "linear-gradient(to bottom, rgba(11,9,6,0.65), rgba(11,9,6,0.9))",
-        backdropFilter: "blur(8px) saturate(110%)",
-        borderTop:  "1px solid rgba(255, 255, 255, 0.06)",
+        background: "linear-gradient(to bottom, rgba(20,16,12,0.55), rgba(12,10,8,0.85))",
+        backdropFilter: "blur(10px) saturate(120%)",
+        WebkitBackdropFilter: "blur(10px) saturate(120%)",
+        borderTop:  "1px solid rgba(255, 255, 255, 0.08)",
         borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
-        boxShadow:  "0 10px 40px rgba(0, 0, 0, 0.35)",
+        boxShadow:  "inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 40px rgba(0, 0, 0, 0.35)",
+        animation: "glassElevatorEntry 0.25s cubic-bezier(0.22, 1, 0.36, 1) both",
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
+      <style>{`
+        @keyframes glassElevatorEntry {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
       <div style={{
         maxWidth: item.panel_full_width ? "100%" : (item.panel_max_width || 1280),
         margin:   "0 auto",
@@ -131,6 +145,12 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
             }} />
             {item.label}
           </h2>
+          <style>{`
+            h2:hover {
+              text-shadow: 0 0 10px rgba(201, 168, 76, 0.25);
+              transition: text-shadow 0.3s ease;
+            }
+          `}</style>
 
           {/* Subcategory grid */}
           {menuItems.length > 0 ? (
@@ -174,17 +194,17 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
                   border: "1px solid rgba(201, 168, 76, 0.6)",
                   borderRadius: radius || 4,
                   padding: "10px 22px",
-                  transition: "all 0.25s ease",
-                  background: "transparent",
+                  transition: "all 0.22s ease",
+                  background: "rgba(201, 168, 76, 0.05)",
                   cursor: "pointer",
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.background = "rgba(201, 168, 76, 0.08)";
-                  e.currentTarget.style.border = "1px solid #c9a84c";
+                  e.currentTarget.style.background = "rgba(201, 168, 76, 0.12)";
+                  e.currentTarget.style.border = "1px solid rgba(201, 168, 76, 0.8)";
                   e.currentTarget.style.transform = "translateY(-1px)";
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.background = "rgba(201, 168, 76, 0.05)";
                   e.currentTarget.style.border = "1px solid rgba(201, 168, 76, 0.6)";
                   e.currentTarget.style.transform = "translateY(0)";
                 }}
@@ -192,7 +212,7 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
                 {ctaLabel}
                 <span style={{
                   marginLeft: 6, opacity: 0.7,
-                  transition: "transform 0.2s ease",
+                  transition: "all 0.2s ease",
                   display: "inline-block",
                 }} className="cta-arrow">→</span>
               </a>
@@ -287,11 +307,11 @@ function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual 
       style={{
         display: "block",
         padding: "18px 0",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.03)",
         textDecoration: "none",
         cursor: "pointer",
-        transition: "all 0.25s ease",
-        transform: hovered ? "translateX(4px)" : "translateX(0)",
+        transition: "all 0.22s ease",
+        transform: hovered ? "translateX(6px)" : "translateX(0)",
         background: hovered ? "rgba(255, 255, 255, 0.02)" : "transparent",
         animation: `fadeInUp 0.4s ease-out ${itemIndex * 20}ms both`,
       }}
@@ -304,7 +324,7 @@ function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual 
         letterSpacing: "0.2px",
         color: hovered ? "#ffffff" : "rgba(255, 255, 255, 0.92)",
         marginBottom: showDesc && description ? 6 : 0,
-        transition: "color 0.25s ease",
+        transition: "color 0.22s ease",
       }}>
         {name}
       </div>
