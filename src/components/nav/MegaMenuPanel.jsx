@@ -94,10 +94,11 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
         left:       0,
         right:      0,
         zIndex:     698,
-        background: "radial-gradient(circle at top, rgba(30,22,14,0.95), rgba(11,9,6,0.98))",
-        borderTop:  `1px solid ${borderColor}`,
-        borderBottom:`1px solid ${borderColor}`,
-        boxShadow:  shadow,
+        background: "linear-gradient(to bottom, rgba(11,9,6,0.65), rgba(11,9,6,0.9))",
+        backdropFilter: "blur(8px) saturate(110%)",
+        borderTop:  "1px solid rgba(255, 255, 255, 0.06)",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
+        boxShadow:  "0 10px 40px rgba(0, 0, 0, 0.35)",
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
@@ -286,7 +287,7 @@ function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual 
       style={{
         display: "block",
         padding: "18px 0",
-        borderBottom: `1px solid rgba(255, 255, 255, 0.06)`,
+        borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
         textDecoration: "none",
         cursor: "pointer",
         transition: "all 0.25s ease",
@@ -301,7 +302,7 @@ function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual 
         fontFamily: "'Gilda Display', 'Cormorant Garamond', Georgia, serif",
         fontSize: 18, fontWeight: 400,
         letterSpacing: "0.2px",
-        color: hovered ? "#ffffff" : "rgba(255, 255, 255, 0.88)",
+        color: hovered ? "#ffffff" : "rgba(255, 255, 255, 0.92)",
         marginBottom: showDesc && description ? 6 : 0,
         transition: "color 0.25s ease",
       }}>
