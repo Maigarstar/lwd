@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useTheme } from "../../theme/ThemeContext";
+import { buildTree } from "../../pages/AdminModules/menu/menuUtils";
 import MegaMenuPanel from "./MegaMenuPanel";
 import MobileDrawerAccordion from "./MobileDrawerAccordion";
 
@@ -63,7 +64,7 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
   const C = useTheme();
   const [scrolled,       setScrolled]       = useState(false);
   const [drawerOpen,     setDrawerOpen]     = useState(false);
-  const [navItems,       setNavItems]       = useState(FALLBACK_LINKS);
+  const [navItems,       setNavItems]       = useState([]); // Start empty, use fallback only on error
   const [openPanel,      setOpenPanel]      = useState(null); // nav item id | null
   const [branding,       setBranding]       = useState(DEFAULT_BRANDING);
   const [keyboardFocus,  setKeyboardFocus]  = useState(null); // Track keyboard focus for arrow nav
@@ -247,15 +248,34 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
 
   // Load nav items from Supabase, fall back to static list on error
   useEffect(() => {
-    supabase
-      .from("nav_items")
-      .select("id, label, url, slug, nav_action, open_new_tab, visible, position, type, is_cta, cta_style, animation, panel_bg, panel_text_color, panel_accent_color, panel_hover_color, panel_border_color, panel_shadow, panel_radius, panel_padding, panel_full_width, panel_align, layout_type, show_descriptions, has_cta_in_panel, panel_cta_label, panel_cta_link, featured_title, featured_text, featured_image, featured_link, menu_preset")
-      .is("parent_id", null)
-      .eq("visible", true)
-      .order("position", { ascending: true })
-      .then(({ data, error }) => {
-        if (!error && data && data.length > 0) setNavItems(data);
-      });
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("nav_items")
+          .select("*")
+          .order("position", { ascending: true });
+
+        if (error) {
+          console.error("[HomeNav] Supabase error, using fallback:", error);
+          setNavItems(FALLBACK_LINKS);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          console.log("[HomeNav] Loaded", data.length, "nav items from database");
+          // Filter only visible items and build tree structure
+          const visibleItems = data.filter(i => i.visible);
+          const tree = buildTree(visibleItems);
+          setNavItems(tree);
+        } else {
+          console.warn("[HomeNav] No nav items in database, using fallback");
+          setNavItems(FALLBACK_LINKS);
+        }
+      } catch (err) {
+        console.error("[HomeNav] Exception loading nav, using fallback:", err);
+        setNavItems(FALLBACK_LINKS);
+      }
+    })();
   }, []);
 
   const handlers = { onNavigateAbout, onNavigateStandard, onVendorLogin };

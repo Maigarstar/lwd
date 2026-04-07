@@ -23,10 +23,21 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
   const [ready,         setReady]         = useState(false);
 
   const sourceSlug = item.mega_menu_source_slug;
-  const isManual   = item.mega_menu_source === "manual" || !sourceSlug;
+  const hasChildren = item.children && item.children.length > 0;
+  const isManual   = item.mega_menu_source === "manual" || !sourceSlug || hasChildren;
 
   useEffect(() => {
-    if (isManual) { setReady(true); return; }
+    // If manually populated with nav items children, just set ready
+    if (hasChildren || item.mega_menu_source === "manual") {
+      setReady(true);
+      return;
+    }
+
+    // Otherwise fetch from magazine categories
+    if (!sourceSlug) {
+      setReady(true);
+      return;
+    }
 
     Promise.all([
       // Child categories of the selected magazine category
@@ -49,7 +60,7 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
       setFeaturedPost(postsRes.data?.[0] || null);
       setReady(true);
     });
-  }, [sourceSlug, isManual]);
+  }, [sourceSlug, hasChildren, item.mega_menu_source]);
 
   // Don't flash an empty panel while fetching
   if (!ready) return null;
@@ -62,11 +73,16 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
   const radius      = item.panel_radius       ?? 0;
   const padding     = item.panel_padding      ?? 40;
   const showDesc    = item.show_descriptions  !== false;
+
+  // Use either fetched featured post or nav items
   const hasFeatured = !!featuredPost;
   const shadow      = SHADOW_MAP[item.panel_shadow] || SHADOW_MAP.luxury;
 
   const ctaLabel = item.panel_cta_label || `Explore all ${item.label}`;
   const ctaHref  = item.panel_cta_link  || (sourceSlug ? `/magazine/category/${sourceSlug}` : "#");
+
+  // For manual mega menus, use nav items children
+  const menuItems = isManual && item.children ? item.children : subcategories;
 
   return (
     <div
@@ -112,20 +128,21 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
           </h2>
 
           {/* Subcategory grid */}
-          {subcategories.length > 0 ? (
+          {menuItems.length > 0 ? (
             <div style={{
               display: "grid",
               gridTemplateColumns: "repeat(2, 1fr)",
               gap: "0 56px",
             }}>
-              {subcategories.map(cat => (
-                <SubcategoryLink
+              {menuItems.map(cat => (
+                <NavItemLink
                   key={cat.id}
-                  cat={cat}
+                  item={cat}
                   accent={accent}
                   textColor={textColor}
                   borderColor={borderColor}
                   showDesc={showDesc}
+                  isManual={isManual}
                 />
               ))}
             </div>
@@ -223,14 +240,28 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
   );
 }
 
-// ── Subcategory link row ──────────────────────────────────────────────────────
+// ── Nav item / Category link row ──────────────────────────────────────────────
 
-function SubcategoryLink({ cat, accent, textColor, borderColor, showDesc }) {
+function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual }) {
   const [hovered, setHovered] = useState(false);
+
+  // Build href based on item type
+  let href = "#";
+  if (isManual) {
+    // Nav item: use slug or url
+    href = item.url || (item.slug ? `/${item.slug}` : "#");
+  } else {
+    // Magazine category
+    href = `/magazine/category/${item.slug}`;
+  }
+
+  // Get display name and description
+  const name = item.label || item.name;
+  const description = item.description || item.short_description;
 
   return (
     <a
-      href={`/magazine/category/${cat.slug}`}
+      href={href}
       style={{
         display: "block",
         padding: "14px 0",
@@ -244,18 +275,18 @@ function SubcategoryLink({ cat, accent, textColor, borderColor, showDesc }) {
         fontFamily: "'Inter', system-ui, sans-serif",
         fontSize: 13, fontWeight: 500,
         color: hovered ? accent : textColor,
-        marginBottom: showDesc ? 4 : 0,
+        marginBottom: showDesc && description ? 4 : 0,
         transition: "color 0.15s",
       }}>
-        {cat.name}
+        {name}
       </div>
-      {showDesc && (cat.short_description || cat.description) && (
+      {showDesc && description && (
         <div style={{
           fontFamily: "'Inter', system-ui, sans-serif",
           fontSize: 11, color: textColor + "75",
           lineHeight: 1.45,
         }}>
-          {cat.short_description || cat.description}
+          {description}
         </div>
       )}
     </a>

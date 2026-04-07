@@ -39,33 +39,41 @@ export default function MobileDrawerAccordion({
   const [loading, setLoading] = useState({}); // Loading state per item
   const [touchActive, setTouchActive] = useState(null); // Track touch/active state
 
-  // Fetch nested items for mega menus
-  const expandItem = (itemId, sourceTable) => {
-    if (expandedId === itemId) {
+  // Expand mega menu or dropdown item
+  const expandItem = (item) => {
+    if (expandedId === item.id) {
       // Collapse if already expanded
       setExpandedId(null);
       return;
     }
 
-    // If already cached, just expand
-    if (nestedItems[itemId]) {
-      setExpandedId(itemId);
+    // If item has children (from tree), use those directly
+    if (item.children && item.children.length > 0) {
+      setNestedItems(prev => ({ ...prev, [item.id]: item.children }));
+      setExpandedId(item.id);
       return;
     }
 
-    // Fetch nested items
-    if (sourceTable) {
-      setLoading(prev => ({ ...prev, [itemId]: true }));
+    // If already cached, just expand
+    if (nestedItems[item.id]) {
+      setExpandedId(item.id);
+      return;
+    }
+
+    // Otherwise try to fetch from mega_menu_source table
+    const sourceTable = item.mega_menu_source;
+    if (sourceTable && sourceTable !== "manual") {
+      setLoading(prev => ({ ...prev, [item.id]: true }));
       supabase
         .from(sourceTable)
         .select("*")
         .order("position", { ascending: true })
         .then(({ data, error }) => {
           if (data && !error) {
-            setNestedItems(prev => ({ ...prev, [itemId]: data }));
-            setExpandedId(itemId);
+            setNestedItems(prev => ({ ...prev, [item.id]: data }));
+            setExpandedId(item.id);
           }
-          setLoading(prev => ({ ...prev, [itemId]: false }));
+          setLoading(prev => ({ ...prev, [item.id]: false }));
         });
     }
   };
@@ -105,7 +113,7 @@ export default function MobileDrawerAccordion({
                 aria-label={isMega ? `${item.label}, expandable menu` : item.label}
                 onClick={() => {
                   if (isMega) {
-                    expandItem(item.id, item.mega_menu_source);
+                    expandItem(item);
                   } else {
                     onClose?.();
                     handler?.();
