@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import MagazineSectionsEditor from "./MagazineSectionsEditor.jsx";
+import MagazinePostMappingEditor from "./MagazinePostMappingEditor.jsx";
 
 const SANS = "'Inter', 'Helvetica Neue', sans-serif";
 const SERIF = "'Cormorant Garamond', Georgia, serif";
@@ -297,7 +298,7 @@ export default function MagazineNavModule({ C }) {
         border: `1px solid ${C?.border || "#2a2218"}`,
         borderRadius: 8, padding: 4, width: "fit-content",
       }}>
-        {[["nav", "Navigation"], ["sections", "Sections"]].map(([key, label]) => (
+        {[["nav", "Navigation"], ["sections", "Sections"], ["mapping", "Post Mapping"]].map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} style={{
             background: tab === key ? G : "transparent",
             border: `1px solid ${tab === key ? G : "transparent"}`,
@@ -389,6 +390,11 @@ export default function MagazineNavModule({ C }) {
       {/* Sections tab */}
       {tab === "sections" && (
         <MagazineSectionsEditor navItems={navItems} C={C} />
+      )}
+
+      {/* Post Mapping tab */}
+      {tab === "mapping" && (
+        <MagazinePostMappingEditor C={C} />
       )}
     </div>
   );
