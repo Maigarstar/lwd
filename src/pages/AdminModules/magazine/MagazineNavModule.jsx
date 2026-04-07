@@ -56,6 +56,7 @@ export default function MagazineNavModule({ C }) {
   // ── Load data ────────────────────────────────────────────────────────────
   async function loadData() {
     try {
+      console.log("🔄 Loading magazine data...");
       const [navRes, sectionsRes] = await Promise.all([
         supabase
           .from("mag_nav_items")
@@ -70,16 +71,23 @@ export default function MagazineNavModule({ C }) {
       if (navRes.error) throw navRes.error;
       if (sectionsRes.error) throw sectionsRes.error;
 
+      console.log("✅ Loaded nav items:", navRes.data?.length);
+      console.log("✅ Loaded sections:", sectionsRes.data?.length);
+
       setNavItems(navRes.data || []);
       setSections(sectionsRes.data || []);
+      setLoading(false);
     } catch (err) {
+      console.error("❌ Load error:", err);
       setToast({ msg: "Load failed: " + err.message, type: "error" });
-    } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    console.log("🚀 MagazineNavModule mounted, loading data...");
+    loadData();
+  }, []);
 
   // ── Save nav item ───────────────────────────────────────────────────────
   async function saveNavItem(form) {
