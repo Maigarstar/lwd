@@ -1,8 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { CATEGORIES } from '../data/categories';
 import { getPostsByCategory, POSTS } from '../data/posts';
 import NewsletterCapture from './NewsletterCapture';
 import { useIsMobile } from '../../../components/profile/ProfileDesignSystem';
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 const FU = "'Nunito', 'Inter', 'Helvetica Neue', sans-serif";
 const FD = "'Gilda Display', 'Playfair Display', Georgia, serif";
@@ -547,9 +553,45 @@ export default function MagazineNav({
   const [showSubscribe, setShowSubscribe] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [categories, setCategories] = useState(CATEGORIES); // Start with static data
+  const [loadingCategories, setLoadingCategories] = useState(true);
   const scrollRef = useRef(null);
   const megaTimeout = useRef(null);
   const isMobile = useIsMobile(768);
+
+  // Load magazine nav items from database
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const { data, error } = await supabase
+          .from('mag_nav_items')
+          .select('*')
+          .eq('visible', true)
+          .order('position', { ascending: true });
+
+        if (error) throw error;
+
+        // Convert database items to category format
+        if (data && data.length > 0) {
+          const dbCategories = data.map(item => ({
+            id: item.slug,
+            label: item.label,
+            slug: item.slug,
+            description: item.description,
+          }));
+          setCategories(dbCategories);
+        }
+      } catch (err) {
+        console.error('Failed to load magazine categories:', err);
+        // Fall back to static data
+        setCategories(CATEGORIES);
+      } finally {
+        setLoadingCategories(false);
+      }
+    }
+
+    loadCategories();
+  }, []);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 60);
@@ -603,12 +645,12 @@ export default function MagazineNav({
           letter-spacing: 0.14em; text-transform: uppercase;
           background: none; border: none;
           padding: 14px 18px; cursor: pointer; white-space: nowrap;
-          border-bottom: 2px solid transparent;
-          transition: color 0.2s, border-color 0.2s;
+          border-bottom: 1px solid transparent;
+          transition: color 0.2s, border-color 0.2s, font-weight 0.2s;
         }
-        .mag-cat-btn { color: ${catInactive}; }
+        .mag-cat-btn { color: ${isLight ? 'rgba(0,0,0,0.6)' : 'rgba(245,240,232,0.6)'}; }
         .mag-cat-btn:hover { color: ${catHover}; }
-        .mag-cat-btn.active { color: ${GOLD}; border-bottom-color: ${GOLD}; }
+        .mag-cat-btn.active { color: ${isLight ? '#000' : '#f5f0e8'}; font-weight: 500; border-bottom-color: ${GOLD}; }
         .mag-fashion-btn { color: ${catInactive}; position: relative; }
         .mag-fashion-btn:hover, .mag-fashion-btn.mega-open { color: ${GOLD} !important; border-bottom-color: ${GOLD} !important; }
         @media (max-width: 600px) {
@@ -619,19 +661,23 @@ export default function MagazineNav({
       <nav
         className="mag-nav-bar"
         aria-label="Magazine navigation"
-        style={{ background: navBg, borderBottom: `1px solid ${borderColor}` }}
+        style={{
+          background: navBg,
+          borderBottom: `1px solid ${borderColor}`,
+          boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+        }}
       >
         {/* Masthead row */}
-        <div className="mag-masthead" style={{ borderBottom: isMobile ? 'none' : `1px solid ${dividerColor}` }}>
+        <div className="mag-masthead" style={{ borderBottom: isMobile ? 'none' : `1px solid ${dividerColor}`, gap: 20, paddingRight: 'clamp(16px, 4vw, 60px)' }}>
           <button
             onClick={onNavigateHome}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
           >
             <span style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD }}>
               LWD
             </span>
-            <span style={{ width: 1, height: 14, background: 'rgba(201,169,110,0.3)' }} />
-            <span style={{ fontFamily: FD, fontSize: 15, fontWeight: 400, color: logoText, fontStyle: 'italic', letterSpacing: '0.04em' }}>
+            <span style={{ width: 1, height: 14, background: 'rgba(201,169,110,0.3)', opacity: 0.85 }} />
+            <span style={{ fontFamily: FD, fontSize: 15, fontWeight: 400, color: logoText, fontStyle: 'italic', letterSpacing: '0.5px' }}>
               The Magazine
             </span>
           </button>
@@ -685,12 +731,12 @@ export default function MagazineNav({
                 onClick={() => setShowSubscribe(true)}
                 style={{
                   fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
-                  textTransform: 'uppercase', color: GOLD, background: 'none',
-                  border: `1px solid ${GOLD}40`, padding: '6px 14px',
+                  textTransform: 'uppercase', color: logoText, background: 'transparent',
+                  border: `1px solid ${isLight ? 'rgba(0,0,0,0.2)' : 'rgba(245,240,232,0.2)'}`, padding: '6px 14px',
                   borderRadius: 2, cursor: 'pointer', transition: 'all 0.2s',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}15`; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                onMouseEnter={e => { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(245,240,232,0.04)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
                 Subscribe
               </button>
@@ -726,7 +772,7 @@ export default function MagazineNav({
             >
               All
             </button>
-            {CATEGORIES.map(cat => {
+            {categories.map(cat => {
               const isFashion = cat.id === 'fashion';
               const isActive = activeCategoryId === cat.id;
               if (isFashion) {

@@ -12,6 +12,7 @@ import MenuItemEditor  from "./menu/MenuItemEditor.jsx";
 import MenuNavConfig   from "./menu/MenuNavConfig.jsx";
 import MenuCanvas      from "./menu/MenuCanvas.jsx";
 import MenuBranding    from "./menu/MenuBranding.jsx";
+import MagazineNavModule from "./magazine/MagazineNavModule.jsx";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -318,7 +319,7 @@ export default function MenuModule({ C }) {
             border: `1px solid ${C?.border || "#2a2218"}`,
             borderRadius: 8, padding: 4,
           }}>
-            {[["items", "Items"], ["config", "Nav Config"], ["branding", "Branding"]].map(([key, label]) => (
+            {[["items", "Items"], ["config", "Nav Config"], ["branding", "Branding"], ["magazine", "Magazine"]].map(([key, label]) => (
               <button key={key} onClick={() => setLeftTab(key)} style={{
                 flex: 1, background: leftTab === key ? G : "transparent",
                 border: `1px solid ${leftTab === key ? G : "transparent"}`,
@@ -392,6 +393,11 @@ export default function MenuModule({ C }) {
           {/* Branding tab */}
           {leftTab === "branding" && (
             <MenuBranding C={C} />
+          )}
+
+          {/* Magazine tab */}
+          {leftTab === "magazine" && (
+            <MagazineNavModule C={C} />
           )}
         </div>
 
