@@ -895,8 +895,8 @@ function App() {
           </Suspense>
         )}
         {page === "studio-edit" && (
-          <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
-            <UniversalStudioRouter />
+          <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading editor...</div>}>
+            <UniversalStudioRouter entityType={pageState.entityType} slug={pageState.slug} />
           </Suspense>
         )}
         {page === "puglia" && (
