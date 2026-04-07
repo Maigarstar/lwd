@@ -98,7 +98,7 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
         right:      0,
         zIndex:     698,
         background: isOnMagazine
-          ? "linear-gradient(to bottom, rgba(12,10,8,0.75), rgba(8,6,4,0.95))"
+          ? "linear-gradient(to bottom, rgba(8,6,4,0.85), rgba(4,2,0,0.98))"
           : "linear-gradient(to bottom, rgba(20,16,12,0.55), rgba(12,10,8,0.85))",
         backdropFilter: "blur(10px) saturate(115%)",
         WebkitBackdropFilter: "blur(10px) saturate(115%)",
