@@ -6197,17 +6197,19 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
     }
   }, [formData, tone, onSaveToParent]);
 
-  const publish = async () => {
+  const publish = useCallback(async () => {
     const u = { ...formData, published: true, publishedAt: new Date().toISOString(), tone };
     setFormData(u);
     await save(u);
     // Ping IndexNow so search engines discover the article immediately (non-blocking)
     pingIndexNowForArticle(u.category_slug || u.categorySlug, u.slug).catch(() => {});
-  };
-  const unpublish = async () => {
+  }, [formData, tone, save]);
+
+  const unpublish = useCallback(async () => {
     const u = { ...formData, published: false, tone };
-    setFormData(u); await save(u);
-  };
+    setFormData(u);
+    await save(u);
+  }, [formData, tone, save]);
 
   // ── AI Draft handlers ─────────────────────────────────────────────────
   const handleAcceptBlocks = useCallback((selectedBlocks) => {

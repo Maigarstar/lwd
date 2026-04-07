@@ -660,7 +660,6 @@ const CAT_FIELD_MAP = {
   seoTitle:              'seo_title',
   seoDescription:        'seo_description',
   metaDescription:       'seo_description', // Alias
-  ogImage:               'og_image',        // OG image for social
   seoKeywords:           'seo_keywords',
   // Tier 1: Core AI & Aura Integration (added 20260407)
   aiDiscoveryEnabled:    'ai_discovery_enabled',

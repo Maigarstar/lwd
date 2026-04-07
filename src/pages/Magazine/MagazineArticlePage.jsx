@@ -254,10 +254,12 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
             </p>
           )}
           <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <img src={post.author.avatar} alt={post.author.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
-              <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.6)', letterSpacing: '0.05em' }}>{post.author.name}</span>
-            </div>
+            {post.author && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <img src={post.author.avatar} alt={post.author.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.6)', letterSpacing: '0.05em' }}>{post.author.name}</span>
+              </div>
+            )}
             <span style={{ color: 'rgba(245,240,232,0.25)' }}>·</span>
             <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.5)' }}>{formatDate(post.date)}</span>
             <span style={{ color: 'rgba(245,240,232,0.25)' }}>·</span>
