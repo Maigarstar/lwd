@@ -61,11 +61,12 @@ const FALLBACK_LINKS = [
 
 export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavigateStandard, onNavigateAbout, hasHero = true }) {
   const C = useTheme();
-  const [scrolled,    setScrolled]   = useState(false);
-  const [drawerOpen,  setDrawerOpen] = useState(false);
-  const [navItems,    setNavItems]   = useState(FALLBACK_LINKS);
-  const [openPanel,   setOpenPanel]  = useState(null); // nav item id | null
-  const [branding,    setBranding]   = useState(DEFAULT_BRANDING);
+  const [scrolled,       setScrolled]       = useState(false);
+  const [drawerOpen,     setDrawerOpen]     = useState(false);
+  const [navItems,       setNavItems]       = useState(FALLBACK_LINKS);
+  const [openPanel,      setOpenPanel]      = useState(null); // nav item id | null
+  const [branding,       setBranding]       = useState(DEFAULT_BRANDING);
+  const [keyboardFocus,  setKeyboardFocus]  = useState(null); // Track keyboard focus for arrow nav
   const navRef        = useRef(null);
   const closeTimer    = useRef(null);
   const hamburgerRef  = useRef(null); // Track hamburger button for focus restoration
@@ -106,6 +107,46 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
   const cancelClose = useCallback(() => {
     clearTimeout(closeTimer.current);
   }, []);
+
+  // Keyboard navigation handler for desktop mega menus
+  const handleMegaMenuKeyDown = useCallback((e, itemId, isMega) => {
+    const nonCtaItems = navItems.filter(i => i.type !== "cta");
+    const currentIndex = nonCtaItems.findIndex(i => i.id === itemId);
+
+    if (isMega) {
+      if (e.key === "Enter" || e.key === " ") {
+        // Enter/Space: open mega menu
+        e.preventDefault();
+        openMegaMenu(itemId);
+        setKeyboardFocus(itemId);
+      } else if (e.key === "Escape") {
+        // ESC: close mega menu
+        e.preventDefault();
+        setOpenPanel(null);
+        setKeyboardFocus(itemId);
+      } else if (e.key === "ArrowRight") {
+        // Arrow Right: move to next item
+        e.preventDefault();
+        const nextIndex = (currentIndex + 1) % nonCtaItems.length;
+        const nextId = nonCtaItems[nextIndex].id;
+        setKeyboardFocus(nextId);
+        // Find and focus the next button
+        setTimeout(() => {
+          document.querySelector(`[data-nav-id="${nextId}"]`)?.focus();
+        }, 0);
+      } else if (e.key === "ArrowLeft") {
+        // Arrow Left: move to previous item
+        e.preventDefault();
+        const prevIndex = currentIndex === 0 ? nonCtaItems.length - 1 : currentIndex - 1;
+        const prevId = nonCtaItems[prevIndex].id;
+        setKeyboardFocus(prevId);
+        // Find and focus the previous button
+        setTimeout(() => {
+          document.querySelector(`[data-nav-id="${prevId}"]`)?.focus();
+        }, 0);
+      }
+    }
+  }, [navItems, openMegaMenu]);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 80);
@@ -307,8 +348,17 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
                 onMouseLeave={startClose}
               >
                 <button
+                  data-nav-id={item.id}
                   className="home-nav-links"
                   onClick={handler || undefined}
+                  onKeyDown={(e) => handleMegaMenuKeyDown(e, item.id, true)}
+                  onFocus={() => setKeyboardFocus(item.id)}
+                  onBlur={() => {
+                    if (openPanel !== item.id) setKeyboardFocus(null);
+                  }}
+                  aria-haspopup="menu"
+                  aria-expanded={openPanel === item.id}
+                  aria-controls={`mega-menu-${item.id}`}
                   style={{
                     background: "none", border: "none",
                     cursor: "pointer", fontSize: 13, fontWeight: 400,
@@ -322,6 +372,7 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
                 </button>
                 {openPanel === item.id && (
                   <MegaMenuPanel
+                    id={`mega-menu-${item.id}`}
                     item={item}
                     navHeight={navH}
                     onMouseEnter={cancelClose}

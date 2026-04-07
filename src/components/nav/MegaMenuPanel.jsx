@@ -17,7 +17,7 @@ const SHADOW_MAP = {
   luxury: "0 20px 60px rgba(0,0,0,0.28)",
 };
 
-export default function MegaMenuPanel({ item, navHeight, onMouseEnter, onMouseLeave }) {
+export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMouseLeave }) {
   const [subcategories, setSubcategories] = useState([]);
   const [featuredPost,  setFeaturedPost]  = useState(null);
   const [ready,         setReady]         = useState(false);
@@ -70,6 +70,8 @@ export default function MegaMenuPanel({ item, navHeight, onMouseEnter, onMouseLe
 
   return (
     <div
+      id={id}
+      role="menu"
       style={{
         position:   "fixed",
         top:        navHeight,
