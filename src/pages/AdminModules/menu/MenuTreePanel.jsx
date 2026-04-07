@@ -38,8 +38,66 @@ function TreeNode({
   const G = C?.gold || "#c9a84c";
   const hasChildren = item.children?.length > 0;
   const [expanded, setExpanded] = useState(true);
+  const [dragOver, setDragOver] = useState(false);
+  const [dragOverPos, setDragOverPos] = useState(null); // "above" | "below" | null
   const idx = siblings.findIndex(s => s.id === item.id);
   const isSelected = selectedItemId === item.id;
+
+  const handleDragStart = (e) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", JSON.stringify({ itemId: item.id, siblings }));
+    e.currentTarget.style.opacity = "0.5";
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOver(true);
+    // Determine if dropping above or below
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    setDragOverPos(e.clientY < midpoint ? "above" : "below");
+  };
+
+  const handleDragLeave = (e) => {
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setDragOver(false);
+    setDragOverPos(null);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    try {
+      const data = JSON.parse(e.dataTransfer.getData("text/plain"));
+      if (data.itemId === item.id) {
+        setDragOver(false);
+        setDragOverPos(null);
+        return; // Can't drop on itself
+      }
+      // Reorder based on drop position
+      const dropIdx = dragOverPos === "above" ? idx : idx + 1;
+      if (data.siblings === siblings) {
+        // Same level reordering
+        const dragItem = siblings.find(s => s.id === data.itemId);
+        if (dragItem) {
+          const dragIdx = siblings.indexOf(dragItem);
+          if (dragIdx !== dropIdx && dragIdx !== dropIdx - 1) {
+            onMove(dragItem, siblings, dragIdx < dropIdx ? "down" : "up");
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Drop failed:", e);
+    }
+    setDragOver(false);
+    setDragOverPos(null);
+  };
+
+  const handleDragEnd = (e) => {
+    e.currentTarget.style.opacity = "1";
+    setDragOver(false);
+    setDragOverPos(null);
+  };
 
   const qBtn = (label, onClick, opts = {}) => (
     <button
@@ -70,22 +128,38 @@ function TreeNode({
 
   return (
     <div>
-      <div style={{
-        display: "flex", alignItems: "center", gap: 8,
-        padding: `7px 14px 7px ${14 + depth * 22}px`,
-        borderTop: depth === 0 ? `1px solid ${C?.border || "#2a2218"}` : "none",
-        background: isSelected
-          ? G + "14"
-          : moving === item.id
-            ? G + "10"
-            : depth > 0
-              ? ((C?.bg || "#0b0906") + "0e")
-              : "transparent",
-        borderLeft: isSelected ? `3px solid ${G}` : "3px solid transparent",
-        opacity: item.visible ? 1 : 0.5,
-        transition: "background 0.2s, border-color 0.2s",
-        cursor: "pointer",
-      }}
+      <div
+        draggable
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onDragEnd={handleDragEnd}
+        style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: `7px 14px 7px ${14 + depth * 22}px`,
+          borderTop: depth === 0 ? `1px solid ${C?.border || "#2a2218"}` : "none",
+          background: dragOver
+            ? G + "22"
+            : isSelected
+              ? G + "14"
+              : moving === item.id
+                ? G + "10"
+                : depth > 0
+                  ? ((C?.bg || "#0b0906") + "0e")
+                  : "transparent",
+          borderLeft: dragOver
+            ? `3px solid ${G}`
+            : isSelected
+              ? `3px solid ${G}`
+              : "3px solid transparent",
+          borderTop: dragOverPos === "above" ? `2px solid ${G}` : "none",
+          borderBottom: dragOverPos === "below" ? `2px solid ${G}` : "none",
+          opacity: item.visible ? 1 : 0.5,
+          transition: "background 0.2s, border-color 0.2s",
+          cursor: "grab",
+          userSelect: "none",
+        }}
         onClick={() => onEdit(item)}
       >
         {/* Expand toggle */}
