@@ -48,7 +48,7 @@ export default function MagazinePostMappingEditor({ C }) {
       const [postsRes, sectionsRes, mappingsRes] = await Promise.all([
         supabase
           .from("magazine_posts")
-          .select("id, title, slug, excerpt, category")
+          .select("id, title, slug, excerpt")
           .order("created_at", { ascending: false }),
         supabase
           .from("mag_sections")
@@ -170,14 +170,9 @@ export default function MagazinePostMappingEditor({ C }) {
                     <div style={{
                       fontWeight: selectedPostId === post.id ? 700 : 400,
                       color: selectedPostId === post.id ? G : (C?.white || "#f5efe4"),
-                      fontSize: 13, marginBottom: 4,
+                      fontSize: 13,
                     }}>
                       {post.title}
-                    </div>
-                    <div style={{
-                      fontSize: 11, color: C?.grey || "#8a7d6a",
-                    }}>
-                      {post.category || "uncategorized"}
                     </div>
                   </button>
                 ))
