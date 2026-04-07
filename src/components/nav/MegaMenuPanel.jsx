@@ -313,7 +313,7 @@ function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual,
       href={href}
       style={{
         display: "block",
-        padding: "14px 0",
+        padding: "14px 0 14px 4px",
         borderBottom: "1px solid",
         borderImage: "linear-gradient(to right, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)) 1",
         textDecoration: "none",
