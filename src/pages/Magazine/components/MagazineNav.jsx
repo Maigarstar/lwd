@@ -655,23 +655,31 @@ export default function MagazineNav({
           padding: 14px clamp(16px, 4vw, 60px);
         }
         .mag-cats {
-          display: flex; align-items: center;
-          padding: 0 clamp(20px, 4vw, 60px);
-          overflow-x: auto; gap: 0;
+          display: flex;
+          flex-wrap: nowrap;
+          align-items: center;
+          gap: 12px;
+          width: 100%;
+          min-width: 0;
+          overflow-x: auto;
+          overflow-y: hidden;
+          white-space: nowrap;
+          padding: 0 16px;
           scrollbar-width: none;
         }
         .mag-cats::-webkit-scrollbar { display: none; }
         .mag-cat-btn {
-          display: inline-block !important;
-          visibility: visible !important;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex: 0 0 auto;
+          min-width: max-content;
           font-family: ${FU}; font-size: 10px; font-weight: 500;
           letter-spacing: 0.14em; text-transform: uppercase;
           background: none; border: none;
           padding: 14px 18px; cursor: pointer; white-space: nowrap;
           border-bottom: 1px solid transparent;
           transition: color 0.2s, border-color 0.2s, font-weight 0.2s;
-          min-width: auto;
-          opacity: 1 !important;
         }
         .mag-cat-btn {
           color: ${isLight ? 'rgba(0,0,0,0.9)' : 'rgba(245,240,232,0.9)'};
@@ -837,7 +845,7 @@ export default function MagazineNav({
                       display: 'flex', alignItems: 'center', gap: 4,
                     }}
                   >
-                    {cat.label}
+                    {cat.name || cat.label}
                     <span style={{
                       fontSize: 8, opacity: 0.5,
                       transition: 'transform 0.2s',
@@ -863,7 +871,7 @@ export default function MagazineNav({
                   whiteSpace: 'nowrap',
                 }}
               >
-                {cat.label}
+                {cat.name || cat.label}
               </button>
             );
           })}
