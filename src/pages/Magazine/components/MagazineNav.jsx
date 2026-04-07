@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import { CATEGORIES } from '../data/categories';
 import { getPostsByCategory, POSTS } from '../data/posts';
 import NewsletterCapture from './NewsletterCapture';
-import MagazineMegaMenu from './MagazineMegaMenu';
 import { useIsMobile } from '../../../components/profile/ProfileDesignSystem';
 
 const supabase = createClient(
@@ -763,21 +762,7 @@ export default function MagazineNav({
           </div>
         </div>
 
-        {/* Mega menu navigation, desktop only */}
-        {!isMobile && (
-          <div style={{
-            borderTop: `1px solid ${dividerColor}`,
-            background: navBg,
-            padding: '0 clamp(20px, 4vw, 60px)',
-          }}>
-            <MagazineMegaMenu
-              isLight={isLight}
-              activeCategoryId={activeCategoryId}
-              onNavigateCategory={onNavigateCategory}
-              categories={categories}
-            />
-          </div>
-        )}
+        {/* Magazine mega menu is now handled by main navigation HomeNav */}
 
         {/* Filter bar, desktop only, shown when filterSubcats provided */}
         {!isMobile && filterSubcats?.length > 0 && (
