@@ -300,12 +300,15 @@ export default function MenuModule({ C }) {
       <div style={{
         display: "flex",
         gap: 24, alignItems: "start",
+        flexWrap: window.innerWidth < 1400 ? "wrap" : "nowrap",
       }}>
 
         {/* ── LEFT: tabs + tree + editor ── */}
         <div ref={leftPanelRef} style={{
           display: "flex", flexDirection: "column", gap: 0,
-          width: 750, flexShrink: 0,
+          width: window.innerWidth < 1400 ? "100%" : 750,
+          flexShrink: window.innerWidth < 1400 ? 1 : 0,
+          minWidth: 0,
         }}>
 
           {/* Tab switcher */}

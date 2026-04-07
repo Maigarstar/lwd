@@ -218,6 +218,21 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
     return () => clearTimeout(timer);
   }, [drawerOpen]);
 
+  // Click outside handler: close mega menu when clicking outside nav
+  useEffect(() => {
+    if (!openPanel) return;
+
+    const handleClickOutside = (e) => {
+      // Don't close if clicking inside nav
+      if (navRef.current && navRef.current.contains(e.target)) return;
+      // Close mega menu
+      setOpenPanel(null);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openPanel]);
+
   // Load site branding (logo + layout)
   useEffect(() => {
     supabase
@@ -628,15 +643,14 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
               right: 0,
               bottom: 0,
               zIndex: 1201,
-              width: 300,
-              maxWidth: "85vw",
+              width: "clamp(280px, 85vw, 360px)",
               background: darkMode ? "rgba(12,11,8,0.98)" : "rgba(8,7,5,0.98)",
               backdropFilter: "blur(24px)",
               transform: drawerOpen ? "translateX(0)" : "translateX(100%)",
               transition: "transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
               display: "flex",
               flexDirection: "column",
-              padding: "0 0 40px",
+              padding: "0 0 clamp(20px, 5vw, 40px)",
               overflowY: "auto",
               outline: "none",
               tabIndex: -1,

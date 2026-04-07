@@ -37,6 +37,7 @@ export default function MobileDrawerAccordion({
   const [expandedId, setExpandedId] = useState(null);
   const [nestedItems, setNestedItems] = useState({}); // Cache: { parentId: [items] }
   const [loading, setLoading] = useState({}); // Loading state per item
+  const [touchActive, setTouchActive] = useState(null); // Track touch/active state
 
   // Fetch nested items for mega menus
   const expandItem = (itemId, sourceTable) => {
@@ -115,13 +116,13 @@ export default function MobileDrawerAccordion({
                   alignItems: "center",
                   justifyContent: "space-between",
                   width: "100%",
-                  background: isExpanded ? "rgba(201,168,76,0.08)" : "none",
+                  background: isExpanded || touchActive === item.id ? "rgba(201,168,76,0.08)" : "none",
                   border: "none",
                   cursor: "pointer",
                   padding: "16px 28px",
                   fontSize: 15,
                   fontWeight: isMega && isExpanded ? 600 : 400,
-                  color: isExpanded ? C.gold : "rgba(245,240,232,0.7)",
+                  color: isExpanded || touchActive === item.id ? C.gold : "rgba(245,240,232,0.7)",
                   fontFamily: NU,
                   letterSpacing: "0.3px",
                   transition: "all 0.25s ease",
@@ -134,11 +135,13 @@ export default function MobileDrawerAccordion({
                   }
                 }}
                 onMouseLeave={e => {
-                  if (!isExpanded) {
+                  if (!isExpanded && touchActive !== item.id) {
                     e.currentTarget.style.color = "rgba(245,240,232,0.7)";
                     e.currentTarget.style.background = "none";
                   }
                 }}
+                onTouchStart={() => setTouchActive(item.id)}
+                onTouchEnd={() => setTouchActive(null)}
               >
                 <span>{item.label}</span>
                 {isMega && (
@@ -193,19 +196,19 @@ export default function MobileDrawerAccordion({
                           display: "block",
                           width: "100%",
                           textAlign: "left",
-                          background: "none",
+                          background: touchActive === nestedItem.id ? "rgba(201,168,76,0.04)" : "none",
                           border: "none",
                           cursor: "pointer",
                           padding: "12px 28px",
                           paddingLeft: "40px",
                           fontSize: 13,
                           fontWeight: 400,
-                          color: "rgba(245,240,232,0.5)",
+                          color: touchActive === nestedItem.id ? C.gold : "rgba(245,240,232,0.5)",
                           fontFamily: NU,
                           letterSpacing: "0.3px",
                           transition: "color 0.2s, background 0.2s",
                           minHeight: 44,
-                          borderLeft: "2px solid transparent",
+                          borderLeft: touchActive === nestedItem.id ? `2px solid ${C.gold}` : "2px solid transparent",
                         }}
                         onMouseEnter={e => {
                           e.currentTarget.style.color = C.gold;
@@ -213,10 +216,14 @@ export default function MobileDrawerAccordion({
                           e.currentTarget.style.borderLeftColor = C.gold;
                         }}
                         onMouseLeave={e => {
-                          e.currentTarget.style.color = "rgba(245,240,232,0.5)";
-                          e.currentTarget.style.background = "none";
-                          e.currentTarget.style.borderLeftColor = "transparent";
+                          if (touchActive !== nestedItem.id) {
+                            e.currentTarget.style.color = "rgba(245,240,232,0.5)";
+                            e.currentTarget.style.background = "none";
+                            e.currentTarget.style.borderLeftColor = "transparent";
+                          }
                         }}
+                        onTouchStart={() => setTouchActive(nestedItem.id)}
+                        onTouchEnd={() => setTouchActive(null)}
                       >
                         {nestedItem.label}
                       </button>

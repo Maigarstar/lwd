@@ -89,10 +89,12 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
       <div style={{
         maxWidth: item.panel_full_width ? "100%" : (item.panel_max_width || 1200),
         margin:   "0 auto",
-        padding:  `${padding}px 40px`,
+        padding:  `${padding}px clamp(20px, 5vw, 40px)`,
         display:  "grid",
-        gridTemplateColumns: hasFeatured ? "1fr 300px" : "1fr",
-        gap: 56,
+        gridTemplateColumns: window.innerWidth < 1024
+          ? "1fr"
+          : (hasFeatured ? "1fr 300px" : "1fr"),
+        gap: window.innerWidth < 1024 ? 32 : 56,
         alignItems: "start",
       }}>
 
