@@ -3,7 +3,6 @@
  * Displays what is being edited, return path, and link to live page
  * Used in MagazineStudio, ListingStudio, ShowcaseStudio, LocationStudio, CategoryStudio
  */
-import { useNavigate } from 'react-router-dom';
 import { getEntityLabel } from '../../utils/editingUtils';
 
 export default function StudioContextBar({
@@ -12,8 +11,6 @@ export default function StudioContextBar({
   returnPath,   // URL to return to
   liveUrl,      // optional, live page URL (if omitted, no "open live" button)
 }) {
-  const navigate = useNavigate();
-
   if (!entityType || !title || !returnPath) {
     return null;
   }
@@ -54,7 +51,7 @@ export default function StudioContextBar({
 
       {/* Back button & title */}
       <button
-        onClick={() => navigate(returnPath)}
+        onClick={() => window.location.href = returnPath}
         style={{
           display: 'inline-flex',
           alignItems: 'center',

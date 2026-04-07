@@ -425,6 +425,8 @@ function App() {
   const [categorySearchQuery, setCategorySearchQuery] = useState(null);
   const [activeMagazineCategoryId, setActiveMagazineCategoryId] = useState(initial.magazineCategoryId || null);
   const [activeMagazineSlug, setActiveMagazineSlug] = useState(initial.magazineSlug || null);
+  const [studioEntityType, setStudioEntityType] = useState(initial.entityType || null);
+  const [studioSlug, setStudioSlug] = useState(initial.slug || null);
   const [activeVenueSlug, setActiveVenueSlug] = useState(initial.venueSlug || null);
   const [activeVendorSlug, setActiveVendorSlug] = useState(initial.vendorSlug || null);
   const [activeShowcaseSlug, setActiveShowcaseSlug] = useState(initial.showcaseSlug || null);
@@ -896,7 +898,7 @@ function App() {
         )}
         {page === "studio-edit" && (
           <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading editor...</div>}>
-            <UniversalStudioRouter entityType={pageState.entityType} slug={pageState.slug} />
+            <UniversalStudioRouter entityType={studioEntityType} slug={studioSlug} />
           </Suspense>
         )}
         {page === "puglia" && (

@@ -33,6 +33,7 @@ import ArticleListView from './ArticleListView';
 import ArticleEditor from './ArticleEditor';
 import HomepageEditor from './HomepageEditor';
 import CategoryEditor from './CategoryEditor';
+import StudioContextBar from '../../components/editor/StudioContextBar';
 import {
   fetchPosts,
   fetchCategories,
@@ -776,20 +777,21 @@ function ArticleList({ posts, allCategories, onEdit, onNew, onDuplicate, onDelet
 // ── Shell ─────────────────────────────────────────────────────────────────────
 const SESSION_KEY = 'magazineStudio_nav';
 
-export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
+export default function MagazineStudio({ onNavigateMagazine, onNavigateHome, slug, returnPath }) {
   const [mode, setModeRaw] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY))?.mode || 'home'; } catch { return 'home'; }
   });
   const [editingId, setEditingIdRaw] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY))?.editingId || null; } catch { return null; }
   });
-  const [returnPath, setReturnPath] = useState(() => {
+  // Merge prop-based returnPath with sessionStorage fallback
+  const effectiveReturnPath = returnPath || (() => {
     try {
       const p = sessionStorage.getItem('lwd_admin_return_path');
       if (p) { sessionStorage.removeItem('lwd_admin_return_path'); return p; }
     } catch {}
     return null;
-  });
+  })();
 
   const setMode = (m) => {
     setModeRaw(m);
@@ -853,6 +855,16 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
       }
     });
   }, []);
+
+  // ── Load article by slug when passed as prop (universal studio router) ──────
+  useEffect(() => {
+    if (slug && dbLoaded && localPosts.length > 0) {
+      const article = localPosts.find(p => p.slug === slug);
+      if (article) {
+        setModeAndId('article-edit', article.id);
+      }
+    }
+  }, [slug, dbLoaded, localPosts]);
 
   const showToast = useCallback((msg, type = 'ok') => {
     setSaveToast({ msg, type });
@@ -1134,7 +1146,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
         </div>
       )}
       {/* Return to live page strip */}
-      {returnPath && mode === 'article-edit' && (
+      {effectiveReturnPath && mode === 'article-edit' && (
         <div style={{
           height: 28, flexShrink: 0,
           background: 'rgba(201,168,76,0.08)',
@@ -1143,7 +1155,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
           padding: '0 20px', gap: 10,
         }}>
           <button
-            onClick={() => { window.location.href = returnPath }}
+            onClick={() => { window.location.href = effectiveReturnPath }}
             style={{
               fontFamily: FU, fontSize: 10, fontWeight: 600,
               letterSpacing: '0.06em', textTransform: 'uppercase',
@@ -1154,7 +1166,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
             ← Back to live page
           </button>
           <span style={{ fontFamily: FU, fontSize: 10, color: S.muted }}>
-            {returnPath}
+            {effectiveReturnPath}
           </span>
         </div>
       )}
@@ -1295,25 +1307,35 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
         )}
 
         {mode === 'article-edit' && editingPost && (
-          <ArticleEditor
-            initialPost={editingPost}
-            allPosts={localPosts}
-            saving={saving}
-            isLight={studioLight}
-            onToggleTheme={() => setStudioLight(l => !l)}
-            onSaveToParent={async (updated, isDuplicate) => {
-              if (isDuplicate) {
-                // Duplicate: save to DB and go to list
-                const copy = { ...updated, id: uid(), slug: updated.slug + '-copy', title: updated.title + ' (Copy)', published: false };
-                const { data: saved } = await savePostSafe(copy);
-                setLocalPosts(prev => [saved || copy, ...prev]);
-                setModeAndId('article-list', null);
-              } else {
-                return await handleSavePost(updated);
-              }
-            }}
-            onBack={() => setModeAndId('article-list', null)}
-          />
+          <>
+            {effectiveReturnPath && (
+              <StudioContextBar
+                entityType="article"
+                title={editingPost.title}
+                returnPath={effectiveReturnPath}
+                liveUrl={`/magazine/${editingPost.slug}`}
+              />
+            )}
+            <ArticleEditor
+              initialPost={editingPost}
+              allPosts={localPosts}
+              saving={saving}
+              isLight={studioLight}
+              onToggleTheme={() => setStudioLight(l => !l)}
+              onSaveToParent={async (updated, isDuplicate) => {
+                if (isDuplicate) {
+                  // Duplicate: save to DB and go to list
+                  const copy = { ...updated, id: uid(), slug: updated.slug + '-copy', title: updated.title + ' (Copy)', published: false };
+                  const { data: saved } = await savePostSafe(copy);
+                  setLocalPosts(prev => [saved || copy, ...prev]);
+                  setModeAndId('article-list', null);
+                } else {
+                  return await handleSavePost(updated);
+                }
+              }}
+              onBack={() => setModeAndId('article-list', null)}
+            />
+          </>
         )}
       </div>
 
