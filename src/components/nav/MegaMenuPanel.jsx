@@ -26,6 +26,9 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
   const hasChildren = item.children && item.children.length > 0;
   const isManual   = item.mega_menu_source === "manual" || !sourceSlug || hasChildren;
 
+  // Detect if on magazine page for darker glass
+  const isOnMagazine = typeof window !== "undefined" && window.location.pathname.includes("/magazine");
+
   useEffect(() => {
     // If manually populated with nav items children, just set ready
     if (hasChildren || item.mega_menu_source === "manual") {
@@ -94,7 +97,9 @@ export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMou
         left:       0,
         right:      0,
         zIndex:     698,
-        background: "linear-gradient(to bottom, rgba(20,16,12,0.55), rgba(12,10,8,0.85))",
+        background: isOnMagazine
+          ? "linear-gradient(to bottom, rgba(12,10,8,0.75), rgba(8,6,4,0.95))"
+          : "linear-gradient(to bottom, rgba(20,16,12,0.55), rgba(12,10,8,0.85))",
         backdropFilter: "blur(10px) saturate(115%)",
         WebkitBackdropFilter: "blur(10px) saturate(115%)",
         borderTop:  "1px solid rgba(255, 255, 255, 0.08)",
