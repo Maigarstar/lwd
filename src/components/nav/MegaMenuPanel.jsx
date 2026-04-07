@@ -319,7 +319,7 @@ function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual,
         textDecoration: "none",
         cursor: "pointer",
         transition: "transform 0.2s ease, color 0.2s ease",
-        transform: hovered ? "translateX(3px)" : "translateX(0)",
+        transform: hovered ? "translateX(4px)" : "translateX(0)",
         background: hovered ? "rgba(255, 255, 255, 0.02)" : "transparent",
         animation: `fadeInUp 0.4s ease-out ${itemIndex * 20}ms both`,
       }}
