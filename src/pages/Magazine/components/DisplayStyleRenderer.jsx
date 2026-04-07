@@ -167,7 +167,7 @@ export function EditorialStyle({ posts = [] }) {
               {post.excerpt}
             </p>
 
-            <div style{{
+            <div style={{
               fontFamily: SANS,
               fontSize: 12,
               color: '#8a7d6a',
