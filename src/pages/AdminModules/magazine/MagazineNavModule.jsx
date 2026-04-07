@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
+import MagazineSectionsEditor from "./MagazineSectionsEditor.jsx";
 
 const SANS = "'Inter', 'Helvetica Neue', sans-serif";
 const SERIF = "'Cormorant Garamond', Georgia, serif";
@@ -387,13 +388,7 @@ export default function MagazineNavModule({ C }) {
 
       {/* Sections tab */}
       {tab === "sections" && (
-        <div style={{
-          padding: 24, background: C?.card || "#1a1510",
-          border: `1px solid ${C?.border || "#2a2218"}`,
-          borderRadius: 8, textAlign: "center", color: C?.grey || "#8a7d6a",
-        }}>
-          <p>Sections editor coming soon. Allows mapping posts to multiple sections with primary/secondary relationships.</p>
-        </div>
+        <MagazineSectionsEditor navItems={navItems} C={C} />
       )}
     </div>
   );
