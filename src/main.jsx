@@ -80,6 +80,7 @@ import MagazineArticlePage  from "./pages/Magazine/MagazineArticlePage.jsx";
 import MagazinePreviewPage  from "./pages/Magazine/MagazinePreviewPage.jsx";
 import FashionLandingPage   from "./pages/Magazine/FashionLandingPage.jsx";
 const MagazineStudio         = lazy(() => import("./pages/MagazineStudio/index.jsx"));
+const UniversalStudioRouter  = lazy(() => import("./pages/Studio/UniversalStudioRouter.jsx"));
 import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
 import ShowcasePage         from "./pages/ShowcasePage.jsx";
 import VendorPublicPage     from "./pages/VendorPublicPage.jsx";
@@ -198,6 +199,12 @@ function stateToPath(pg, opts = {}) {
     case "magazine-fashion": return "/magazine/fashion";
     case "magazine-article": return `/magazine/${opts.magazineSlug || ''}`;
     case "magazine-studio":  return "/magazine-studio";
+    case "studio-edit": {
+      const { entityType, slug, from } = opts;
+      if (!entityType || !slug) return "/";
+      const base = `/studio/edit/${entityType}/${slug}`;
+      return from ? `${base}?from=${encodeURIComponent(from)}` : base;
+    }
     case "vendor-public":    return `/vendor/${opts.vendorSlug || ''}`;
     case "venue-profile":    return `/venues/${opts.venueSlug || 'grand-tirolia'}`;
     case "venue-reviews":    return `/venues/${opts.venueSlug || ''}/reviews`;
@@ -297,6 +304,10 @@ function pathToState(pathname) {
   if (parts[0] === "review" && parts.length === 1) return { page: "event-review" };
   // Old format: /wedding-venues/{slug} → redirect to canonical
   if (parts[0] === "wedding-venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1], redirectToCanonical: true };
+  // Universal studio editor: /studio/edit/{entityType}/{slug}
+  if (parts[0] === "studio" && parts[1] === "edit" && parts.length === 4) {
+    return { page: "studio-edit", entityType: parts[2], slug: decodeURIComponent(parts[3]) };
+  }
   if (parts[0] === "magazine-studio" && parts.length === 1) return { page: "magazine-studio" };
   if (parts[0] === "magazine" && parts.length === 1) return { page: "magazine" };
   if (parts[0] === "magazine" && parts[1] === "category" && parts.length === 3) return { page: "magazine-category", magazineCategoryId: parts[2] };
@@ -881,6 +892,11 @@ function App() {
               onNavigateHome={goHome}
               editSlug={magazineEditSlug}
             />
+          </Suspense>
+        )}
+        {page === "studio-edit" && (
+          <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>}>
+            <UniversalStudioRouter />
           </Suspense>
         )}
         {page === "puglia" && (
