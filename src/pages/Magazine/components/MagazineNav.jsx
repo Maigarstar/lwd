@@ -554,7 +554,7 @@ export default function MagazineNav({
   const [showSubscribe, setShowSubscribe] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [categories, setCategories] = useState(CATEGORIES); // Start with static data
+  const [categories, setCategories] = useState(CATEGORIES); // Start with default static categories
   const [loadingCategories, setLoadingCategories] = useState(true);
   const scrollRef = useRef(null);
   const catBarRef = useRef(null);
@@ -588,8 +588,10 @@ export default function MagazineNav({
             .filter(cat => !cat.parent_category_slug)
             .map(cat => catMap[cat.slug]);
 
-          setCategories(topLevel);
-          console.log('[MagazineNav] Loaded', topLevel.length, 'categories from magazine_categories master');
+          // If no top-level categories found, use all categories as fallback
+          const visibleCategories = topLevel.length > 0 ? topLevel : allCategories;
+          setCategories(visibleCategories);
+          console.log('[MagazineNav] Loaded', visibleCategories.length, 'visible categories');
         } else {
           setCategories(CATEGORIES);
         }
@@ -855,6 +857,10 @@ export default function MagazineNav({
                 style={{
                   color: isActive ? GOLD : catInactive,
                   borderBottomColor: isActive ? GOLD : 'transparent',
+                  fontWeight: 700,
+                  fontSize: '11px',
+                  padding: '14px 16px',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {cat.label}

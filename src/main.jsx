@@ -624,10 +624,9 @@ function App() {
   const goMagazineCategory = (categoryId) => { setActiveMagazineCategoryId(categoryId); setActiveMagazineSlug(null); setPage("magazine-category"); };
   const goMagazineArticle = (slug) => { setActiveMagazineSlug(slug); setActiveMagazineCategoryId(null); setPage("magazine-article"); };
   const goMagazineFashion = () => { setActiveMagazineSlug(null); setActiveMagazineCategoryId(null); setPage("magazine-fashion"); };
+  const [magazineEditSlug, setMagazineEditSlug] = useState(null);
   const goMagazineStudio  = (slug) => {
-    if (slug) {
-      try { sessionStorage.setItem('magazineStudio_editSlug', slug); } catch {}
-    }
+    if (slug) setMagazineEditSlug(slug);
     setPage("magazine-studio");
   };
 
@@ -880,6 +879,7 @@ function App() {
             <MagazineStudio
               onNavigateMagazine={goMagazine}
               onNavigateHome={goHome}
+              editSlug={magazineEditSlug}
             />
           </Suspense>
         )}
