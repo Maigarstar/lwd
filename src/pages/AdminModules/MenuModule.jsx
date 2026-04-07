@@ -12,7 +12,6 @@ import MenuItemEditor  from "./menu/MenuItemEditor.jsx";
 import MenuNavConfig   from "./menu/MenuNavConfig.jsx";
 import MenuCanvas      from "./menu/MenuCanvas.jsx";
 import MenuBranding    from "./menu/MenuBranding.jsx";
-import MagazineNavModule from "./magazine/MagazineNavModule.jsx";
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -96,6 +95,7 @@ export default function MenuModule({ C }) {
 
   // ── UI state ────────────────────────────────────────────────────────────
   const [leftTab, setLeftTab]         = useState("items"); // "items" | "config" | "branding"
+  // Magazine categories now managed as nav_items children via the Items tab
   const [toast, setToast]             = useState(null);
   const [deleting, setDeleting]       = useState(null);   // item.id being deleted
   const [moving, setMoving]           = useState(null);   // item.id being reordered
@@ -319,7 +319,7 @@ export default function MenuModule({ C }) {
             border: `1px solid ${C?.border || "#2a2218"}`,
             borderRadius: 8, padding: 4,
           }}>
-            {[["items", "Items"], ["config", "Nav Config"], ["branding", "Branding"], ["magazine", "Magazine"]].map(([key, label]) => (
+            {[["items", "Items"], ["config", "Nav Config"], ["branding", "Branding"]].map(([key, label]) => (
               <button key={key} onClick={() => setLeftTab(key)} style={{
                 flex: 1, background: leftTab === key ? G : "transparent",
                 border: `1px solid ${leftTab === key ? G : "transparent"}`,
@@ -395,10 +395,7 @@ export default function MenuModule({ C }) {
             <MenuBranding C={C} />
           )}
 
-          {/* Magazine tab */}
-          {leftTab === "magazine" && (
-            <MagazineNavModule C={C} />
-          )}
+          {/* Magazine categories now managed as nav_items in the Items tab */}
         </div>
 
         {/* ── RIGHT: sticky live canvas ── */}
