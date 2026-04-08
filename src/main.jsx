@@ -71,6 +71,7 @@ import PartnerEnquiryPage from "./pages/PartnerEnquiryPage.jsx";
 import ListYourBusinessPage from "./pages/ListYourBusinessPage.jsx";
 import PricingPage from "./pages/PricingPage.jsx";
 import ListingsPage from "./pages/ListingsPage.jsx";
+import H2Page from "./pages/H2Page.jsx";
 import AdvertisePage from "./pages/AdvertisePage.jsx";
 import MostLovedPage from "./pages/MostLovedPage.jsx";
 import ArtistryPage from "./pages/Artistry/ArtistryPage.jsx";
@@ -189,6 +190,7 @@ function stateToPath(pg, opts = {}) {
     case "advertise":             return "/advertise";
     case "pricing":               return "/pricing";
     case "listings":              return "/listings";
+    case "h2":                    return "/h2";
     case "most-loved":            return "/most-loved";
     case "partner-enquiry":       return "/partner-enquiry";
     case "getting-married":  return "/getting-married";
@@ -241,7 +243,7 @@ function pathToState(pathname) {
     category: "category", "the-lwd-standard": "standard",
     about: "about", contact: "contact", partnership: "partnership",
     privacy: "privacy", terms: "terms", cookies: "cookies", "reviews-policy": "reviews-policy", support: "support",
-    admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry", taigenic: "taigenic", "list-your-business": "list-your-business", pricing: "pricing", "most-loved": "most-loved", listings: "listings", advertise: "advertise",
+    admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry", taigenic: "taigenic", "list-your-business": "list-your-business", pricing: "pricing", "most-loved": "most-loved", listings: "listings", "h2": "h2", advertise: "advertise",
   };
   const parts = clean.split("/");
   // Unsubscribe landing page
@@ -632,6 +634,7 @@ function App() {
   const goListYourBusiness = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("list-your-business"); };
   const goPricing = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("pricing"); };
   const goListings = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("listings"); };
+  const goH2 = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("h2"); };
   const goAdvertise = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("advertise"); };
   const goMagazine = () => { setActiveMagazineCategoryId(null); setActiveMagazineSlug(null); setPage("magazine"); };
   const goMagazineCategory = (categoryId) => { setActiveMagazineCategoryId(categoryId); setActiveMagazineSlug(null); setPage("magazine-category"); };
@@ -1066,6 +1069,19 @@ function App() {
         )}
         {page === "listings" && (
           <ListingsPage
+            onBack={goHome}
+            onViewVenue={goVenue}
+            onNavigateHome={goHome}
+            onToggleDark={toggleDark}
+            darkMode={darkMode}
+            onVendorLogin={goVendorLogin}
+            onNavigateStandard={goStandard}
+            onNavigateAbout={goAbout}
+            footerNav={footerNav}
+          />
+        )}
+        {page === "h2" && (
+          <H2Page
             onBack={goHome}
             onViewVenue={goVenue}
             onNavigateHome={goHome}

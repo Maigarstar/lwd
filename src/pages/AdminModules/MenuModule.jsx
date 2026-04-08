@@ -100,6 +100,7 @@ export default function MenuModule({ C }) {
   const [editingParentId, setEditingParentId] = useState(null); // uuid when adding child
 
   const [draftForm, setDraftForm]     = useState(null); // live draft from editor (for canvas)
+  const [isAddingNew, setIsAddingNew] = useState(false); // true when adding new item
 
   // ── UI state ────────────────────────────────────────────────────────────
   const [leftTab, setLeftTab]         = useState("items"); // "items" | "config" | "branding"
@@ -164,6 +165,7 @@ export default function MenuModule({ C }) {
     setEditingItem(null);
     setEditingParentId(parentId);
     setDraftForm(null);
+    setIsAddingNew(true);
     setTimeout(() => {
       editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 60);
@@ -175,6 +177,7 @@ export default function MenuModule({ C }) {
     setEditingItem(null);
     setEditingParentId(null);
     setDraftForm(null);
+    setIsAddingNew(false);
   }
 
   // ── Save nav item ─────────────────────────────────────────────────────────
@@ -276,7 +279,7 @@ export default function MenuModule({ C }) {
   }
 
   // ── Determine if editor is open ───────────────────────────────────────────
-  const editorOpen = editingItem !== null || editingParentId !== null;
+  const editorOpen = editingItem !== null || editingParentId !== null || isAddingNew;
 
   return (
     <div style={{ padding: "0 0 80px" }}>

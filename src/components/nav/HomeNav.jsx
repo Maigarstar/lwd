@@ -43,6 +43,7 @@ function resolveHandler(item, handlers) {
   if (nav_action === "mag_category")   return () => { url && (window.location.href = url); };
   if (nav_action === "join")                return () => { window.location.href = "/join"; };
   if (nav_action === "list-your-business") return () => { window.location.href = "/list-your-business"; };
+  if (nav_action === "h2")                 return () => { window.location.href = "/h2"; };
   if (nav_action === "contact")            return () => { window.location.href = "/contact"; };
   if (nav_action === "artistry-awards")return () => { window.location.href = "/artistry-awards"; };
   if (url) return () => { open_new_tab ? window.open(url, "_blank", "noreferrer") : window.location.href = url; };
@@ -58,6 +59,7 @@ const FALLBACK_LINKS = [
   { id: "f4", label: "Planning",       nav_action: "planning",       visible: true },
   { id: "f5", label: "About",          nav_action: "about",          visible: true },
   { id: "f6", label: "Magazine",          nav_action: "magazine",          visible: true },
+  { id: "f8", label: "H2",             nav_action: "h2",             visible: true },
   { id: "f7", label: "List Your Business", nav_action: "list-your-business", visible: true, type: "cta", cta_style: "fill" },
 ];
 
