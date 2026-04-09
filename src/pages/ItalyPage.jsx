@@ -31,7 +31,8 @@ import MapSection      from "../components/sections/MapSection";
 import SEOBlock        from "../components/sections/SEOBlock";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
-import HCard           from "../components/cards/HCard";
+import VenueHCard      from "../components/cards/VenueHCard";
+import VendorHCard     from "../components/cards/VendorHCard";
 import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
 import LuxuryVendorCard from "../components/cards/LuxuryVendorCard";
 import QuickViewModal  from "../components/modals/QuickViewModal";
@@ -416,18 +417,16 @@ export default function ItalyPage({
                 </SliderNav>
               ) : (
                 <div aria-label="Venue list" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 360px)", gap: isMobile ? 12 : 16, justifyContent: "center" }}>
-                    {batch1.map((v) => (
-                      <LuxuryVenueCard
-                        key={v.id}
-                        v={v}
-                        isMobile={isMobile}
-                        onView={() => onViewVenue?.(v)}
-                        quickViewItem={qvItem}
-                        setQuickViewItem={setQvItem}
-                      />
-                    ))}
-                  </div>
+                  {batch1.map((v) => (
+                    <VenueHCard
+                      key={v.id}
+                      v={v}
+                      saved={savedIds.includes(v.id)}
+                      onSave={toggleSave}
+                      onView={() => onViewVenue?.(v)}
+                      onQuickView={() => setQvItem(v)}
+                    />
+                  ))}
                 </div>
               )}
             </div>
@@ -461,15 +460,15 @@ export default function ItalyPage({
                     ))}
                   </SliderNav>
                 ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 360px)", gap: isMobile ? 12 : 16, justifyContent: "center" }}>
+                  <div>
                     {batch2.map((v) => (
-                      <LuxuryVenueCard
+                      <VenueHCard
                         key={v.id}
                         v={v}
-                        isMobile={isMobile}
+                        saved={savedIds.includes(v.id)}
+                        onSave={toggleSave}
                         onView={() => onViewVenue?.(v)}
-                        quickViewItem={qvItem}
-                        setQuickViewItem={setQvItem}
+                        onQuickView={() => setQvItem(v)}
                       />
                     ))}
                   </div>
