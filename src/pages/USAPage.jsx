@@ -566,9 +566,9 @@ export default function USAPage({
             </p>
           </div>
           <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
-            <SliderNav className="usa-venue-grid" cardWidth={isMobile ? 300 : 340} gap={isMobile ? 12 : 16}>
+            <SliderNav className="usa-venue-grid" cardWidth={isMobile ? 280 : 360} gap={isMobile ? 12 : 16}>
               {filteredVenues.slice(0, isMobile ? 8 : 12).map((v) => (
-                <div key={v.id} className="usa-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 340px", scrollSnapAlign: "start" }}>
+                <div key={v.id} className="usa-venue-card" style={{ flex: isMobile ? "0 0 280px" : "0 0 360px", scrollSnapAlign: "start" }}>
                   {isMobile ? (
                     <GCardMobile v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} />
                   ) : (

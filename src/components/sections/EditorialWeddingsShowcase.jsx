@@ -24,8 +24,8 @@ function WeddingSliderCard({ wedding }) {
       style={{
         display:        "block",
         position:       "relative",
-        width:          300,
-        minWidth:       300,
+        width:          360,
+        minWidth:       360,
         height:         320,
         overflow:       "hidden",
         borderRadius:   "var(--lwd-radius-card)",
@@ -181,7 +181,7 @@ export default function EditorialWeddingsShowcase({ weddings = [] }) {
       </p>
 
       {/* Horizontal slider */}
-      <SliderNav cardWidth={300} gap={16}>
+      <SliderNav cardWidth={360} gap={16}>
         {weddings.map((w, i) => (
           <WeddingSliderCard key={`${w.title}-${i}`} wedding={w} />
         ))}

@@ -401,9 +401,9 @@ export default function ItalyPage({
                   </button>
                 </div>
               ) : viewMode === "grid" ? (
-                <SliderNav className="lwd-venue-grid" cardWidth={432} gap={24}>
+                <SliderNav className="lwd-venue-grid" cardWidth={360} gap={24}>
                   {batch1.map((v) => (
-                    <div key={v.id} className="lwd-venue-card" style={{ flex: "0 0 432px", width: 432, height: 560, scrollSnapAlign: "start" }}>
+                    <div key={v.id} className="lwd-venue-card" style={{ flex: "0 0 360px", width: 360, height: 560, scrollSnapAlign: "start" }}>
                       <LuxuryVenueCard
                         v={v}
                         isMobile={isMobile}
@@ -445,9 +445,9 @@ export default function ItalyPage({
             {batch2.length > 0 && (
               <div className="lwd-venue-grid-wrap" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
                 {viewMode === "grid" ? (
-                  <SliderNav className="lwd-venue-grid" cardWidth={432} gap={24}>
+                  <SliderNav className="lwd-venue-grid" cardWidth={360} gap={24}>
                     {batch2.map((v) => (
-                      <div key={v.id} className="lwd-venue-card" style={{ flex: "0 0 432px", width: 432, height: 560, scrollSnapAlign: "start" }}>
+                      <div key={v.id} className="lwd-venue-card" style={{ flex: "0 0 360px", width: 360, height: 560, scrollSnapAlign: "start" }}>
                         <LuxuryVenueCard
                           v={v}
                           isMobile={isMobile}
@@ -506,9 +506,9 @@ export default function ItalyPage({
                   </p>
                 </div>
                 <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
-                  <SliderNav className="lwd-vendor-slider" cardWidth={432} gap={24}>
+                  <SliderNav className="lwd-vendor-slider" cardWidth={360} gap={24}>
                     {latestVendors.map((v) => (
-                      <div key={v.id} className="lwd-vendor-card" style={{ flex: "0 0 432px", width: 432, height: 560, scrollSnapAlign: "start" }}>
+                      <div key={v.id} className="lwd-vendor-card" style={{ flex: "0 0 360px", width: 360, height: 560, scrollSnapAlign: "start" }}>
                         <LuxuryVendorCard
                           v={v}
                           isMobile={isMobile}

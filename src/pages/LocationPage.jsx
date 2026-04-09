@@ -1088,7 +1088,7 @@ export default function LocationPage({
                 <SliderNav
                   key={locationVenues[0]?.id || "empty"}
                   className="lwd-region-venue-grid"
-                  cardWidth={420}
+                  cardWidth={360}
                   gap={isMobile ? 12 : 24}
                 >
                   {locationVenues.slice(0, 4).map((v, i) => (
@@ -1096,7 +1096,7 @@ export default function LocationPage({
                       key={v.id}
                       className="lwd-region-venue-card"
                       style={{
-                        flex: "0 0 420px",
+                        flex: "0 0 360px",
                         scrollSnapAlign: "start",
                         ...revealStyle(grid1In, i),
                       }}
@@ -1165,7 +1165,7 @@ export default function LocationPage({
             {viewMode === "grid" ? (
               <SliderNav
                 className="lwd-region-venue-grid"
-                cardWidth={420}
+                cardWidth={360}
                 gap={isMobile ? 12 : 24}
               >
                 {locationVenues.slice(4, visibleCount).filter(venue => venue?.imgs?.length > 0).map((v, i) => (
@@ -1173,7 +1173,7 @@ export default function LocationPage({
                     key={v.id}
                     className="lwd-region-venue-card"
                     style={{
-                      flex: "0 0 420px",
+                      flex: "0 0 360px",
                       scrollSnapAlign: "start",
                     }}
                   >
