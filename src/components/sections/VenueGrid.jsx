@@ -185,14 +185,14 @@ export default function VenueGrid({ venues = [], onViewVenue, onViewCategory }) 
             </p>
           </div>
 
-          {/* Horizontal card slider — wider cards (420px) */}
+          {/* Horizontal card slider — standardized 360px cards */}
           <div style={{ marginBottom: 48 }}>
-            <SliderNav className="home-venue-grid" cardWidth={420} gap={24}>
+            <SliderNav className="home-venue-grid" cardWidth={360} gap={24}>
               {display.map((v) => (
                 <div
                   key={v.id}
                   className="home-venue-card"
-                  style={{ flex: "0 0 420px", scrollSnapAlign: "start" }}
+                  style={{ flex: "0 0 360px", scrollSnapAlign: "start" }}
                 >
                   <LuxuryVenueCard
                     v={v}
