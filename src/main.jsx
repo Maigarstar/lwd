@@ -72,6 +72,7 @@ import ListYourBusinessPage from "./pages/ListYourBusinessPage.jsx";
 import PricingPage from "./pages/PricingPage.jsx";
 import ListingsPage from "./pages/ListingsPage.jsx";
 import H2Page from "./pages/H2Page.jsx";
+import H3 from "./pages/H3.jsx";
 import AdvertisePage from "./pages/AdvertisePage.jsx";
 import MostLovedPage from "./pages/MostLovedPage.jsx";
 import ArtistryPage from "./pages/Artistry/ArtistryPage.jsx";
@@ -191,6 +192,7 @@ function stateToPath(pg, opts = {}) {
     case "pricing":               return "/pricing";
     case "listings":              return "/listings";
     case "h2":                    return "/h2";
+    case "h3":                    return "/h3";
     case "most-loved":            return "/most-loved";
     case "partner-enquiry":       return "/partner-enquiry";
     case "getting-married":  return "/getting-married";
@@ -243,7 +245,7 @@ function pathToState(pathname) {
     category: "category", "the-lwd-standard": "standard",
     about: "about", contact: "contact", partnership: "partnership",
     privacy: "privacy", terms: "terms", cookies: "cookies", "reviews-policy": "reviews-policy", support: "support",
-    admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry", taigenic: "taigenic", "list-your-business": "list-your-business", pricing: "pricing", "most-loved": "most-loved", listings: "listings", "h2": "h2", advertise: "advertise",
+    admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry", taigenic: "taigenic", "list-your-business": "list-your-business", pricing: "pricing", "most-loved": "most-loved", listings: "listings", "h2": "h2", "h3": "h3", advertise: "advertise",
   };
   const parts = clean.split("/");
   // Unsubscribe landing page
@@ -635,6 +637,7 @@ function App() {
   const goPricing = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("pricing"); };
   const goListings = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("listings"); };
   const goH2 = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("h2"); };
+  const goH3 = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("h3"); };
   const goAdvertise = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("advertise"); };
   const goMagazine = () => { setActiveMagazineCategoryId(null); setActiveMagazineSlug(null); setPage("magazine"); };
   const goMagazineCategory = (categoryId) => { setActiveMagazineCategoryId(categoryId); setActiveMagazineSlug(null); setPage("magazine-category"); };
@@ -1090,6 +1093,26 @@ function App() {
             onVendorLogin={goVendorLogin}
             onNavigateStandard={goStandard}
             onNavigateAbout={goAbout}
+            footerNav={footerNav}
+          />
+        )}
+        {page === "h3" && (
+          <H3
+            onViewVenue={goVenue}
+            onViewCategory={goCategory}
+            onViewRegion={goRegion}
+            onViewRegionCategory={goRegionCategory}
+            onViewStandard={goStandard}
+            onViewAbout={goAbout}
+            onViewContact={goContact}
+            onViewPartnership={goPartnership}
+            onViewVendor={goVendor}
+            onViewAdmin={goAdmin}
+            onViewUSA={goUSA}
+            onViewItaly={goItaly}
+            onViewCountry={goCountry}
+            onViewMagazine={goMagazine}
+            onViewMagazineArticle={goMagazineArticle}
             footerNav={footerNav}
           />
         )}
