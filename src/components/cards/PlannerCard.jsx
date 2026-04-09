@@ -5,7 +5,7 @@
 // Click image → full-screen media gallery (images + video) with left/right nav.
 // Enquire button → opens enquiry form modal.
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import Stars from "../ui/Stars";
 import Pill from "../ui/Pill";
