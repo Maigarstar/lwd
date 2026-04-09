@@ -61,7 +61,7 @@ export default function FeaturedSlider({ venues, onViewVenue }) {
     <section
       ref={sectionRef}
       aria-label="Featured venues slider"
-      style={{ position: "relative", height: 620, overflow: "hidden", background: "#020201" }}
+      style={{ position: "relative", height: 680, overflow: "hidden", background: "#020201" }}
     >
       {/* Gold shimmer border */}
       <div
@@ -116,7 +116,7 @@ export default function FeaturedSlider({ venues, onViewVenue }) {
           inset: 0,
           zIndex: 2,
           background:
-            "linear-gradient(to right,rgba(4,3,2,0.85) 0%,rgba(4,3,2,0.5) 55%,rgba(4,3,2,0.15) 100%)",
+            "linear-gradient(to right,rgba(4,3,2,0.92) 0%,rgba(4,3,2,0.6) 55%,rgba(4,3,2,0.2) 100%)",
         }}
       />
       <div
@@ -157,7 +157,7 @@ export default function FeaturedSlider({ venues, onViewVenue }) {
         <h2
           style={{
             fontFamily: "var(--font-heading-primary)",
-            fontSize: "clamp(24px, 2.5vw, 38px)",
+            fontSize: "clamp(28px, 3vw, 44px)",
             color: "#ffffff",
             fontWeight: 400,
             lineHeight: 1.1,

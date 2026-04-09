@@ -26,6 +26,31 @@ export default function DestinationGrid({ onDestinationClick }) {
         overflow: "hidden",
       }}
     >
+      {/* Watermark */}
+      <span
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          top: 80,
+          left: "50%",
+          transform: "translateX(-50%)",
+          fontFamily: "var(--font-heading-primary)",
+          fontSize: "clamp(120px, 12vw, 180px)",
+          fontWeight: 400,
+          fontStyle: "italic",
+          color: "rgba(201,168,76,0.06)",
+          whiteSpace: "normal",
+          width: "100%",
+          textAlign: "center",
+          pointerEvents: "none",
+          userSelect: "none",
+          letterSpacing: "-2px",
+          lineHeight: 1,
+          zIndex: 0,
+        }}
+      >
+        Destinations
+      </span>
       {/* Header row */}
       <div
         className="home-dest-header"
@@ -74,9 +99,9 @@ export default function DestinationGrid({ onDestinationClick }) {
               lineHeight: 1.1,
             }}
           >
-            The World's Most Beautiful{" "}
+            The{" "}
             <span style={{ fontStyle: "italic", color: C.gold }}>
-              Wedding Venues
+              Destinations
             </span>
           </h2>
           <p
@@ -91,10 +116,9 @@ export default function DestinationGrid({ onDestinationClick }) {
               fontWeight: 300,
             }}
           >
-            From coastal escapes to castle retreats, explore iconic venues that
-            define elegance, romance, and grandeur by destination. Discover
-            trend-led destinations where style meets celebration, curated for
-            the modern couple with an eye for elegance.
+            From coastal escapes to grand countryside settings, explore the
+            destinations defining the modern wedding. Each chosen for its
+            beauty, atmosphere, and sense of occasion.
           </p>
         </div>
 
@@ -188,15 +212,20 @@ export default function DestinationGrid({ onDestinationClick }) {
             className="home-dest-card"
             style={{
               flexShrink: 0,
-              width: 232,
+              width: 260,
               scrollSnapAlign: "start",
               cursor: "pointer",
+              transition: "transform 0.4s ease, box-shadow 0.4s ease",
             }}
             onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-6px)";
+              e.currentTarget.style.boxShadow = "0 12px 32px rgba(0,0,0,0.25)";
               const im = e.currentTarget.querySelector("img");
               if (im) im.style.transform = "scale(1.05)";
             }}
             onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "none";
               const im = e.currentTarget.querySelector("img");
               if (im) im.style.transform = "scale(1)";
             }}
@@ -206,7 +235,7 @@ export default function DestinationGrid({ onDestinationClick }) {
               className="home-dest-card-img"
               style={{
                 width: "100%",
-                height: 300,
+                height: 340,
                 borderRadius: 8,
                 overflow: "hidden",
                 marginBottom: 14,

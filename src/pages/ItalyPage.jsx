@@ -262,7 +262,7 @@ export default function ItalyPage({
         {viewMode !== "map" && (
           <>
             {/* ── Bridge: Choose your backdrop ── */}
-            <div style={{ maxWidth: 1280, margin: "0 auto", padding: "56px 48px 0", textAlign: "center" }}>
+            <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "56px 16px 0" : "56px 48px 0", textAlign: "center" }}>
               <p style={{
                 fontFamily: "var(--font-heading-primary)",
                 fontSize: "clamp(22px,2.5vw,32px)",
@@ -279,7 +279,7 @@ export default function ItalyPage({
             <LatestSplit venues={LATEST_5} />
 
             {/* ── Divider ── */}
-            <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 48px" }}>
+            <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "0 16px" : "0 48px" }}>
               <div style={{ height: 1, background: C.border }} />
             </div>
           </>
@@ -289,7 +289,7 @@ export default function ItalyPage({
           <>
             {/* ── Bridge: Latest Venues ── */}
             {filtered.length > 0 && (
-              <div style={{ maxWidth: 1280, margin: "0 auto", padding: "52px 48px 8px" }}>
+              <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "52px 16px 8px" : "52px 48px 8px" }}>
                 <p style={{
                   fontFamily: "var(--font-heading-primary)",
                   fontSize: "clamp(22px,2.5vw,32px)",
@@ -316,7 +316,7 @@ export default function ItalyPage({
             )}
 
             {/* Batch 1 (first 6) */}
-            <div className="lwd-venue-list-wrap" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
+            <div className="lwd-venue-list-wrap" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
               {filtered.length === 0 ? (
                 /* Empty state, brand-aligned tone */
                 <div style={{ textAlign: "center", padding: "100px 0" }}>
@@ -408,7 +408,7 @@ export default function ItalyPage({
             {showSlider && (
               <div style={{ marginTop: 72 }}>
                 {/* Thin gold divider */}
-                <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 48px", marginBottom: 0 }}>
+                <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "0 16px" : "0 48px", marginBottom: 0 }}>
                   <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.3), transparent)" }} />
                 </div>
                 <FeaturedSlider venues={FEATURED} />
@@ -417,7 +417,7 @@ export default function ItalyPage({
 
             {/* Batch 2 (venues 6 → visibleCount) */}
             {batch2.length > 0 && (
-              <div className="lwd-venue-grid-wrap" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
+              <div className="lwd-venue-grid-wrap" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
                 {viewMode === "grid" ? (
                   <SliderNav className="lwd-venue-grid" cardWidth={isMobile ? 300 : 340} gap={isMobile ? 12 : 16}>
                     {batch2.map((v) => (
@@ -453,7 +453,7 @@ export default function ItalyPage({
             {/* ── Latest Vendors ── */}
             {ITALY_VENDORS.length > 0 && (
               <>
-                <div style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 48px 8px", marginTop: 40 }}>
+                <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "48px 16px 8px" : "48px 48px 8px", marginTop: 40 }}>
                   <p style={{
                     fontFamily: "var(--font-heading-primary)",
                     fontSize: "clamp(22px,2.5vw,32px)",
@@ -477,7 +477,7 @@ export default function ItalyPage({
                     Planners, photographers, florists, and culinary artists, the professionals behind Italy's finest celebrations.
                   </p>
                 </div>
-                <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
+                <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
                   <SliderNav className="lwd-vendor-slider" cardWidth={isMobile ? 300 : 320} gap={isMobile ? 12 : 16}>
                     {(isMobile ? ITALY_VENDORS.slice(0, 8) : ITALY_VENDORS.slice(0, 12)).map((v) => (
                       <div key={v.id} className="lwd-vendor-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 320px", scrollSnapAlign: "start" }}>

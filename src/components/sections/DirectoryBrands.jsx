@@ -220,11 +220,36 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
       className="home-directory-section"
       style={{
         background: darkMode ? C.dark : "#f2f0ea",
-        borderTop: `1px solid ${C.border}`,
         padding: "80px 60px",
+        position: "relative",
+        overflow: "hidden",
+        zIndex: 2,
       }}
     >
-      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+      {/* Watermark */}
+      <span
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          fontFamily: "var(--font-heading-primary)",
+          fontSize: "clamp(100px, 12vw, 180px)",
+          fontWeight: 400,
+          fontStyle: "italic",
+          color: "rgba(201,168,76,0.08)",
+          whiteSpace: "nowrap",
+          pointerEvents: "none",
+          userSelect: "none",
+          letterSpacing: "-2px",
+          lineHeight: 1,
+          zIndex: 0,
+        }}
+      >
+        Discover
+      </span>
+      <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative", zIndex: 1 }}>
         {/* Section heading */}
         <div style={{ textAlign: "center", marginBottom: 48 }}>
           <div
@@ -271,7 +296,7 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 40,
+            gap: 56,
           }}
         >
           {columns.map((col) => (
@@ -279,13 +304,13 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
               <h3
                 style={{
                   fontFamily: NU,
-                  fontSize: 13,
+                  fontSize: 11,
                   fontWeight: 700,
-                  letterSpacing: "0.08em",
+                  letterSpacing: "0.14em",
                   textTransform: "uppercase",
                   color: C.off,
-                  marginBottom: 16,
-                  paddingBottom: 10,
+                  marginBottom: 20,
+                  paddingBottom: 12,
                   borderBottom: `1px solid ${C.border}`,
                 }}
               >
@@ -301,10 +326,10 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
                         border: "none",
                         cursor: "pointer",
                         fontFamily: NU,
-                        fontSize: 13,
+                        fontSize: 13.5,
                         fontWeight: 400,
                         color: C.grey,
-                        padding: "5px 0",
+                        padding: "6px 0",
                         display: "block",
                         width: "100%",
                         textAlign: "left",
@@ -335,7 +360,6 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
         className="home-directory-section"
         style={{
           background: darkMode ? C.dark : "#f2f0ea",
-          borderTop: `1px solid ${C.border}`,
           padding: "80px 60px",
         }}
       >
@@ -381,7 +405,6 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
       className="home-directory-section"
       style={{
         background: darkMode ? C.dark : "#f2f0ea",
-        borderTop: `1px solid ${C.border}`,
         padding: "80px 60px",
       }}
     >
@@ -508,11 +531,36 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
           className="home-directory-section"
           style={{
             background: C.card,
-            borderTop: `1px solid ${C.border}`,
             padding: "80px 60px",
+            position: "relative",
+            overflow: "hidden",
+            zIndex: 2,
           }}
         >
-          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          {/* Watermark */}
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: "calc(50% + 345px)",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              fontFamily: "var(--font-heading-primary)",
+              fontSize: "clamp(100px, 12vw, 180px)",
+              fontWeight: 400,
+              fontStyle: "italic",
+              color: "rgba(201,168,76,0.06)",
+              whiteSpace: "nowrap",
+              pointerEvents: "none",
+              userSelect: "none",
+              letterSpacing: "-2px",
+              lineHeight: 1,
+              zIndex: 0,
+            }}
+          >
+            Worldwide
+          </span>
+          <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative", zIndex: 1 }}>
             {/* Heading */}
             <div style={{ textAlign: "center", marginBottom: 48 }}>
               <div
@@ -560,7 +608,7 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 40,
+                gap: 56,
               }}
             >
               {cols.map((col, ci) => (
@@ -583,10 +631,10 @@ export default function DirectoryBrands({ onViewRegion, onViewCategory, onViewUS
                             border: "none",
                             cursor: enabled ? "pointer" : "default",
                             fontFamily: NU,
-                            fontSize: 13,
+                            fontSize: 13.5,
                             fontWeight: 400,
                             color: enabled ? C.grey : C.muted || "rgba(128,128,128,0.45)",
-                            padding: "5px 0",
+                            padding: "6px 0",
                             display: "block",
                             width: "100%",
                             textAlign: "left",

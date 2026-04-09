@@ -97,12 +97,13 @@ function trackMediaEvent({
   if (!supabase || !eventType || !mediaId) return;
 
   const meta = getSessionMeta();
+  const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 
   const payload = {
     session_id:       getSessionId(),
     event_type:       eventType,
     media_id:         String(mediaId),
-    listing_id:       listingId || null,
+    listing_id:       isUuid(listingId) ? listingId : null,
     gallery_position: galleryPosition,
     slide_index:      slideIndex,
     is_hero:          isHero,
