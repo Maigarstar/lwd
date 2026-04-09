@@ -277,7 +277,7 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
   .lwd-rc-logo { font-size: 14px !important; }
 
   /* ── Hero ── */
-  .lwd-rc-hero-content { padding: 0 20px 40px !important; }
+  .lwd-rc-hero-content { padding: 0 20px 80px !important; }
   .lwd-rc-hero-stats {
     flex-wrap: wrap !important;
     gap: 16px !important;
@@ -289,6 +289,8 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
 
   /* ── All content sections ── */
   .lwd-rc-section { padding-left: 16px !important; padding-right: 16px !important; }
+  .lwd-rc-section.lwd-rc-listings { padding-left: 0 !important; padding-right: 0 !important; }
+
 
   /* ── Slider arrows — hide on mobile (swipe is natural) ── */
   .lwd-slider-arrow { display: none !important; }

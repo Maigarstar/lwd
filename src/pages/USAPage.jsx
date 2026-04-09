@@ -2,8 +2,7 @@
 // United States country hub — a snapshot of getting married in America.
 // Full luxury editorial page matching Italy CategoryPage quality.
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { ThemeCtx } from "../theme/ThemeContext";
-import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
+import { useTheme } from "../theme/ThemeContext";
 import { useChat } from "../chat/ChatContext";
 import { STYLES, CAPS, PRICES, DEFAULT_FILTERS } from "../data/italyVenues";
 
@@ -269,9 +268,10 @@ export default function USAPage({
   onViewAbout,
   footerNav = {},
 }) {
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
+  const themeCtx = useTheme();
+  const darkMode = themeCtx.darkMode;
   const isMobile = useIsMobile();
-  const C = darkMode ? getDarkPalette() : getLightPalette();
+  const C = themeCtx;
   const { setChatContext } = useChat();
 
   // Filters
@@ -363,10 +363,9 @@ export default function USAPage({
   const cur = FEATURED[slideIdx] || FEATURED[0];
 
   return (
-    <ThemeCtx.Provider value={C}>
       <div style={{ background: C.black, minHeight: "100vh", color: C.white }}>
         {/* ── Nav ──────────────────────────────────────────────────────── */}
-        <HomeNav darkMode={darkMode} onToggleDark={() => setDarkMode((d) => !d)} onNavigateStandard={onViewStandard} onNavigateAbout={onViewAbout} />
+        <HomeNav darkMode={darkMode} onToggleDark={themeCtx.toggleDark} onNavigateStandard={onViewStandard} onNavigateAbout={onViewAbout} />
 
         <main>
           {/* ═══ 1. HERO (72vh) — full-width image slider ══════════════════ */}
@@ -455,7 +454,7 @@ export default function USAPage({
           </section>
 
           {/* ═══ 2. INFO STRIP ════════════════════════════════════════════ */}
-          <section className="usa-section" style={{ background: C.dark, padding: "40px 48px" }}>
+          <section className="usa-section" style={{ background: C.dark, padding: isMobile ? "40px 16px" : "40px 48px" }}>
             <div className="usa-info-strip" style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 0 }}>
               {INFO_COLS.map((col, ci) => (
                 <div key={col.label} style={{ padding: "0 28px", borderLeft: ci > 0 ? `1px solid ${C.border}` : "none" }}>
@@ -497,12 +496,12 @@ export default function USAPage({
           />
 
           {/* ═══ 3. BRIDGE ════════════════════════════════════════════════ */}
-          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "56px 48px 0", textAlign: "center" }}>
+          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "56px 16px 0" : "56px 48px 0", textAlign: "center" }}>
             <p style={{ fontFamily: GD, fontSize: "clamp(22px,2.5vw,32px)", fontWeight: 300, fontStyle: "italic", color: C.grey, letterSpacing: "0.5px" }}>Choose your backdrop.</p>
           </div>
 
           {/* ═══ 4. EDITORIAL SPLIT ═══════════════════════════════════════ */}
-          <section className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "56px 48px 80px" }}>
+          <section className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "56px 16px 80px" : "56px 48px 80px" }}>
             <div className="usa-split-grid" style={{ display: "grid", gridTemplateColumns: "55% 45%", gap: 40 }}>
               {/* Left — image mosaic */}
               <div className="usa-mosaic-grid" style={{ display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr 1fr", gridTemplateAreas: '"one two" "one three" "four five"', minHeight: 500 }}>
@@ -555,18 +554,18 @@ export default function USAPage({
           </section>
 
           {/* ═══ 5. DIVIDER ═══════════════════════════════════════════════ */}
-          <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 48px" }}>
+          <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "0 16px" : "0 48px" }}>
             <div style={{ height: 1, background: C.border }} />
           </div>
 
           {/* ═══ 6. LATEST VENUES (6 cards using GCard) ═══════════════════ */}
-          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "52px 48px 8px" }}>
+          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "52px 16px 8px" : "52px 48px 8px" }}>
             <p style={{ fontFamily: GD, fontSize: "clamp(22px,2.5vw,32px)", fontWeight: 300, fontStyle: "italic", color: C.grey, letterSpacing: "0.5px", margin: "0 0 6px" }}>Latest Venues.</p>
             <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, opacity: 0.6, lineHeight: 1.6, maxWidth: 520, margin: 0 }}>
               Newly added estates, resorts, and private properties — each personally vetted by our editorial team.
             </p>
           </div>
-          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
+          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
             <SliderNav className="usa-venue-grid" cardWidth={isMobile ? 300 : 340} gap={isMobile ? 12 : 16}>
               {filteredVenues.slice(0, isMobile ? 8 : 12).map((v) => (
                 <div key={v.id} className="usa-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 340px", scrollSnapAlign: "start" }}>
@@ -582,7 +581,7 @@ export default function USAPage({
 
           {/* ═══ 7. SIGNATURE COLLECTION (slider) — always-dark section ════ */}
           <div style={{ marginTop: 72 }}>
-            <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 48px" }}>
+            <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "0 16px" : "0 48px" }}>
               <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.3), transparent)" }} />
             </div>
             <section style={{ position: "relative", height: 560, background: "#020201", overflow: "hidden" }}>
@@ -626,13 +625,13 @@ export default function USAPage({
           </div>
 
           {/* ═══ 8. LATEST VENDORS — coming soon ════════════════════════ */}
-          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 48px 8px", marginTop: 40 }}>
+          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "48px 16px 8px" : "48px 48px 8px", marginTop: 40 }}>
             <p style={{ fontFamily: GD, fontSize: "clamp(22px,2.5vw,32px)", fontWeight: 300, fontStyle: "italic", color: C.grey, letterSpacing: "0.5px", margin: "0 0 6px" }}>Latest Vendors.</p>
             <p style={{ fontFamily: NU, fontSize: 13, color: C.grey, opacity: 0.6, lineHeight: 1.6, maxWidth: 520, margin: 0 }}>
               Planners, photographers, florists, and culinary artists — the professionals behind America's finest celebrations.
             </p>
           </div>
-          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 56px" }}>
+          <div className="usa-section" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 56px" : "28px 48px 56px" }}>
             <div style={{ border: `1px solid rgba(201,168,76,0.2)`, borderRadius: "var(--lwd-radius-card)", padding: "48px 40px", textAlign: "center", background: "rgba(201,168,76,0.03)" }}>
               <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, opacity: 0.7, border: "1px solid rgba(201,168,76,0.25)", borderRadius: 3, padding: "3px 10px", display: "inline-block", marginBottom: 16 }}>Coming Soon</span>
               <p style={{ fontFamily: GD, fontSize: "clamp(18px,2vw,24px)", fontWeight: 300, fontStyle: "italic", color: C.grey, opacity: 0.5, margin: 0 }}>
@@ -665,7 +664,7 @@ export default function USAPage({
           </section>
 
           {/* ═══ 10. SEO / FAQ ════════════════════════════════════════════ */}
-          <section className="usa-section" style={{ background: C.dark, padding: "80px 48px" }}>
+          <section className="usa-section" style={{ background: C.dark, padding: isMobile ? "80px 16px" : "80px 48px" }}>
             <div className="usa-seo-grid" style={{ maxWidth: 1280, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80 }}>
               <div>
                 <div style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, fontWeight: 600, marginBottom: 12 }}>Planning Guide</div>
@@ -718,7 +717,7 @@ export default function USAPage({
           </section>
 
           {/* ═══ 11. CURATED DESTINATIONS ═════════════════════════════════ */}
-          <section style={{ background: C.dark, padding: "80px 60px" }}>
+          <section style={{ background: C.dark, padding: isMobile ? "60px 16px" : "80px 60px" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
               <div style={{ textAlign: "center", marginBottom: 48 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
@@ -751,10 +750,10 @@ export default function USAPage({
           </section>
 
           {/* ═══ 12. ALL STATES ═══════════════════════════════════════════ */}
-          <div aria-hidden="true" style={{ background: C.dark, padding: "0 60px" }}>
+          <div aria-hidden="true" style={{ background: C.dark, padding: isMobile ? "0 16px" : "0 60px" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto", height: 1, background: `linear-gradient(90deg, transparent, ${C.gold}, transparent 80%)` }} />
           </div>
-          <section style={{ background: C.dark, padding: "80px 60px" }}>
+          <section style={{ background: C.dark, padding: isMobile ? "60px 16px" : "80px 60px" }}>
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
               <div style={{ textAlign: "center", marginBottom: 48 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
@@ -786,6 +785,5 @@ export default function USAPage({
         {/* ── Quick View modal ────────────────────────────────────────── */}
         {qvItem && <QuickViewModal item={qvItem} onClose={() => setQvItem(null)} onViewFull={(v) => { setQvItem(null); onViewVenue(v); }} />}
       </div>
-    </ThemeCtx.Provider>
   );
 }

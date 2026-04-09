@@ -2,7 +2,7 @@
 // Dedicated city layout — NOT a RegionPage wrapper.
 // Sections: Hero (52vh) → Breadcrumb → Venues Grid → About → Map → Also in Region → Footer
 import { useState, useEffect, useMemo } from "react";
-import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
+import { useTheme } from "../theme/ThemeContext";
 import { getCityBySlug, getCountryBySlug, getRegionBySlug, CITIES } from "../data/geo.js";
 import { VENUES } from "../data/italyVenues";
 import { fetchLocationContent } from "../services/locationContentService";
@@ -104,13 +104,14 @@ export default function CityPage({
   citySlug          = null,
   footerNav         = {},
 }) {
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
+  const themeCtx = useTheme();
+  const darkMode = themeCtx.darkMode;
   const [dbContent, setDbContent] = useState(null);
   const [savedIds,  setSavedIds]  = useState([]);
   const [qvItem,    setQvItem]    = useState(null);
 
   const isMobile = useIsMobile();
-  const C = darkMode ? getDarkPalette() : getLightPalette();
+  const C = themeCtx;
 
   const city    = useMemo(() => getCityBySlug(citySlug),    [citySlug]);
   const country = useMemo(() => getCountryBySlug(countrySlug), [countrySlug]);
@@ -156,13 +157,13 @@ export default function CityPage({
       <HomeNav
         hasHero={true}
         darkMode={darkMode}
-        onToggleDark={() => setDarkMode(d => !d)}
+        onToggleDark={themeCtx.toggleDark}
         onNavigateStandard={() => onBack()}
         onNavigateAbout={() => onBack()}
       />
 
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}
-      <section style={{ position: "relative", height: "52vh", minHeight: 320, overflow: "hidden" }}>
+      <section style={{ position: "relative", height: isMobile ? "70vh" : "52vh", minHeight: 320, overflow: "hidden" }}>
         <img
           src={heroImg}
           alt={heroTitle}

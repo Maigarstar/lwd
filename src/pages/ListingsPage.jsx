@@ -13,8 +13,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { ThemeCtx } from "../theme/ThemeContext";
-import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
+import { useTheme } from "../theme/ThemeContext";
 import { VENDOR_CATEGORIES, COUNTRIES, getRegionSlugByName } from "../data/geo.js";
 import { CATS, LOCATIONS } from "../data/globalVendors";
 import { track } from "../utils/track";
@@ -520,8 +519,9 @@ export default function ListingsPage({
   onNavigateAbout,
   footerNav = {},
 }) {
-  const [darkMode, setDarkMode] = useState(() => dmProp ?? getDefaultMode() === "dark");
-  const C = darkMode ? getDarkPalette() : getLightPalette();
+  const themeCtx = useTheme();
+  const darkMode = themeCtx.darkMode;
+  const C = themeCtx;
 
   // ── Filters ───────────────────────────────────────────────────────────
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -791,13 +791,12 @@ export default function ListingsPage({
   // Render
   // ═════════════════════════════════════════════════════════════════════
   return (
-    <ThemeCtx.Provider value={C}>
-      <div style={{ background: bg, minHeight: "100vh", color: text, fontFamily: NU, width: "100%", overflowX: "hidden" }}>
+    <div style={{ background: bg, minHeight: "100vh", color: text, fontFamily: NU, width: "100%", overflowX: "hidden" }}>
 
         <HomeNav
           hasHero={true}
           darkMode={darkMode}
-          onToggleDark={onToggleDark || (() => setDarkMode(d => !d))}
+          onToggleDark={onToggleDark || themeCtx.toggleDark}
           onNavigateStandard={onNavigateStandard || onBack}
           onNavigateAbout={onNavigateAbout || onBack}
           onVendorLogin={onVendorLogin}
@@ -807,9 +806,11 @@ export default function ListingsPage({
             GROUND FLOOR — Cinematic video hero
         ══════════════════════════════════════════════════════════════ */}
         <section style={{
-          position:   "relative",
-          height:     "100vh",
-          minHeight:  680,
+          position:   isMobile ? "sticky" : "relative",
+          top:        isMobile ? 0 : undefined,
+          zIndex:     isMobile ? 0 : undefined,
+          height:     isMobile ? "100vh" : "100vh",
+          minHeight:  isMobile ? undefined : 680,
           overflow:   "hidden",
           display:    "flex",
           alignItems: "center",
@@ -1187,6 +1188,9 @@ export default function ListingsPage({
           </div>
 
         </section>
+
+        {/* ── Content wrapper — scrolls over sticky hero on mobile ── */}
+        <div style={isMobile ? { position: "relative", zIndex: 1, background: bg } : undefined}>
 
         {/* ══════════════════════════════════════════════════════════════
             FIRST FLOOR — Category floors (cinematic full-image cards)
@@ -2381,6 +2385,8 @@ export default function ListingsPage({
           )}
         </section>
 
+        </div>{/* end content wrapper */}
+
         {/* QuickView Modal */}
         {qvItem && (
           <QuickViewModal
@@ -2424,7 +2430,6 @@ export default function ListingsPage({
           }
         `}</style>
       </div>
-    </ThemeCtx.Provider>
   );
 }
 

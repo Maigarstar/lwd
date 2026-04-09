@@ -389,8 +389,8 @@ export default function CountrySearchBar({
       style={{
         background:   CL.barBg,
         borderBottom: `1px solid ${CL.divider}`,
-        position:     "sticky",
-        top:          NAV_H,
+        position:     window.innerWidth <= 768 ? "relative" : "sticky",
+        top:          window.innerWidth <= 768 ? undefined : NAV_H,
         zIndex:       800,
         boxShadow:    "none",
       }}
@@ -487,8 +487,8 @@ export default function CountrySearchBar({
           <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "vendors" ? "vendors" : "venues"}
         </span>
 
-        {/* Grid / List / Map view switcher */}
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        {/* Grid / List / Map view switcher — hidden on mobile (grid only) */}
+        <div style={{ display: window.innerWidth <= 768 ? "none" : "flex", alignItems: "center", gap: 4 }}>
           <button onClick={() => onViewMode?.("grid")} title="Grid view" aria-pressed={viewMode === "grid"}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",

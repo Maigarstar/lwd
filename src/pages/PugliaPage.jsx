@@ -4,8 +4,8 @@
 // Reads config from regionPageConfig service and renders premium sections
 // ════════════════════════════════════════════════════════════════════════════════
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { getLightPalette, getDarkPalette, getDefaultMode } from "../theme/tokens";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useTheme } from "../theme/ThemeContext";
 import { getRegionPageConfig } from "../services/regionPageConfig";
 import { VENUES } from "../data/italyVenues";
 import { getRealWeddingsByLocation } from "../services/realWeddingService";
@@ -15,6 +15,18 @@ import RegionFeatured from "../components/sections/RegionFeatured";
 import RegionRealWeddings from "../components/sections/RegionRealWeddings";
 import RegionSignatureVibes from "../components/sections/RegionSignatureVibes";
 import HomeNav from "../components/nav/HomeNav";
+
+// ── Mobile detection hook ─────────────────────────────────────────────────
+function useIsMobile(bp = 768) {
+  const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${bp}px)`);
+    const fn = (e) => setMobile(e.matches);
+    mql.addEventListener("change", fn);
+    return () => mql.removeEventListener("change", fn);
+  }, [bp]);
+  return mobile;
+}
 
 // ── Font tokens ──────────────────────────────────────────────────────────────
 const GD = "var(--font-heading-primary)";
@@ -30,10 +42,12 @@ export default function PugliaPage({
   footerNav = {},
 }) {
   // ── State ────────────────────────────────────────────────────────────────
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
+  const themeCtx = useTheme();
+  const darkMode = themeCtx.darkMode;
+  const isMobile = useIsMobile();
   const [loaded, setLoaded] = useState(false);
 
-  const C = darkMode ? getDarkPalette() : getLightPalette();
+  const C = themeCtx;
 
   // ── Load Puglia page configuration ────────────────────────────────────────
   // This reads from regionPageConfig service (connected to admin dashboard)
@@ -88,7 +102,7 @@ export default function PugliaPage({
       <HomeNav
         hasHero={true}
         darkMode={darkMode}
-        onToggleDark={() => setDarkMode(d => !d)}
+        onToggleDark={themeCtx.toggleDark}
         onNavigateStandard={() => onBack()}
         onNavigateAbout={() => onViewAbout()}
       />
@@ -130,7 +144,7 @@ export default function PugliaPage({
       {pageConfig.about && pageConfig.about.content && (
         <section
           style={{
-            padding: "100px 60px",
+            padding: isMobile ? "60px 16px" : "100px 60px",
             maxWidth: "1200px",
             margin: "0 auto",
           }}
@@ -167,7 +181,7 @@ export default function PugliaPage({
       {/* ── Theme toggle (hidden in production, shown for demo) ── */}
       {loaded && (
         <button
-          onClick={() => setDarkMode(!darkMode)}
+          onClick={themeCtx.toggleDark}
           style={{
             position: "fixed",
             bottom: "20px",
