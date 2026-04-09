@@ -40,8 +40,9 @@ import { VENDORS as ALL_VENDORS } from "../data/vendors";
 
 // ── Italy-only data subsets ─────────────────────────────────────────────────
 const ITALY_VENUES  = VENUES.filter((v) => v.countrySlug === "italy");
-// Note: FEATURED and LATEST_5 now come from usePremiumCardData hook (unified pipeline)
-// Keeping ITALY_REGIONS and ITALY_VENDORS for filter/vendor sections (non-premium)
+// Fallback arrays if unified pipeline returns empty (for development/offline)
+const FEATURED_FALLBACK = ITALY_VENUES.filter((v) => v.featured);
+const LATEST_5_FALLBACK = ITALY_VENUES.slice(0, 5);
 const ITALY_REGIONS = [
   { slug: "all", name: "All Regions" },
   ...getRegionsByCountry("italy"),
@@ -99,19 +100,24 @@ export default function ItalyPage({
   const isMobile = useIsMobile();
   const C = darkMode ? getDarkPalette() : getLightPalette();
 
-  // ── Fetch premium card data from unified pipeline ─────────────────────────
-  const { listings: latestVenues } = usePremiumCardData({
+  // ── Fetch premium card data from unified pipeline (with fallback to hardcoded) ──
+  const { listings: latestVenuesFromPipeline } = usePremiumCardData({
     sectionType: "latest",
     listingType: "venue",
   });
-  const { listings: signatureVenues } = usePremiumCardData({
+  const { listings: signatureVenuesFromPipeline } = usePremiumCardData({
     sectionType: "signature",
     listingType: "venue",
   });
-  const { listings: latestVendors } = usePremiumCardData({
+  const { listings: latestVendorsFromPipeline } = usePremiumCardData({
     sectionType: "latest",
     listingType: "vendor",
   });
+
+  // Use pipeline data, fall back to hardcoded arrays if empty
+  const latestVenues = latestVenuesFromPipeline.length > 0 ? latestVenuesFromPipeline : LATEST_5_FALLBACK;
+  const signatureVenues = signatureVenuesFromPipeline.length > 0 ? signatureVenuesFromPipeline : FEATURED_FALLBACK;
+  const latestVendors = latestVendorsFromPipeline.length > 0 ? latestVendorsFromPipeline : ITALY_VENDORS.slice(0, 8);
 
   // ── Register active context with global chat ────────────────────────────
   const { setChatContext } = useChat();
