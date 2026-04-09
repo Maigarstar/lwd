@@ -96,8 +96,34 @@ export default function MagazineEditorial({ onViewMagazine, onViewMagazineArticl
         .me-sidebar { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
       `}</style>
 
+      {/* Watermark */}
+      <span
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          top: 80,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          fontFamily: FD,
+          fontSize: 'clamp(120px, 12vw, 180px)',
+          fontWeight: 400,
+          fontStyle: 'italic',
+          color: 'rgba(201,168,76,0.06)',
+          whiteSpace: 'normal',
+          width: '100%',
+          textAlign: 'center',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          letterSpacing: '-2px',
+          lineHeight: 1,
+          zIndex: 0,
+        }}
+      >
+        The Edit
+      </span>
+
       {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 'clamp(28px, 4vw, 44px)', gap: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 'clamp(28px, 4vw, 44px)', gap: 16, flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
         <div>
           <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD, marginBottom: 6 }}>The Magazine</div>
           <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px, 3.5vw, 44px)', fontWeight: 400, color: '#f5f0e8', margin: 0, lineHeight: 1.05, letterSpacing: '-0.02em' }}>From The Edit</h2>
@@ -113,7 +139,7 @@ export default function MagazineEditorial({ onViewMagazine, onViewMagazineArticl
       </div>
 
       {/* Grid */}
-      <div className="me-grid">
+      <div className="me-grid" style={{ position: 'relative', zIndex: 1 }}>
         <div className="me-feature">
           <FeatureCard post={feature} onClick={() => onViewMagazineArticle?.(feature.slug)} />
         </div>
