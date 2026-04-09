@@ -96,22 +96,19 @@ export default function MagazineEditorial({ onViewMagazine, onViewMagazineArticl
         .me-sidebar { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
       `}</style>
 
-      {/* Watermark */}
+      {/* Watermark — bottom right */}
       <span
         aria-hidden="true"
         style={{
           position: 'absolute',
-          top: 80,
-          left: '50%',
-          transform: 'translateX(-50%)',
+          bottom: -20,
+          right: -10,
           fontFamily: FD,
           fontSize: 'clamp(120px, 12vw, 180px)',
           fontWeight: 400,
           fontStyle: 'italic',
-          color: 'rgba(201,168,76,0.06)',
-          whiteSpace: 'normal',
-          width: '100%',
-          textAlign: 'center',
+          color: 'rgba(201,168,76,0.04)',
+          whiteSpace: 'nowrap',
           pointerEvents: 'none',
           userSelect: 'none',
           letterSpacing: '-2px',

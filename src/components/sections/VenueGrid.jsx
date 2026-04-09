@@ -26,7 +26,7 @@ export default function VenueGrid({ venues = [], onViewVenue, onViewCategory }) 
   const [quickViewItem, setQuickViewItem] = useState(null);
   const display = venues.slice(0, 12);
 
-  // Mobile: vertical feed. Desktop: horizontal carousel via SliderNav
+  // Mobile: vertical snap feed. Desktop: horizontal slider with wider cards.
   if (isMobile) {
     return (
       <>
@@ -185,11 +185,15 @@ export default function VenueGrid({ venues = [], onViewVenue, onViewCategory }) 
             </p>
           </div>
 
-          {/* Card slider */}
+          {/* Horizontal card slider — wider cards (420px) */}
           <div style={{ marginBottom: 48 }}>
-            <SliderNav className="home-venue-grid" cardWidth={360} gap={24}>
+            <SliderNav className="home-venue-grid" cardWidth={420} gap={24}>
               {display.map((v) => (
-                <div key={v.id} className="home-venue-card" style={{ flex: "0 0 360px", scrollSnapAlign: "start" }}>
+                <div
+                  key={v.id}
+                  className="home-venue-card"
+                  style={{ flex: "0 0 420px", scrollSnapAlign: "start" }}
+                >
                   <LuxuryVenueCard
                     v={v}
                     isMobile={false}

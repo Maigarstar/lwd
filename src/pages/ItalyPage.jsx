@@ -31,8 +31,8 @@ import SEOBlock        from "../components/sections/SEOBlock";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
 import HCard           from "../components/cards/HCard";
-import GCard           from "../components/cards/GCard";
-import GCardMobile     from "../components/cards/GCardMobile";
+import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
+import LuxuryVendorCard from "../components/cards/LuxuryVendorCard";
 import QuickViewModal  from "../components/modals/QuickViewModal";
 import SliderNav       from "../components/ui/SliderNav";
 import { VENDORS as ALL_VENDORS } from "../data/vendors";
@@ -73,6 +73,7 @@ function useIsMobile(bp = 768) {
 export default function ItalyPage({
   onBack         = () => {},
   onViewVenue    = () => {},
+  onViewVendor   = () => {},
   onViewRegion   = () => {},
   onViewCategory = () => {},
   initialRegion       = null,
@@ -377,14 +378,16 @@ export default function ItalyPage({
                   </button>
                 </div>
               ) : viewMode === "grid" ? (
-                <SliderNav className="lwd-venue-grid" cardWidth={isMobile ? 300 : 340} gap={isMobile ? 12 : 16}>
+                <SliderNav className="lwd-venue-grid" cardWidth={432} gap={24}>
                   {batch1.map((v) => (
-                    <div key={v.id} className="lwd-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 340px", scrollSnapAlign: "start" }}>
-                      {isMobile ? (
-                        <GCardMobile v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} />
-                      ) : (
-                        <GCard v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} onQuickView={setQvItem} />
-                      )}
+                    <div key={v.id} className="lwd-venue-card" style={{ flex: "0 0 432px", width: 432, height: 560, scrollSnapAlign: "start" }}>
+                      <LuxuryVenueCard
+                        v={v}
+                        isMobile={isMobile}
+                        onView={() => onViewVenue?.(v)}
+                        quickViewItem={qvItem}
+                        setQuickViewItem={setQvItem}
+                      />
                     </div>
                   ))}
                 </SliderNav>
@@ -419,14 +422,16 @@ export default function ItalyPage({
             {batch2.length > 0 && (
               <div className="lwd-venue-grid-wrap" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
                 {viewMode === "grid" ? (
-                  <SliderNav className="lwd-venue-grid" cardWidth={isMobile ? 300 : 340} gap={isMobile ? 12 : 16}>
+                  <SliderNav className="lwd-venue-grid" cardWidth={432} gap={24}>
                     {batch2.map((v) => (
-                      <div key={v.id} className="lwd-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 340px", scrollSnapAlign: "start" }}>
-                        {isMobile ? (
-                          <GCardMobile v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} />
-                        ) : (
-                          <GCard v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} onQuickView={setQvItem} />
-                        )}
+                      <div key={v.id} className="lwd-venue-card" style={{ flex: "0 0 432px", width: 432, height: 560, scrollSnapAlign: "start" }}>
+                        <LuxuryVenueCard
+                          v={v}
+                          isMobile={isMobile}
+                          onView={() => onViewVenue?.(v)}
+                          quickViewItem={qvItem}
+                          setQuickViewItem={setQvItem}
+                        />
                       </div>
                     ))}
                   </SliderNav>
@@ -478,14 +483,16 @@ export default function ItalyPage({
                   </p>
                 </div>
                 <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
-                  <SliderNav className="lwd-vendor-slider" cardWidth={isMobile ? 300 : 320} gap={isMobile ? 12 : 16}>
+                  <SliderNav className="lwd-vendor-slider" cardWidth={432} gap={24}>
                     {(isMobile ? ITALY_VENDORS.slice(0, 8) : ITALY_VENDORS.slice(0, 12)).map((v) => (
-                      <div key={v.id} className="lwd-vendor-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 320px", scrollSnapAlign: "start" }}>
-                        {isMobile ? (
-                          <GCardMobile v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} />
-                        ) : (
-                          <GCard v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} onQuickView={setQvItem} />
-                        )}
+                      <div key={v.id} className="lwd-vendor-card" style={{ flex: "0 0 432px", width: 432, height: 560, scrollSnapAlign: "start" }}>
+                        <LuxuryVendorCard
+                          v={v}
+                          isMobile={isMobile}
+                          onView={() => onViewVendor?.(v)}
+                          quickViewItem={qvItem}
+                          setQuickViewItem={setQvItem}
+                        />
                       </div>
                     ))}
                   </SliderNav>
