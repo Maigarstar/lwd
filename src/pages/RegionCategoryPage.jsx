@@ -4,7 +4,7 @@
 // Data-driven: one template, many region×category combos.
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { ThemeCtx } from "../theme/ThemeContext";
-import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
+import { getDarkPalette, getLightPalette, getDefaultMode, DARK_C } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
 
 import {
@@ -37,6 +37,7 @@ import CountrySearchBar from "../components/filters/CountrySearchBar";
 import InfoStrip        from "../components/sections/InfoStrip";
 import HomeNav          from "../components/nav/HomeNav";
 import RegionRealWeddings from "../components/sections/RegionRealWeddings";
+import MasterCategoryCard from "../components/cards/MasterCategoryCard";
 import "../category.css";
 
 // ── Build a human-readable Aura summary from immersive refinement fields ─────
@@ -840,32 +841,7 @@ export default function RegionCategoryPage({
           </div>
         </section>
 
-        {/* ════════════════════════════════════════════════════════════════════
-            5. FEATURED VENUES SECTION (Wedding Venues Only)
-        ════════════════════════════════════════════════════════════════════ */}
-        {listingCount > 0 && categorySlug === "wedding-venues" && sortedFilteredListings.filter((v) => v.featured).length > 0 && (
-          <section
-            className="lwd-rc-section"
-            style={{
-              background: "#000",
-              padding: isMobile ? "40px 16px" : "56px 32px",
-              borderBottom: `1px solid ${C.border}`,
-            }}
-          >
-            <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
-                <span style={{ fontFamily: NU, fontSize: 11, letterSpacing: "0.25em", textTransform: "uppercase", color: C.gold, fontWeight: 700 }}>
-                  ★ Editor's Selection
-                </span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
-                {sortedFilteredListings.filter((v) => v.featured).slice(0, 3).map((v) => (
-                  <LuxuryVenueCard key={v.id} v={v} onView={() => onViewVenue(v.id || v.slug)} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
+        {/* Featured section removed — unified into main grid below */}
 
         {/* ════════════════════════════════════════════════════════════════════
             6. REAL WEDDINGS SECTION (Wedding Venues Only)
@@ -1029,7 +1005,7 @@ export default function RegionCategoryPage({
                     }}
                     aria-label="Venue grid"
                   >
-                    {sortedFilteredListings.filter((v) => !v.featured).map((v) => (
+                    {sortedFilteredListings.map((v) => (
                       <LuxuryVenueCard
                         key={v.id}
                         v={v}
@@ -1093,7 +1069,7 @@ export default function RegionCategoryPage({
                         gap:           12,
                         paddingLeft:   50,
                       }}>
-                        {sortedFilteredListings.filter((v) => !v.featured).map((v) => (
+                        {sortedFilteredListings.map((v) => (
                           <div
                             key={v.id}
                             data-venue-id={v.id}
@@ -1123,7 +1099,7 @@ export default function RegionCategoryPage({
                           overflow: "hidden",
                         }}>
                           <VenueMapPanel
-                            venues={sortedFilteredListings.filter((v) => !v.featured)}
+                            venues={sortedFilteredListings}
                             hoveredId={hoveredVenueId}
                             activePinnedId={activePinnedId}
                             onPinHover={setHoveredVenueId}
@@ -1192,7 +1168,7 @@ export default function RegionCategoryPage({
                           </div>
                           <div style={{ flex: 1, overflow: "hidden" }}>
                             <MapSection
-                              venues={sortedFilteredListings.filter((v) => !v.featured)}
+                              venues={sortedFilteredListings}
                               vendors={[]}
                               headerLabel={`${listingCount} ${categoryLabel}`}
                               mapTitle={`◎ ${categoryLabel}`}
@@ -1235,7 +1211,6 @@ export default function RegionCategoryPage({
             style={{
               background: darkMode ? C.dark : "#f2f0ea",
               padding: "96px 48px",
-              borderBottom: `1px solid ${C.border}`,
             }}
           >
             <div style={{ maxWidth: 600, margin: "0 auto", textAlign: "center" }}>
@@ -1303,46 +1278,45 @@ export default function RegionCategoryPage({
           className="lwd-rc-section"
           aria-label="Wedding vendors"
           style={{
-            background: darkMode ? C.dark : "#f2f0ea",
-            padding: "96px 120px",
-            borderBottom: `1px solid ${C.border}`,
+            background: "#000000",
+            padding: isMobile ? "56px 20px" : "96px 120px",
           }}
         >
           <div style={{ maxWidth: 1280, margin: "0 auto" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-              <div style={{ width: 28, height: 1, background: C.gold }} />
+              <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
               <span
                 style={{
                   fontFamily: NU,
                   fontSize: 9,
                   letterSpacing: "0.3em",
                   textTransform: "uppercase",
-                  color: C.gold,
+                  color: "#C9A84C",
                   fontWeight: 600,
                 }}
               >
                 Find Your Team
               </span>
-              <div style={{ width: 28, height: 1, background: C.gold }} />
+              <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
             </div>
             <h2
               style={{
                 fontFamily: GD,
-                fontSize: "clamp(26px, 3vw, 36px)",
+                fontSize: isMobile ? "clamp(22px, 6vw, 30px)" : "clamp(26px, 3vw, 36px)",
                 fontWeight: 400,
-                color: C.off,
+                color: "#f5f0e8",
                 lineHeight: 1.2,
                 margin: "0 0 32px",
               }}
             >
-              {regionName ? <>{regionName}{" "}</> : null}
-              <span style={{ fontStyle: "italic", color: C.gold }}>Wedding Vendors</span>
+              {regionName ? <><span style={{ color: "rgba(245,240,232,0.85)" }}>{regionName}</span>{" "}</> : null}
+              <span style={{ fontStyle: "italic", color: "#C9A84C" }}>Wedding Vendors</span>
             </h2>
             <VendorCategoryCarousel
               categories={VENDOR_CATEGORIES}
-              C={C}
+              C={DARK_C}
               onSelect={(slug) => onViewRegionCategory(countrySlug, regionSlug, slug)}
-              activeCategorySlugs={listingsLoaded ? new Set(dbListings.map(l => l.categorySlug || l.category_slug).filter(Boolean)) : null}
+              activeCategorySlugs={listingsLoaded ? (() => { const s = new Set(); dbListings.forEach(l => { const cat = l.categorySlug || l.category_slug || ""; if (cat) s.add(cat); const lt = l.listingType || l.listing_type || ""; if (!cat && (lt === "venue" || !lt)) s.add("wedding-venues"); }); return s; })() : null}
             />
           </div>
         </section>
@@ -2054,75 +2028,13 @@ function VendorCategoryCarousel({ categories, C, onSelect, activeCategorySlugs =
 }
 
 function VendorCategoryCard({ vc, C, onClick, isEmpty = false }) {
-  const [hov, setHov] = useState(false);
-  const iconColor = hov ? C.gold : (C.grey || "#888");
-  const renderIcon = LUXURY_ICONS[vc.slug];
-
   return (
-    <button
+    <MasterCategoryCard
+      category={vc}
+      colors={C}
       onClick={onClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        position: "relative",
-        background: hov ? C.card : C.dark,
-        border: `1px solid ${hov ? C.gold : C.border2}`,
-        opacity: isEmpty ? 0.65 : 1,
-        borderRadius: "var(--lwd-radius-card)",
-        padding: "28px 12px",
-        textAlign: "center",
-        cursor: "pointer",
-        transition: "all 0.25s",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 12,
-        minWidth: 0,
-      }}
-    >
-      <span
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 48,
-          height: 48,
-          borderRadius: "50%",
-          background: hov ? (C.goldDim || "rgba(201,168,76,0.08)") : "transparent",
-          border: `1px solid ${hov ? C.gold : (C.border2 || "rgba(255,255,255,0.08)")}`,
-          transition: "all 0.3s ease",
-          flexShrink: 0,
-        }}
-        aria-hidden="true"
-      >
-        {renderIcon ? renderIcon(iconColor) : <span style={{ fontSize: 22, opacity: 0.6 }}>{vc.icon}</span>}
-      </span>
-      <span
-        style={{
-          fontFamily: NU,
-          fontSize: 9,
-          fontWeight: 600,
-          letterSpacing: "1px",
-          textTransform: "uppercase",
-          color: hov ? C.gold : C.off,
-          transition: "color 0.2s",
-          lineHeight: 1.4,
-          wordBreak: "break-word",
-          textAlign: "center",
-        }}
-      >
-        {vc.label}
-      </span>
-      {isEmpty && (
-        <span style={{ position: "absolute", top: 8, right: 8, fontSize: 7, fontFamily: "var(--font-nu, sans-serif)",
-          fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase",
-          color: C.gold || "#C9A84C", background: "rgba(201,168,76,0.1)",
-          border: "1px solid rgba(201,168,76,0.25)", borderRadius: 4,
-          padding: "2px 5px", lineHeight: 1.4 }}>
-          Soon
-        </span>
-      )}
-    </button>
+      isEmpty={isEmpty}
+    />
   );
 }
 

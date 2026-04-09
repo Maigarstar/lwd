@@ -4,7 +4,7 @@
 export const NAV_H = 56;
 
 export const DARK_C = {
-  black:   "#080808",
+  black:   "#000000",
   dark:    "#0f0f0f",
   card:    "#141414",
   border:  "#1e1e1e",
@@ -58,11 +58,21 @@ export function getLightPalette() {
   return saved?.light ? { ...LIGHT_C, ...saved.light } : LIGHT_C;
 }
 
-/** Saved default mode: "dark" | "light", respects lightOnly lock */
+/** Saved default mode: "dark" | "light", respects lightOnly lock and user preference */
 export function getDefaultMode() {
   const saved = _loadOverrides();
   if (saved?.site?.lightOnly) return "light";
-  return saved?.site?.defaultMode || "light";
+  // User's explicit toggle choice takes precedence over admin default
+  try {
+    const userPref = localStorage.getItem("lwd_user_dark_mode");
+    if (userPref === "dark" || userPref === "light") return userPref;
+  } catch {}
+  return saved?.site?.defaultMode || "dark";
+}
+
+/** Persist user's dark mode toggle choice across page navigations */
+export function setUserMode(mode) {
+  try { localStorage.setItem("lwd_user_dark_mode", mode); } catch {}
 }
 
 /** Returns true if the site is locked to light mode only */

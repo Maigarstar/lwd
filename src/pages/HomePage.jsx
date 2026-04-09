@@ -1,7 +1,6 @@
 // ─── src/pages/HomePage.jsx ──────────────────────────────────────────────────
 import { useState, useEffect } from "react";
-import { ThemeCtx } from "../theme/ThemeContext";
-import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
+import { useTheme } from "../theme/ThemeContext";
 import { useChat } from "../chat/ChatContext";
 import { FEATURED_VENUES } from "../data/featuredVenues";
 import { VENDOR_CATEGORIES } from "../data/geo";
@@ -19,6 +18,7 @@ import NewsletterBand from "../components/sections/NewsletterBand";
 import MagazineEditorial from "../components/sections/MagazineEditorial";
 import EnquiryModal from "../components/modals/EnquiryModal";
 import ImmersiveSearch from "../components/search/ImmersiveSearch";
+import MasterCategoryCard, { LUXURY_ICONS } from "../components/cards/MasterCategoryCard";
 import "../category.css";
 
 // ─── Font tokens ──────────────────────────────────────────────────────────────
@@ -28,22 +28,7 @@ const NU = "var(--font-body)";
 // ── Category hover images ──────────────────────────────────────────────────────
 
 // ─── Luxury category icons ────────────────────────────────────────────────────
-const LUXURY_ICONS = {
-  "wedding-venues": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18" /><path d="M5 21V7l7-4 7 4v14" /><path d="M9 21v-6h6v6" /><path d="M10 10h.01M14 10h.01" /></svg>),
-  "wedding-planners": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>),
-  "photographers": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" /><circle cx="12" cy="13" r="4" /></svg>),
-  "florists": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c0 0 0-3 0-6" /><path d="M9 18c-2 0-4-1.5-4-4 0-2 2-3.5 4-3.5.5-2 2-3.5 3-3.5s2.5 1.5 3 3.5c2 0 4 1.5 4 3.5 0 2.5-2 4-4 4" /><path d="M12 8c0-2 1-4 3-5" /><path d="M12 8c0-2-1-4-3-5" /></svg>),
-  "caterers": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 010 8h-1" /><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" /><line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" /></svg>),
-  "hair-makeup": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="5" /><path d="M12 13v8" /><path d="M9 18h6" /><path d="M15 5c1-2 3-3 4-2" /></svg>),
-  "entertainment": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>),
-  "videographers": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>),
-  "wedding-cakes": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 18h16v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2z" /><path d="M6 14h12v4H6z" /><path d="M8 10h8v4H8z" /><path d="M12 3v3" /><circle cx="12" cy="2" r="1" /></svg>),
-  "stationery": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>),
-  "bridal-wear": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C9 2 7 5 7 8c0 2 1 3 2 4l-3 10h12l-3-10c1-1 2-2 2-4 0-3-2-6-5-6z" /><path d="M9 22h6" /></svg>),
-  "jewellers": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="14" r="6" /><path d="M12 8V2" /><path d="M8 10l-3-5" /><path d="M16 10l3-5" /></svg>),
-  "transport": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17h14v-5H5v5z" /><path d="M2 12h20" /><path d="M5 12V7c0-1.7 1.3-3 3-3h8c1.7 0 3 1.3 3 3v5" /><circle cx="7" cy="17" r="2" /><circle cx="17" cy="17" r="2" /></svg>),
-  "event-design": (color) => (<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>),
-};
+// MOVED to src/components/cards/MasterCategoryCard.jsx (shared master component)
 
 // ─── Mapper: Supabase Listing → card-compatible shape ─────────────────────────
 // Called after fetchListings() which already runs buildCardImgs + buildCardVideoUrl,
@@ -92,46 +77,38 @@ function listingToCard(listing) {
 }
 
 // ─── Category carousel components ─────────────────────────────────────────────
-const CATS_PER_PAGE = 7;
+const CATS_PER_PAGE = 6;
 
 function CategoryShortcutCard({ vc, C, onClick, isEmpty = false }) {
-  const [hov, setHov] = useState(false);
-  const iconColor = hov ? C.gold : (isEmpty ? (C.muted || "#999") : (C.grey || "#888"));
-  const renderIcon = LUXURY_ICONS[vc.slug];
   return (
-    <button onClick={onClick} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ background: hov ? C.card : C.dark, border: `1px solid ${hov ? C.gold : C.border2}`, borderRadius: "var(--lwd-radius-card)", padding: "28px 20px", textAlign: "center", cursor: "pointer", transition: "all 0.25s", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, position: "relative", opacity: isEmpty ? 0.65 : 1 }}>
-      {isEmpty && (
-        <span style={{ position: "absolute", top: 8, right: 8, fontSize: 7, fontFamily: NU, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", color: C.gold || "#C9A84C", background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.25)", borderRadius: 4, padding: "2px 5px", lineHeight: 1.4 }}>
-          Soon
-        </span>
-      )}
-      <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 48, height: 48, borderRadius: "50%", background: hov ? (C.goldDim || "rgba(201,168,76,0.08)") : "transparent", border: `1px solid ${hov ? C.gold : (C.border2 || "rgba(255,255,255,0.08)")}`, transition: "all 0.3s ease" }} aria-hidden="true">
-        {renderIcon ? renderIcon(iconColor) : <span style={{ fontSize: 22, opacity: isEmpty ? 0.4 : 0.6 }}>{vc.icon}</span>}
-      </span>
-      <span style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", color: hov ? C.gold : (isEmpty ? (C.muted || "#999") : C.off), transition: "color 0.2s" }}>{vc.label}</span>
-    </button>
+    <MasterCategoryCard
+      category={vc}
+      colors={C}
+      onClick={onClick}
+      isEmpty={isEmpty}
+    />
   );
 }
 
-function CategoryCarousel({ categories, C, onSelect, activeCategorySlugs = null }) {
+function CategoryCarousel({ categories, C, onSelect, activeCategorySlugs = null, isMobile = false }) {
+  const catsPerPage = isMobile ? 4 : CATS_PER_PAGE;
   const [page, setPage] = useState(0);
-  const totalPages = Math.ceil(categories.length / CATS_PER_PAGE);
-  const start = page * CATS_PER_PAGE;
-  const visible = categories.slice(start, start + CATS_PER_PAGE);
+  const totalPages = Math.ceil(categories.length / catsPerPage);
+  const start = page * catsPerPage;
+  const visible = categories.slice(start, start + catsPerPage);
   const [hovPrev, setHovPrev] = useState(false);
   const [hovNext, setHovNext] = useState(false);
   const arrowBtn = (dir, hov, setHov, disabled, onClick) => (
     <button aria-label={dir === "prev" ? "Previous categories" : "Next categories"} disabled={disabled} onClick={onClick} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ background: hov && !disabled ? (C.goldDim || "rgba(201,168,76,0.08)") : "transparent", border: `1px solid ${disabled ? (C.border || "rgba(255,255,255,0.06)") : hov ? C.gold : (C.border2 || "rgba(255,255,255,0.12)")}`, borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.25 : 1, transition: "all 0.25s", flexShrink: 0 }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={hov && !disabled ? C.gold : (C.grey || "#888")} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      style={{ background: hov && !disabled ? "rgba(201,168,76,0.15)" : "rgba(255,255,255,0.06)", border: `1px solid ${disabled ? "rgba(255,255,255,0.15)" : hov ? "#C9A84C" : "rgba(255,255,255,0.25)"}`, borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.35 : 1, transition: "all 0.25s", flexShrink: 0 }}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={hov && !disabled ? "#C9A84C" : "rgba(255,255,255,0.7)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         {dir === "prev" ? <polyline points="15 18 9 12 15 6" /> : <polyline points="9 6 15 12 9 18" />}
       </svg>
     </button>
   );
   return (
     <div>
-      <div className="lwd-region-cat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 16 }}>
+      <div className="lwd-region-cat-grid" style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(6, 200px)", gap: isMobile ? 12 : 16, justifyContent: "center" }}>
         {visible.map((vc) => (<CategoryShortcutCard key={vc.slug} vc={vc} C={C} onClick={() => onSelect(vc.slug)} isEmpty={activeCategorySlugs !== null && !activeCategorySlugs.has(vc.slug)} />))}
       </div>
       {totalPages > 1 && (
@@ -140,7 +117,7 @@ function CategoryCarousel({ categories, C, onSelect, activeCategorySlugs = null 
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {Array.from({ length: totalPages }, (_, i) => (
               <button key={i} aria-label={`Page ${i + 1}`} onClick={() => setPage(i)}
-                style={{ width: page === i ? 20 : 6, height: 6, borderRadius: 3, background: page === i ? C.gold : (C.border2 || "rgba(255,255,255,0.12)"), border: "none", cursor: "pointer", padding: 0, transition: "all 0.3s ease" }} />
+                style={{ width: page === i ? 20 : 6, height: 6, borderRadius: 3, background: page === i ? "#C9A84C" : "rgba(255,255,255,0.25)", border: "none", cursor: "pointer", padding: 0, transition: "all 0.3s ease" }} />
             ))}
           </div>
           {arrowBtn("next", hovNext, setHovNext, page >= totalPages - 1, () => setPage((p) => p + 1))}
@@ -151,15 +128,15 @@ function CategoryCarousel({ categories, C, onSelect, activeCategorySlugs = null 
 }
 
 export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, onViewRegionCategory, onViewStandard, onViewAbout, onViewContact, onViewPartnership, onViewVendor, onViewAdmin, onViewUSA, onViewItaly, onViewCountry, onViewMagazine, onViewMagazineArticle, footerNav }) {
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
+  const themeCtx = useTheme();
+  const darkMode = themeCtx.darkMode;
+  const C = themeCtx;
   const [enquiryVendor, setEnquiryVendor] = useState(null);
   const [heroBackgroundData, setHeroBackgroundData] = useState(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
   const [hovCat, setHovCat] = useState(null);
   const [dbListings, setDbListings] = useState([]);
   const [immersiveOpen, setImmersiveOpen] = useState(false);
-
-  const C = darkMode ? getDarkPalette() : getLightPalette();
   const { setChatContext } = useChat();
 
   // Mobile detection
@@ -216,11 +193,10 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
   })();
 
   return (
-    <ThemeCtx.Provider value={C}>
       <div style={{ background: C.black, minHeight: "100vh" }}>
         <HomeNav
           darkMode={darkMode}
-          onToggleDark={() => setDarkMode((d) => !d)}
+          onToggleDark={themeCtx.toggleDark}
           onVendorLogin={() => onViewVendor?.()}
           onNavigateStandard={onViewStandard}
           onNavigateAbout={onViewAbout}
@@ -446,6 +422,5 @@ export default function HomePage({ onViewVenue, onViewCategory, onViewRegion, on
           onViewRegionCategory={onViewRegionCategory}
         />
       </div>
-    </ThemeCtx.Provider>
   );
 }
