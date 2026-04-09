@@ -76,8 +76,9 @@ export default function LatestVendorsStrip({
             className="lwd-vendor-grid"
             style={{
               display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 360px)",
               gap: isMobile ? 12 : 16,
+              justifyContent: "center",
             }}
             aria-label="Vendors grid"
           >
