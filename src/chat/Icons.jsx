@@ -1,6 +1,8 @@
 // ─── src/chat/Icons.jsx ── Luxury thin-stroke SVG icon library ───────────────
 // Usage: <Icon name="heart" size={16} color="#C9A84C" />
 
+import React from 'react';
+
 const paths = {
   // ── Brand / Core ──
   sparkle: (
