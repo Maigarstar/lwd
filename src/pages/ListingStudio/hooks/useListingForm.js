@@ -178,6 +178,19 @@ export const useListingForm = (listingId = null) => {
           setLoading(true);
           // Convert snake_case DB row → camelCase so all field references below work
           const rawFromService = await fetchListingById(listingId);
+
+          // ── Guard: Verify fetched record matches requested ID ──
+          // Prevents stale data or cross-record corruption from being loaded
+          if (rawFromService.id !== listingId) {
+            setError(
+              `Data integrity check failed: requested listing ${listingId} ` +
+              `but database returned ${rawFromService.id}. This could indicate ` +
+              `a service layer issue. Refresh the page and try again.`
+            );
+            setLoading(false);
+            return;
+          }
+
           // Convert snake_case DB row to camelCase for form field references
           const listing = snakeToCamel(rawFromService);
 
