@@ -415,17 +415,19 @@ export default function ItalyPage({
                   ))}
                 </SliderNav>
               ) : (
-                <div aria-label="Venue list">
-                  {batch1.map((v) => (
-                    <HCard
-                      key={v.id}
-                      v={v}
-                      saved={savedIds.includes(v.id)}
-                      onSave={toggleSave}
-                      onView={onViewVenue}
-                      onQuickView={setQvItem}
-                    />
-                  ))}
+                <div aria-label="Venue list" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 360px)", gap: isMobile ? 12 : 16, justifyContent: "center" }}>
+                    {batch1.map((v) => (
+                      <LuxuryVenueCard
+                        key={v.id}
+                        v={v}
+                        isMobile={isMobile}
+                        onView={() => onViewVenue?.(v)}
+                        quickViewItem={qvItem}
+                        setQuickViewItem={setQvItem}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -459,16 +461,18 @@ export default function ItalyPage({
                     ))}
                   </SliderNav>
                 ) : (
-                  batch2.map((v) => (
-                    <HCard
-                      key={v.id}
-                      v={v}
-                      saved={savedIds.includes(v.id)}
-                      onSave={toggleSave}
-                      onView={onViewVenue}
-                      onQuickView={setQvItem}
-                    />
-                  ))
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 360px)", gap: isMobile ? 12 : 16, justifyContent: "center" }}>
+                    {batch2.map((v) => (
+                      <LuxuryVenueCard
+                        key={v.id}
+                        v={v}
+                        isMobile={isMobile}
+                        onView={() => onViewVenue?.(v)}
+                        quickViewItem={qvItem}
+                        setQuickViewItem={setQvItem}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
             )}
