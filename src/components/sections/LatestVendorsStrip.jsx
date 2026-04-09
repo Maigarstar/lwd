@@ -3,7 +3,6 @@
 // Mirrors LatestVenuesStrip pattern exactly, using LuxuryVendorCard.
 import { useState } from "react";
 import { useTheme } from "../../theme/ThemeContext";
-import SliderNav from "../ui/SliderNav";
 import LuxuryVendorCard from "../cards/LuxuryVendorCard";
 import GCard from "../cards/GCard";
 import GCardMobile from "../cards/GCardMobile";
@@ -33,8 +32,6 @@ export default function LatestVendorsStrip({
   const displaySub =
     subtext ||
     `Planners, photographers, florists, and culinary artists — the professionals behind${locationName ? ` ${locationName}'s` : ""} finest celebrations.`;
-
-  const cardW = isMobile ? 300 : 320;
 
   return (
     <div style={{ background: C.black }}>
@@ -69,22 +66,25 @@ export default function LatestVendorsStrip({
         </p>
       </div>
 
-      {/* ── Vendor card slider ── */}
+      {/* ── Vendor card grid ── */}
       <div
-        className="lwd-vendor-list-wrap"
+        className="lwd-premium-grid"
         style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 56px" }}
       >
         {viewMode === "grid" ? (
-          <SliderNav
-            className="lwd-vendor-slider"
-            cardWidth={cardW}
-            gap={isMobile ? 12 : 16}
+          <div
+            className="lwd-vendor-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+              gap: isMobile ? 12 : 16,
+            }}
+            aria-label="Vendors grid"
           >
             {vendors.map((v) => (
               <div
                 key={v.id}
                 className="lwd-vendor-card"
-                style={{ flex: `0 0 ${cardW}px`, scrollSnapAlign: "start" }}
               >
                 {cardStyle === "luxury" ? (
                   <LuxuryVendorCard
@@ -105,7 +105,7 @@ export default function LatestVendorsStrip({
                 )}
               </div>
             ))}
-          </SliderNav>
+          </div>
         ) : (
           <div aria-label="Vendors list" style={{ maxWidth: 1280, margin: "0 auto" }}>
             {vendors.map((v) => (

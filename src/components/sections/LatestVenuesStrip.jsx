@@ -3,7 +3,6 @@
 // Mirrors the Italy page pattern. Fully prop-driven, all text editable from the studio.
 import { useState } from "react";
 import { useTheme } from "../../theme/ThemeContext";
-import SliderNav from "../ui/SliderNav";
 import LuxuryVenueCard from "../cards/LuxuryVenueCard";
 import GCard from "../cards/GCard";
 import GCardMobile from "../cards/GCardMobile";
@@ -33,8 +32,6 @@ export default function LatestVenuesStrip({
   const displaySub =
     subtext ||
     `Newly added${locationName ? ` ${locationName}` : ""} villas, palazzi, and estates, each personally vetted by our editorial team.`;
-
-  const cardW = isMobile ? 300 : 340;
 
   return (
     <div style={{ background: C.black }}>
@@ -69,22 +66,25 @@ export default function LatestVenuesStrip({
         </p>
       </div>
 
-      {/* ── Venue card slider ── */}
+      {/* ── Venue card grid ── */}
       <div
-        className="lwd-venue-list-wrap"
+        className="lwd-premium-grid"
         style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 56px" }}
       >
         {viewMode === "grid" ? (
-          <SliderNav
+          <div
             className="lwd-venue-grid"
-            cardWidth={cardW}
-            gap={isMobile ? 12 : 16}
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+              gap: isMobile ? 12 : 16,
+            }}
+            aria-label="Venues grid"
           >
             {venues.map((v) => (
               <div
                 key={v.id}
                 className="lwd-venue-card"
-                style={{ flex: `0 0 ${cardW}px`, scrollSnapAlign: "start" }}
               >
                 {cardStyle === "luxury" ? (
                   <LuxuryVenueCard
@@ -105,7 +105,7 @@ export default function LatestVenuesStrip({
                 )}
               </div>
             ))}
-          </SliderNav>
+          </div>
         ) : (
           <div aria-label="Venues list" style={{ maxWidth: 1280, margin: "0 auto" }}>
             {venues.map((v) => (
