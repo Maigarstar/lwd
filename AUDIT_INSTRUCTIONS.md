@@ -22,14 +22,13 @@ npm install @supabase/supabase-js
 
 ### Setup Environment Variables
 ```bash
-export VITE_SUPABASE_URL="your-supabase-url"
-export VITE_SUPABASE_KEY="your-supabase-anon-key"
+source .env.local
 ```
 
-Or add to `.env`:
+The `.env.local` file should contain:
 ```
 VITE_SUPABASE_URL=https://xxx.supabase.co
-VITE_SUPABASE_KEY=eyJxx...
+VITE_SUPABASE_ANON_KEY=eyJxx...
 ```
 
 ### Run the Audit

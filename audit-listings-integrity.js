@@ -10,14 +10,29 @@
  * 3. Review the audit-report.json output
  */
 
-const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs');
+import { createClient } from '@supabase/supabase-js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Load .env.local if available
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const envLocalPath = path.join(__dirname, '.env.local');
+if (fs.existsSync(envLocalPath)) {
+  const envContent = fs.readFileSync(envLocalPath, 'utf-8');
+  envContent.split('\n').forEach(line => {
+    const [key, value] = line.split('=');
+    if (key && value) {
+      process.env[key.trim()] = value.trim();
+    }
+  });
+}
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('ERROR: VITE_SUPABASE_URL and SUPABASE_ANON_KEY environment variables required');
+  console.error('ERROR: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables required');
   process.exit(1);
 }
 
