@@ -16,6 +16,7 @@ import {
   getRegionNameBySlug,
 } from "../data/italyVenues";
 import { getRegionsByCountry } from "../data/geo";
+import { usePremiumCardData } from "../hooks/usePremiumCardData";
 
 // ── Components ──────────────────────────────────────────────────────────────
 import { useChat }     from "../chat/ChatContext";
@@ -39,8 +40,8 @@ import { VENDORS as ALL_VENDORS } from "../data/vendors";
 
 // ── Italy-only data subsets ─────────────────────────────────────────────────
 const ITALY_VENUES  = VENUES.filter((v) => v.countrySlug === "italy");
-const FEATURED      = ITALY_VENUES.filter((v) => v.featured);
-const LATEST_5      = ITALY_VENUES.slice(0, 5);
+// Note: FEATURED and LATEST_5 now come from usePremiumCardData hook (unified pipeline)
+// Keeping ITALY_REGIONS and ITALY_VENDORS for filter/vendor sections (non-premium)
 const ITALY_REGIONS = [
   { slug: "all", name: "All Regions" },
   ...getRegionsByCountry("italy"),
@@ -97,6 +98,20 @@ export default function ItalyPage({
 
   const isMobile = useIsMobile();
   const C = darkMode ? getDarkPalette() : getLightPalette();
+
+  // ── Fetch premium card data from unified pipeline ─────────────────────────
+  const { listings: latestVenues } = usePremiumCardData({
+    sectionType: "latest",
+    listingType: "venue",
+  });
+  const { listings: signatureVenues } = usePremiumCardData({
+    sectionType: "signature",
+    listingType: "venue",
+  });
+  const { listings: latestVendors } = usePremiumCardData({
+    sectionType: "latest",
+    listingType: "vendor",
+  });
 
   // ── Register active context with global chat ────────────────────────────
   const { setChatContext } = useChat();
@@ -205,7 +220,7 @@ export default function ItalyPage({
   // ── Batched venue slices (8 on mobile, 12 on desktop) ─────────────────
   const batch1 = filtered.slice(0, isMobile ? 8 : 12);
   const batch2 = filtered.slice(isMobile ? 8 : 12, Math.min(visibleCount, filtered.length));
-  const showSlider = FEATURED.length > 0 && filtered.length >= 5;
+  const showSlider = signatureVenues.length > 0 && filtered.length >= 5;
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
@@ -276,8 +291,8 @@ export default function ItalyPage({
               </p>
             </div>
 
-            {/* ── Latest 5 + editorial text split ── */}
-            <LatestSplit venues={LATEST_5} />
+            {/* ── Latest Venues + editorial text split (unified pipeline) ── */}
+            <LatestSplit venues={latestVenues} />
 
             {/* ── Divider ── */}
             <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "0 16px" : "0 48px" }}>
@@ -407,14 +422,14 @@ export default function ItalyPage({
               )}
             </div>
 
-            {/* ── Signature Collection, premium tier ── */}
+            {/* ── Signature Collection, premium tier (unified pipeline) ── */}
             {showSlider && (
               <div style={{ marginTop: 72 }}>
                 {/* Thin gold divider */}
                 <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "0 16px" : "0 48px", marginBottom: 0 }}>
                   <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.3), transparent)" }} />
                 </div>
-                <FeaturedSlider venues={FEATURED} />
+                <FeaturedSlider venues={signatureVenues} />
               </div>
             )}
 
@@ -455,8 +470,8 @@ export default function ItalyPage({
               <EditorialBanner />
             </div>
 
-            {/* ── Latest Vendors ── */}
-            {ITALY_VENDORS.length > 0 && (
+            {/* ── Latest Vendors (unified pipeline) ── */}
+            {latestVendors.length > 0 && (
               <>
                 <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "48px 16px 8px" : "48px 48px 8px", marginTop: 40 }}>
                   <p style={{
@@ -484,7 +499,7 @@ export default function ItalyPage({
                 </div>
                 <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
                   <SliderNav className="lwd-vendor-slider" cardWidth={432} gap={24}>
-                    {(isMobile ? ITALY_VENDORS.slice(0, 8) : ITALY_VENDORS.slice(0, 12)).map((v) => (
+                    {latestVendors.map((v) => (
                       <div key={v.id} className="lwd-vendor-card" style={{ flex: "0 0 432px", width: 432, height: 560, scrollSnapAlign: "start" }}>
                         <LuxuryVendorCard
                           v={v}

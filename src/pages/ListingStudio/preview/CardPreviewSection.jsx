@@ -117,6 +117,44 @@ const buildImgs = (cardImages, heroImages, mediaUrl, mediaType, blobMap) => {
   return [];
 };
 
+// ── Enrich studio preview card data to match public unified metadata structure ──
+// Ensures studio preview cards render with same data shape as public cards
+const enrichStudioCardData = (cardV, formData, cardType) => {
+  return {
+    ...cardV,
+    // Unified metadata fields (match enrichListingMetadata from public pipeline)
+    category: cardType, // 'venue', 'vendor', 'planner'
+    isFeatured: formData?.featured === true,
+    isSignature: formData?.signature === true,
+    sectionType: 'preview', // Studio preview context
+    countrySlug: formData?.countrySlug || '',
+    regionSlug: formData?.regionSlug || '',
+    canonicalPath: buildCanonicalPath(cardType, {
+      slug: formData?.slug || '',
+      countrySlug: formData?.countrySlug || '',
+      regionSlug: formData?.regionSlug || '',
+    }),
+    price: formData?.price_range || null,
+    images: cardV.imgs || [], // Alias for compatibility
+    video: cardV.videoUrl || null, // Alias for compatibility
+    // Keep studio-specific fields
+    _raw: formData,
+  };
+};
+
+// Build canonical path (same as in premiumCardService)
+const buildCanonicalPath = (listingType, { slug, countrySlug, regionSlug }) => {
+  if (listingType === 'venue') {
+    if (countrySlug && regionSlug) {
+      return `/${countrySlug}/${regionSlug}/${slug}`;
+    } else if (countrySlug) {
+      return `/${countrySlug}/${slug}`;
+    }
+  }
+  const typePrefix = listingType === 'planner' ? 'planner' : 'vendor';
+  return `/${typePrefix}/${slug}`;
+};
+
 // ── CardPreviewSection ────────────────────────────────────────────────────────
 
 export default function CardPreviewSection({ formData }) {
@@ -173,7 +211,7 @@ export default function CardPreviewSection({ formData }) {
     return imgs.length > 0 ? imgs : mediaCardImgs;   // fallback → media gallery
   })();
   const venueVideoUrl  = getPrimaryVideoUrl(get('venue', 'video_urls') || []);
-  const venueV = {
+  const venueVRaw = {
     id:        'studio-preview-venue',
     name:      get('venue', 'title')       || formData?.venue_name || '',
     desc:      get('venue', 'description') || formData?.summary    || '',
@@ -197,6 +235,9 @@ export default function CardPreviewSection({ formData }) {
     url:       get('venue', 'cta_link') || listingUrl,
   };
 
+  // Enrich with unified metadata payload to match public pipeline
+  const venueV = enrichStudioCardData(venueVRaw, formData, 'venue');
+
   // VENDOR CARD
   const vendorEnabled  = get('vendor', 'enabled') !== false;
   const vendorBadges   = get('vendor', 'badges')   || [];
@@ -205,7 +246,7 @@ export default function CardPreviewSection({ formData }) {
     return imgs.length > 0 ? imgs : mediaCardImgs;   // fallback → media gallery
   })();
   const vendorVideoUrl = getPrimaryVideoUrl(get('vendor', 'video_urls') || []);
-  const vendorV = {
+  const vendorVRaw = {
     id:          'studio-preview-vendor',
     name:        get('vendor', 'title')       || formData?.venue_name || '',
     desc:        get('vendor', 'description') || formData?.summary    || '',
@@ -231,6 +272,9 @@ export default function CardPreviewSection({ formData }) {
     slug:        formData?.slug,
     url:         get('vendor', 'cta_link') || listingUrl,
   };
+
+  // Enrich with unified metadata payload to match public pipeline
+  const vendorV = enrichStudioCardData(vendorVRaw, formData, 'vendor');
 
   // GCARD
   const gcardEnabled   = get('gcard', 'enabled') !== false;
