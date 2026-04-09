@@ -81,6 +81,14 @@ function DeleteDialog({ item, onConfirm, onCancel, C }) {
 export default function MenuModule({ C }) {
   const G = C?.gold || "#c9a84c";
 
+  // ── Tree section selector ─────────────────────────────────────────────
+  const SECTIONS = [
+    { key: "directory", label: "Directory" },
+    { key: "magazine", label: "Magazine" },
+    // Future: { key: "shop", label: "Shop" },
+  ];
+  const [activeSection, setActiveSection] = useState("directory");
+
   // ── Nav items state ─────────────────────────────────────────────────────
   const [allItems, setAllItems]     = useState([]);
   const [tree, setTree]             = useState([]);
@@ -92,6 +100,7 @@ export default function MenuModule({ C }) {
   const [editingParentId, setEditingParentId] = useState(null); // uuid when adding child
 
   const [draftForm, setDraftForm]     = useState(null); // live draft from editor (for canvas)
+  const [isAddingNew, setIsAddingNew] = useState(false); // true when adding new item
 
   // ── UI state ────────────────────────────────────────────────────────────
   const [leftTab, setLeftTab]         = useState("items"); // "items" | "config" | "branding"
@@ -108,11 +117,12 @@ export default function MenuModule({ C }) {
   const leftPanelRef = useRef(null);
   const editorRef    = useRef(null);
 
-  // ── Load nav items ───────────────────────────────────────────────────────
+  // ── Load nav items (filtered by active section) ──────────────────────────
   async function load() {
     const { data, error } = await supabase
       .from("nav_items")
       .select("*")
+      .eq("section", activeSection)
       .order("position", { ascending: true });
     if (error) {
       setToast({ msg: "Failed to load: " + error.message, type: "error" });
@@ -134,7 +144,7 @@ export default function MenuModule({ C }) {
     if (data) setNavConfig({ ...DEFAULT_NAV_CONFIG, ...data });
   }
 
-  useEffect(() => { load(); loadNavConfig(); }, []);
+  useEffect(() => { load(); loadNavConfig(); }, [activeSection]);
 
   // ── Select item (from tree or canvas click) ──────────────────────────────
   function handleSelectItem(item) {
@@ -155,6 +165,7 @@ export default function MenuModule({ C }) {
     setEditingItem(null);
     setEditingParentId(parentId);
     setDraftForm(null);
+    setIsAddingNew(true);
     setTimeout(() => {
       editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 60);
@@ -166,6 +177,7 @@ export default function MenuModule({ C }) {
     setEditingItem(null);
     setEditingParentId(null);
     setDraftForm(null);
+    setIsAddingNew(false);
   }
 
   // ── Save nav item ─────────────────────────────────────────────────────────
@@ -178,17 +190,17 @@ export default function MenuModule({ C }) {
           .update({ ...form, updated_at: new Date().toISOString() })
           .eq("id", editingItem.id);
         if (error) throw error;
-        const { data } = await supabase.from("nav_items").select("*").order("position", { ascending: true });
+        const { data } = await supabase.from("nav_items").select("*").eq("section", activeSection).order("position", { ascending: true });
         const flat = data || [];
         setAllItems(flat);
         setTree(buildTree(flat));
         const fresh = flat.find(i => i.id === editingItem.id);
         if (fresh) setEditingItem(fresh);
       } else {
-        // Insert new — close panel, toast
+        // Insert new — close panel, toast (tag with current section)
         const siblings = allItems.filter(i => (i.parent_id ?? null) === (form.parent_id ?? null));
         const nextPos  = siblings.length > 0 ? Math.max(...siblings.map(i => i.position)) + 1 : 1;
-        const { error } = await supabase.from("nav_items").insert([{ ...form, position: nextPos }]);
+        const { error } = await supabase.from("nav_items").insert([{ ...form, position: nextPos, section: activeSection }]);
         if (error) throw error;
         handleCloseEditor();
         await load();
@@ -267,7 +279,7 @@ export default function MenuModule({ C }) {
   }
 
   // ── Determine if editor is open ───────────────────────────────────────────
-  const editorOpen = editingItem !== null || editingParentId !== null;
+  const editorOpen = editingItem !== null || editingParentId !== null || isAddingNew;
 
   return (
     <div style={{ padding: "0 0 80px" }}>
@@ -300,13 +312,36 @@ export default function MenuModule({ C }) {
       <div style={{
         display: "flex",
         gap: 24, alignItems: "start",
+        flexWrap: window.innerWidth < 1400 ? "wrap" : "nowrap",
       }}>
 
         {/* ── LEFT: tabs + tree + editor ── */}
         <div ref={leftPanelRef} style={{
           display: "flex", flexDirection: "column", gap: 0,
-          width: 750, flexShrink: 0,
+          width: window.innerWidth < 1400 ? "100%" : 750,
+          flexShrink: window.innerWidth < 1400 ? 1 : 0,
+          minWidth: 0,
         }}>
+
+          {/* ── Section selector (Directory / Magazine / Shop) ── */}
+          <div style={{
+            display: "flex", gap: 8, marginBottom: 12, alignItems: "center",
+          }}>
+            <span style={{
+              fontFamily: SANS, fontSize: 9, fontWeight: 700, letterSpacing: "0.12em",
+              textTransform: "uppercase", color: C?.grey || "#8a7d6a",
+            }}>Tree:</span>
+            {SECTIONS.map(s => (
+              <button key={s.key} onClick={() => { setActiveSection(s.key); handleCloseEditor(); }} style={{
+                background: activeSection === s.key ? (C?.bg || "#0b0906") : "transparent",
+                border: `1px solid ${activeSection === s.key ? G : (C?.border || "#2a2218")}`,
+                borderRadius: 20, padding: "5px 16px", cursor: "pointer",
+                fontFamily: SERIF, fontSize: 13, fontStyle: "italic",
+                color: activeSection === s.key ? G : (C?.grey || "#8a7d6a"),
+                transition: "all 0.2s",
+              }}>{s.label}</button>
+            ))}
+          </div>
 
           {/* Tab switcher */}
           <div style={{
@@ -390,6 +425,8 @@ export default function MenuModule({ C }) {
           {leftTab === "branding" && (
             <MenuBranding C={C} />
           )}
+
+          {/* Magazine categories now managed as nav_items in the Items tab */}
         </div>
 
         {/* ── RIGHT: sticky live canvas ── */}

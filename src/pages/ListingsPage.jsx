@@ -13,14 +13,13 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { ThemeCtx } from "../theme/ThemeContext";
-import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
+import { useTheme } from "../theme/ThemeContext";
 import { VENDOR_CATEGORIES, COUNTRIES, getRegionSlugByName } from "../data/geo.js";
 import { CATS, LOCATIONS } from "../data/globalVendors";
 import { track } from "../utils/track";
 import { VENUES } from "../data/italyVenues";
 import { VENDORS } from "../data/vendors.js";
-import { fetchListings } from "../services/listings";
+import { fetchListings, transformListingForCard } from "../services/listings";
 import HomeNav from "../components/nav/HomeNav";
 import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
 import LuxuryVendorCard from "../components/cards/LuxuryVendorCard";
@@ -104,6 +103,78 @@ const BROWSE_CATEGORIES = [
     grad:   "linear-gradient(160deg, #1d0e12 0%, #14090c 40%, #0d0507 100%)",
     accent: "rgba(201,148,148,0.55)",
   },
+  {
+    slug:   "catering",
+    label:  "Catering",
+    code:   "CAT",
+    line:   "Culinary artisans crafting unforgettable feasts",
+    img:    null,
+    grad:   "linear-gradient(160deg, #1a1410 0%, #120e0a 40%, #080605 100%)",
+    accent: "rgba(220,150,100,0.55)",
+  },
+  {
+    slug:   "cake-designers",
+    label:  "Cake & Pastry",
+    code:   "CKE",
+    line:   "Edible art that crowns your celebration",
+    img:    null,
+    grad:   "linear-gradient(160deg, #1f1408 0%, #16100a 40%, #0d0705 100%)",
+    accent: "rgba(230,180,120,0.55)",
+  },
+  {
+    slug:   "hair-makeup",
+    label:  "Hair & Makeup",
+    code:   "HMU",
+    line:   "Beauty professionals who enhance your radiance",
+    img:    null,
+    grad:   "linear-gradient(160deg, #1d0f1a 0%, #150a13 40%, #0b050a 100%)",
+    accent: "rgba(220,140,180,0.55)",
+  },
+  {
+    slug:   "music-entertainment",
+    label:  "Music & DJ",
+    code:   "MUS",
+    line:   "Sonic architects who set the mood and energy",
+    img:    null,
+    grad:   "linear-gradient(160deg, #0f1a24 0%, #0a1219 40%, #05080f 100%)",
+    accent: "rgba(140,190,230,0.55)",
+  },
+  {
+    slug:   "videographers",
+    label:  "Videographers",
+    code:   "VID",
+    line:   "Storytellers capturing your love in motion",
+    img:    null,
+    grad:   "linear-gradient(160deg, #1a0f18 0%, #130a12 40%, #080508 100%)",
+    accent: "rgba(200,140,200,0.55)",
+  },
+  {
+    slug:   "invitations",
+    label:  "Stationery & Design",
+    code:   "STA",
+    line:   "Visual storytellers from invitation to keepsake",
+    img:    null,
+    grad:   "linear-gradient(160deg, #16140f 0%, #10080a 40%, #080504 100%)",
+    accent: "rgba(180,160,140,0.55)",
+  },
+  {
+    slug:   "rentals",
+    label:  "Rentals & Decor",
+    code:   "REN",
+    line:   "Curators of atmosphere and elegant ambiance",
+    img:    null,
+    grad:   "linear-gradient(160deg, #0f1814 0%, #0a1310 40%, #05080a 100%)",
+    accent: "rgba(130,170,140,0.55)",
+  },
+  {
+    slug:   "transportation",
+    label:  "Transportation",
+    code:   "TRN",
+    line:   "Luxury mobility for your most precious moments",
+    img:    null,
+    grad:   "linear-gradient(160deg, #14181f 0%, #0f1318 40%, #080a0f 100%)",
+    accent: "rgba(160,180,210,0.55)",
+  },
 ];
 
 // ── Destination editorial cards ───────────────────────────────────────────
@@ -139,6 +210,62 @@ const BROWSE_DESTINATIONS = [
     quote: "Santorini clifftops. The Aegean in high summer. Light like nowhere else.",
     grad:  "linear-gradient(160deg, #141924 0%, #0f131c 50%, #0a0d14 100%)",
     line:  "rgba(168,201,168,0.4)",
+  },
+  {
+    slug:  "spain",
+    label: "Spain",
+    code:  "ES",
+    quote: "Andalusian estates. Mediterranean warmth. Passion in every detail.",
+    grad:  "linear-gradient(160deg, #2a1810 0%, #1e1208 50%, #120a05 100%)",
+    line:  "rgba(230,160,100,0.4)",
+  },
+  {
+    slug:  "portugal",
+    label: "Portugal",
+    code:  "PT",
+    quote: "Algarve cliffs. Douro Valley romance. Lisbon's timeless elegance.",
+    grad:  "linear-gradient(160deg, #241808 0%, #1a0f05 50%, #0f0903 100%)",
+    line:  "rgba(210,140,80,0.4)",
+  },
+  {
+    slug:  "switzerland",
+    label: "Switzerland",
+    code:  "CH",
+    quote: "Alpine peaks. Crystal lakes. Mountain majesty at every turn.",
+    grad:  "linear-gradient(160deg, #0f1924 0%, #0a121a 50%, #050810 100%)",
+    line:  "rgba(140,180,210,0.4)",
+  },
+  {
+    slug:  "usa",
+    label: "United States",
+    code:  "US",
+    quote: "California sunsets. Napa vineyards. American elegance redefined.",
+    grad:  "linear-gradient(160deg, #281410 0%, #1d0f0a 50%, #120807 100%)",
+    line:  "rgba(220,140,100,0.4)",
+  },
+  {
+    slug:  "bali",
+    label: "Bali & Indonesia",
+    code:  "ID",
+    quote: "Tropical paradise. Ancient temples. Lush gardens meeting the sea.",
+    grad:  "linear-gradient(160deg, #0f1d14 0%, #0a1510 50%, #05080a 100%)",
+    line:  "rgba(130,180,130,0.4)",
+  },
+  {
+    slug:  "maldives",
+    label: "Maldives",
+    code:  "MV",
+    quote: "Crystalline waters. Private islands. Turquoise luxury.",
+    grad:  "linear-gradient(160deg, #0a1f28 0%, #071922 50%, #041019 100%)",
+    line:  "rgba(100,200,220,0.4)",
+  },
+  {
+    slug:  "japan",
+    label: "Japan",
+    code:  "JP",
+    quote: "Cherry blossoms. Traditional gardens. Modern elegance meets heritage.",
+    grad:  "linear-gradient(160deg, #22141f 0%, #17101a 50%, #0d0810 100%)",
+    line:  "rgba(230,150,180,0.4)",
   },
 ];
 
@@ -392,8 +519,9 @@ export default function ListingsPage({
   onNavigateAbout,
   footerNav = {},
 }) {
-  const [darkMode, setDarkMode] = useState(() => dmProp ?? getDefaultMode() === "dark");
-  const C = darkMode ? getDarkPalette() : getLightPalette();
+  const themeCtx = useTheme();
+  const darkMode = themeCtx.darkMode;
+  const C = themeCtx;
 
   // ── Filters ───────────────────────────────────────────────────────────
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -519,42 +647,12 @@ export default function ListingsPage({
 
   // ── Merge DB + static data ────────────────────────────────────────────
   const allListings = useMemo(() => {
+    // Master pipeline: normalise all DB listings through shared transform
     const dbCards = dbListings.map(l => ({
-      id:          l.id,
-      name:        l.cardTitle || l.name || "",
-      slug:        l.slug || "",
-      categorySlug:l.categorySlug || l.category_slug || "wedding-venues",
-      countrySlug: l.countrySlug  || l.country_slug  || "",
-      regionSlug:  l.regionSlug   || l.region_slug   || "",
-      region:      l.region       || "",
-      city:        l.city         || "",
-      country:     l.country      || "",
-      imgs: Array.isArray(l.imgs)
-        ? l.imgs.map(img => typeof img === "string" ? img : (img.src || img.url || "")).filter(Boolean)
-        : l.heroImage ? [l.heroImage] : [],
-      desc:        l.cardSummary || l.shortDescription || l.desc || "",
-      priceFrom:   (() => {
-        const p = l.priceFrom;
-        if (!p) return "";
-        if (typeof p === "string" && /[£€$]/.test(p)) return p;
-        const num = parseInt(p, 10);
-        if (isNaN(num)) return p;
-        const sym = (l.priceCurrency || "GBP") === "EUR" ? "€" : (l.priceCurrency || "GBP") === "USD" ? "$" : "£";
-        return `${sym}${num.toLocaleString("en-GB")}`;
-      })(),
-      capacity:    l.capacityMax  || l.capacityMin  || l.capacity   || null,
-      rating:      l.rating       ?? null,
-      reviews:     l.reviewCount  ?? l.reviews      ?? null,
-      verified:    l.isVerified   ?? l.verified      ?? false,
-      featured:    l.isFeatured   ?? l.featured      ?? false,
+      ...transformListingForCard(l),
+      categorySlug: l.categorySlug || l.category_slug || "wedding-venues",
       tier:        l.tier || (l.featured ? "featured" : "standard"),
-      lwdScore:    l.lwdScore     ?? null,
-      tag:         l.cardBadge   || l.tag            || null,
-      styles:      Array.isArray(l.styles)   ? l.styles   : [],
-      includes:    Array.isArray(l.amenities)? l.amenities: [],
-      showcaseUrl: l.showcaseEnabled && l.slug ? `/showcase/${l.slug}` : null,
       videoUrl:    l.videoUrl     || null,
-      online:      true,
       createdAt:   l.createdAt   || l.created_at    || "",
     }));
 
@@ -663,13 +761,12 @@ export default function ListingsPage({
   // Render
   // ═════════════════════════════════════════════════════════════════════
   return (
-    <ThemeCtx.Provider value={C}>
-      <div style={{ background: bg, minHeight: "100vh", color: text, fontFamily: NU }}>
+    <div style={{ background: bg, minHeight: "100vh", color: text, fontFamily: NU, width: "100%", overflowX: "hidden" }}>
 
         <HomeNav
           hasHero={true}
           darkMode={darkMode}
-          onToggleDark={onToggleDark || (() => setDarkMode(d => !d))}
+          onToggleDark={onToggleDark || themeCtx.toggleDark}
           onNavigateStandard={onNavigateStandard || onBack}
           onNavigateAbout={onNavigateAbout || onBack}
           onVendorLogin={onVendorLogin}
@@ -708,8 +805,8 @@ export default function ListingsPage({
                 top:        "50%",
                 left:       "50%",
                 // Scale iframe to always cover the container (16:9 → cover math)
-                width:      "100vw",
-                height:     "56.25vw",   // 100vw × (9/16)
+                width:      "100%",
+                height:     "56.25%",   // 100% × (9/16)
                 minHeight:  "100%",
                 minWidth:   "177.78vh",  // 100vh × (16/9)
                 transform:  "translate(-50%, -50%)",
@@ -840,7 +937,7 @@ export default function ListingsPage({
             {/* ── Search bar ── */}
             <div ref={heroBarRef}
               style={{
-                position: "relative", width: "100%", maxWidth: 720, margin: "0 auto",
+                position: "relative", width: "100%", maxWidth: isMobile ? "100%" : 720, margin: isMobile ? 0 : "0 auto",
                 border: searchMode === "ai" ? "1px solid rgba(201,168,76,0.45)" : "1px solid rgba(201,168,76,0.35)",
                 borderRadius: "var(--lwd-radius-card)",
                 boxShadow: searchMode === "ai"
@@ -1065,8 +1162,9 @@ export default function ListingsPage({
         ══════════════════════════════════════════════════════════════ */}
         <section style={{
           padding:    isMobile ? "60px 16px" : "100px 48px",
-          maxWidth:   1440,
-          margin:     "0 auto",
+          maxWidth:   isMobile ? "100%" : 1440,
+          margin:     isMobile ? 0 : "0 auto",
+          width:      "100%",
           borderBottom: `1px solid ${divider}`,
         }}>
           <div style={{ marginBottom: 48 }}>
@@ -1095,9 +1193,11 @@ export default function ListingsPage({
           </div>
 
           <div style={{
-            display:               "grid",
-            gridTemplateColumns:   isMobile ? "1fr 1fr" : "repeat(4, 1fr)",
-            gap:                   isMobile ? 12 : 20,
+            display:      "flex",
+            overflowX:    "auto",
+            gap:          isMobile ? 12 : 20,
+            paddingBottom: 12,
+            scrollBehavior: "smooth",
           }}>
             {BROWSE_CATEGORIES.map(cat => {
               const isActive = categoryFilter === cat.slug;
@@ -1111,6 +1211,8 @@ export default function ListingsPage({
                   style={{
                     position:     "relative",
                     height:       isMobile ? 220 : 400,
+                    minWidth:     isMobile ? 200 : 320,
+                    flexShrink:   0,
                     borderRadius: 2,
                     overflow:     "hidden",
                     cursor:       "pointer",
@@ -1277,8 +1379,9 @@ export default function ListingsPage({
         ══════════════════════════════════════════════════════════════ */}
         <section style={{
           padding:      isMobile ? "60px 16px" : "80px 48px",
-          maxWidth:     1440,
-          margin:       "0 auto",
+          maxWidth:     isMobile ? "100%" : 1440,
+          margin:       isMobile ? 0 : "0 auto",
+          width:        "100%",
           borderBottom: `1px solid ${divider}`,
         }}>
           <div style={{ marginBottom: 48 }}>
@@ -1306,9 +1409,11 @@ export default function ListingsPage({
           </div>
 
           <div style={{
-            display:             "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)",
-            gap:                 isMobile ? 12 : 20,
+            display:      "flex",
+            overflowX:    "auto",
+            gap:          isMobile ? 12 : 20,
+            paddingBottom: 12,
+            scrollBehavior: "smooth",
           }}>
             {BROWSE_DESTINATIONS.map(dest => {
               const isActive = countryFilter === dest.slug;
@@ -1323,6 +1428,8 @@ export default function ListingsPage({
                   style={{
                     position:     "relative",
                     height:       isMobile ? 200 : 340,
+                    minWidth:     isMobile ? 200 : 320,
+                    flexShrink:   0,
                     borderRadius: 2,
                     overflow:     "hidden",
                     cursor:       "pointer",
@@ -1492,14 +1599,46 @@ export default function ListingsPage({
           )}
         </section>
 
+        {/* Your Curated Selection — Transition to results */}
+        <section style={{
+          padding:      isMobile ? "40px 16px" : "60px 48px",
+          maxWidth:     isMobile ? "100%" : 1440,
+          margin:       isMobile ? 0 : "0 auto",
+          width:        "100%",
+          textAlign:    "center",
+        }}>
+          <div style={{
+            fontFamily:    GD,
+            fontSize:      isMobile ? 18 : 24,
+            fontWeight:    400,
+            fontStyle:     "italic",
+            color:         GOLD,
+            opacity:       0.8,
+            marginBottom:  8,
+            letterSpacing: "0.05em",
+          }}>
+            ✦ Your Curated Selection
+          </div>
+          <div style={{
+            fontFamily:    NU,
+            fontSize:      12,
+            color:         "rgba(201,168,76,0.6)",
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+          }}>
+            Scroll to explore
+          </div>
+        </section>
+
         {/* ══════════════════════════════════════════════════════════════
             SECOND FLOOR — Curated Collections (magazine-style)
         ══════════════════════════════════════════════════════════════ */}
         {curatedCollections.length > 0 && (
           <section style={{
             padding:      isMobile ? "60px 16px" : "100px 48px",
-            maxWidth:     1440,
-            margin:       "0 auto",
+            maxWidth:     isMobile ? "100%" : 1440,
+            margin:       isMobile ? 0 : "0 auto",
+            width:        "100%",
             borderBottom: `1px solid ${divider}`,
           }}>
             <div style={{ marginBottom: 72 }}>
@@ -1542,8 +1681,8 @@ export default function ListingsPage({
                 key={coll.id}
                 style={{
                   position:      "relative",
-                  marginBottom:  idx < curatedCollections.length - 1 ? 120 : 0,
-                  paddingBottom: idx < curatedCollections.length - 1 ? 120 : 0,
+                  marginBottom:  idx < curatedCollections.length - 1 ? (isMobile ? 60 : 120) : 0,
+                  paddingBottom: idx < curatedCollections.length - 1 ? (isMobile ? 60 : 120) : 0,
                   borderBottom:  idx < curatedCollections.length - 1 ? `1px solid ${divider}` : "none",
                 }}
               >
@@ -1677,7 +1816,7 @@ export default function ListingsPage({
                         {articleCount && (
                           <div style={{
                             position:      "absolute",
-                            top:           14,
+                            top:           295,
                             left:          14,
                             zIndex:        10,
                             fontFamily:    "var(--font-body)",
@@ -1711,8 +1850,9 @@ export default function ListingsPage({
         ══════════════════════════════════════════════════════════════ */}
         <section style={{
           padding:    isMobile ? "60px 16px" : "80px 48px",
-          maxWidth:   1440,
-          margin:     "0 auto",
+          maxWidth:   isMobile ? "100%" : 1440,
+          margin:     isMobile ? 0 : "0 auto",
+          width:      "100%",
           borderBottom:`1px solid ${divider}`,
         }}>
           <div style={{
@@ -1796,8 +1936,9 @@ export default function ListingsPage({
           ref={browseRef}
           style={{
             padding:  isMobile ? "60px 16px 48px" : "80px 48px 60px",
-            maxWidth: 1440,
-            margin:   "0 auto",
+            maxWidth: isMobile ? "100%" : 1440,
+            margin:   isMobile ? 0 : "0 auto",
+            width:    "100%",
           }}
         >
           {/* Section heading */}
@@ -2107,7 +2248,7 @@ export default function ListingsPage({
                       {(v.verified || v.tag) && (
                         <div style={{
                           position:      "absolute",
-                          top:           tierLabel ? 42 : 14,
+                          top:           175,
                           left:          14,
                           zIndex:        10,
                           fontFamily:    NU,
@@ -2252,7 +2393,6 @@ export default function ListingsPage({
           }
         `}</style>
       </div>
-    </ThemeCtx.Provider>
   );
 }
 

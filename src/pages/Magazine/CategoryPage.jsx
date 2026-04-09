@@ -82,6 +82,7 @@ export default function CategoryPage({
   onNavigateArticle,
   onNavigateHome,
   onNavigateCategory,
+  onEdit,
   isLight = false,
   onToggleLight,
   footerNav = {},
@@ -182,6 +183,7 @@ export default function CategoryPage({
         onNavigateHome={onNavigateHome}
         onNavigateCategory={onNavigateCategory}
         onNavigateArticle={goArticle}
+        onEdit={onEdit}
         isLight={isLight}
         onToggleLight={onToggleLight}
         topOffset={60}

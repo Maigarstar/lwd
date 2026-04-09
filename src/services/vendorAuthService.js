@@ -30,7 +30,7 @@ export const loginVendor = async (email, password) => {
       .from("vendors")
       .select("*")
       .eq("user_id", authData.user.id)
-      .single();
+      .maybeSingle();
 
     if (vendorError) throw vendorError;
     if (!vendorData) throw new Error("Vendor profile not found");
@@ -141,7 +141,7 @@ export const getCurrentVendor = async () => {
         .from("vendors")
         .select("*")
         .eq("user_id", authData.user.id)
-        .single();
+        .maybeSingle();
 
       if (vendorError) {
         // Check if it's a lock error - retry if so
@@ -191,7 +191,7 @@ export const activateVendor = async (activationToken, password) => {
       .from("vendors")
       .select("*")
       .eq("activation_token", activationToken)
-      .single();
+      .maybeSingle();
 
     if (vendorError) {
       throw new Error("Invalid or expired activation token");

@@ -1134,5 +1134,84 @@ export async function deleteListingMedia(mediaId: string) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// MASTER CARD DATA PIPELINE
+// ═══════════════════════════════════════════════════════════════════════════
+// Single transform for every page that renders listing cards (LocationPage,
+// RegionCategoryPage, CityPage, VenueProfile, etc.). Converts raw DB/API
+// listing rows into the canonical shape consumed by LuxuryVenueCard,
+// LuxuryVendorCard, VenueListItemCard, HCard, and VenueMapPanel.
+//
+// Rule: NEVER duplicate this logic. Import transformListingForCard() instead.
+// ═══════════════════════════════════════════════════════════════════════════
+
+function stripHtmlTags(s: any): string {
+  if (typeof s !== "string") return "";
+  return s.replace(/<[^>]*>/g, "").trim();
+}
+
+export function transformListingForCard(l: any): any {
+  return {
+    ...l,
+    // ── Identity ──
+    name:        l.cardTitle || l.name || "",
+    slug:        l.slug || "",
+
+    // ── Location ──
+    region:      l.region    || "",
+    regionSlug:  l.regionSlug || l.region_slug || "",
+    countrySlug: l.countrySlug || l.country_slug || "",
+    city:        l.city || "",
+    citySlug:    l.citySlug || l.city_slug || "",
+    country:     l.country || l.countryName || "",
+
+    // ── Images ──
+    imgs: Array.isArray(l.imgs)
+      ? l.imgs.map((img: any) => typeof img === "string" ? img : (img.src || img.url || "")).filter(Boolean)
+      : l.heroImage ? [l.heroImage] : [],
+
+    // ── Description — fallback chain, strip HTML ──
+    desc: l.cardSummary || l.shortDescription || l.desc || stripHtmlTags(l.description) || "",
+
+    // ── Price — format raw numbers with currency symbol ──
+    priceFrom: (() => {
+      const p = l.priceFrom;
+      if (!p) return "";
+      if (typeof p === "string" && /[£€$]/.test(p)) return p;
+      const num = parseInt(p, 10);
+      if (isNaN(num)) return p;
+      const sym = (l.priceCurrency || "GBP") === "EUR" ? "€"
+                : (l.priceCurrency || "GBP") === "USD" ? "$" : "£";
+      return `${sym}${num.toLocaleString("en-GB")}`;
+    })(),
+
+    // ── Capacity ──
+    capacity: l.capacityMax || l.capacityMin || l.capacity || null,
+
+    // ── Ratings & reviews ──
+    rating:      l.rating ?? null,
+    reviews:     l.reviewCount ?? l.reviews ?? null,
+    reviewCount: l.reviewCount ?? l.reviews ?? null,
+
+    // ── Flags ──
+    verified: l.isVerified ?? l.verified ?? false,
+    featured: l.isFeatured ?? l.featured ?? false,
+    online:   true,
+
+    // ── Editorial ──
+    lwdScore: l.lwdScore ?? null,
+    tag:      l.cardBadge || l.tag || null,
+    styles:   Array.isArray(l.styles) ? l.styles : [],
+    includes: Array.isArray(l.amenities) ? l.amenities : [],
+
+    // ── Geo (map pins) ──
+    lat: l.lat ?? null,
+    lng: l.lng ?? null,
+
+    // ── Showcase ──
+    showcaseUrl: l.showcaseEnabled && l.slug ? `/showcase/${l.slug}` : null,
+  };
+}
+
 // Re-export the helper function
 export { isSupabaseAvailable }

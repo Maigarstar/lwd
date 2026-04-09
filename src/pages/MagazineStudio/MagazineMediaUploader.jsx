@@ -524,6 +524,7 @@ export default function MagazineMediaUploader({
   const [uploadError, setUploadError] = useState(null);
   const [uploadWarn, setUploadWarn]   = useState(null);
   const [compStats, setCompStats]     = useState(null);
+  const uploadingRef = useRef(false); // Prevent double uploads (drag+input, double-click)
 
   const accept = type === 'video'
     ? 'video/mp4,video/webm,video/quicktime,video/x-msvideo'
@@ -532,6 +533,9 @@ export default function MagazineMediaUploader({
       : 'image/jpeg,image/png,image/webp,image/gif';
 
   const handleFile = useCallback(async (file) => {
+    if (uploadingRef.current) return; // Block double uploads
+    uploadingRef.current = true;
+
     setUploadError(null);
     setUploadWarn(null);
     setCompStats(null);
@@ -569,6 +573,7 @@ export default function MagazineMediaUploader({
       } finally {
         setStatus(null);
         setUploadPct(0);
+        uploadingRef.current = false;
       }
       return;
     }
@@ -585,6 +590,7 @@ export default function MagazineMediaUploader({
       setUploadError(err.message);
     } finally {
       setStatus(null);
+      uploadingRef.current = false;
     }
   }, [onChange]);
 

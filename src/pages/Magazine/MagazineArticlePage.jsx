@@ -54,6 +54,7 @@ function ReadingProgress() {
 // ─── Author Card (sidebar) ─────────────────────────────────────────────────────
 function AuthorCard({ author, light = false }) {
   const T = getMagTheme(light);
+  if (!author) return null;
   return (
     <div style={{
       padding: '28px 0',
@@ -195,7 +196,7 @@ function SidebarPostRow({ post, onClick, light = false }) {
 }
 
 // ─── Layout A: Full-Width Editorial ──────────────────────────────────────────
-function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, isLight, onToggleLight, footerNav }) {
+function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, onEdit, isLight, onToggleLight, footerNav }) {
   const T = getMagTheme(isLight);
   const goArticle = p => onNavigateArticle && onNavigateArticle(p.slug);
 
@@ -208,6 +209,7 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
         onNavigateHome={onNavigateHome}
         onNavigateCategory={onNavigateCategory}
         onNavigateArticle={goArticle}
+        onEdit={onEdit}
         isLight={isLight}
         onToggleLight={onToggleLight}
         topOffset={60}
@@ -253,10 +255,12 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
             </p>
           )}
           <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <img src={post.author.avatar} alt={post.author.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
-              <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.6)', letterSpacing: '0.05em' }}>{post.author.name}</span>
-            </div>
+            {post.author && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <img src={post.author.avatar} alt={post.author.name} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.6)', letterSpacing: '0.05em' }}>{post.author.name}</span>
+              </div>
+            )}
             <span style={{ color: 'rgba(245,240,232,0.25)' }}>·</span>
             <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.5)' }}>{formatDate(post.date)}</span>
             <span style={{ color: 'rgba(245,240,232,0.25)' }}>·</span>
@@ -292,7 +296,7 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
 }
 
 // ─── Layout B: Magazine with Sidebar ─────────────────────────────────────────
-function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, isLight, onToggleLight, footerNav }) {
+function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, onEdit, isLight, onToggleLight, footerNav }) {
   const T = getMagTheme(isLight);
   const [sidebarFixed, setSidebarFixed] = useState(false);
   const sidebarAnchorRef = useRef(null);
@@ -317,6 +321,7 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
         onNavigateHome={onNavigateHome}
         onNavigateCategory={onNavigateCategory}
         onNavigateArticle={goArticle}
+        onEdit={onEdit}
         isLight={isLight}
         onToggleLight={onToggleLight}
         topOffset={60}
@@ -352,9 +357,13 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
             </p>
           )}
           <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', paddingBottom: 40 }}>
-            <img src={post.author.avatar} alt={post.author.name} style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover' }} />
-            <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.55)' }}>{post.author.name}</span>
-            <span style={{ color: 'rgba(245,240,232,0.2)' }}>·</span>
+            {post.author && (
+              <>
+                <img src={post.author.avatar} alt={post.author.name} style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover' }} />
+                <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.55)' }}>{post.author.name}</span>
+                <span style={{ color: 'rgba(245,240,232,0.2)' }}>·</span>
+              </>
+            )}
             <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.45)' }}>{formatDate(post.date)}</span>
             <span style={{ color: 'rgba(245,240,232,0.2)' }}>·</span>
             <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.45)' }}>{post.readingTime} min read</span>
@@ -509,7 +518,7 @@ function ArticleNotFound({ onNavigateHome }) {
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
-export default function MagazineArticlePage({ slug, onNavigateArticle, onNavigateHome, onNavigateCategory, isLight = false, onToggleLight, footerNav = {} }) {
+export default function MagazineArticlePage({ slug, onNavigateArticle, onNavigateHome, onNavigateCategory, onEdit, isLight = false, onToggleLight, footerNav = {} }) {
   const [post, setPost] = useState(() => getPostBySlug(slug));
   const [loading, setLoading] = useState(true);
 
@@ -530,7 +539,8 @@ export default function MagazineArticlePage({ slug, onNavigateArticle, onNavigat
     ? `${SITE_URL}/magazine/${post.category_slug}/${post.slug}`
     : undefined;
 
-  const sharedProps = { post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, isLight, onToggleLight, footerNav };
+  const handleEdit = () => onEdit && onEdit(post.slug);
+  const sharedProps = { post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, onEdit: handleEdit, isLight, onToggleLight, footerNav };
 
   return (
     <>

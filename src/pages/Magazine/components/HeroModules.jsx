@@ -100,7 +100,7 @@ export function HeroEditorial({ post, onRead, minHeight = '100svh', textAlign = 
               Read Story
             </button>
             <span style={{ fontFamily: FU, fontSize: 10, color: 'rgba(245,240,232,0.45)', letterSpacing: '0.1em' }}>
-              {post.author.name} &nbsp;·&nbsp; {post.readingTime} min read
+              {post.author?.name && <>{post.author.name} &nbsp;·&nbsp;</>} {post.readingTime} min read
             </span>
           </div>
         </div>
@@ -196,10 +196,14 @@ export function HeroSplitScreen({ post, onRead, imageRight = false }) {
         </p>
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 32, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: FU, fontSize: 10, color: 'rgba(245,240,232,0.35)', letterSpacing: '0.08em' }}>
-            {post.author.name}
-          </span>
-          <span style={{ color: 'rgba(245,240,232,0.2)', fontSize: 8 }}>·</span>
+          {post.author && (
+            <>
+              <span style={{ fontFamily: FU, fontSize: 10, color: 'rgba(245,240,232,0.35)', letterSpacing: '0.08em' }}>
+                {post.author.name}
+              </span>
+              <span style={{ color: 'rgba(245,240,232,0.2)', fontSize: 8 }}>·</span>
+            </>
+          )}
           <span style={{ fontFamily: FU, fontSize: 10, color: 'rgba(245,240,232,0.35)', letterSpacing: '0.08em' }}>
             {formatDate(post.date)}
           </span>
@@ -302,7 +306,7 @@ export function HeroMagazineGrid({ posts = [], onRead }) {
               {featured.excerpt}
             </p>
             <span style={{ fontFamily: FU, fontSize: 10, color: 'rgba(245,240,232,0.38)', letterSpacing: '0.08em' }}>
-              {featured.author.name} &nbsp;·&nbsp; {featured.readingTime} min read
+              {featured.author?.name && <>{featured.author.name} &nbsp;·&nbsp;</>} {featured.readingTime} min read
             </span>
           </div>
         </div>
@@ -722,7 +726,7 @@ export function HeroDualFeature({ posts = [], onRead }) {
             Read Story
           </button>
           <span style={{ fontFamily: FU, fontSize: 10, color: 'rgba(245,240,232,0.38)', letterSpacing: '0.08em' }}>
-            {post.author.name} &nbsp;·&nbsp; {post.readingTime} min
+            {post.author?.name && <>{post.author.name} &nbsp;·&nbsp;</>} {post.readingTime} min
           </span>
         </div>
       </div>

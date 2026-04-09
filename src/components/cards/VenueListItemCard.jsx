@@ -87,7 +87,8 @@ export default function VenueListItemCard({ v, onView, isHighlighted, quickViewI
   const guests     = v.capacity  || v.maxGuests || null;
   const style      = v.styles?.[0] || v.style || null;
   const location   = resolveLocation(v);
-  const inclusions = (v.inclusions || v.amenities || []).slice(0, 4);
+  const _rawInc    = v.inclusions || v.amenities || [];
+  const inclusions = (Array.isArray(_rawInc) ? _rawInc : []).slice(0, 4);
 
   return (
     <article

@@ -220,6 +220,8 @@ export default function TiptapEditor({ value = '', onChange, placeholder = 'Star
       StarterKit.configure({
         heading:    { levels: [2, 3, 4] },
         typography: false,
+        link: false,       // Disable StarterKit's default link to avoid duplicate
+        underline: false,  // Disable StarterKit's default underline to avoid duplicate
       }),
       Underline,
       Link.configure({ openOnClick: false, autolink: true }),

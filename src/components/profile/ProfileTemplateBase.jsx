@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { ThemeCtx, LIGHT, DARK, GlobalStyles, useIsMobile, FB, FD } from "./ProfileDesignSystem";
+import { useTheme as useGlobalTheme } from "../../theme/ThemeContext";
 import HeroCinematic from "./HeroCinematic";
 import StatsStrip from "./StatsStrip";
 import ReviewsSection from "./ReviewsSection";
@@ -151,7 +151,8 @@ export default function ProfileTemplateBase({
   footer = null,    // React component for footer
   children = null,  // Additional content
 }) {
-  const [darkMode, setDarkMode] = useState(false);
+  const globalTheme = useGlobalTheme();
+  const darkMode = globalTheme.darkMode ?? false;
   const C = darkMode ? DARK : LIGHT;
   const isMobile = useIsMobile();
 

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { POSTS } from '../Magazine/data/posts';
 import { CATEGORIES } from '../Magazine/data/categories';
 import { computeContentIntelligence } from './ContentIntelligence';
@@ -29,9 +29,11 @@ const CV = {
   success:     'var(--s-success, #5aaa78)',
 };
 const S = CV;
+import ArticleListView from './ArticleListView';
 import ArticleEditor from './ArticleEditor';
 import HomepageEditor from './HomepageEditor';
 import CategoryEditor from './CategoryEditor';
+import StudioContextBar from '../../components/editor/StudioContextBar';
 import {
   fetchPosts,
   fetchCategories,
@@ -123,6 +125,18 @@ function ConflictDialog({ open, conflictPost, onReload, onOverwrite, onCancel })
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// Retry-aware savePost wrapper: Navigator Lock steal (AbortError) can cause a
+// one-off failure when multiple tabs contend for the Supabase auth lock.
+// A single retry after a short delay resolves it.
+async function savePostSafe(postData) {
+  let result = await savePost(postData);
+  if (result.error && /abort|lock.*broken|steal/i.test(result.error.message || '')) {
+    await new Promise(r => setTimeout(r, 500));
+    result = await savePost(postData);
+  }
+  return result;
+}
+
 function uid() {
   return 'new_' + Math.random().toString(36).slice(2, 9);
 }
@@ -130,7 +144,9 @@ function uid() {
 function formatDate(d) {
   if (!d) return ' - ';
   const dt = new Date(d);
-  return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const date = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const time = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return `${date}, ${time}`;
 }
 
 // ── Studio Home Screen ────────────────────────────────────────────────────────
@@ -352,6 +368,8 @@ function StudioHome({ posts, allCategories, onOpenArticles, onOpenHomepage, onOp
 }
 
 // ── Article List (Newsroom) ───────────────────────────────────────────────────
+const VIEW_MODE_KEY = 'magazineStudio_viewMode';
+
 function ArticleList({ posts, allCategories, onEdit, onNew, onDuplicate, onDelete, onBack, onBulkAction }) {
   const [search, setSearch]         = useState('');
   const [filterCat, setFilterCat]   = useState('all');
@@ -363,6 +381,10 @@ function ArticleList({ posts, allCategories, onEdit, onNew, onDuplicate, onDelet
   const [bulkWorking, setBulkWorking] = useState(false);
   const [confirmState, setConfirmState] = useState(null); // { action, ids, title, body }
   const [deleteConfirm, setDeleteConfirm] = useState(null); // single delete { id }
+  const [viewMode, setViewModeRaw]  = useState(() => {
+    try { return localStorage.getItem(VIEW_MODE_KEY) || 'grid'; } catch { return 'grid'; }
+  });
+  const setViewMode = (m) => { setViewModeRaw(m); try { localStorage.setItem(VIEW_MODE_KEY, m); } catch {} };
 
   const isSched = (p) => !p.published && p.scheduledDate && new Date(p.scheduledDate) > new Date();
 
@@ -490,6 +512,24 @@ function ArticleList({ posts, allCategories, onEdit, onNew, onDuplicate, onDelet
         <div style={{ width: 1, height: 20, background: S.border }} />
         <span style={{ fontFamily: FU, fontSize: 12, fontWeight: 600, color: S.text, letterSpacing: '0.05em' }}>Articles</span>
         <div style={{ flex: 1 }} />
+        {/* View toggle */}
+        <div style={{ display: 'flex', gap: 2, background: 'rgba(245,240,232,0.03)', borderRadius: 3, padding: 2 }}>
+          {[
+            { mode: 'grid', icon: '⊞', title: 'Grid view' },
+            { mode: 'list', icon: '☰', title: 'List view' },
+          ].map(v => (
+            <button key={v.mode} title={v.title} onClick={() => setViewMode(v.mode)}
+              style={{
+                fontFamily: FU, fontSize: 13, lineHeight: 1, padding: '4px 8px', borderRadius: 2,
+                background: viewMode === v.mode ? 'rgba(201,168,76,0.15)' : 'none',
+                border: viewMode === v.mode ? '1px solid rgba(201,168,76,0.4)' : '1px solid transparent',
+                color: viewMode === v.mode ? 'var(--s-gold,#c9a96e)' : 'var(--s-faint,rgba(245,240,232,0.2))',
+                cursor: 'pointer', transition: 'all 0.12s',
+              }}>
+              {v.icon}
+            </button>
+          ))}
+        </div>
         <GoldBtn small onClick={onNew}>+ New Article</GoldBtn>
       </div>
 
@@ -574,9 +614,20 @@ function ArticleList({ posts, allCategories, onEdit, onNew, onDuplicate, onDelet
         </label>
       </div>
 
-      {/* Card grid */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px 32px' }}>
-        {filtered.length === 0 ? (
+      {/* Articles — grid or list */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: viewMode === 'list' ? '0' : '20px 20px 32px' }}>
+        {viewMode === 'list' ? (
+          <ArticleListView
+            posts={filtered}
+            selected={selected}
+            onToggleRow={toggleRow}
+            onToggleAll={toggleAll}
+            allSelected={allSelected}
+            onEdit={onEdit}
+            onDuplicate={onDuplicate}
+            onDelete={(id) => { const p = filtered.find(x => x.id === id); setDeleteConfirm({ id, title: p?.title }); }}
+          />
+        ) : filtered.length === 0 ? (
           <div style={{ padding: '60px 40px', textAlign: 'center', fontFamily: FU, fontSize: 13, color: S.muted }}>No articles match your filters.</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
@@ -662,6 +713,12 @@ function ArticleList({ posts, allCategories, onEdit, onNew, onDuplicate, onDelet
                         <span style={{ fontFamily: FU, fontSize: 10, color: '#818cf8' }}>Sched {formatDate(post.scheduledDate)}</span>
                       </>}
                     </div>
+                    {/* Updated date */}
+                    {(post._lastEdited || post.updatedAt || post.updated_at) && (
+                      <div style={{ fontFamily: FU, fontSize: 9, color: S.faint, marginBottom: 8 }}>
+                        Updated {formatDate(post._lastEdited || post.updatedAt || post.updated_at)}
+                      </div>
+                    )}
                     {/* Feature flag chips */}
                     {(post.isFeatured || post.editorsChoice || post.homepageFeature) && (
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -720,20 +777,21 @@ function ArticleList({ posts, allCategories, onEdit, onNew, onDuplicate, onDelet
 // ── Shell ─────────────────────────────────────────────────────────────────────
 const SESSION_KEY = 'magazineStudio_nav';
 
-export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
+export default function MagazineStudio({ onNavigateMagazine, onNavigateHome, slug, returnPath }) {
   const [mode, setModeRaw] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY))?.mode || 'home'; } catch { return 'home'; }
   });
   const [editingId, setEditingIdRaw] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY))?.editingId || null; } catch { return null; }
   });
-  const [returnPath, setReturnPath] = useState(() => {
+  // Merge prop-based returnPath with sessionStorage fallback
+  const effectiveReturnPath = returnPath || (() => {
     try {
       const p = sessionStorage.getItem('lwd_admin_return_path');
       if (p) { sessionStorage.removeItem('lwd_admin_return_path'); return p; }
     } catch {}
     return null;
-  });
+  })();
 
   const setMode = (m) => {
     setModeRaw(m);
@@ -763,6 +821,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
   const [dbLoaded, setDbLoaded] = useState(false);
   const [deleteConfirmShell, setDeleteConfirmShell] = useState(null); // { id, title }
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [saveToast, setSaveToast] = useState(null); // { msg, type: 'ok'|'warn'|'error' }
   const [studioLight, setStudioLight] = useState(false);
   const [conflictState, setConflictState] = useState(null); // { post, pendingUpdate } for concurrency control
@@ -796,6 +855,16 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
       }
     });
   }, []);
+
+  // ── Load article by slug when passed as prop (universal studio router) ──────
+  useEffect(() => {
+    if (slug && dbLoaded && localPosts.length > 0) {
+      const article = localPosts.find(p => p.slug === slug);
+      if (article) {
+        setModeAndId('article-edit', article.id);
+      }
+    }
+  }, [slug, dbLoaded, localPosts]);
 
   const showToast = useCallback((msg, type = 'ok') => {
     setSaveToast({ msg, type });
@@ -852,7 +921,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
       _lastEdited: new Date().toISOString(),
     };
     // Save to DB FIRST (blocking) before opening editor to ensure we have a real UUID
-    const { data: saved, error } = await savePost(newPost);
+    const { data: saved, error } = await savePostSafe(newPost);
     if (error) {
       showToast('Failed to create article: ' + (error.message || 'unknown error'), 'error');
       return;
@@ -867,52 +936,52 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
   };
 
   const handleSavePost = useCallback(async (updated) => {
+    if (savingRef.current) return null; // Prevent concurrent saves (ref avoids stale closure)
+    savingRef.current = true;
     setSaving(true);
 
-    // Check for concurrency conflicts if this is an existing DB post
-    if (updated.id && /^[0-9a-f]{8}-/.test(updated.id)) {
-      const { hasConflict, dbPost } = await checkForConflict(updated.id, updated.updatedAt);
-      if (hasConflict && dbPost) {
-        setSaving(false);
-        // Show conflict dialog and wait for user decision
-        setConflictState({ post: dbPost });
-        setPendingOverwrite(updated);
-        return null; // Block save until user resolves conflict
+    try {
+      // Check for concurrency conflicts if this is an existing DB post
+      if (updated.id && /^[0-9a-f]{8}-/.test(updated.id)) {
+        const { hasConflict, dbPost } = await checkForConflict(updated.id, updated.updatedAt);
+        if (hasConflict && dbPost) {
+          setConflictState({ post: dbPost });
+          setPendingOverwrite(updated);
+          return null;
+        }
       }
-    }
 
-    // Compute Editorial Intelligence score and persist it alongside the post.
-    // Use focus keyword if provided for keyword bonus/penalty scoring.
-    const intel = computeContentIntelligence(updated, updated.focusKeyword || '');
-    const withScore = {
-      ...updated,
-      contentScore:          intel.score,
-      contentScoreGrade:     intel.grade,
-      contentScoreBreakdown: intel.breakdown,
-      contentScoreUpdatedAt: new Date().toISOString(),
-    };
-    const { data: saved, error, slugChanged, resolvedSlug } = await savePost(withScore);
-    setSaving(false);
-    if (error) {
-      showToast('Save failed, ' + (error.message || 'unknown error'), 'error');
-      return null;
-    }
-    // Replace local entry with real DB data (handles static ID → real UUID on first save)
-    if (saved) {
-      setLocalPosts(prev =>
-        prev.map(p => p.id === updated.id
-          ? { ...saved, content: updated.content, _lastEdited: new Date().toISOString() }
-          : p)
-      );
-      if (saved.id !== updated.id) {
-        setModeAndId('article-edit', saved.id);
+      const intel = computeContentIntelligence(updated, updated.focusKeyword || '');
+      const withScore = {
+        ...updated,
+        contentScore:          intel.score,
+        contentScoreGrade:     intel.grade,
+        contentScoreBreakdown: intel.breakdown,
+        contentScoreUpdatedAt: new Date().toISOString(),
+      };
+      const { data: saved, error, slugChanged, resolvedSlug } = await savePostSafe(withScore);
+      if (error) {
+        showToast('Save failed, ' + (error.message || 'unknown error'), 'error');
+        return null;
       }
+      if (saved) {
+        setLocalPosts(prev =>
+          prev.map(p => p.id === updated.id
+            ? { ...saved, content: updated.content, _lastEdited: new Date().toISOString() }
+            : p)
+        );
+        if (saved.id !== updated.id) {
+          setModeAndId('article-edit', saved.id);
+        }
+      }
+      if (slugChanged) {
+        showToast(`Slug auto-adjusted to "${resolvedSlug}" (collision)`, 'warn');
+      }
+      return saved ? { savedId: saved.id, slug: resolvedSlug } : null;
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
-    if (slugChanged) {
-      showToast(`Slug auto-adjusted to "${resolvedSlug}" (collision)`, 'warn');
-    }
-    // Return both savedId and resolved slug so editor can update formData if slug changed
-    return saved ? { savedId: saved.id, slug: resolvedSlug } : null;
   }, [showToast, checkForConflict]);
 
   // Conflict dialog: user chooses to reload latest DB version
@@ -944,7 +1013,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
         contentScoreBreakdown: intel.breakdown,
         contentScoreUpdatedAt: new Date().toISOString(),
       };
-      const { data: saved, error, slugChanged, resolvedSlug } = await savePost(withScore);
+      const { data: saved, error, slugChanged, resolvedSlug } = await savePostSafe(withScore);
       setSaving(false);
       if (error) {
         showToast('Overwrite failed: ' + (error.message || 'unknown error'), 'error');
@@ -973,7 +1042,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
       _lastEdited: new Date().toISOString(),
     };
     setLocalPosts(prev => [copy, ...prev]);
-    const { data: saved, error } = await savePost(copy);
+    const { data: saved, error } = await savePostSafe(copy);
     if (!error && saved) {
       setLocalPosts(prev => prev.map(p => p.id === copy.id ? { ...saved, _lastEdited: saved.updatedAt || new Date().toISOString() } : p));
     }
@@ -1008,7 +1077,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
         if (updates) {
           const updated = { ...post, ...updates };
           setLocalPosts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
-          const { error } = await savePost(updated);
+          const { error } = await savePostSafe(updated);
           if (error) errors.push(post.title || id);
         }
       }
@@ -1019,6 +1088,20 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
   }, [localPosts, showToast]);
 
   const editingPost = localPosts.find(p => p.id === editingId) || null;
+
+  // ── Deep-link: open specific article by slug (from "Edit" on article page) ──
+  useEffect(() => {
+    if (!dbLoaded) return;
+    try {
+      const slug = sessionStorage.getItem('magazineStudio_editSlug');
+      if (!slug) return;
+      sessionStorage.removeItem('magazineStudio_editSlug');
+      const match = localPosts.find(p => p.slug === slug);
+      if (match) {
+        setModeAndId('article-edit', match.id);
+      }
+    } catch {}
+  }, [dbLoaded, localPosts]);
 
   // Safety: if article-edit but post not found (e.g. was a new unsaved article), fall back to list
   // Wait for DB to load first — otherwise DB-only posts aren't in localPosts yet
@@ -1063,7 +1146,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
         </div>
       )}
       {/* Return to live page strip */}
-      {returnPath && mode === 'article-edit' && (
+      {effectiveReturnPath && mode === 'article-edit' && (
         <div style={{
           height: 28, flexShrink: 0,
           background: 'rgba(201,168,76,0.08)',
@@ -1072,7 +1155,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
           padding: '0 20px', gap: 10,
         }}>
           <button
-            onClick={() => { window.location.href = returnPath }}
+            onClick={() => { window.location.href = effectiveReturnPath }}
             style={{
               fontFamily: FU, fontSize: 10, fontWeight: 600,
               letterSpacing: '0.06em', textTransform: 'uppercase',
@@ -1083,7 +1166,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
             ← Back to live page
           </button>
           <span style={{ fontFamily: FU, fontSize: 10, color: S.muted }}>
-            {returnPath}
+            {effectiveReturnPath}
           </span>
         </div>
       )}
@@ -1224,25 +1307,35 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome }) {
         )}
 
         {mode === 'article-edit' && editingPost && (
-          <ArticleEditor
-            initialPost={editingPost}
-            allPosts={localPosts}
-            saving={saving}
-            isLight={studioLight}
-            onToggleTheme={() => setStudioLight(l => !l)}
-            onSaveToParent={async (updated, isDuplicate) => {
-              if (isDuplicate) {
-                // Duplicate: save to DB and go to list
-                const copy = { ...updated, id: uid(), slug: updated.slug + '-copy', title: updated.title + ' (Copy)', published: false };
-                const { data: saved } = await savePost(copy);
-                setLocalPosts(prev => [saved || copy, ...prev]);
-                setModeAndId('article-list', null);
-              } else {
-                return await handleSavePost(updated);
-              }
-            }}
-            onBack={() => setModeAndId('article-list', null)}
-          />
+          <>
+            {effectiveReturnPath && (
+              <StudioContextBar
+                entityType="article"
+                title={editingPost.title}
+                returnPath={effectiveReturnPath}
+                liveUrl={`/magazine/${editingPost.slug}`}
+              />
+            )}
+            <ArticleEditor
+              initialPost={editingPost}
+              allPosts={localPosts}
+              saving={saving}
+              isLight={studioLight}
+              onToggleTheme={() => setStudioLight(l => !l)}
+              onSaveToParent={async (updated, isDuplicate) => {
+                if (isDuplicate) {
+                  // Duplicate: save to DB and go to list
+                  const copy = { ...updated, id: uid(), slug: updated.slug + '-copy', title: updated.title + ' (Copy)', published: false };
+                  const { data: saved } = await savePostSafe(copy);
+                  setLocalPosts(prev => [saved || copy, ...prev]);
+                  setModeAndId('article-list', null);
+                } else {
+                  return await handleSavePost(updated);
+                }
+              }}
+              onBack={() => setModeAndId('article-list', null)}
+            />
+          </>
         )}
       </div>
 

@@ -100,6 +100,7 @@ export const logoutCouple = async () => {
  */
 export const getCurrentCouple = async () => {
   try {
+    if (!supabase) return { data: null, error: "Supabase not configured" };
     // 1. Get current auth user
     const { data: authData, error: authError } = await supabase.auth.getUser();
 
@@ -111,7 +112,7 @@ export const getCurrentCouple = async () => {
       .from("couples")
       .select("*")
       .eq("user_id", authData.user.id)
-      .single();
+      .maybeSingle();
 
     if (coupleError) return { data: null, error: coupleError.message };
     if (!coupleData) return { data: null, error: "Couple record not found" };

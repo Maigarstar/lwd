@@ -2,6 +2,7 @@
 // /venues/:slug/reviews — auto-branded with venue hero, images and identity
 
 import { useState, useEffect, useRef } from 'react';
+import { useTheme } from '../theme/ThemeContext';
 import HomeNav from '../components/nav/HomeNav';
 import ReviewSubmitForm from '../components/reviews/ReviewSubmitForm';
 import { fetchListingBySlug } from '../services/listings';
@@ -214,8 +215,9 @@ const CATEGORY_TO_ENTITY = {
 };
 
 export default function VenueReviewsPage({ slug: slugProp, categorySlug: categorySlugProp } = {}) {
-  const [darkMode, setDarkMode] = useState(false);
-  const C = darkMode ? DARK : LIGHT;
+  const themeCtx = useTheme();
+  const darkMode = themeCtx.darkMode;
+  const C = themeCtx;
 
   // Support both /{country}/{region}/{category}/{slug}/reviews and /venues/{slug}/reviews
   const pathParts = window.location.pathname.split('/').filter(Boolean);
@@ -306,7 +308,7 @@ export default function VenueReviewsPage({ slug: slugProp, categorySlug: categor
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ background: '#0d0b09', minHeight: '100vh' }}>
-      <HomeNav hasHero={false} darkMode={true} onToggleDark={() => {}} />
+      <HomeNav hasHero={false} darkMode={true} onToggleDark={themeCtx.toggleDark} />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
         <span style={{ fontFamily: FB, fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>Loading…</span>
       </div>
@@ -315,7 +317,7 @@ export default function VenueReviewsPage({ slug: slugProp, categorySlug: categor
 
   if (notFound) return (
     <div style={{ background: C.bg, minHeight: '100vh' }}>
-      <HomeNav hasHero={false} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />
+      <HomeNav hasHero={false} darkMode={darkMode} onToggleDark={themeCtx.toggleDark} />
       <div style={{ maxWidth: 600, margin: '120px auto', padding: '0 24px', textAlign: 'center' }}>
         <div style={{ fontFamily: FD, fontSize: 26, color: C.text, marginBottom: 16 }}>Venue not found</div>
         <a href="/" style={{ fontFamily: FB, fontSize: 13, color: C.gold }}>← Back to home</a>
@@ -335,7 +337,7 @@ export default function VenueReviewsPage({ slug: slugProp, categorySlug: categor
       `}</style>
 
       {/* ── HomeNav (transparent over hero) ──────────────────────────────── */}
-      <HomeNav hasHero={true} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />
+      <HomeNav hasHero={true} darkMode={darkMode} onToggleDark={themeCtx.toggleDark} />
 
       {/* ── BRANDED HERO ─────────────────────────────────────────────────── */}
       <div style={{ position: 'relative', height: '55vh', minHeight: 380, overflow: 'hidden' }}>

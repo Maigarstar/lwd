@@ -7,6 +7,7 @@ import { getMagTheme, FD, FU, GOLD_CONST as GOLD } from '../magazineTheme';
 import ExternalLinkModal from '../../../components/ExternalLinkModal';
 import { trackExternalClick, hasSeenModalThisSession, markModalSeen } from '../../../services/outboundClickService';
 import ImageInteractionBar from '../../../components/media/ImageInteractionBar';
+import ReferenceHoverCard from '../../../components/editorial/ReferenceHoverCard';
 
 // ── Lazy-loaded editorial blocks ────────────────────────────────────────────
 const VideoEmbedBlock = lazy(() => import('./blocks/VideoEmbedBlock'));
@@ -114,6 +115,27 @@ function GalleryLightbox({ images, startIndex, onClose }) {
               style={{ width: j === idx ? 20 : 6, height: 3, borderRadius: 2, border: 'none', cursor: 'pointer', padding: 0, background: j === idx ? GOLD : 'rgba(245,240,232,0.25)', transition: 'all 0.25s ease' }} />
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── FAQ accordion item ───────────────────────────────────────────────────────
+function FaqItem({ question, answer, isLight, TEXT, MUTED, GOLD, DIVBG }) {
+  const [open, setOpen] = useState(false);
+  if (!question) return null;
+  return (
+    <div style={{ borderBottom: `1px solid ${DIVBG}` }}>
+      <button onClick={() => setOpen(!open)} style={{
+        width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '16px 20px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, textAlign: 'left',
+      }}>
+        <span style={{ fontFamily: "'Urbanist', sans-serif", fontSize: 14, fontWeight: 600, color: TEXT, lineHeight: 1.4 }}>{question}</span>
+        <span style={{ fontSize: 18, color: GOLD, transition: 'transform 0.25s ease', transform: open ? 'rotate(45deg)' : 'rotate(0deg)', flexShrink: 0 }}>+</span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 20px 16px', fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 14, color: MUTED, lineHeight: 1.7 }}
+          dangerouslySetInnerHTML={{ __html: answer || '' }} />
       )}
     </div>
   );
@@ -324,6 +346,8 @@ export default function ArticleBody({ content = [], isLight = true }) {
   const T = getMagTheme(isLight);
   const [lightbox, setLightbox] = useState(null); // { images, startIndex }
   const [exitConfig, setExitConfig] = useState(null); // { url, name } for vendor credit modal
+  const [hoverRef, setHoverRef] = useState(null); // hover preview card state
+  const hoverTimer = useRef(null);
 
   const handleVendorLink = useCallback((url, name) => {
     if (!url) return;
@@ -997,7 +1021,10 @@ export default function ArticleBody({ content = [], isLight = true }) {
                     {block.location && <div style={{ fontFamily: FU, fontSize: 11, color: MUTED }}>{block.location}</div>}
                     {block.desc && <div style={{ fontFamily: FS, fontSize: 13, color: MUTED, lineHeight: 1.55, flex: 1 }}>{block.desc}</div>}
                     <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
-                      {block.url && <a href={block.url} style={{ fontFamily: FU, fontSize: 9, padding: '4px 12px', border: `1px solid ${GOLD}50`, borderRadius: 2, color: GOLD, textDecoration: 'none' }}>View Profile →</a>}
+                      {block.url && <a href={block.url} style={{ fontFamily: FU, fontSize: 9, padding: '4px 12px', border: `1px solid ${GOLD}50`, borderRadius: 2, color: GOLD, textDecoration: 'none' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}12`; setHoverRef({ anchor: e.currentTarget, ...block, entityType: 'listing', label: block.name }); }}
+                        onMouseLeave={() => hoverTimer.current = setTimeout(() => setHoverRef(null), 300)}
+                      >View Profile →</a>}
                       {block.showEnquire && block.url && <a href={`${block.url}?enquire=1`} style={{ fontFamily: FU, fontSize: 9, padding: '4px 12px', background: `linear-gradient(135deg,${GOLD},#b8891e)`, borderRadius: 2, color: '#fff', textDecoration: 'none' }}>Enquire</a>}
                     </div>
                   </div>
@@ -1028,6 +1055,60 @@ export default function ArticleBody({ content = [], isLight = true }) {
                     ))}
                   </div>
                 )}
+              </div>
+            );
+          }
+
+          // ── Reference Block (Content → Commerce) ────────────────────────
+          case 'reference': {
+            if (!block.label) return null;
+            const refTierColor = block.referenceTier === 'sponsored' ? '#8b5cf6' : block.referenceTier === 'featured' ? '#10b981' : GOLD;
+            return (
+              <div key={i} style={{ margin: '28px 0', border: `1px solid ${refTierColor}28`, borderRadius: 4, overflow: 'hidden', background: isLight ? '#fdfcf9' : '#1a1714' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: block.image ? '180px 1fr' : '1fr', minHeight: 120 }}>
+                  {block.image && <div style={{ background: `url(${block.image}) center/cover` }} />}
+                  <div style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ fontFamily: FU, fontSize: 8, color: refTierColor, letterSpacing: '0.18em', textTransform: 'uppercase', opacity: 0.7 }}>
+                      {block.entityType === 'showcase' ? '✦ Showcase' : block.entityType === 'article' ? '✦ Related' : '✦ Featured'}
+                    </div>
+                    <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 400, color: TEXT, lineHeight: 1.25 }}>{block.label}</div>
+                    {block.subtitle && <div style={{ fontFamily: FU, fontSize: 11, color: MUTED }}>{block.subtitle}</div>}
+                    {block.url && (
+                      <div style={{ marginTop: 8 }}>
+                        <a href={`${block.url}${block.url.includes('?') ? '&' : '?'}ref=article${block.postId ? '&ref_post=' + block.postId : ''}${block.id ? '&ref_id=' + block.id : ''}`}
+                          style={{ fontFamily: FU, fontSize: 9, padding: '5px 14px', border: `1px solid ${refTierColor}50`, borderRadius: 2, color: refTierColor, textDecoration: 'none' }}
+                          onClick={() => {
+                            try {
+                              import('../../../services/referenceService').then(m => m.trackReferenceClick({
+                                referenceId: block.id, postId: block.postId, entityType: block.entityType,
+                                entityId: block.entityId, entitySlug: block.slug,
+                              }));
+                            } catch (_) {}
+                          }}
+                        >View {block.entityType === 'article' ? 'Article' : 'Profile'} →</a>
+                        {block.referenceTier === 'sponsored' && block.url && (
+                          <a href={`${block.url}?enquire=1&ref=article${block.postId ? '&ref_post=' + block.postId : ''}`} style={{ fontFamily: FU, fontSize: 9, padding: '5px 14px', marginLeft: 8, background: `linear-gradient(135deg,${GOLD},#b8891e)`, borderRadius: 2, color: '#fff', textDecoration: 'none' }}>Enquire</a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // ── FAQ Block ────────────────────────────────────────────────────────
+          case 'faq': {
+            const faqs = block.items || (block.question ? [{ question: block.question, answer: block.answer }] : []);
+            if (!faqs.length) return null;
+            return (
+              <div key={i} style={{ margin: '32px 0' }}>
+                {block.heading && <div style={{ fontFamily: FD, fontSize: 'clamp(20px,2vw,26px)', fontWeight: 400, color: TEXT, marginBottom: 20, lineHeight: 1.25 }}>{block.heading}</div>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0, border: `1px solid ${DIVBG}`, borderRadius: 4, overflow: 'hidden' }}>
+                  {faqs.map((faq, fi) => (
+                    <FaqItem key={fi} question={faq.question} answer={faq.answer} isLight={isLight} TEXT={TEXT} MUTED={MUTED} GOLD={GOLD} DIVBG={DIVBG} />
+                  ))}
+                </div>
               </div>
             );
           }
@@ -1075,6 +1156,13 @@ export default function ArticleBody({ content = [], isLight = true }) {
             markModalSeen(exitConfig.url);
             trackExternalClick({ entityType: 'magazine', entityId: null, venueId: null, linkType: 'website', url: exitConfig.url });
           }}
+        />
+      )}
+
+      {hoverRef && (
+        <ReferenceHoverCard
+          {...hoverRef}
+          onClose={() => setHoverRef(null)}
         />
       )}
     </div>

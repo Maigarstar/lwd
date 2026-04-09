@@ -5,7 +5,7 @@
 // ════════════════════════════════════════════════════════════════════════════════
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { getLightPalette, getDarkPalette, getDefaultMode } from "../theme/tokens";
+import { useTheme } from "../theme/ThemeContext";
 import { getRegionPageConfig } from "../services/regionPageConfig";
 import { VENUES } from "../data/italyVenues";
 import { getRealWeddingsByLocation } from "../services/realWeddingService";
@@ -30,10 +30,11 @@ export default function PugliaPage({
   footerNav = {},
 }) {
   // ── State ────────────────────────────────────────────────────────────────
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
+  const themeCtx = useTheme();
+  const darkMode = themeCtx.darkMode;
   const [loaded, setLoaded] = useState(false);
 
-  const C = darkMode ? getDarkPalette() : getLightPalette();
+  const C = themeCtx;
 
   // ── Load Puglia page configuration ────────────────────────────────────────
   // This reads from regionPageConfig service (connected to admin dashboard)
@@ -88,7 +89,7 @@ export default function PugliaPage({
       <HomeNav
         hasHero={true}
         darkMode={darkMode}
-        onToggleDark={() => setDarkMode(d => !d)}
+        onToggleDark={themeCtx.toggleDark}
         onNavigateStandard={() => onBack()}
         onNavigateAbout={() => onViewAbout()}
       />
@@ -167,7 +168,7 @@ export default function PugliaPage({
       {/* ── Theme toggle (hidden in production, shown for demo) ── */}
       {loaded && (
         <button
-          onClick={() => setDarkMode(!darkMode)}
+          onClick={themeCtx.toggleDark}
           style={{
             position: "fixed",
             bottom: "20px",

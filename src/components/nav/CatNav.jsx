@@ -2,8 +2,10 @@
 import { useState } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 
-export default function CatNav({ onBack, scrolled, darkMode, onToggleDark, crumbs }) {
+export default function CatNav({ onBack, scrolled, darkMode: darkModeProp, onToggleDark: onToggleDarkProp, crumbs }) {
   const C = useTheme();
+  const darkMode = darkModeProp ?? C.darkMode ?? false;
+  const onToggleDark = onToggleDarkProp || C.toggleDark;
 
   // State-driven hover, no direct DOM style mutations
   const [hovBack, setHovBack]       = useState(false);
@@ -38,7 +40,7 @@ export default function CatNav({ onBack, scrolled, darkMode, onToggleDark, crumb
       }}
     >
       {/* Left: back + breadcrumb */}
-      <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 20, minWidth: 0, flex: 1 }}>
         <button
           onClick={onBack}
           aria-label="Go back"
@@ -73,6 +75,10 @@ export default function CatNav({ onBack, scrolled, darkMode, onToggleDark, crumb
               listStyle: "none",
               padding: 0,
               margin: 0,
+              minWidth: 0,
+              flex: 1,
+              overflow: "hidden",
+              whiteSpace: "nowrap",
             }}
           >
             <li>
@@ -96,11 +102,11 @@ export default function CatNav({ onBack, scrolled, darkMode, onToggleDark, crumb
             </li>
             {crumbs
               ? crumbs.map((c, i) => (
-                  <li key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span aria-hidden="true" style={{ opacity: 0.4 }}>›</span>
+                  <li key={i} style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <span aria-hidden="true" style={{ opacity: 0.4, flexShrink: 0 }}>›</span>
                     {c.onClick
-                      ? <button onClick={c.onClick} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: scrolled ? C.grey : "rgba(255,255,255,0.5)", letterSpacing: "0.5px", padding: 0 }}>{c.label}</button>
-                      : <span style={{ color: scrolled ? C.gold : "rgba(201,168,76,0.9)", fontWeight: 600 }} aria-current="page">{c.label}</span>
+                      ? <button onClick={c.onClick} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 11, color: scrolled ? C.grey : "rgba(255,255,255,0.5)", letterSpacing: "0.5px", padding: 0, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.label}</button>
+                      : <span style={{ color: scrolled ? C.gold : "rgba(201,168,76,0.9)", fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} aria-current="page">{c.label}</span>
                     }
                   </li>
                 ))

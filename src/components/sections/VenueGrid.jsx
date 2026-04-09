@@ -103,7 +103,32 @@ export default function VenueGrid({ venues = [], onViewVenue, onViewCategory }) 
           overflow: "hidden",
         }}
       >
-        <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative" }}>
+        {/* Watermark */}
+        <span
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: 80,
+            left: "50%",
+            transform: "translateX(-50%)",
+            fontFamily: "var(--font-heading-primary)",
+            fontSize: "clamp(120px, 12vw, 180px)",
+            fontWeight: 400,
+            fontStyle: "italic",
+            color: "rgba(201,168,76,0.06)",
+            whiteSpace: "normal",
+            width: "100%",
+            textAlign: "center",
+            pointerEvents: "none",
+            userSelect: "none",
+            letterSpacing: "-2px",
+            lineHeight: 1,
+            zIndex: 0,
+          }}
+        >
+          The Collection
+        </span>
+        <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative", zIndex: 1 }}>
           {/* Heading, mirrors VendorPreview style */}
           <div style={{ marginBottom: 48 }}>
             <div
@@ -139,9 +164,9 @@ export default function VenueGrid({ venues = [], onViewVenue, onViewCategory }) 
                 lineHeight: 1.1,
               }}
             >
-              Venues Beyond{" "}
+              Editor's{" "}
               <span style={{ fontStyle: "italic", color: C.gold }}>
-                Compare
+                Selection
               </span>
             </h2>
             <p

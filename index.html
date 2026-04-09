@@ -21,7 +21,15 @@
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       html { font-family: 'Nunito', sans-serif; }
       body { background: #0f0d0a; }
+      html[data-theme="light"] body { background: #fbf7f4; }
     </style>
+    <!-- ── Anti-FOUC: apply saved theme before React renders ───────────────── -->
+    <script>
+      (function() {
+        var theme = localStorage.getItem("lwd_user_dark_mode") || "dark";
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

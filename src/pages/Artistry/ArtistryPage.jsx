@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ARTISTS } from './data/artists';
 import { getApprovedArtists } from '../../services/artistryService';
+import HomeNav from '../../components/nav/HomeNav';
 import ArtistryHero from './components/ArtistryHero';
 import FeaturedArtist from './components/FeaturedArtist';
 import EditorialQuote from './components/EditorialQuote';
@@ -14,7 +15,7 @@ const FONT_UI      = "'Inter', 'Helvetica Neue', sans-serif";
 
 const ROTATE_MS = 7000; // ms per featured artist
 
-export default function ArtistryPage() {
+export default function ArtistryPage({ onNavigateStandard, onNavigateAbout }) {
   const [artists, setArtists] = useState(ARTISTS); // start with static, swap when DB loads
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeCountry, setActiveCountry] = useState('All');
@@ -55,6 +56,13 @@ export default function ArtistryPage() {
 
   return (
     <div style={{ background: '#0a0a0a', minHeight: '100vh' }}>
+      <HomeNav
+        hasHero={true}
+        darkMode={true}
+        onNavigateStandard={onNavigateStandard}
+        onNavigateAbout={onNavigateAbout}
+      />
+
       {/* audioSrc: drop an MP3/OGG into /public/audio/ and set the path here */}
       <ArtistryHero fontDisplay={FONT_DISPLAY} fontUI={FONT_UI} audioSrc={null} />
 

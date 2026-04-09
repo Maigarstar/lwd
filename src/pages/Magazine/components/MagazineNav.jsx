@@ -1,8 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { CATEGORIES } from '../data/categories';
 import { getPostsByCategory, POSTS } from '../data/posts';
 import NewsletterCapture from './NewsletterCapture';
+import MegaMenuPanel from '../../../components/nav/MegaMenuPanel';
 import { useIsMobile } from '../../../components/profile/ProfileDesignSystem';
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 const FU = "'Nunito', 'Inter', 'Helvetica Neue', sans-serif";
 const FD = "'Gilda Display', 'Playfair Display', Georgia, serif";
@@ -547,9 +554,58 @@ export default function MagazineNav({
   const [showSubscribe, setShowSubscribe] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [categories, setCategories] = useState(CATEGORIES); // Start with default static categories
+  const [loadingCategories, setLoadingCategories] = useState(true);
   const scrollRef = useRef(null);
+  const catBarRef = useRef(null);
   const megaTimeout = useRef(null);
   const isMobile = useIsMobile(768);
+
+  // Load magazine categories from master (magazine_categories table via CategoryEditor)
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        // Fetch ALL categories from the master source
+        const { data: allCategories, error: categoriesError } = await supabase
+          .from('magazine_categories')
+          .select('*')
+          .order('sort_order', { ascending: true });
+
+        if (categoriesError) throw categoriesError;
+
+        if (allCategories && allCategories.length > 0) {
+          // Build tree: attach children to their parents using parentSlug
+          const catMap = {};
+          allCategories.forEach(cat => { catMap[cat.slug] = { ...cat, children: [] }; });
+          allCategories.forEach(cat => {
+            if (cat.parent_category_slug && catMap[cat.parent_category_slug]) {
+              catMap[cat.parent_category_slug].children.push(catMap[cat.slug]);
+            }
+          });
+
+          // Top-level categories = those without a parent
+          const topLevel = allCategories
+            .filter(cat => !cat.parent_category_slug)
+            .map(cat => catMap[cat.slug]);
+
+          // If no top-level categories found, use all categories as fallback
+          const visibleCategories = topLevel.length > 0 ? topLevel : allCategories;
+          setCategories(visibleCategories);
+          console.log('[MagazineNav] Loaded', visibleCategories.length, 'visible categories');
+        } else {
+          setCategories(CATEGORIES);
+        }
+      } catch (err) {
+        console.error('[MagazineNav] Failed to load magazine categories:', err);
+        // Fall back to static data
+        setCategories(CATEGORIES);
+      } finally {
+        setLoadingCategories(false);
+      }
+    }
+
+    loadCategories();
+  }, []);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 60);
@@ -565,6 +621,13 @@ export default function MagazineNav({
 
   const openMega  = () => { clearTimeout(megaTimeout.current); setMegaOpen(true); };
   const closeMega = () => { megaTimeout.current = setTimeout(() => setMegaOpen(false), 180); };
+
+  // Mega menu panel state for category mega menus
+  const [openMegaPanel, setOpenMegaPanel] = useState(null);
+  const megaPanelTimeout = useRef(null);
+  const openCatMega = (id) => { clearTimeout(megaPanelTimeout.current); setOpenMegaPanel(id); };
+  const startCloseCatMega = () => { megaPanelTimeout.current = setTimeout(() => setOpenMegaPanel(null), 450); };
+  const cancelCloseCatMega = () => { clearTimeout(megaPanelTimeout.current); };
 
   const navBg = isLight ? 'rgba(250,250,248,0.97)' : 'rgba(10,10,10,0.96)';
   const borderColor = scrolled
@@ -592,23 +655,38 @@ export default function MagazineNav({
           padding: 14px clamp(16px, 4vw, 60px);
         }
         .mag-cats {
-          display: flex; align-items: center;
-          padding: 0 clamp(20px, 4vw, 60px);
-          overflow-x: auto; gap: 0;
+          display: flex;
+          flex-wrap: nowrap;
+          align-items: center;
+          gap: 12px;
+          width: 100%;
+          min-width: 0;
+          overflow-x: auto;
+          overflow-y: hidden;
+          white-space: nowrap;
+          padding: 0 16px;
           scrollbar-width: none;
         }
         .mag-cats::-webkit-scrollbar { display: none; }
         .mag-cat-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex: 0 0 auto;
+          min-width: max-content;
           font-family: ${FU}; font-size: 10px; font-weight: 500;
           letter-spacing: 0.14em; text-transform: uppercase;
           background: none; border: none;
           padding: 14px 18px; cursor: pointer; white-space: nowrap;
-          border-bottom: 2px solid transparent;
-          transition: color 0.2s, border-color 0.2s;
+          border-bottom: 1px solid transparent;
+          transition: color 0.2s, border-color 0.2s, font-weight 0.2s;
         }
-        .mag-cat-btn { color: ${catInactive}; }
+        .mag-cat-btn {
+          color: ${isLight ? 'rgba(0,0,0,0.9)' : 'rgba(245,240,232,0.9)'};
+          font-weight: 600 !important;
+        }
         .mag-cat-btn:hover { color: ${catHover}; }
-        .mag-cat-btn.active { color: ${GOLD}; border-bottom-color: ${GOLD}; }
+        .mag-cat-btn.active { color: ${isLight ? '#000' : '#f5f0e8'}; font-weight: 500; border-bottom-color: ${GOLD}; }
         .mag-fashion-btn { color: ${catInactive}; position: relative; }
         .mag-fashion-btn:hover, .mag-fashion-btn.mega-open { color: ${GOLD} !important; border-bottom-color: ${GOLD} !important; }
         @media (max-width: 600px) {
@@ -619,19 +697,23 @@ export default function MagazineNav({
       <nav
         className="mag-nav-bar"
         aria-label="Magazine navigation"
-        style={{ background: navBg, borderBottom: `1px solid ${borderColor}` }}
+        style={{
+          background: navBg,
+          borderBottom: `1px solid ${borderColor}`,
+          boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+        }}
       >
         {/* Masthead row */}
-        <div className="mag-masthead" style={{ borderBottom: isMobile ? 'none' : `1px solid ${dividerColor}` }}>
+        <div className="mag-masthead" style={{ borderBottom: isMobile ? 'none' : `1px solid ${dividerColor}`, gap: 20, paddingRight: 'clamp(16px, 4vw, 60px)' }}>
           <button
             onClick={onNavigateHome}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
           >
             <span style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD }}>
               LWD
             </span>
-            <span style={{ width: 1, height: 14, background: 'rgba(201,169,110,0.3)' }} />
-            <span style={{ fontFamily: FD, fontSize: 15, fontWeight: 400, color: logoText, fontStyle: 'italic', letterSpacing: '0.04em' }}>
+            <span style={{ width: 1, height: 14, background: 'rgba(201,169,110,0.3)', opacity: 0.85 }} />
+            <span style={{ fontFamily: FD, fontSize: 15, fontWeight: 400, color: logoText, fontStyle: 'italic', letterSpacing: '0.5px' }}>
               The Magazine
             </span>
           </button>
@@ -685,12 +767,12 @@ export default function MagazineNav({
                 onClick={() => setShowSubscribe(true)}
                 style={{
                   fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
-                  textTransform: 'uppercase', color: GOLD, background: 'none',
-                  border: `1px solid ${GOLD}40`, padding: '6px 14px',
+                  textTransform: 'uppercase', color: logoText, background: 'transparent',
+                  border: `1px solid ${isLight ? 'rgba(0,0,0,0.2)' : 'rgba(245,240,232,0.2)'}`, padding: '6px 14px',
                   borderRadius: 2, cursor: 'pointer', transition: 'all 0.2s',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}15`; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                onMouseEnter={e => { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(245,240,232,0.04)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
                 Subscribe
               </button>
@@ -716,54 +798,176 @@ export default function MagazineNav({
           </div>
         </div>
 
-        {/* Category row, desktop only */}
-        {!isMobile && (
-          <div className="mag-cats" ref={scrollRef} style={{ position: 'relative' }}>
-            <button
-              data-active={!activeCategoryId ? 'true' : 'false'}
-              className={`mag-cat-btn${!activeCategoryId ? ' active' : ''}`}
-              onClick={onNavigateHome}
-            >
-              All
-            </button>
-            {CATEGORIES.map(cat => {
-              const isFashion = cat.id === 'fashion';
-              const isActive = activeCategoryId === cat.id;
-              if (isFashion) {
-                return (
-                  <div
-                    key={cat.id}
-                    style={{ position: 'relative' }}
-                    onMouseEnter={openMega}
-                    onMouseLeave={closeMega}
+        {/* Magazine mega menu is now handled by main navigation HomeNav */}
+
+        {/* Magazine Category Navigation Row */}
+        <div
+          className="mag-cats"
+          ref={(el) => { scrollRef.current = el; catBarRef.current = el; }}
+          style={{
+            background: navBg,
+            borderTop: `1px solid ${dividerColor}`,
+            borderBottom: `1px solid ${dividerColor}`,
+          }}
+        >
+          {/* ALL button */}
+          <button
+            className={`mag-cat-btn ${!activeCategoryId ? 'active' : ''}`}
+            onClick={() => onNavigateCategory && onNavigateCategory(null)}
+            style={{
+              color: !activeCategoryId ? GOLD : catInactive,
+              borderBottomColor: !activeCategoryId ? GOLD : 'transparent',
+            }}
+          >
+            All
+          </button>
+
+          {/* Category buttons (with mega menu support) */}
+          {categories.map(cat => {
+            const isMega = cat.type === 'mega_menu' || cat.type === 'dropdown';
+            const catId = cat.slug || cat.id;
+            const isActive = activeCategoryId === catId;
+
+            if (isMega) {
+              return (
+                <div
+                  key={cat.id}
+                  style={{ position: 'relative', display: 'inline-flex' }}
+                  onMouseEnter={() => openCatMega(cat.id)}
+                  onMouseLeave={startCloseCatMega}
+                >
+                  <button
+                    className={`mag-cat-btn ${isActive ? 'active' : ''}`}
+                    data-active={isActive}
+                    style={{
+                      color: isActive || openMegaPanel === cat.id ? GOLD : catInactive,
+                      borderBottomColor: openMegaPanel === cat.id ? GOLD : (isActive ? GOLD : 'transparent'),
+                      display: 'flex', alignItems: 'center', gap: 4,
+                    }}
                   >
-                    <button
-                      data-active={isActive ? 'true' : 'false'}
-                      className={`mag-cat-btn mag-fashion-btn${isActive ? ' active' : ''}${megaOpen ? ' mega-open' : ''}`}
-                      onClick={() => {
-                        if (onNavigateFashion) onNavigateFashion();
-                        else onNavigateCategory && onNavigateCategory(cat.id);
+                    {cat.name || cat.label}
+                    <span style={{
+                      fontSize: 8, opacity: 0.5,
+                      transition: 'transform 0.2s',
+                      transform: openMegaPanel === cat.id ? 'rotate(180deg)' : 'rotate(0deg)',
+                    }}>▾</span>
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <button
+                key={cat.id}
+                className={`mag-cat-btn ${isActive ? 'active' : ''}`}
+                data-active={isActive}
+                onClick={() => onNavigateCategory && onNavigateCategory(catId)}
+                style={{
+                  color: isActive ? GOLD : catInactive,
+                  borderBottomColor: isActive ? GOLD : 'transparent',
+                  fontWeight: 700,
+                  fontSize: '11px',
+                  padding: '14px 16px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {cat.name || cat.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Mega Menu Panel (absolute overlay, flush below category bar) ── */}
+        {openMegaPanel && (() => {
+          const megaItem = categories.find(c => c.id === openMegaPanel);
+          if (!megaItem || !megaItem.children || megaItem.children.length === 0) return null;
+          const cols = Math.min(megaItem.children.length, 5);
+          return (
+            <div
+              onMouseEnter={cancelCloseCatMega}
+              onMouseLeave={startCloseCatMega}
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                zIndex: 699,
+                background: isLight
+                  ? 'linear-gradient(to bottom, rgba(250,248,245,0.98), rgba(245,240,232,0.99))'
+                  : 'linear-gradient(to bottom, rgba(8,6,4,0.95), rgba(4,2,0,0.98))',
+                backdropFilter: 'blur(14px)',
+                WebkitBackdropFilter: 'blur(14px)',
+                borderTop: `1px solid ${isLight ? 'rgba(201,168,76,0.12)' : 'rgba(201,168,76,0.15)'}`,
+                borderBottom: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(201,168,76,0.08)'}`,
+                boxShadow: isLight ? '0 6px 24px rgba(0,0,0,0.06)' : '0 8px 32px rgba(0,0,0,0.4)',
+                animation: 'magMegaSlide 0.7s cubic-bezier(0.16, 0.7, 0.3, 1) both',
+              }}
+            >
+              <div style={{
+                maxWidth: 1280, margin: '0 auto',
+                padding: '32px clamp(20px, 4vw, 64px)',
+              }}>
+                {/* Section heading */}
+                <div style={{
+                  fontFamily: FU, fontSize: 10, fontWeight: 600,
+                  letterSpacing: '2px', textTransform: 'uppercase',
+                  color: GOLD, marginBottom: 24,
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <span style={{ width: 20, height: 1, background: `linear-gradient(90deg, ${GOLD}, transparent)` }} />
+                  {megaItem.label}
+                </div>
+                {/* Children grid */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                  gap: '16px 24px',
+                }}>
+                  {megaItem.children.map((child, idx) => (
+                    <a
+                      key={child.id}
+                      href={child.url || `/magazine/${child.slug}`}
+                      style={{
+                        display: 'block', padding: '12px 0 12px 4px',
+                        borderBottom: `1px solid ${isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.04)'}`,
+                        textDecoration: 'none',
+                        transition: 'transform 0.2s, color 0.2s',
+                        fontFamily: FD, fontSize: 15, fontWeight: 400,
+                        letterSpacing: '0.2px',
+                        color: isLight ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.85)',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.transform = 'translateX(4px)';
+                        e.currentTarget.style.color = isLight ? '#000' : '#fff';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.transform = 'translateX(0)';
+                        e.currentTarget.style.color = isLight ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.85)';
                       }}
                     >
-                      {cat.label}
-                      <span style={{ fontSize: 8, marginLeft: 3, opacity: 0.6 }}>▾</span>
-                    </button>
-                  </div>
-                );
-              }
-              return (
-                <button
-                  key={cat.id}
-                  data-active={isActive ? 'true' : 'false'}
-                  className={`mag-cat-btn${isActive ? ' active' : ''}`}
-                  onClick={() => onNavigateCategory && onNavigateCategory(cat.id)}
-                >
-                  {cat.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
+                      {child.label}
+                      {child.description && (
+                        <div style={{
+                          fontFamily: FU, fontSize: 11, marginTop: 2,
+                          color: isLight ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)',
+                          fontWeight: 400,
+                        }}>
+                          {child.description}
+                        </div>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              </div>
+              <style>{`
+                @keyframes magMegaSlide {
+                  from { opacity: 0; transform: translateY(-3px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+              `}</style>
+            </div>
+          );
+        })()}
 
         {/* Filter bar, desktop only, shown when filterSubcats provided */}
         {!isMobile && filterSubcats?.length > 0 && (

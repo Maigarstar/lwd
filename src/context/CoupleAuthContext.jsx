@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import {
   signupCouple,
   loginCouple,
@@ -20,6 +20,8 @@ export function CoupleAuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const initialLoadDone = useRef(false);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -43,6 +45,7 @@ export function CoupleAuthProvider({ children }) {
         setIsAuthenticated(false);
       }
       setLoading(false);
+      initialLoadDone.current = true;
     };
 
     checkSession();
@@ -51,6 +54,9 @@ export function CoupleAuthProvider({ children }) {
   // Subscribe to auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChange(async (event, session) => {
+      // Skip the initial SIGNED_IN — mount effect already handled it
+      if (!initialLoadDone.current && event === "SIGNED_IN") return;
+
       if (event === "SIGNED_IN" && session?.user) {
         setUser(session.user);
         const { data: coupleData } = await getCurrentCouple();

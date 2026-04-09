@@ -17,16 +17,30 @@ const SHADOW_MAP = {
   luxury: "0 20px 60px rgba(0,0,0,0.28)",
 };
 
-export default function MegaMenuPanel({ item, navHeight, onMouseEnter, onMouseLeave }) {
+export default function MegaMenuPanel({ id, item, navHeight, onMouseEnter, onMouseLeave }) {
   const [subcategories, setSubcategories] = useState([]);
   const [featuredPost,  setFeaturedPost]  = useState(null);
   const [ready,         setReady]         = useState(false);
 
   const sourceSlug = item.mega_menu_source_slug;
-  const isManual   = item.mega_menu_source === "manual" || !sourceSlug;
+  const hasChildren = item.children && item.children.length > 0;
+  const isManual   = item.mega_menu_source === "manual" || !sourceSlug || hasChildren;
+
+  // Detect if on magazine page for darker glass
+  const isOnMagazine = typeof window !== "undefined" && window.location.pathname.includes("/magazine");
 
   useEffect(() => {
-    if (isManual) { setReady(true); return; }
+    // If manually populated with nav items children, just set ready
+    if (hasChildren || item.mega_menu_source === "manual") {
+      setReady(true);
+      return;
+    }
+
+    // Otherwise fetch from magazine categories
+    if (!sourceSlug) {
+      setReady(true);
+      return;
+    }
 
     Promise.all([
       // Child categories of the selected magazine category
@@ -49,7 +63,7 @@ export default function MegaMenuPanel({ item, navHeight, onMouseEnter, onMouseLe
       setFeaturedPost(postsRes.data?.[0] || null);
       setReady(true);
     });
-  }, [sourceSlug, isManual]);
+  }, [sourceSlug, hasChildren, item.mega_menu_source]);
 
   // Don't flash an empty panel while fetching
   if (!ready) return null;
@@ -62,66 +76,114 @@ export default function MegaMenuPanel({ item, navHeight, onMouseEnter, onMouseLe
   const radius      = item.panel_radius       ?? 0;
   const padding     = item.panel_padding      ?? 40;
   const showDesc    = item.show_descriptions  !== false;
+
+  // Use either fetched featured post or nav items
   const hasFeatured = !!featuredPost;
   const shadow      = SHADOW_MAP[item.panel_shadow] || SHADOW_MAP.luxury;
 
   const ctaLabel = item.panel_cta_label || `Explore all ${item.label}`;
   const ctaHref  = item.panel_cta_link  || (sourceSlug ? `/magazine/category/${sourceSlug}` : "#");
 
+  // For manual mega menus, use nav items children
+  const menuItems = isManual && item.children ? item.children : subcategories;
+
   return (
     <div
+      id={id}
+      role="menu"
       style={{
         position:   "fixed",
         top:        navHeight,
         left:       0,
         right:      0,
         zIndex:     698,
-        background: bg,
-        borderTop:  `1px solid ${borderColor}`,
-        borderBottom:`1px solid ${borderColor}`,
-        boxShadow:  shadow,
+        background: isOnMagazine
+          ? "linear-gradient(to bottom, rgba(8,6,4,0.92), rgba(4,2,0,0.98))"
+          : "linear-gradient(to bottom, rgba(20,16,12,0.55), rgba(12,10,8,0.85))",
+        backdropFilter: "blur(14px) saturate(120%)",
+        WebkitBackdropFilter: "blur(14px) saturate(120%)",
+        borderTop:  "none",
+        borderBottom: "1px solid rgba(201, 168, 76, 0.08)",
+        boxShadow:  "0 8px 32px rgba(0, 0, 0, 0.4)",
+        animation: "megaSlideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1) both",
+        transformOrigin: "top center",
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
+      {/* Visual bridge — subtle gold gradient line connecting nav to panel */}
       <div style={{
-        maxWidth: item.panel_full_width ? "100%" : (item.panel_max_width || 1200),
+        position: "absolute", top: 0, left: 0, right: 0, height: 1,
+        background: "linear-gradient(90deg, transparent 10%, rgba(201, 168, 76, 0.15) 30%, rgba(201, 168, 76, 0.25) 50%, rgba(201, 168, 76, 0.15) 70%, transparent 90%)",
+      }} />
+      <style>{`
+        @keyframes megaSlideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-4px) scaleY(0.97);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scaleY(1);
+          }
+        }
+      `}</style>
+      <div style={{
+        maxWidth: item.panel_full_width ? "100%" : (item.panel_max_width || 1280),
         margin:   "0 auto",
-        padding:  `${padding}px 40px`,
+        padding:  "40px 64px",
         display:  "grid",
-        gridTemplateColumns: hasFeatured ? "1fr 300px" : "1fr",
-        gap: 56,
+        gridTemplateColumns: window.innerWidth < 1024
+          ? "1fr"
+          : (hasFeatured ? "1fr 300px" : "1fr"),
+        columnGap: window.innerWidth < 1024 ? 32 : 68,
+        rowGap: window.innerWidth < 1024 ? 32 : 56,
         alignItems: "start",
       }}>
 
         {/* ── Left: category heading + subcategory grid ── */}
-        <div>
+        <section aria-label={`${item.label} categories`} style={{ paddingTop: 6 }}>
           {/* Section heading */}
-          <div style={{
-            fontFamily: SANS, fontSize: 10, fontWeight: 700,
-            letterSpacing: "0.14em", textTransform: "uppercase",
-            color: accent, marginBottom: 24,
+          <h2 style={{
+            fontFamily: SANS, fontSize: 12, fontWeight: 600,
+            letterSpacing: "2px", textTransform: "uppercase",
+            color: "rgba(201, 168, 76, 0.9)", marginBottom: 32,
             display: "flex", alignItems: "center", gap: 12,
           }}>
-            <span style={{ display: "inline-block", width: 24, height: 1, background: accent }} />
+            <span style={{
+              display: "inline-block", width: 24, height: 1,
+              background: "linear-gradient(90deg, #c9a84c, transparent)",
+            }} />
             {item.label}
-          </div>
+          </h2>
+          <style>{`
+            h2:hover {
+              text-shadow: 0 0 10px rgba(201, 168, 76, 0.25);
+              transition: text-shadow 0.3s ease;
+            }
+          `}</style>
 
-          {/* Subcategory grid */}
-          {subcategories.length > 0 ? (
+          {/* Subcategory grid — adapts columns to item count */}
+          {menuItems.length > 0 ? (
             <div style={{
               display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
-              gap: "0 56px",
+              gridTemplateColumns: window.innerWidth < 768
+                ? "1fr"
+                : window.innerWidth < 1024
+                  ? `repeat(${Math.min(menuItems.length, 2)}, 1fr)`
+                  : `repeat(${Math.min(menuItems.length, 5)}, 1fr)`,
+              gap: window.innerWidth < 1024 ? "24px 32px" : "20px 24px",
             }}>
-              {subcategories.map(cat => (
-                <SubcategoryLink
+              {menuItems.map((cat, idx) => (
+                <NavItemLink
                   key={cat.id}
-                  cat={cat}
+                  item={cat}
                   accent={accent}
                   textColor={textColor}
                   borderColor={borderColor}
                   showDesc={showDesc}
+                  isManual={isManual}
+                  isFirst={idx === 0}
                 />
               ))}
             </div>
@@ -137,34 +199,53 @@ export default function MegaMenuPanel({ item, navHeight, onMouseEnter, onMouseLe
 
           {/* CTA */}
           {item.has_cta_in_panel && (
-            <div style={{ marginTop: 32 }}>
+            <div style={{ marginTop: 48 }}>
               <a
                 href={ctaHref}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 10,
                   fontFamily: SANS, fontSize: 10, fontWeight: 700,
-                  letterSpacing: "0.1em", textTransform: "uppercase",
-                  color: accent, textDecoration: "none",
-                  border: `1px solid ${accent}`,
+                  letterSpacing: "1.2px", textTransform: "uppercase",
+                  color: "#c9a84c", textDecoration: "none",
+                  border: "1px solid rgba(201, 168, 76, 0.6)",
                   borderRadius: radius || 4,
                   padding: "10px 22px",
-                  transition: "all 0.2s",
+                  transition: "all 0.22s ease",
+                  background: "rgba(201, 168, 76, 0.06)",
+                  backdropFilter: "blur(2px)",
+                  WebkitBackdropFilter: "blur(2px)",
+                  cursor: "pointer",
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = accent; e.currentTarget.style.color = "#fff"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = accent; }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = "rgba(201, 168, 76, 0.12)";
+                  e.currentTarget.style.border = "1px solid rgba(201, 168, 76, 0.8)";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = "rgba(201, 168, 76, 0.05)";
+                  e.currentTarget.style.border = "1px solid rgba(201, 168, 76, 0.6)";
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
               >
-                {ctaLabel} <span>→</span>
+                {ctaLabel}
+                <span style={{
+                  marginLeft: 6, opacity: 0.7,
+                  transition: "all 0.2s ease",
+                  display: "inline-block",
+                }} className="cta-arrow">→</span>
               </a>
             </div>
           )}
-        </div>
+        </section>
 
         {/* ── Right: featured article ── */}
         {hasFeatured && (
-          <a
-            href={`/magazine/${featuredPost.slug}`}
-            style={{ textDecoration: "none", display: "block" }}
-          >
+          <aside aria-label="Featured article" style={{ paddingLeft: 8 }}>
+            <a
+              href={`/magazine/${featuredPost.slug}`}
+              style={{ textDecoration: "none", display: "block" }}
+              aria-label={`Featured: ${featuredPost.title}`}
+            >
             <div style={{
               fontFamily: SANS, fontSize: 9, fontWeight: 700,
               letterSpacing: "0.12em", textTransform: "uppercase",
@@ -210,47 +291,84 @@ export default function MegaMenuPanel({ item, navHeight, onMouseEnter, onMouseLe
               </div>
             )}
           </a>
+          </aside>
         )}
       </div>
     </div>
   );
 }
 
-// ── Subcategory link row ──────────────────────────────────────────────────────
+// ── Nav item / Category link row ──────────────────────────────────────────────
 
-function SubcategoryLink({ cat, accent, textColor, borderColor, showDesc }) {
+function NavItemLink({ item, accent, textColor, borderColor, showDesc, isManual, isFirst }) {
   const [hovered, setHovered] = useState(false);
+
+  // Build href based on item type
+  let href = "#";
+  if (isManual) {
+    // Nav item: use slug or url
+    href = item.url || (item.slug ? `/${item.slug}` : "#");
+  } else {
+    // Magazine category from magazine_categories table
+    href = `/magazine/category/${item.slug}`;
+  }
+
+  // Get display name and description
+  const name = item.label || item.name;
+  const description = item.description || item.short_description;
+
+  const itemIndex = Math.floor(Math.random() * 100); // For stagger effect
 
   return (
     <a
-      href={`/magazine/category/${cat.slug}`}
+      href={href}
       style={{
         display: "block",
-        padding: "14px 0",
-        borderBottom: `1px solid ${borderColor}`,
+        padding: "14px 0 14px 6px",
+        borderBottom: "1px solid",
+        borderImage: "linear-gradient(to right, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)) 1",
         textDecoration: "none",
+        cursor: "pointer",
+        transition: "transform 0.2s ease, color 0.2s ease",
+        transform: hovered ? "translateX(4px)" : "translateX(0)",
+        background: hovered ? "rgba(255, 255, 255, 0.02)" : "transparent",
+        animation: `fadeInUp 0.4s ease-out ${itemIndex * 20}ms both`,
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div style={{
-        fontFamily: "'Inter', system-ui, sans-serif",
-        fontSize: 13, fontWeight: 500,
-        color: hovered ? accent : textColor,
-        marginBottom: showDesc ? 4 : 0,
-        transition: "color 0.15s",
+        fontFamily: "'Gilda Display', 'Cormorant Garamond', Georgia, serif",
+        fontSize: window.innerWidth < 1024 ? 18 : 15, fontWeight: 400,
+        letterSpacing: isFirst ? "0.3px" : "0.2px",
+        color: hovered ? "#ffffff" : (isFirst ? "#ffffff" : "rgba(255, 255, 255, 0.92)"),
+        marginBottom: showDesc && description ? 3 : 0,
+        transition: "color 0.2s ease, text-shadow 0.2s ease",
+        textShadow: isFirst && !hovered ? "0 0 6px rgba(255, 255, 255, 0.12)" : "none",
       }}>
-        {cat.name}
+        {name}
       </div>
-      {showDesc && (cat.short_description || cat.description) && (
+      {showDesc && description && (
         <div style={{
-          fontFamily: "'Inter', system-ui, sans-serif",
-          fontSize: 11, color: textColor + "75",
-          lineHeight: 1.45,
+          fontFamily: SANS,
+          fontSize: 12, color: "rgba(255, 255, 255, 0.65)",
+          lineHeight: 1.5,
         }}>
-          {cat.short_description || cat.description}
+          {description}
         </div>
       )}
+      <style>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </a>
   );
 }

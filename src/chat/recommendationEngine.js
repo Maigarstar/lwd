@@ -3,6 +3,7 @@ import { VENUES } from "../data/italyVenues";
 import { VENDORS } from "../data/vendors";
 import { rankByCuratedIndex } from "../engine/index.js";
 import { getArticleRecommendationsForIntent } from "../services/recommendationEngine";
+import { transformListingForCard } from "../services/listings";
 
 // ── Intent maps ───────────────────────────────────────────────────────────────
 const REGION_MAP = {
@@ -175,7 +176,8 @@ export function getRecommendations(messages, activeContext) {
     summary = `Venues for up to ${maxCapacity} guests`;
   }
 
-  return { items, summary, intent };
+  // ── Master pipeline: normalise all items through shared transform ──
+  return { items: items.map(transformListingForCard), summary, intent };
 }
 
 /**

@@ -2,8 +2,7 @@
 // United States country hub — a snapshot of getting married in America.
 // Full luxury editorial page matching Italy CategoryPage quality.
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { ThemeCtx } from "../theme/ThemeContext";
-import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
+import { useTheme } from "../theme/ThemeContext";
 import { useChat } from "../chat/ChatContext";
 import { STYLES, CAPS, PRICES, DEFAULT_FILTERS } from "../data/italyVenues";
 
@@ -269,9 +268,10 @@ export default function USAPage({
   onViewAbout,
   footerNav = {},
 }) {
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
+  const themeCtx = useTheme();
+  const darkMode = themeCtx.darkMode;
   const isMobile = useIsMobile();
-  const C = darkMode ? getDarkPalette() : getLightPalette();
+  const C = themeCtx;
   const { setChatContext } = useChat();
 
   // Filters
@@ -363,10 +363,9 @@ export default function USAPage({
   const cur = FEATURED[slideIdx] || FEATURED[0];
 
   return (
-    <ThemeCtx.Provider value={C}>
       <div style={{ background: C.black, minHeight: "100vh", color: C.white }}>
         {/* ── Nav ──────────────────────────────────────────────────────── */}
-        <HomeNav darkMode={darkMode} onToggleDark={() => setDarkMode((d) => !d)} onNavigateStandard={onViewStandard} onNavigateAbout={onViewAbout} />
+        <HomeNav darkMode={darkMode} onToggleDark={themeCtx.toggleDark} onNavigateStandard={onViewStandard} onNavigateAbout={onViewAbout} />
 
         <main>
           {/* ═══ 1. HERO (72vh) — full-width image slider ══════════════════ */}
@@ -786,6 +785,5 @@ export default function USAPage({
         {/* ── Quick View modal ────────────────────────────────────────── */}
         {qvItem && <QuickViewModal item={qvItem} onClose={() => setQvItem(null)} onViewFull={(v) => { setQvItem(null); onViewVenue(v); }} />}
       </div>
-    </ThemeCtx.Provider>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, createContext, useContext } from "react";
+import { useTheme as useGlobalTheme } from "./theme/ThemeContext";
 import { getDefaultMode } from "./theme/tokens";
 import GCardMobile from "./components/cards/GCardMobile";
 import SliderNav from "./components/ui/SliderNav";
@@ -332,11 +333,29 @@ function buildListingUrl(v) {
 const RV_KEY = 'ldw_recently_viewed';
 const MAX_RV_STORED = 6;
 
-function getRVList() {
-  try { return JSON.parse(localStorage.getItem(RV_KEY) || '[]'); } catch { return []; }
+function isValidRVEntry(item) {
+  // Entry is valid if it has:
+  // 1. canonicalPath (preferred), OR
+  // 2. enough slug context to rebuild URL (countrySlug, regionSlug, slug)
+  return item.canonicalPath || (item.countrySlug && item.regionSlug && item.slug);
 }
 
-function recordVenueView(v, slug) {
+function getRVList() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(RV_KEY) || '[]');
+    // Clean: keep only valid entries, discard broken ones silently
+    const valid = raw.filter(isValidRVEntry);
+    // If cleanup removed items, save the cleaned list
+    if (valid.length < raw.length) {
+      localStorage.setItem(RV_KEY, JSON.stringify(valid));
+    }
+    return valid;
+  } catch {
+    return [];
+  }
+}
+
+function recordVenueView(v, slug, countrySlug, regionSlug, categorySlug) {
   try {
     // Extract gallery photo or first image
     let img = '';
@@ -360,6 +379,9 @@ function recordVenueView(v, slug) {
       currency: v.priceCurrency || '£',
       img: img,
       slug: slug,
+      countrySlug: countrySlug,
+      regionSlug: regionSlug,
+      categorySlug: categorySlug || 'wedding-venues',
       canonicalPath: window.location.pathname,
       viewedAt: Date.now(),
     };
@@ -647,18 +669,39 @@ function HeroSlider({ imgs, height, children }) {
         }} />
       ))}
       {children}
-      {/* Arrows */}
-      {[{ dir: "←", l: 16, r: "auto" }, { dir: "→", l: "auto", r: 16 }].map(a => (
-        <button key={a.dir}
-          onClick={() => setIdx(i => a.dir === "←" ? (i - 1 + imgs.length) % imgs.length : (i + 1) % imgs.length)}
+      {/* Arrows — Apple-style (hidden on mobile) */}
+      {imgs.length > 1 && window.innerWidth > 768 && [
+        { icon: "M9 5L3 11l6 6", left: 24, right: "auto", label: "prev" },
+        { icon: "M3 5l6 6-6 6", left: "auto", right: 24, label: "next" },
+      ].map(a => (
+        <button key={a.label}
+          onClick={() => setIdx(i => a.label === "prev" ? (i - 1 + imgs.length) % imgs.length : (i + 1) % imgs.length)}
+          aria-label={a.label === "prev" ? "Previous image" : "Next image"}
           style={{
-            position: "absolute", top: "50%", left: a.l, right: a.r,
-            transform: "translateY(-50%)", width: 40, height: 40,
-            border: "1px solid rgba(255,255,255,0.4)", borderRadius: "var(--lwd-radius-input)",
-            background: "rgba(0,0,0,0.22)",
-            backdropFilter: "blur(8px)", color: "#fff", fontSize: 16, cursor: "pointer",
+            position: "absolute", top: "50%", left: a.left, right: a.right,
+            transform: "translateY(-50%)", width: 42, height: 42,
+            border: "1px solid rgba(255,255,255,0.12)", borderRadius: "50%",
+            background: "rgba(0,0,0,0.06)",
+            backdropFilter: "none", cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
-          }}>{a.dir}</button>
+            transition: "all 0.25s ease",
+            padding: 0,
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.12)";
+            e.currentTarget.style.borderColor = "rgba(255,255,255,0.5)";
+            e.currentTarget.style.transform = "translateY(-50%)";
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = "rgba(0,0,0,0.12)";
+            e.currentTarget.style.borderColor = "rgba(255,255,255,0.3)";
+            e.currentTarget.style.transform = "translateY(-50%)";
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d={a.icon} stroke="#fff" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          </svg>
+        </button>
       ))}
       {/* Dots — max 3 shown: prev · active · next */}
       {imgs.length > 1 && (
@@ -7519,8 +7562,8 @@ function saveCompareList(list) {
 
 // ─── MAIN EXPORT ─────────────────────────────────────────────────────────────
 export default function VenueProfile({ onBack = null, slug = null, countrySlug = null, regionSlug = null, categorySlug = null }) {
-  // Always default to light mode on venue profiles — dark is opt-in via toggle
-  const [darkMode, setDarkMode] = useState(false);
+  const _globalTheme = useGlobalTheme();
+  const darkMode = _globalTheme.darkMode ?? false;
   const [saved, setSaved] = useState(false);
   const [lightIdx, setLightIdx] = useState(null);
   const [compareList, setCompareList] = useState(() => loadCompareList());
@@ -7565,7 +7608,7 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
   // Only record AFTER database has loaded with real data, not on mount with dummy data
   useEffect(() => {
     if (dbVenue && dbVenue.name && slug) {
-      recordVenueView(VV, slug);
+      recordVenueView(VV, slug, countrySlug, regionSlug, categorySlug);
       // Track profile_view in unified event system (once per real data load)
       trackProfileView({
         entityType:    'venue',
@@ -7944,7 +7987,7 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
         );
       })()}
       <div className="vp-root" style={{ background: C.bg, minHeight: "100vh", color: C.text }}>
-        <HomeNav hasHero={true} darkMode={darkMode} onToggleDark={() => setDarkMode(d => !d)} />
+        <HomeNav hasHero={true} darkMode={darkMode} onToggleDark={_globalTheme.toggleDark} />
         <Hero venue={VV} heroStyle={heroStyle} setHeroStyle={setHeroStyle} onEnquire={() => setEnquiryOpen(true)} onBack={onBack} />
         <StatsStrip venue={VV} nextEvent={venueEvents[0] || null} onEventClick={setDrawerEvent} />
         <StickyTabNav venue={VV} activeTab={activeTab} onTabClick={scrollToSection} saved={saved} setSaved={setSaved} onAddCompare={addCompare} compareList={compareList} />

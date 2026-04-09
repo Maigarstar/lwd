@@ -1,0 +1,34 @@
+{
+  "timestamp": "2026-04-09T07:18:05.267Z",
+  "totalListings": 9,
+  "cleanCount": 8,
+  "affectedCount": 1,
+  "findings": [
+    {
+      "id": "bbd507c7-c866-44e9-8d48-4d25ae5b50e9",
+      "name": "Orchardleigh House",
+      "slug": "orchardleigh-house-uk",
+      "issues": [
+        "slug_name_mismatch"
+      ],
+      "updatedAt": "2026-03-28T00:57:12.114+00:00"
+    }
+  ],
+  "issues": {
+    "missingName": [],
+    "missingSlug": [],
+    "missingRoutingContext": [],
+    "duplicateSlug": [],
+    "duplicateName": [],
+    "slugNameMismatch": [
+      {
+        "id": "bbd507c7-c866-44e9-8d48-4d25ae5b50e9",
+        "name": "Orchardleigh House",
+        "slug": "orchardleigh-house-uk",
+        "expectedSlug": "orchardleigh-house"
+      }
+    ],
+    "suspiciousContent": [],
+    "malformedLocation": []
+  }
+}

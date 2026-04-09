@@ -22,7 +22,9 @@ export default function NewsletterBand() {
       aria-label="Newsletter signup"
       className="home-newsletter"
       style={{
-        position: "relative",
+        position: "sticky",
+        top: 0,
+        zIndex: 0,
         background: "#0a0806",
         padding: "100px 40px",
         textAlign: "center",
@@ -91,9 +93,9 @@ export default function NewsletterBand() {
             marginBottom: 12,
           }}
         >
-          Get Weekly Vendor Spotlights
+          Join the World of{" "}
           <span style={{ display: "block", fontStyle: "italic", color: "#C9A84C" }}>
-            & Real Wedding Stories
+            Luxury Weddings
           </span>
         </h2>
 
@@ -108,9 +110,9 @@ export default function NewsletterBand() {
             marginBottom: 36,
           }}
         >
-          Join couples discovering hidden luxury venues, exclusive wedding
-          inspiration, and curated vendor spotlights every week, trusted by
-          52,000+ couples planning across Europe and beyond.
+          Weekly vendor spotlights, real wedding stories, and curated
+          inspiration — trusted by 52,000+ couples planning across
+          Europe and beyond.
         </p>
 
         {/* Email input */}

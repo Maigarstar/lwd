@@ -5,8 +5,7 @@
 // No numeric scores displayed publicly.
 
 import { useState, useEffect } from "react";
-import { ThemeCtx } from "../theme/ThemeContext";
-import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
+import { useTheme } from "../theme/ThemeContext";
 import { useChat } from "../chat/ChatContext";
 
 import HomeNav from "../components/nav/HomeNav";
@@ -74,8 +73,9 @@ function Gold({ children }) {
 // Main Component
 // ═════════════════════════════════════════════════════════════════════════════
 export default function LWDStandard({ onBack, onViewCategory, onViewAbout, onViewContact, onViewPartnership, footerNav }) {
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
-  const C = darkMode ? getDarkPalette() : getLightPalette();
+  const themeCtx = useTheme();
+  const darkMode = themeCtx.darkMode;
+  const C = themeCtx;
   const { setChatContext } = useChat();
 
   useEffect(() => {
@@ -83,11 +83,10 @@ export default function LWDStandard({ onBack, onViewCategory, onViewAbout, onVie
   }, [setChatContext]);
 
   return (
-    <ThemeCtx.Provider value={C}>
       <div style={{ background: C.black, minHeight: "100vh" }}>
         <HomeNav
           darkMode={darkMode}
-          onToggleDark={() => setDarkMode((d) => !d)}
+          onToggleDark={themeCtx.toggleDark}
           onVendorLogin={onBack}
           onNavigateStandard={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           onNavigateAbout={onViewAbout}
@@ -494,6 +493,5 @@ export default function LWDStandard({ onBack, onViewCategory, onViewAbout, onVie
         </main>
 
       </div>
-    </ThemeCtx.Provider>
   );
 }

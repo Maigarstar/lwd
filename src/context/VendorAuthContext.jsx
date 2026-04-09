@@ -2,7 +2,7 @@
 // Vendor authentication context - manages session state and auth operations
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
 import {
   loginVendor,
   logoutVendor,
@@ -21,6 +21,8 @@ export function VendorAuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const initialLoadDone = useRef(false);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -42,14 +44,16 @@ export function VendorAuthProvider({ children }) {
         setIsAuthenticated(true);
       }
       setLoading(false);
+      initialLoadDone.current = true;
     };
 
     initAuth();
   }, []);
 
-  // Listen for auth state changes
+  // Listen for auth state changes (skip first event — mount effect handles it)
   useEffect(() => {
     const unsubscribe = onAuthStateChange((authState) => {
+      if (!initialLoadDone.current) return;
       setUser(authState.user);
       setVendor(authState.vendor);
       setIsAuthenticated(authState.isAuthenticated);

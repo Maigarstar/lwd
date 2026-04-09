@@ -14,7 +14,7 @@
 //   const themes = analyzeReviewThemes(knowledge);
 
 import { supabase } from '../lib/supabaseClient';
-import { getQualityTier, QUALITY_TIERS } from './listings';
+import { getQualityTier, QUALITY_TIERS, transformListingForCard } from './listings';
 
 /**
  * Fetch complete knowledge layer for a venue
@@ -515,9 +515,12 @@ export async function fetchRankedVenuesForDiscovery(options = {}) {
       return [];
     }
 
+    // ── Master pipeline: normalise raw DB rows to canonical card shape ──
+    const normalised = listings.map(transformListingForCard);
+
     // Enrich with knowledge layers and calculate recommendation scores
     const rankedVenues = await Promise.all(
-      listings.map(async (venue) => {
+      normalised.map(async (venue) => {
         try {
           const knowledge = await fetchVenueKnowledgeLayer(venue.id);
           const recommendationScore = calculateRecommendationScore(venue, knowledge);

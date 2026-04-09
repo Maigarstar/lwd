@@ -4,8 +4,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { setListingContext, clearListingContext } from "../lib/tracker";
-import { ThemeCtx } from "../theme/ThemeContext";
-import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
+import { useTheme } from "../theme/ThemeContext";
 import { useChat } from "../chat/ChatContext";
 
 import CatNav from "../components/nav/CatNav";
@@ -92,12 +91,13 @@ export default function VendorProfileTemplate({
   onViewRegion,
   footerNav = {},
 }) {
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
+  const themeCtx = useTheme();
+  const darkMode = themeCtx.darkMode;
   const [scrolled, setScrolled] = useState(false);
   const heroRef = useRef(null);
   const isMobile = useIsMobile();
 
-  const C = darkMode ? getDarkPalette() : getLightPalette();
+  const C = themeCtx;
 
   // ── Chat context ───────────────────────────────────────────────────────────
   const { setChatContext } = useChat();
@@ -203,16 +203,14 @@ export default function VendorProfileTemplate({
   // ── Not found ──────────────────────────────────────────────────────────────
   if (!vendor) {
     return (
-      <ThemeCtx.Provider value={C}>
         <div style={{ background: C.black, minHeight: "100vh", color: C.white }}>
-          <CatNav onBack={onBack} scrolled={scrolled} darkMode={darkMode} onToggleDark={() => setDarkMode((d) => !d)} />
+          <CatNav onBack={onBack} scrolled={scrolled} darkMode={darkMode} onToggleDark={themeCtx.toggleDark} />
           <div style={{ maxWidth: 980, margin: "0 auto", padding: "120px 24px" }}>
             <div style={{ fontFamily: NU, fontSize: 11, letterSpacing: "0.3em", textTransform: "uppercase", color: C.grey, opacity: 0.6 }}>
               Vendor not found
             </div>
           </div>
         </div>
-      </ThemeCtx.Provider>
     );
   }
 
@@ -222,9 +220,8 @@ export default function VendorProfileTemplate({
   // RENDER
   // ═════════════════════════════════════════════════════════════════════════════
   return (
-    <ThemeCtx.Provider value={C}>
       <div style={{ background: C.black, minHeight: "100vh", color: C.white }}>
-        <CatNav onBack={onBack} scrolled={scrolled} darkMode={darkMode} onToggleDark={() => setDarkMode((d) => !d)} crumbs={navCrumbs} />
+        <CatNav onBack={onBack} scrolled={scrolled} darkMode={darkMode} onToggleDark={themeCtx.toggleDark} crumbs={navCrumbs} />
 
         {/* ════════════════════════════════════════════════════════════════════
             HERO
@@ -431,7 +428,6 @@ export default function VendorProfileTemplate({
         {/* Mobile bottom bar */}
         <VendorMobileBar vendor={enrichedVendor} C={C} />
       </div>
-    </ThemeCtx.Provider>
   );
 }
 

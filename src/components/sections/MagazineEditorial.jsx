@@ -89,7 +89,29 @@ export default function MagazineEditorial({ onViewMagazine, onViewMagazineArticl
   if (!feature) return null;
 
   return (
-    <section style={{ background: '#09090a', borderTop: '1px solid rgba(201,169,110,0.1)', borderBottom: '1px solid rgba(201,169,110,0.1)', padding: 'clamp(48px, 6vw, 80px) clamp(20px, 5vw, 72px)' }}>
+    <section style={{ background: '#09090a', padding: 'clamp(48px, 6vw, 80px) clamp(20px, 5vw, 72px)', position: 'relative', overflow: 'hidden' }}>
+      {/* Watermark — bottom right */}
+      <span
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          bottom: -20,
+          right: -10,
+          fontFamily: 'var(--font-heading-primary)',
+          fontSize: 'clamp(100px, 12vw, 180px)',
+          fontWeight: 400,
+          fontStyle: 'italic',
+          color: 'rgba(201,168,76,0.04)',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          letterSpacing: '-2px',
+          lineHeight: 1,
+          zIndex: 0,
+        }}
+      >
+        The Edit
+      </span>
       <style>{`
         .me-grid { display: flex; gap: clamp(28px, 4vw, 56px); align-items: flex-start; flex-wrap: wrap; }
         .me-feature { flex: 2 1 320px; min-width: 0; }

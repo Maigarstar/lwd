@@ -3,7 +3,7 @@ import { useIsMobile } from '../../components/profile/ProfileDesignSystem';
 import {
   getS, themeVars, FU, FD, Field, Input, Textarea, Select, Toggle,
   StatusBadge, GoldBtn, GhostBtn, Divider, SectionLabel,
-  TONE_OPTIONS, computeWordCount, computeReadingTime, computeStatuses, DARK_S,
+  TONE_OPTIONS, TONE_PRESETS, computeWordCount, computeReadingTime, computeStatuses, DARK_S,
 } from './StudioShared';
 import { POSTS, getRelatedPosts } from '../Magazine/data/posts';
 import { CATEGORIES } from '../Magazine/data/categories';
@@ -13,9 +13,13 @@ import ArticleBody from '../Magazine/components/ArticleBody';
 import TiptapEditor from './TiptapEditor';
 import MagazineMediaUploader from './MagazineMediaUploader';
 import { ContentIntelligencePanel, ContentScoreBadge, computeContentIntelligence } from './ContentIntelligence';
-import { generateArticleBody, generateOutline, countBlockWords, LOADING_MESSAGES } from '../../services/taigenicWriterService';
+import LiveSeoPanel, { SeoScorePill } from './LiveSeoPanel';
+import AiDraftPreview from './AiDraftPreview';
+import { generateArticleBody, generateOutline, generateContentBrief, updateGenerationOutcome, countBlockWords, LOADING_MESSAGES } from '../../services/taigenicWriterService';
 import MediaLibrary from './MediaLibrary';
 import InternalLinksSection from './InternalLinksSection';
+import ReferenceModal from './ReferenceModal';
+import { saveReference, loadReferences, deleteReference, autoSuggestReferences } from '../../services/referenceService';
 
 const GOLD = '#c9a96e';
 // Luxury panel background — warm dark charcoal with amber undertone, complements gold
@@ -412,6 +416,7 @@ function defaultBlock(type) {
     case 'video_embed':       return { id, type, url: '', caption: '', credit: '' };
     case 'venue_spotlight':   return { id, type, name: '', location: '', description: '', src: '', alt: '', caption: '', credit: '', focal: 'center' };
     case 'vendor_credits':    return { id, type, heading: 'Credits', vendors: [{ role: '', name: '', url: '' }] };
+    case 'reference':         return { id, type, entityType: '', entityId: '', slug: '', label: '', subtitle: '', image: '', url: '', tier: '', referenceTier: 'linked' };
     default:                return { id, type };
   }
 }
@@ -3560,7 +3565,7 @@ function HeroPreviewPane({ formData, isLight }) {
 }
 
 // ── Document Sidebar ──────────────────────────────────────────────────────────
-function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpublish, onSave, saving, intel, focusKeyword, onKeywordChange, onOpenIntelligence, S }) {
+function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpublish, onSave, saving, intel, focusKeyword, onKeywordChange, onOpenIntelligence, S, aiDraft, onAiDraft, aiDraftLoading, onAiDraftLoading }) {
   const allCats = useAllCategories();
   const { runAI, loading: aiLoading } = useAIGenerate(formData, tone);
   const [open, setOpen] = useState({ status: true, publish: false, author: false, excerpt: false, seo: false, image: false, typography: false, intelligence: true, links: false, features: false });
@@ -3573,11 +3578,15 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
   const [aiWriterWordCount, setAiWriterWordCount] = useState(600);
   const [coverLibOpen, setCoverLibOpen] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
-  const [aiWriterLoading, setAiWriterLoading] = useState(false);
-  const [aiWriterDraft, setAiWriterDraft] = useState(null);
+  const aiWriterLoading = aiDraftLoading;
+  const setAiWriterLoading = onAiDraftLoading;
+  const aiWriterDraft = aiDraft;
+  const setAiWriterDraft = onAiDraft;
   const [aiWriterError, setAiWriterError] = useState('');
   const [aiWriterMode, setAiWriterMode] = useState('replace');
   const [aiWriterLoadMsg, setAiWriterLoadMsg] = useState('');
+  const [contentBrief, setContentBrief] = useState(null);
+  const [briefLoading, setBriefLoading] = useState(false);
 
   const isSched = formData.scheduledDate && !formData.published && new Date(formData.scheduledDate) > new Date();
   const wfStatus = formData.workflowStatus || (formData.published ? 'published' : 'draft');
@@ -3770,35 +3779,70 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                     ))}
                   </div>
                 </div>
-                {/* Insert button */}
+                {/* Accept Draft */}
                 <button onClick={() => {
-                  const newBlocks = aiWriterDraft.blocks;
+                  const newBlocks = aiWriterDraft.blocks.map(b => ({ ...b, id: crypto.randomUUID() }));
                   const existing  = formData.content || [];
                   const now = new Date().toISOString();
 
-                  // Add metadata fields
                   const updatedFormData = {
                     ...formData,
                     content: aiWriterMode === 'replace' ? newBlocks : [...existing, ...newBlocks],
                     aiGenerated: true,
                     aiLastGeneratedAt: now,
                     aiModel: aiWriterDraft.model || 'anthropic-claude-3',
+                    aiProvider: 'taigenic',
+                    aiPromptVersion: 'v1-editorial',
                     aiTopic: aiWriterTopic,
                     aiTone: aiWriterTone,
                     aiWordCount: aiWriterDraft.wordCount,
+                    // Auto-fill SEO fields from structured draft output
+                    ...(aiWriterDraft.seoTitle && !formData.seoTitle ? { seoTitle: aiWriterDraft.seoTitle } : {}),
+                    ...(aiWriterDraft.metaDescription && !formData.metaDescription ? { metaDescription: aiWriterDraft.metaDescription } : {}),
                   };
 
                   onChange(updatedFormData);
+                  // Log outcome: accepted
+                  if (aiWriterDraft.logId) {
+                    updateGenerationOutcome(aiWriterDraft.logId, {
+                      outcome: 'accepted',
+                      blocksAccepted: newBlocks.length,
+                      blocksRejected: 0,
+                    });
+                  }
                   setAiWriterDraft(null);
                   setSidebarTab('document');
                 }}
                   style={{ padding: '11px', background: `linear-gradient(135deg, ${GOLD}, #b8922f)`, border: 'none', color: '#1a1208', fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', borderRadius: 2, cursor: 'pointer' }}>
-                  ✦ Insert into Article
+                  ✦ Accept Draft
                 </button>
-                {/* Try again */}
-                <button onClick={() => setAiWriterDraft(null)}
+                {/* Regenerate */}
+                <button onClick={() => {
+                  // Log outcome: regenerated
+                  if (aiWriterDraft?.logId) {
+                    updateGenerationOutcome(aiWriterDraft.logId, { outcome: 'regenerated' });
+                  }
+                  setAiWriterDraft(null);
+                  setAiWriterError('');
+                  // Re-trigger generate with same brief
+                  setTimeout(() => {
+                    const genBtn = document.querySelector('[data-taigenic-generate]');
+                    if (genBtn) genBtn.click();
+                  }, 100);
+                }}
+                  style={{ padding: '8px', background: 'none', border: `1px solid ${GOLD}40`, color: GOLD, fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', borderRadius: 2, cursor: 'pointer' }}>
+                  ↻ Regenerate
+                </button>
+                {/* Discard */}
+                <button onClick={() => {
+                  if (aiWriterDraft?.logId) {
+                    updateGenerationOutcome(aiWriterDraft.logId, { outcome: 'rejected' });
+                  }
+                  setAiWriterDraft(null);
+                  setAiWriterError('');
+                }}
                   style={{ padding: '8px', background: 'none', border: `1px solid ${S.border}`, color: S.muted, fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', borderRadius: 2, cursor: 'pointer' }}>
-                  ← Try Again
+                  ✕ Discard
                 </button>
               </div>
             );
@@ -3818,6 +3862,120 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                   {aiWriterError}
                 </div>
               )}
+
+              {/* ── Content Brief Generator ── */}
+              {!contentBrief && (
+                <div style={{ borderBottom: `1px solid ${S.border}`, paddingBottom: 14 }}>
+                  <button
+                    disabled={briefLoading}
+                    onClick={async () => {
+                      const topic = aiWriterTopic.trim() || formData.title;
+                      if (!topic) {
+                        setAiWriterError('Enter a topic or article title first.');
+                        return;
+                      }
+                      setAiWriterError('');
+                      setBriefLoading(true);
+                      try {
+                        const brief = await generateContentBrief({
+                          topic,
+                          category: formData.categoryLabel || formData.category,
+                        });
+                        setContentBrief(brief);
+                        if (brief.toneRecommendation) setAiWriterTone(brief.toneRecommendation);
+                        if (brief.summary && !aiWriterTopic.trim()) setAiWriterTopic(brief.summary);
+                      } catch (err) {
+                        setAiWriterError(err.message || 'Brief generation failed.');
+                      } finally {
+                        setBriefLoading(false);
+                      }
+                    }}
+                    style={{ width: '100%', padding: '9px', background: 'none', border: `1px solid ${GOLD}40`, color: GOLD, fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', borderRadius: 2, cursor: briefLoading ? 'wait' : 'pointer', opacity: briefLoading ? 0.6 : 1 }}>
+                    {briefLoading ? 'Generating Brief…' : '✦ Generate Content Brief'}
+                  </button>
+                  <div style={{ fontFamily: FU, fontSize: 8, color: S.faint, marginTop: 5, lineHeight: 1.4, textAlign: 'center' }}>
+                    AI-powered pre-writing intelligence — keywords, structure, tone
+                  </div>
+                </div>
+              )}
+
+              {/* ── Content Brief Display ── */}
+              {contentBrief && (
+                <div style={{ borderBottom: `1px solid ${S.border}`, paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD }}>✦ Content Brief</span>
+                    <button onClick={() => setContentBrief(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FU, fontSize: 8, color: S.faint, padding: 0 }}>✕ Clear</button>
+                  </div>
+                  {/* Summary */}
+                  {contentBrief.summary && (
+                    <div style={{ fontFamily: FU, fontSize: 10, color: S.text, lineHeight: 1.5, fontStyle: 'italic', opacity: 0.8 }}>
+                      {contentBrief.summary}
+                    </div>
+                  )}
+                  {/* Keywords */}
+                  {contentBrief.keywords?.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: S.muted, marginBottom: 4 }}>Keywords</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                        {contentBrief.keywords.map((kw, i) => (
+                          <span key={i} style={{ fontFamily: FU, fontSize: 8, padding: '2px 7px', borderRadius: 8, background: i === 0 ? `${GOLD}18` : 'rgba(245,240,232,0.04)', border: `1px solid ${i === 0 ? GOLD + '40' : S.border}`, color: i === 0 ? GOLD : S.muted }}>
+                            {kw}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Suggested headings */}
+                  {contentBrief.headings?.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: S.muted, marginBottom: 4 }}>Suggested Structure</div>
+                      {contentBrief.headings.map((h, i) => (
+                        <div key={i} style={{ fontFamily: FU, fontSize: 9, color: S.text, padding: '3px 0', paddingLeft: h.level === 3 ? 12 : 0, opacity: h.level === 3 ? 0.7 : 1 }}>
+                          <span style={{ fontSize: 7, color: S.faint, marginRight: 4 }}>{h.level === 3 ? 'H3' : 'H2'}</span>
+                          {h.text}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Tone + Word target */}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {contentBrief.toneRecommendation && (
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: S.muted, marginBottom: 2 }}>Tone</div>
+                        <div style={{ fontFamily: FU, fontSize: 9, color: GOLD }}>{contentBrief.toneRecommendation}</div>
+                      </div>
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: S.muted, marginBottom: 2 }}>Target</div>
+                      <div style={{ fontFamily: FU, fontSize: 9, color: S.text }}>{contentBrief.wordTarget} words</div>
+                    </div>
+                  </div>
+                  {/* FAQs */}
+                  {contentBrief.faqs?.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: S.muted, marginBottom: 4 }}>Suggested FAQs</div>
+                      {contentBrief.faqs.map((faq, i) => (
+                        <div key={i} style={{ padding: '4px 0', borderBottom: i < contentBrief.faqs.length - 1 ? `1px solid ${S.border}` : 'none' }}>
+                          <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, color: S.text, lineHeight: 1.3 }}>Q: {faq.question}</div>
+                          <div style={{ fontFamily: FU, fontSize: 8, color: S.faint, lineHeight: 1.4, marginTop: 2 }}>A: {faq.answer}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* NLP terms */}
+                  {contentBrief.nlpTerms?.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: S.muted, marginBottom: 4 }}>NLP Terms to Include</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                        {contentBrief.nlpTerms.map((t, i) => (
+                          <span key={i} style={{ fontFamily: FU, fontSize: 7, padding: '1px 6px', borderRadius: 8, background: 'rgba(245,240,232,0.03)', border: `1px solid ${S.border}`, color: S.faint }}>{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Topic brief */}
               <div>
                 <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, marginBottom: 5 }}>Topic or Brief</div>
@@ -3825,10 +3983,23 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                   placeholder={`e.g. ${formData.categoryLabel === 'Destinations' ? 'A guide to coastal wedding venues on the Amalfi Coast' : 'An editorial piece about choosing the right wedding photographer'}…`}
                   style={{ width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text, fontFamily: FU, fontSize: 12, padding: '8px 10px', borderRadius: 2, outline: 'none', resize: 'vertical', lineHeight: 1.5 }} />
               </div>
-              {/* Tone */}
+              {/* Tone presets */}
               <div>
                 <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, marginBottom: 5 }}>Tone</div>
-                <select value={aiWriterTone} onChange={e => setAiWriterTone(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.text, fontFamily: FU, fontSize: 12, padding: '7px 9px', borderRadius: 2, outline: 'none', cursor: 'pointer' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                  {TONE_PRESETS.map(t => (
+                    <button key={t.key} onClick={() => setAiWriterTone(t.key)}
+                      style={{ padding: '6px 8px', borderRadius: 2, cursor: 'pointer', textAlign: 'left',
+                        background: aiWriterTone === t.key ? `${GOLD}18` : 'transparent',
+                        border: `1px solid ${aiWriterTone === t.key ? GOLD : S.border}`,
+                        transition: 'all 0.15s' }}>
+                      <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, color: aiWriterTone === t.key ? GOLD : S.text }}>{t.label}</div>
+                      <div style={{ fontFamily: FU, fontSize: 7, color: S.faint, marginTop: 1 }}>{t.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                {/* Fallback: full list for edge tones */}
+                <select value={aiWriterTone} onChange={e => setAiWriterTone(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.faint, fontFamily: FU, fontSize: 9, padding: '5px 6px', borderRadius: 2, outline: 'none', cursor: 'pointer', marginTop: 4 }}>
                   {TONE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
@@ -3846,6 +4017,7 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
               </div>
               {/* Generate full draft */}
               <button
+                data-taigenic-generate
                 onClick={async () => {
                   if (!aiWriterTopic.trim() && !formData.title) {
                     setAiWriterError('Add a brief or article title first.');
@@ -4000,42 +4172,6 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
           <AIBtn action="generate-meta" field="metaDescription" />
         </div>
         <div>
-          <Lbl right="primary">Primary Category</Lbl>
-          <select value={formData.category || ''} onChange={e => {
-            const c = allCats.find(x => x.id === e.target.value);
-            // Remove from secondary if it was there
-            const sec = (formData.secondaryCategories || []).filter(id => id !== e.target.value);
-            onChange({ ...formData, category: e.target.value, categoryLabel: c?.label || e.target.value, secondaryCategories: sec });
-          }} style={{ ...inp, cursor: 'pointer' }}>
-            <option value="">Select category…</option>
-            {allCats.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-          </select>
-        </div>
-        {/* Secondary categories — all cats except the primary */}
-        <div>
-          <Lbl>Also appears in</Lbl>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 2 }}>
-            {allCats.filter(c => c.id !== formData.category).map(c => {
-              const active = (formData.secondaryCategories || []).includes(c.id);
-              return (
-                <button key={c.id} onMouseDown={e => {
-                  e.preventDefault();
-                  const sec = formData.secondaryCategories || [];
-                  upd('secondaryCategories', active ? sec.filter(id => id !== c.id) : [...sec, c.id]);
-                }} style={{
-                  fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.06em',
-                  padding: '3px 8px', borderRadius: 2, cursor: 'pointer', outline: 'none',
-                  background: active ? `${GOLD}18` : 'none',
-                  border: `1px solid ${active ? `${GOLD}60` : S.border}`,
-                  color: active ? GOLD : S.muted, transition: 'all 0.12s',
-                }}>
-                  {active ? '✓ ' : ''}{c.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div>
           <Lbl>Tone</Lbl>
           <select value={tone} onChange={e => onToneChange(e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
             {TONE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
@@ -4044,6 +4180,42 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
         <div>
           <Lbl>Reading Time (min)</Lbl>
           <FI type="number" value={formData.readingTime} onChange={v => upd('readingTime', parseInt(v) || 0)} placeholder="e.g. 8" />
+        </div>
+      </ACC>
+
+      {/* ── Primary Category — standalone ── */}
+      <ACC id="primary-cat" title="Primary Category" badge={formData.categoryLabel ? { text: formData.categoryLabel, color: GOLD } : null}>
+        <select value={formData.category || ''} onChange={e => {
+          const c = allCats.find(x => x.id === e.target.value);
+          const sec = (formData.secondaryCategories || []).filter(id => id !== e.target.value);
+          onChange({ ...formData, category: e.target.value, categoryLabel: c?.label || e.target.value, secondaryCategories: sec });
+        }} style={{ ...inp, cursor: 'pointer', fontSize: 13 }}>
+          <option value="">Select category…</option>
+          {allCats.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+      </ACC>
+
+      {/* ── Also Appears In — secondary tagging ── */}
+      <ACC id="secondary-cats" title="Also Appears In">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+          {allCats.filter(c => c.id !== formData.category).map(c => {
+            const active = (formData.secondaryCategories || []).includes(c.id);
+            return (
+              <button key={c.id} onMouseDown={e => {
+                e.preventDefault();
+                const sec = formData.secondaryCategories || [];
+                upd('secondaryCategories', active ? sec.filter(id => id !== c.id) : [...sec, c.id]);
+              }} style={{
+                fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.06em',
+                padding: '3px 8px', borderRadius: 2, cursor: 'pointer', outline: 'none',
+                background: active ? `${GOLD}18` : 'none',
+                border: `1px solid ${active ? `${GOLD}60` : S.border}`,
+                color: active ? GOLD : S.muted, transition: 'all 0.12s',
+              }}>
+                {active ? '✓ ' : ''}{c.label}
+              </button>
+            );
+          })}
         </div>
       </ACC>
 
@@ -5027,6 +5199,67 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
     );
   }
 
+  // ── Reference Block (Content → Commerce) ──────────────────────────────────
+  if (t === 'reference') {
+    const tierColors = {
+      showcase: { bg: `${GOLD}15`, border: `${GOLD}30`, label: 'Showcase', color: GOLD },
+      featured: { bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.2)', label: 'Featured', color: '#10b981' },
+      premium:  { bg: 'rgba(139,92,246,0.08)', border: 'rgba(139,92,246,0.2)', label: 'Premium', color: '#8b5cf6' },
+      linked:   { bg: `${GOLD}08`, border: `${GOLD}18`, label: 'Linked', color: GOLD },
+      mentioned:{ bg: 'rgba(245,240,232,0.03)', border: 'rgba(245,240,232,0.08)', label: 'Mentioned', color: '#888' },
+    };
+    const tc = tierColors[block.referenceTier] || tierColors.linked;
+    const typeIcons = { listing: '◆', showcase: '✦', article: '¶' };
+
+    return (
+      <div style={{ ...wrapStyle, margin: '20px 0' }}
+        onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+        onClick={!isActive ? onActivate : undefined}>
+        {typeLabel}
+        <div style={{
+          border: `1px solid ${tc.border}`, borderRadius: 4, overflow: 'hidden',
+          background: tc.bg, display: 'grid', gridTemplateColumns: block.image ? '100px 1fr' : '1fr',
+          minHeight: 72,
+        }}>
+          {block.image && (
+            <div style={{ background: `url(${block.image}) center/cover`, position: 'relative' }}>
+              <div style={{ position: 'absolute', top: 6, left: 6, fontSize: 12, opacity: 0.8 }}>{typeIcons[block.entityType] || '⊕'}</div>
+            </div>
+          )}
+          <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {!block.image && <span style={{ fontSize: 12, color: tc.color }}>{typeIcons[block.entityType] || '⊕'}</span>}
+              <span style={{ fontFamily: FD, fontSize: 16, fontWeight: 400, color: '#f5f0e8', lineHeight: 1.2 }}>{block.label || 'Select a reference…'}</span>
+              <span style={{ fontFamily: FU, fontSize: 7, fontWeight: 600, padding: '1px 6px', borderRadius: 8, background: tc.border, color: tc.color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{tc.label}</span>
+            </div>
+            {block.subtitle && <div style={{ fontFamily: FU, fontSize: 10, color: 'rgba(245,240,232,0.5)' }}>{block.subtitle}</div>}
+            {block.url && <div style={{ fontFamily: FU, fontSize: 9, color: GOLD, opacity: 0.7 }}>{block.url}</div>}
+          </div>
+        </div>
+        {isActive && (
+          <div style={{ padding: '10px 16px', borderTop: `1px solid ${tc.border}`, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', background: 'rgba(0,0,0,0.15)' }}>
+            <button onClick={() => {
+              const evt = new CustomEvent('lwd:open-reference-modal', { detail: { blockId: block.id } });
+              window.dispatchEvent(evt);
+            }}
+              style={{ fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '5px 12px', cursor: 'pointer', fontWeight: 600 }}>
+              ✦ Search & Link
+            </button>
+            <select value={block.referenceTier || 'linked'} onChange={e => onChange({...block, referenceTier: e.target.value})}
+              style={{ fontFamily: FU, fontSize: 9, background: 'rgba(0,0,0,0.3)', border: `1px solid ${GOLD}20`, color: 'rgba(245,240,232,0.6)', borderRadius: 2, padding: '4px 6px', cursor: 'pointer' }}>
+              <option value="mentioned">Mentioned</option>
+              <option value="linked">Linked</option>
+              <option value="featured">Featured</option>
+              <option value="sponsored">Sponsored</option>
+            </select>
+            <button onClick={onDeactivate} style={{ marginLeft: 'auto', fontFamily: FU, fontSize: 9, color: GOLD, background: 'none', border: `1px solid ${GOLD}40`, borderRadius: 2, padding: '4px 10px', cursor: 'pointer' }}>Done</button>
+          </div>
+        )}
+        {sideCtrl}
+      </div>
+    );
+  }
+
   // ── Affiliate Product Block ────────────────────────────────────────────────
   if (t === 'affiliate_product' || t === 'product_tile') {
     const cols = block.columns || 3;
@@ -5189,25 +5422,25 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
             }
           </div>
         ) : (
-          <div style={{ height: 140, background: 'rgba(0,0,0,0.04)', borderRadius: 3, border: '1px dashed rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <span style={{ fontSize: 28, opacity: 0.25 }}>▶</span>
-            <span style={{ fontFamily: FU, fontSize: 11, color: '#aaa' }}>Click to add video</span>
+          <div style={{ height: 140, background: 'var(--s-input-bg, rgba(245,240,232,0.04))', borderRadius: 3, border: '1px dashed var(--s-input-border, rgba(245,240,232,0.1))', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <span style={{ fontSize: 28, opacity: 0.25, color: 'var(--s-text, #f5f0e8)' }}>▶</span>
+            <span style={{ fontFamily: FU, fontSize: 11, color: 'var(--s-muted, rgba(245,240,232,0.45))' }}>Click to add video</span>
           </div>
         )}
         {isActive && (
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
             <input value={url} onChange={e => onChange({ ...block, url: e.target.value, src: e.target.value })} placeholder="YouTube, Vimeo, or .mp4 URL"
-              style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, outline: 'none' }} />
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--s-input-bg, rgba(245,240,232,0.04))', border: '1px solid var(--s-input-border, rgba(245,240,232,0.1))', color: 'var(--s-text, #f5f0e8)', borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, outline: 'none' }} />
             {url && (
-              <div style={{ fontFamily: FU, fontSize: 9, color: embed ? '#5a9' : '#e07050', letterSpacing: '0.1em' }}>
+              <div style={{ fontFamily: FU, fontSize: 9, color: embed ? 'var(--s-success, #5aaa78)' : 'var(--s-error, #e05555)', letterSpacing: '0.1em' }}>
                 {embed ? `✓ ${embed.type} detected` : '⚠ Paste a YouTube, Vimeo, or .mp4 URL'}
               </div>
             )}
             <input value={block.caption || ''} onChange={e => onChange({ ...block, caption: e.target.value })} placeholder="Caption (optional)"
-              style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, outline: 'none' }} />
+              style={{ width: '100%', boxSizing: 'border-box', background: 'var(--s-input-bg, rgba(245,240,232,0.04))', border: '1px solid var(--s-input-border, rgba(245,240,232,0.1))', color: 'var(--s-text, #f5f0e8)', borderRadius: 2, padding: '6px 8px', fontFamily: FU, fontSize: 11, outline: 'none' }} />
             <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
               {['autoplay','muted','loop'].map(opt => (
-                <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontFamily: FU, fontSize: 9, color: '#666' }}>
+                <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontFamily: FU, fontSize: 9, color: 'var(--s-muted, rgba(245,240,232,0.45))' }}>
                   <input type="checkbox" checked={!!block[opt]} onChange={e => onChange({ ...block, [opt]: e.target.checked })} style={{ accentColor: GOLD }} />
                   {opt.charAt(0).toUpperCase() + opt.slice(1)}
                 </label>
@@ -5216,7 +5449,7 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
             </div>
           </div>
         )}
-        {!isActive && block.caption && <div style={{ fontFamily: FU, fontSize: 12, color: '#999', marginTop: 8, fontStyle: 'italic', textAlign: 'center' }}>{block.caption}</div>}
+        {!isActive && block.caption && <div style={{ fontFamily: FU, fontSize: 12, color: 'var(--s-muted, rgba(245,240,232,0.45))', marginTop: 8, fontStyle: 'italic', textAlign: 'center' }}>{block.caption}</div>}
         {sideCtrl}
       </div>
     );
@@ -5616,6 +5849,7 @@ function EditableCanvas({ formData, onChange, activeBlockIdx, setActiveBlockIdx,
       { type: 'divider',         label: 'Divider',         icon: '—' },
     ]},
     { group: 'Commerce', items: [
+      { type: 'reference',        label: 'Reference',         icon: '⊕' },
       { type: 'listing_embed',   label: 'Venue Listing',    icon: '⊙' },
       { type: 'showcase_embed',  label: 'Showcase',         icon: '✦' },
       { type: 'affiliate_product', label: 'Affiliate Product', icon: '£' },
@@ -5781,13 +6015,107 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   const [showTemplate, setShowTemplate] = useState((initialPost.content || []).length === 0);
   const [viewport, setViewport] = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
   const [phoneView, setPhoneView] = useState('editor'); // 'editor' | 'sidebar'
+  // Lifted AI draft state — shared between DocSidebar (brief form) and AiDraftPreview (canvas)
+  const [aiDraft, setAiDraft] = useState(null);  // { blocks, wordCount, nlpTermsUsed, model }
+  const [aiDraftLoading, setAiDraftLoading] = useState(false);
+  // Reference system state
+  const [refModalOpen, setRefModalOpen] = useState(false);
+  const [refHighlightText, setRefHighlightText] = useState('');
+  const [articleRefs, setArticleRefs] = useState([]);
+  const [refSuggestions, setRefSuggestions] = useState([]);
   const SS = getS(isLight); // Theme driven by parent (MagazineStudio toggle)
   const autosaveRef = useRef(null);
+  const saveInFlightRef = useRef(false);
   const isPhone = useIsMobile(600);
 
   const contentIntel = useMemo(() => computeContentIntelligence(formData, focusKeyword), [formData, focusKeyword]);
 
   const updateForm = useCallback(data => { setFormData(data); setDirty(true); }, []);
+
+  // ── Reference system handlers ──
+  // Load references on mount
+  useEffect(() => {
+    if (formData.id) {
+      loadReferences(formData.id).then(setArticleRefs).catch(() => {});
+    }
+  }, [formData.id]);
+
+  // Auto-suggest references (debounced, when content is substantial)
+  const refSuggestTimer = useRef(null);
+  useEffect(() => {
+    const wc = computeWordCount(formData.content);
+    if (wc < 150) { setRefSuggestions([]); return; }
+    clearTimeout(refSuggestTimer.current);
+    refSuggestTimer.current = setTimeout(() => {
+      autoSuggestReferences({
+        title: formData.title,
+        content: formData.content,
+        tags: formData.tags,
+        categorySlug: formData.categorySlug,
+        currentPostId: formData.id,
+        focusKeyword,
+        existingRefs: articleRefs,
+      }).then(setRefSuggestions).catch(() => setRefSuggestions([]));
+    }, 3000);
+    return () => clearTimeout(refSuggestTimer.current);
+  }, [formData.title, formData.content, formData.tags, focusKeyword, articleRefs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleInsertReference = useCallback((ref) => {
+    // Insert as reference block in content
+    const nb = defaultBlock('reference');
+    Object.assign(nb, {
+      entityType: ref.entityType,
+      entityId: ref.entityId,
+      slug: ref.slug,
+      label: ref.label,
+      subtitle: ref.subtitle,
+      image: ref.image,
+      url: ref.url,
+      tier: ref.tier,
+      referenceTier: 'linked',
+    });
+    setFormData(fd => {
+      const blocks = fd.content || [];
+      return { ...fd, content: [...blocks, nb] };
+    });
+    setDirty(true);
+
+    // Persist to article_references table
+    if (formData.id) {
+      saveReference({
+        postId: formData.id,
+        entityType: ref.entityType,
+        entityId: ref.entityId,
+        slug: ref.slug,
+        label: ref.label,
+        url: ref.url,
+        anchorText: refHighlightText || null,
+        referenceTier: 'linked',
+        image: ref.image,
+        subtitle: ref.subtitle,
+        tier: ref.tier,
+        position: (formData.content || []).length,
+      }).then(({ data }) => {
+        if (data) setArticleRefs(prev => [...prev, { ...data, entityType: ref.entityType, entityId: ref.entityId, label: ref.label }]);
+      });
+    }
+  }, [formData.id, formData.content, refHighlightText]);
+
+  const handleRemoveReference = useCallback((refId) => {
+    deleteReference(refId).then(() => {
+      setArticleRefs(prev => prev.filter(r => r.id !== refId));
+    });
+  }, []);
+
+  // Listen for reference modal open events from CanvasBlock
+  useEffect(() => {
+    const handler = (e) => {
+      setRefHighlightText('');
+      setRefModalOpen(true);
+    };
+    window.addEventListener('lwd:open-reference-modal', handler);
+    return () => window.removeEventListener('lwd:open-reference-modal', handler);
+  }, []);
 
   // handleAddBlock — lifted from EditableCanvas so CanvasToolbar can live in the top bar
   const handleAddBlock = useCallback((type, level) => {
@@ -5834,7 +6162,10 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   }, [formData, tone]);
 
   const save = useCallback(async (data = formData) => {
-    // Required field validation
+    // Prevent double saves — one save at a time
+    if (saveInFlightRef.current) return null;
+
+    // Required field validation (no lock needed)
     if (!data.categorySlug && !data.category) {
       setSaveLabel('⚠ Set a category');
       setTimeout(() => setSaveLabel(null), 3000);
@@ -5845,51 +6176,95 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
       setTimeout(() => setSaveLabel(null), 3000);
       return;
     }
+
+    saveInFlightRef.current = true;
     setSaveLabel('Saving…');
-    const result = await onSaveToParent({ ...data, tone, focusKeyword: formData.focusKeyword });
-    if (result === null) {
-      // Save failed — parent already showed toast; keep dirty so user knows
-      setSaveLabel('✕ Save failed');
-      setTimeout(() => setSaveLabel(null), 3000);
-      return;
+    try {
+      const result = await onSaveToParent({ ...data, tone, focusKeyword: formData.focusKeyword });
+      if (result === null) {
+        setSaveLabel('✕ Save failed');
+        setTimeout(() => setSaveLabel(null), 3000);
+        return;
+      }
+      if (result?.savedId && result.savedId !== data.id) setFormData(fd => ({ ...fd, id: result.savedId }));
+      if (result?.slug && result.slug !== data.slug) setFormData(fd => ({ ...fd, slug: result.slug }));
+      setDirty(false);
+      setLastSaved(new Date());
+      setSaveLabel('✓ Saved');
+      setTimeout(() => setSaveLabel(null), 2500);
+    } finally {
+      saveInFlightRef.current = false;
     }
-    if (result?.savedId && result.savedId !== data.id) setFormData(fd => ({ ...fd, id: result.savedId }));
-    if (result?.slug && result.slug !== data.slug) setFormData(fd => ({ ...fd, slug: result.slug }));
-    setDirty(false);
-    setLastSaved(new Date());
-    setSaveLabel('✓ Saved');
-    setTimeout(() => setSaveLabel(null), 2500);
   }, [formData, tone, onSaveToParent]);
 
-  const publish = async () => {
+  const publish = useCallback(async () => {
     const u = { ...formData, published: true, publishedAt: new Date().toISOString(), tone };
     setFormData(u);
     await save(u);
     // Ping IndexNow so search engines discover the article immediately (non-blocking)
     pingIndexNowForArticle(u.category_slug || u.categorySlug, u.slug).catch(() => {});
-  };
-  const unpublish = async () => {
-    const u = { ...formData, published: false, tone };
-    setFormData(u); await save(u);
-  };
+  }, [formData, tone, save]);
 
-  // Autosave every 25s if dirty — with request deduplication to prevent race conditions
+  const unpublish = useCallback(async () => {
+    const u = { ...formData, published: false, tone };
+    setFormData(u);
+    await save(u);
+  }, [formData, tone, save]);
+
+  // ── AI Draft handlers ─────────────────────────────────────────────────
+  const handleAcceptBlocks = useCallback((selectedBlocks) => {
+    const now = new Date().toISOString();
+    setFormData(fd => ({
+      ...fd,
+      content: [...(fd.content || []), ...selectedBlocks],
+      aiGenerated: true,
+      aiLastGeneratedAt: now,
+    }));
+    setDirty(true);
+    setAiDraft(null);
+  }, []);
+
+  const handleRegenerateSection = useCallback(async (sectionId, headingText) => {
+    // Regenerate a single section via AI
+    try {
+      const { supabase } = await import('../../lib/supabaseClient');
+      const prompt = `Write a rich editorial section for a ${tone} magazine article titled "${formData.title}".
+Section heading: "${headingText}". Category: ${formData.categoryLabel || formData.category || ''}.
+Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY the paragraph text, no headings.`;
+      const { data } = await supabase.functions.invoke('ai-generate', {
+        body: { prompt, model: 'auto', maxTokens: 600 },
+      });
+      if (data?.text) {
+        // Replace the section's paragraph blocks with new content
+        setAiDraft(prev => {
+          if (!prev) return prev;
+          const newBlocks = [...prev.blocks];
+          let inSection = false;
+          for (let i = 0; i < newBlocks.length; i++) {
+            if (newBlocks[i].id === sectionId) { inSection = true; continue; }
+            if (inSection && (newBlocks[i].type === 'heading' || newBlocks[i].type === 'subheading' || newBlocks[i].type === 'intro')) break;
+            if (inSection && newBlocks[i].type === 'paragraph') {
+              newBlocks[i] = { ...newBlocks[i], text: data.text.trim(), id: crypto.randomUUID() };
+              // Only replace first paragraph, remove extras
+              break;
+            }
+          }
+          return { ...prev, blocks: newBlocks };
+        });
+      }
+    } catch (err) {
+      console.error('[Taigenic] Section regenerate failed:', err);
+    }
+  }, [tone, formData]);
+
+  // Autosave every 25s if dirty — save() already guards with saveInFlightRef
   const dirtyRef = useRef(false);
-  const saveInFlightRef = useRef(false);
   useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
 
-  // Stable autosave callback that doesn't depend on `save` to prevent effect thrashing
+  // Stable autosave callback — save() handles deduplication via saveInFlightRef
   const autosaveCallback = useCallback(async () => {
-    if (!dirtyRef.current || saveInFlightRef.current) return; // Skip if not dirty or already saving
-    saveInFlightRef.current = true;
-    try {
-      setFormData(fd => {
-        save(fd).finally(() => { saveInFlightRef.current = false; });
-        return fd;
-      });
-    } catch (_) {
-      saveInFlightRef.current = false;
-    }
+    if (!dirtyRef.current) return;
+    setFormData(fd => { save(fd); return fd; });
   }, []); // Empty deps: autosaveCallback is stable and won't cause effect to re-run
 
   useEffect(() => {
@@ -6038,17 +6413,33 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
 
       {/* 3-zone layout: canvas | doc sidebar | intel panel */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
-        {/* Left (dominant): Editable Article Canvas */}
+        {/* Left (dominant): Editable Article Canvas — or AI Draft Preview */}
         {(!isPhone || phoneView === 'editor') && (
-        <EditableCanvas
-          formData={formData} onChange={updateForm}
-          activeBlockIdx={activeBlockIdx} setActiveBlockIdx={setActiveBlockIdx}
-          showTemplate={showTemplate} setShowTemplate={setShowTemplate}
-          S={SS}
-          canvasAI={canvasAI}
-          isLight={isLight}
-          viewport={viewport}
-        />
+          aiDraft ? (
+            <AiDraftPreview
+              draft={aiDraft}
+              formData={formData}
+              focusKeyword={focusKeyword}
+              tone={tone}
+              onAcceptAll={() => handleAcceptBlocks(aiDraft.blocks.map(b => ({ ...b, id: crypto.randomUUID() })))}
+              onAcceptBlocks={handleAcceptBlocks}
+              onRegenerate={handleRegenerateSection}
+              onRegenerateAll={() => { setAiDraft(null); /* DocSidebar re-triggers */ }}
+              onDiscard={() => setAiDraft(null)}
+              isLight={isLight}
+              S={SS}
+            />
+          ) : (
+            <EditableCanvas
+              formData={formData} onChange={updateForm}
+              activeBlockIdx={activeBlockIdx} setActiveBlockIdx={setActiveBlockIdx}
+              showTemplate={showTemplate} setShowTemplate={setShowTemplate}
+              S={SS}
+              canvasAI={canvasAI}
+              isLight={isLight}
+              viewport={viewport}
+            />
+          )
         )}
 
         {/* Right: Document Sidebar */}
@@ -6060,6 +6451,19 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
           intel={contentIntel} focusKeyword={focusKeyword} onKeywordChange={setFocusKeyword}
           onOpenIntelligence={() => setShowIntelPanel(p => !p)}
           S={{ ...DARK_S, surface: PANEL_BG, surfaceUp: '#221a12', border: PANEL_BDR, inputBg: 'rgba(201,169,110,0.04)', inputBorder: 'rgba(201,169,110,0.1)' }}
+          aiDraft={aiDraft} onAiDraft={setAiDraft}
+          aiDraftLoading={aiDraftLoading} onAiDraftLoading={setAiDraftLoading}
+        />
+        )}
+
+        {/* Live SEO Score — always visible */}
+        {!isPhone && (
+        <LiveSeoPanel
+          formData={formData}
+          focusKeyword={focusKeyword}
+          onKeywordChange={setFocusKeyword}
+          onOpenIntelligence={() => setShowIntelPanel(p => !p)}
+          S={SS}
         />
         )}
 
@@ -6078,6 +6482,15 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
             </div>
           </div>
         )}
+
+        {/* Reference Modal */}
+        <ReferenceModal
+          open={refModalOpen}
+          onClose={() => setRefModalOpen(false)}
+          onSelect={handleInsertReference}
+          highlightedText={refHighlightText}
+          currentPostId={formData.id}
+        />
       </div>
     </div>
   );

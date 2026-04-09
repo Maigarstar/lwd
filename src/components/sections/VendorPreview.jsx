@@ -126,10 +126,32 @@ export default function VendorPreview({ onViewVendor, dbVendors, onViewCategory 
           background: C.black,
           padding: "110px 60px",
           overflow: "hidden",
-          borderTop: `1px solid ${C.border}`,
         }}
       >
-        <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative" }}>
+        {/* Watermark */}
+        <span
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: 110,
+            left: "50%",
+            transform: "translateX(-50%)",
+            fontFamily: "var(--font-heading-primary)",
+            fontSize: "clamp(120px, 12vw, 180px)",
+            fontWeight: 400,
+            fontStyle: "italic",
+            color: "rgba(201,168,76,0.06)",
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+            userSelect: "none",
+            letterSpacing: "-2px",
+            lineHeight: 1,
+            zIndex: 0,
+          }}
+        >
+          The Creatives
+        </span>
+        <div style={{ maxWidth: 1320, margin: "0 auto", position: "relative", zIndex: 1 }}>
           {/* Heading */}
           <div style={{ marginBottom: 56 }}>
             <div
@@ -167,7 +189,7 @@ export default function VendorPreview({ onViewVendor, dbVendors, onViewCategory 
             >
               The Finest{" "}
               <span style={{ fontStyle: "italic", color: C.gold }}>
-                Wedding Vendors
+                The Creatives
               </span>
             </h2>
             <p

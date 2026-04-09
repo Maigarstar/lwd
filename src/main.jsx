@@ -4,6 +4,7 @@ import { createRoot }           from "react-dom/client";
 import { HelmetProvider }       from "react-helmet-async";
 
 import { applyThemeToDocument } from "./theme/ThemeLoader";
+import { ThemeProvider, useTheme as useGlobalTheme } from "./theme/ThemeContext";
 import { getDefaultMode } from "./theme/tokens";
 import { ShortlistProvider } from "./shortlist/ShortlistContext";
 import { ChatProvider }      from "./chat/ChatContext";
@@ -30,6 +31,7 @@ initReturnDetection();
 import { initTracker, trackPageView } from "./lib/tracker";
 
 import HomePage from "./pages/HomePage.jsx";
+import H3 from "./pages/H3.jsx";
 import VenueProfile           from "./VenueProfile.jsx";
 // CountryTemplate removed, /category now renders ItalyPage with noIndex
 import RegionPage             from "./pages/RegionPage.jsx";
@@ -70,6 +72,9 @@ import JoinPage from "./pages/JoinPage.jsx";
 import PartnerEnquiryPage from "./pages/PartnerEnquiryPage.jsx";
 import ListYourBusinessPage from "./pages/ListYourBusinessPage.jsx";
 import PricingPage from "./pages/PricingPage.jsx";
+import ListingsPage from "./pages/ListingsPage.jsx";
+import H2Page from "./pages/H2Page.jsx";
+import AdvertisePage from "./pages/AdvertisePage.jsx";
 import MostLovedPage from "./pages/MostLovedPage.jsx";
 import ArtistryPage from "./pages/Artistry/ArtistryPage.jsx";
 import MagazineHomePage     from "./pages/Magazine/MagazineHomePage.jsx";
@@ -78,6 +83,7 @@ import MagazineArticlePage  from "./pages/Magazine/MagazineArticlePage.jsx";
 import MagazinePreviewPage  from "./pages/Magazine/MagazinePreviewPage.jsx";
 import FashionLandingPage   from "./pages/Magazine/FashionLandingPage.jsx";
 const MagazineStudio         = lazy(() => import("./pages/MagazineStudio/index.jsx"));
+const UniversalStudioRouter  = lazy(() => import("./pages/Studio/UniversalStudioRouter.jsx"));
 import EditorialShowcase    from "./pages/EditorialShowcase.jsx";
 import ShowcasePage         from "./pages/ShowcasePage.jsx";
 import VendorPublicPage     from "./pages/VendorPublicPage.jsx";
@@ -183,7 +189,11 @@ function stateToPath(pg, opts = {}) {
     case "couple-reset-password":  return "/getting-married/reset-password";
     case "join":                  return "/join";
     case "list-your-business":    return "/list-your-business";
+    case "advertise":             return "/advertise";
     case "pricing":               return "/pricing";
+    case "listings":              return "/listings";
+    case "h2":                    return "/h2";
+    case "h3":                    return "/h3";
     case "most-loved":            return "/most-loved";
     case "partner-enquiry":       return "/partner-enquiry";
     case "getting-married":  return "/getting-married";
@@ -194,6 +204,12 @@ function stateToPath(pg, opts = {}) {
     case "magazine-fashion": return "/magazine/fashion";
     case "magazine-article": return `/magazine/${opts.magazineSlug || ''}`;
     case "magazine-studio":  return "/magazine-studio";
+    case "studio-edit": {
+      const { entityType, slug, from } = opts;
+      if (!entityType || !slug) return "/";
+      const base = `/studio/edit/${entityType}/${slug}`;
+      return from ? `${base}?from=${encodeURIComponent(from)}` : base;
+    }
     case "vendor-public":    return `/vendor/${opts.vendorSlug || ''}`;
     case "venue-profile":    return `/venues/${opts.venueSlug || 'grand-tirolia'}`;
     case "venue-reviews":    return `/venues/${opts.venueSlug || ''}/reviews`;
@@ -230,7 +246,7 @@ function pathToState(pathname) {
     category: "category", "the-lwd-standard": "standard",
     about: "about", contact: "contact", partnership: "partnership",
     privacy: "privacy", terms: "terms", cookies: "cookies", "reviews-policy": "reviews-policy", support: "support",
-    admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry", taigenic: "taigenic", "list-your-business": "list-your-business", pricing: "pricing", "most-loved": "most-loved",
+    admin: "admin", vendor: "vendor", couple: "couple", "real-weddings": "real-weddings", shortlist: "shortlist", "getting-married": "getting-married", join: "join", "artistry-awards": "artistry-awards", "partner-enquiry": "partner-enquiry", taigenic: "taigenic", "list-your-business": "list-your-business", pricing: "pricing", "most-loved": "most-loved", listings: "listings", "h2": "h2", "h3": "h3", advertise: "advertise",
   };
   const parts = clean.split("/");
   // Unsubscribe landing page
@@ -293,6 +309,10 @@ function pathToState(pathname) {
   if (parts[0] === "review" && parts.length === 1) return { page: "event-review" };
   // Old format: /wedding-venues/{slug} → redirect to canonical
   if (parts[0] === "wedding-venues" && parts.length === 2) return { page: "listing-profile", venueSlug: parts[1], redirectToCanonical: true };
+  // Universal studio editor: /studio/edit/{entityType}/{slug}
+  if (parts[0] === "studio" && parts[1] === "edit" && parts.length === 4) {
+    return { page: "studio-edit", entityType: parts[2], slug: decodeURIComponent(parts[3]) };
+  }
   if (parts[0] === "magazine-studio" && parts.length === 1) return { page: "magazine-studio" };
   if (parts[0] === "magazine" && parts.length === 1) return { page: "magazine" };
   if (parts[0] === "magazine" && parts[1] === "category" && parts.length === 3) return { page: "magazine-category", magazineCategoryId: parts[2] };
@@ -396,8 +416,7 @@ function App() {
   // Parse initial URL so direct links & refreshes work
   const initial = pathToState(window.location.pathname);
 
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === 'dark');
-  const toggleDark = () => setDarkMode(d => !d);
+  const { darkMode, toggleDark: toggleDark } = useGlobalTheme();
 
   const [page, setPage] = useState(initial.page);
   const [categoryRegion, setCategoryRegion] = useState(null);
@@ -410,6 +429,8 @@ function App() {
   const [categorySearchQuery, setCategorySearchQuery] = useState(null);
   const [activeMagazineCategoryId, setActiveMagazineCategoryId] = useState(initial.magazineCategoryId || null);
   const [activeMagazineSlug, setActiveMagazineSlug] = useState(initial.magazineSlug || null);
+  const [studioEntityType, setStudioEntityType] = useState(initial.entityType || null);
+  const [studioSlug, setStudioSlug] = useState(initial.slug || null);
   const [activeVenueSlug, setActiveVenueSlug] = useState(initial.venueSlug || null);
   const [activeVendorSlug, setActiveVendorSlug] = useState(initial.vendorSlug || null);
   const [activeShowcaseSlug, setActiveShowcaseSlug] = useState(initial.showcaseSlug || null);
@@ -614,11 +635,18 @@ function App() {
   const goJoin = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("join"); };
   const goListYourBusiness = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("list-your-business"); };
   const goPricing = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("pricing"); };
+  const goListings = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("listings"); };
+  const goH2 = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("h2"); };
+  const goAdvertise = () => { setActiveCountrySlug(null); setActiveRegionSlug(null); setActiveCategorySlug(null); setActivePlannerSlug(null); setActiveWeddingSlug(null); setCategoryRegion(null); setCategorySearchQuery(null); setPage("advertise"); };
   const goMagazine = () => { setActiveMagazineCategoryId(null); setActiveMagazineSlug(null); setPage("magazine"); };
   const goMagazineCategory = (categoryId) => { setActiveMagazineCategoryId(categoryId); setActiveMagazineSlug(null); setPage("magazine-category"); };
   const goMagazineArticle = (slug) => { setActiveMagazineSlug(slug); setActiveMagazineCategoryId(null); setPage("magazine-article"); };
   const goMagazineFashion = () => { setActiveMagazineSlug(null); setActiveMagazineCategoryId(null); setPage("magazine-fashion"); };
-  const goMagazineStudio  = () => setPage("magazine-studio");
+  const [magazineEditSlug, setMagazineEditSlug] = useState(null);
+  const goMagazineStudio  = (slug) => {
+    if (slug) setMagazineEditSlug(slug);
+    setPage("magazine-studio");
+  };
 
   // ── Centralized footer navigation (passed to every page for SiteFooter) ───
   const footerNav = {
@@ -646,7 +674,13 @@ function App() {
         {/* ── Pages ── */}
         {/* /venue removed — dead route with no data */}
         {page === "venue-profile" && (
-          <VenueProfile slug={activeVenueSlug} onBack={goHome} />
+          <VenueProfile
+            slug={activeVenueSlug}
+            countrySlug={activeCountrySlug}
+            regionSlug={activeRegionSlug}
+            categorySlug={activeCategorySlug}
+            onBack={goHome}
+          />
         )}
         {page === "listing-profile" && (
           <VenueProfile
@@ -810,13 +844,17 @@ function App() {
           );
         })()}
         {page === "artistry-awards" && (
-          <ArtistryPage />
+          <ArtistryPage
+            onNavigateStandard={goHome}
+            onNavigateAbout={goAbout}
+          />
         )}
         {page === "magazine" && (
           <MagazineHomePage
             onNavigateArticle={goMagazineArticle}
             onNavigateCategory={goMagazineCategory}
             onNavigateFashion={goMagazineFashion}
+            onEdit={goMagazineStudio}
             isLight={magazineLight}
             onToggleLight={() => setMagazineLight(l => !l)}
             footerNav={footerNav}
@@ -838,6 +876,7 @@ function App() {
             onNavigateArticle={goMagazineArticle}
             onNavigateHome={goMagazine}
             onNavigateCategory={goMagazineCategory}
+            onEdit={goMagazineStudio}
             isLight={magazineLight}
             onToggleLight={() => setMagazineLight(l => !l)}
             footerNav={footerNav}
@@ -853,6 +892,7 @@ function App() {
             onNavigateHome={goMagazine}
             onNavigateCategory={goMagazineCategory}
             onNavigateFashion={goMagazineFashion}
+            onEdit={goMagazineStudio}
             isLight={magazineLight}
             onToggleLight={() => setMagazineLight(l => !l)}
             footerNav={footerNav}
@@ -863,7 +903,13 @@ function App() {
             <MagazineStudio
               onNavigateMagazine={goMagazine}
               onNavigateHome={goHome}
+              editSlug={magazineEditSlug}
             />
+          </Suspense>
+        )}
+        {page === "studio-edit" && (
+          <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading editor...</div>}>
+            <UniversalStudioRouter entityType={studioEntityType} slug={studioSlug} />
           </Suspense>
         )}
         {page === "puglia" && (
@@ -1011,6 +1057,12 @@ function App() {
             onNavigateAbout={goAbout}
           />
         )}
+        {page === "advertise" && (
+          <AdvertisePage
+            onNavigateHome={goHome}
+            onNavigateListYourBusiness={goListYourBusiness}
+          />
+        )}
         {page === "pricing" && (
           <PricingPage
             onNavigateHome={goHome}
@@ -1023,6 +1075,32 @@ function App() {
             onNavigateAbout={goAbout}
           />
         )}
+        {page === "listings" && (
+          <ListingsPage
+            onBack={goHome}
+            onViewVenue={goVenue}
+            onNavigateHome={goHome}
+            onToggleDark={toggleDark}
+            darkMode={darkMode}
+            onVendorLogin={goVendorLogin}
+            onNavigateStandard={goStandard}
+            onNavigateAbout={goAbout}
+            footerNav={footerNav}
+          />
+        )}
+        {page === "h2" && (
+          <H2Page
+            onBack={goHome}
+            onViewVenue={goVenue}
+            onNavigateHome={goHome}
+            onToggleDark={toggleDark}
+            darkMode={darkMode}
+            onVendorLogin={goVendorLogin}
+            onNavigateStandard={goStandard}
+            onNavigateAbout={goAbout}
+            footerNav={footerNav}
+          />
+        )}
         {page === "partner-enquiry" && (
           <PartnerEnquiryPage footerNav={footerNav} onBack={goHome} onNavigateStandard={goStandard} onNavigateAbout={goAbout} />
         )}
@@ -1031,6 +1109,9 @@ function App() {
         )}
         {page === "home" && (
           <HomePage onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} onViewVendor={goVendor} onViewAdmin={goAdmin} onViewUSA={goUSA} onViewItaly={goItaly} onViewCountry={goCountry} onViewMagazine={goMagazine} onViewMagazineArticle={goMagazineArticle} footerNav={footerNav} />
+        )}
+        {page === "h3" && (
+          <H3 onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewStandard={goStandard} onViewAbout={goAbout} onViewContact={goContact} onViewPartnership={goPartnership} onViewVendor={goVendor} onViewAdmin={goAdmin} onViewUSA={goUSA} onViewItaly={goItaly} onViewCountry={goCountry} onViewMagazine={goMagazine} onViewMagazineArticle={goMagazineArticle} footerNav={footerNav} />
         )}
         {page === "not-found" && (
           <NotFoundPage onNavigateHome={goHome} onNavigateCategory={goCategory} />
@@ -1088,7 +1169,9 @@ function App() {
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <HelmetProvider>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </HelmetProvider>
   </StrictMode>
 );

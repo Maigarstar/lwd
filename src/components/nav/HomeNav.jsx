@@ -3,7 +3,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useTheme } from "../../theme/ThemeContext";
+import { buildTree } from "../../pages/AdminModules/menu/menuUtils";
 import MegaMenuPanel from "./MegaMenuPanel";
+import MobileDrawerAccordion from "./MobileDrawerAccordion";
 
 // ── Site branding defaults ────────────────────────────────────────────────────
 const DEFAULT_BRANDING = {
@@ -38,8 +40,10 @@ function resolveHandler(item, handlers) {
   if (nav_action === "browse")         return () => { window.location.href = "/venue"; };
   if (nav_action === "real-weddings")  return () => { window.location.href = "/real-weddings"; };
   if (nav_action === "magazine")       return () => { window.location.href = "/magazine"; };
+  if (nav_action === "mag_category")   return () => { url && (window.location.href = url); };
   if (nav_action === "join")                return () => { window.location.href = "/join"; };
   if (nav_action === "list-your-business") return () => { window.location.href = "/list-your-business"; };
+  if (nav_action === "h2")                 return () => { window.location.href = "/h2"; };
   if (nav_action === "contact")            return () => { window.location.href = "/contact"; };
   if (nav_action === "artistry-awards")return () => { window.location.href = "/artistry-awards"; };
   if (url) return () => { open_new_tab ? window.open(url, "_blank", "noreferrer") : window.location.href = url; };
@@ -55,18 +59,24 @@ const FALLBACK_LINKS = [
   { id: "f4", label: "Planning",       nav_action: "planning",       visible: true },
   { id: "f5", label: "About",          nav_action: "about",          visible: true },
   { id: "f6", label: "Magazine",          nav_action: "magazine",          visible: true },
+  { id: "f8", label: "H2",             nav_action: "h2",             visible: true },
   { id: "f7", label: "List Your Business", nav_action: "list-your-business", visible: true, type: "cta", cta_style: "fill" },
 ];
 
-export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavigateStandard, onNavigateAbout, hasHero = true }) {
+export default function HomeNav({ onToggleDark: onToggleDarkProp, darkMode: darkModeProp, onVendorLogin, onNavigateStandard, onNavigateAbout, hasHero = true }) {
   const C = useTheme();
-  const [scrolled,    setScrolled]   = useState(false);
-  const [drawerOpen,  setDrawerOpen] = useState(false);
-  const [navItems,    setNavItems]   = useState(FALLBACK_LINKS);
-  const [openPanel,   setOpenPanel]  = useState(null); // nav item id | null
-  const [branding,    setBranding]   = useState(DEFAULT_BRANDING);
-  const navRef    = useRef(null);
-  const closeTimer = useRef(null);
+  const darkMode = darkModeProp ?? C.darkMode ?? false;
+  const onToggleDark = onToggleDarkProp || C.toggleDark;
+  const [scrolled,       setScrolled]       = useState(false);
+  const [drawerOpen,     setDrawerOpen]     = useState(false);
+  const [navItems,       setNavItems]       = useState([]); // Start empty, use fallback only on error
+  const [openPanel,      setOpenPanel]      = useState(null); // nav item id | null
+  const [branding,       setBranding]       = useState(DEFAULT_BRANDING);
+  const [keyboardFocus,  setKeyboardFocus]  = useState(null); // Track keyboard focus for arrow nav
+  const navRef        = useRef(null);
+  const closeTimer    = useRef(null);
+  const hamburgerRef  = useRef(null); // Track hamburger button for focus restoration
+  const drawerRef     = useRef(null); // Track drawer for focus management
 
   // ── Two-state logic ──────────────────────────────────────────────────────────
   // transparent = on a hero page AND not yet scrolled past threshold
@@ -104,6 +114,46 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
     clearTimeout(closeTimer.current);
   }, []);
 
+  // Keyboard navigation handler for desktop mega menus
+  const handleMegaMenuKeyDown = useCallback((e, itemId, isMega) => {
+    const nonCtaItems = navItems.filter(i => i.type !== "cta");
+    const currentIndex = nonCtaItems.findIndex(i => i.id === itemId);
+
+    if (isMega) {
+      if (e.key === "Enter" || e.key === " ") {
+        // Enter/Space: open mega menu
+        e.preventDefault();
+        openMegaMenu(itemId);
+        setKeyboardFocus(itemId);
+      } else if (e.key === "Escape") {
+        // ESC: close mega menu
+        e.preventDefault();
+        setOpenPanel(null);
+        setKeyboardFocus(itemId);
+      } else if (e.key === "ArrowRight") {
+        // Arrow Right: move to next item
+        e.preventDefault();
+        const nextIndex = (currentIndex + 1) % nonCtaItems.length;
+        const nextId = nonCtaItems[nextIndex].id;
+        setKeyboardFocus(nextId);
+        // Find and focus the next button
+        setTimeout(() => {
+          document.querySelector(`[data-nav-id="${nextId}"]`)?.focus();
+        }, 0);
+      } else if (e.key === "ArrowLeft") {
+        // Arrow Left: move to previous item
+        e.preventDefault();
+        const prevIndex = currentIndex === 0 ? nonCtaItems.length - 1 : currentIndex - 1;
+        const prevId = nonCtaItems[prevIndex].id;
+        setKeyboardFocus(prevId);
+        // Find and focus the previous button
+        setTimeout(() => {
+          document.querySelector(`[data-nav-id="${prevId}"]`)?.focus();
+        }, 0);
+      }
+    }
+  }, [navItems, openMegaMenu]);
+
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 80);
     window.addEventListener("scroll", handler, { passive: true });
@@ -118,8 +168,80 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
     return () => { document.body.style.overflow = ""; };
   }, [drawerOpen]);
 
+  // Focus management: trap focus inside drawer + restore on close
+  useEffect(() => {
+    if (!drawerOpen) return;
+
+    // Store the element that triggered the drawer (hamburger button)
+    const triggerElement = hamburgerRef.current;
+
+    // Focus trap: prevent Tab from escaping drawer
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setDrawerOpen(false);
+        triggerElement?.focus();
+        return;
+      }
+
+      // Tab trap: keep focus within drawer
+      if (e.key === "Tab" && drawerRef.current) {
+        const focusableElements = drawerRef.current.querySelectorAll(
+          "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          // Shift+Tab (reverse)
+          if (document.activeElement === firstElement) {
+            lastElement?.focus();
+            e.preventDefault();
+          }
+        } else {
+          // Tab forward
+          if (document.activeElement === lastElement) {
+            firstElement?.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+
+    // Focus the drawer on open (for accessibility)
+    drawerRef.current?.focus();
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [drawerOpen]);
+
+  // Restore focus when drawer closes
+  useEffect(() => {
+    if (drawerOpen) return;
+    // Give animation time to complete before returning focus
+    const timer = setTimeout(() => {
+      hamburgerRef.current?.focus();
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [drawerOpen]);
+
+  // Click outside handler: close mega menu when clicking outside nav
+  useEffect(() => {
+    if (!openPanel) return;
+
+    const handleClickOutside = (e) => {
+      // Don't close if clicking inside nav
+      if (navRef.current && navRef.current.contains(e.target)) return;
+      // Close mega menu
+      setOpenPanel(null);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openPanel]);
+
   // Load site branding (logo + layout)
   useEffect(() => {
+    if (!supabase) return;
     supabase
       .from("site_branding")
       .select("*")
@@ -132,15 +254,36 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
 
   // Load nav items from Supabase, fall back to static list on error
   useEffect(() => {
-    supabase
-      .from("nav_items")
-      .select("id, label, url, slug, nav_action, open_new_tab, visible, position, type, is_cta, cta_style, animation, panel_bg, panel_text_color, panel_accent_color, panel_hover_color, panel_border_color, panel_shadow, panel_radius, panel_padding, panel_full_width, panel_align, layout_type, show_descriptions, has_cta_in_panel, panel_cta_label, panel_cta_link, featured_title, featured_text, featured_image, featured_link, menu_preset")
-      .is("parent_id", null)
-      .eq("visible", true)
-      .order("position", { ascending: true })
-      .then(({ data, error }) => {
-        if (!error && data && data.length > 0) setNavItems(data);
-      });
+    (async () => {
+      try {
+        if (!supabase) { setNavItems(FALLBACK_LINKS); return; }
+        const { data, error } = await supabase
+          .from("nav_items")
+          .select("*")
+          .eq("section", "directory")
+          .order("position", { ascending: true });
+
+        if (error) {
+          console.error("[HomeNav] Supabase error, using fallback:", error);
+          setNavItems(FALLBACK_LINKS);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          console.log("[HomeNav] Loaded", data.length, "nav items from database");
+          // Filter only visible items and build tree structure
+          const visibleItems = data.filter(i => i.visible);
+          const tree = buildTree(visibleItems);
+          setNavItems(tree);
+        } else {
+          console.warn("[HomeNav] No nav items in database, using fallback");
+          setNavItems(FALLBACK_LINKS);
+        }
+      } catch (err) {
+        console.error("[HomeNav] Exception loading nav, using fallback:", err);
+        setNavItems(FALLBACK_LINKS);
+      }
+    })();
   }, []);
 
   const handlers = { onNavigateAbout, onNavigateStandard, onVendorLogin };
@@ -248,8 +391,17 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
                 onMouseLeave={startClose}
               >
                 <button
+                  data-nav-id={item.id}
                   className="home-nav-links"
                   onClick={handler || undefined}
+                  onKeyDown={(e) => handleMegaMenuKeyDown(e, item.id, true)}
+                  onFocus={() => setKeyboardFocus(item.id)}
+                  onBlur={() => {
+                    if (openPanel !== item.id) setKeyboardFocus(null);
+                  }}
+                  aria-haspopup="menu"
+                  aria-expanded={openPanel === item.id}
+                  aria-controls={`mega-menu-${item.id}`}
                   style={{
                     background: "none", border: "none",
                     cursor: "pointer", fontSize: 13, fontWeight: 400,
@@ -263,6 +415,7 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
                 </button>
                 {openPanel === item.id && (
                   <MegaMenuPanel
+                    id={`mega-menu-${item.id}`}
                     item={item}
                     navHeight={navH}
                     onMouseEnter={cancelClose}
@@ -350,7 +503,8 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
     <>
       <nav
         ref={navRef}
-        aria-label="Main navigation"
+        aria-label="Primary navigation"
+        role="navigation"
         className="home-nav"
         style={{
           position: "fixed",
@@ -458,9 +612,12 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
 
         {/* Hamburger, mobile only */}
         <button
+          ref={hamburgerRef}
           className="home-nav-hamburger"
           onClick={() => setDrawerOpen(true)}
-          aria-label="Open menu"
+          aria-label="Open navigation menu"
+          aria-expanded={drawerOpen}
+          aria-controls="home-nav-drawer"
           style={{
             display: "none",
             background: "none",
@@ -502,6 +659,11 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
           />
           {/* Drawer panel */}
           <div
+            ref={drawerRef}
+            id="home-nav-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
             className="home-nav-drawer"
             style={{
               position: "fixed",
@@ -509,16 +671,17 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
               right: 0,
               bottom: 0,
               zIndex: 1201,
-              width: 300,
-              maxWidth: "85vw",
+              width: "clamp(280px, 85vw, 360px)",
               background: darkMode ? "rgba(12,11,8,0.98)" : "rgba(8,7,5,0.98)",
               backdropFilter: "blur(24px)",
               transform: drawerOpen ? "translateX(0)" : "translateX(100%)",
               transition: "transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
               display: "flex",
               flexDirection: "column",
-              padding: "0 0 40px",
+              padding: "0 0 clamp(20px, 5vw, 40px)",
               overflowY: "auto",
+              outline: "none",
+              tabIndex: -1,
             }}
           >
             {/* Drawer header */}
@@ -545,94 +708,14 @@ export default function HomeNav({ onToggleDark, darkMode, onVendorLogin, onNavig
               </button>
             </div>
 
-            {/* Nav links */}
-            <div style={{ padding: "16px 0" }}>
-              {navItems.map((item) => {
-                const handler = resolveHandler(item, handlers);
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => { setDrawerOpen(false); handler?.(); }}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      textAlign: "left",
-                      background: "none",
-                      border: "none",
-                      cursor: handler ? "pointer" : "default",
-                      padding: "16px 28px",
-                      fontSize: 15,
-                      fontWeight: 400,
-                      color: "rgba(245,240,232,0.7)",
-                      fontFamily: NU,
-                      letterSpacing: "0.3px",
-                      transition: "color 0.2s, background 0.2s",
-                      minHeight: 52,
-                    }}
-                    onTouchStart={(e) => { e.currentTarget.style.color = C.gold; e.currentTarget.style.background = "rgba(201,168,76,0.06)"; }}
-                    onTouchEnd={(e) => { e.currentTarget.style.color = "rgba(245,240,232,0.7)"; e.currentTarget.style.background = "transparent"; }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = C.gold; e.currentTarget.style.background = "rgba(201,168,76,0.06)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(245,240,232,0.7)"; e.currentTarget.style.background = "transparent"; }}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* List Your Business CTA — always visible in drawer */}
-            <div style={{ padding: "12px 24px 8px" }}>
-              <button
-                onClick={() => { setDrawerOpen(false); window.location.href = "/list-your-business"; }}
-                style={{
-                  display:       "block",
-                  width:         "100%",
-                  textAlign:     "center",
-                  fontFamily:    NU,
-                  fontSize:      11,
-                  fontWeight:    700,
-                  letterSpacing: "1.2px",
-                  textTransform: "uppercase",
-                  color:         "#0f0d0a",
-                  background:    "linear-gradient(135deg, #C9A84C, #e8c97a)",
-                  border:        "none",
-                  borderRadius:  4,
-                  padding:       "13px 20px",
-                  cursor:        "pointer",
-                  transition:    "opacity 0.2s",
-                }}
-                onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
-                onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
-              >
-                List Your Business
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div style={{ height: 1, background: "rgba(201,168,76,0.12)", margin: "8px 24px" }} />
-
-            {/* Dark mode toggle */}
-            <div style={{ padding: "20px 24px" }}>
-              <button
-                onClick={() => { onToggleDark?.(); }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "rgba(245,240,232,0.5)",
-                  fontFamily: NU,
-                  fontSize: 13,
-                  padding: 0,
-                  minHeight: 44,
-                }}
-              >
-                <span style={{ fontSize: 16 }}>{darkMode ? "☀" : "☽"}</span>
-                <span>{darkMode ? "Light Mode" : "Dark Mode"}</span>
-              </button>
-            </div>
+            {/* Mobile Accordion Drawer — preserves hierarchy, handles mega menus */}
+            <MobileDrawerAccordion
+              navItems={navItems}
+              onClose={() => setDrawerOpen(false)}
+              darkMode={darkMode}
+              onToggleDark={onToggleDark}
+              handlers={handlers}
+            />
           </div>
         </>,
         document.body
