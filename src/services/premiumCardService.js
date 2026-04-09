@@ -158,7 +158,7 @@ async function fetchLatestListings(listingType = "venue", limit = 5) {
 
 /**
  * Enrich listing with complete metadata payload for Aura, tracking, etc.
- * Adds all context needed by cards, tracking, compare, shortlist, enquiry
+ * Adds all context needed by cards, tracking, compare, shortlist, enquiry, and map rendering
  */
 function enrichListingMetadata(listing, listingType = "venue", sectionType = "latest") {
   // Handle null/undefined
@@ -174,6 +174,7 @@ function enrichListingMetadata(listing, listingType = "venue", sectionType = "la
   const country = listing.country || listing.countrySlug || "";
   const countrySlug = listing.countrySlug || "";
   const regionSlug = listing.regionSlug || "";
+  const address = listing.address || listing.full_address || "";
 
   // Canonical path (depends on listing type)
   const canonicalPath = buildCanonicalPath(listingType, { slug, countrySlug, regionSlug });
@@ -199,6 +200,12 @@ function enrichListingMetadata(listing, listingType = "venue", sectionType = "la
   const tag = listing.tag || (isFeatured ? "Featured" : isSignature ? "Signature" : null);
   const verified = listing.verified === true;
 
+  // Map fields (critical for list view + map rendering)
+  const latitude = listing.latitude || listing.lat || null;
+  const longitude = listing.longitude || listing.lng || null;
+  const mapMarkerTitle = listing.name || "";
+  const mapMarkerImage = imgs?.[0] || null;
+
   return {
     // Core identity
     id,
@@ -212,6 +219,7 @@ function enrichListingMetadata(listing, listingType = "venue", sectionType = "la
     country,
     countrySlug,
     regionSlug,
+    address,
     canonicalPath,
 
     // Category & flags
@@ -235,6 +243,12 @@ function enrichListingMetadata(listing, listingType = "venue", sectionType = "la
     // Media
     images: imgs,
     video: videoUrl,
+
+    // Map fields (for list view + map rendering)
+    latitude,
+    longitude,
+    mapMarkerTitle,
+    mapMarkerImage,
 
     // Original listing object (for full details)
     _raw: listing,
