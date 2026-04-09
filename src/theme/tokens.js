@@ -72,7 +72,10 @@ export function getDefaultMode() {
 
 /** Persist user's dark mode toggle choice across page navigations */
 export function setUserMode(mode) {
-  try { localStorage.setItem("lwd_user_dark_mode", mode); } catch {}
+  try {
+    localStorage.setItem("lwd_user_dark_mode", mode);
+    localStorage.setItem("lwd_user_theme", mode);  // keep ThemeLoader in sync
+  } catch {}
 }
 
 /** Returns true if the site is locked to light mode only */

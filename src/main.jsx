@@ -4,6 +4,7 @@ import { createRoot }           from "react-dom/client";
 import { HelmetProvider }       from "react-helmet-async";
 
 import { applyThemeToDocument } from "./theme/ThemeLoader";
+import { ThemeProvider, useTheme as useGlobalTheme } from "./theme/ThemeContext";
 import { getDefaultMode } from "./theme/tokens";
 import { ShortlistProvider } from "./shortlist/ShortlistContext";
 import { ChatProvider }      from "./chat/ChatContext";
@@ -415,8 +416,9 @@ function App() {
   // Parse initial URL so direct links & refreshes work
   const initial = pathToState(window.location.pathname);
 
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === 'dark');
-  const toggleDark = () => setDarkMode(d => !d);
+  const themeCtx = useGlobalTheme();
+  const darkMode = themeCtx.darkMode ?? (getDefaultMode() === 'dark');
+  const toggleDark = themeCtx.toggleDark ?? (() => {});
 
   const [page, setPage] = useState(initial.page);
   const [categoryRegion, setCategoryRegion] = useState(null);
@@ -1181,7 +1183,9 @@ function App() {
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <HelmetProvider>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </HelmetProvider>
   </StrictMode>
 );

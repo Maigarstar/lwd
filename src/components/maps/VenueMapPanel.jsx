@@ -106,7 +106,7 @@ export default function VenueMapPanel({
 
     venues.forEach((v) => {
       if (!v.lat || !v.lng) return;
-      const icon   = makeIcon(L, v.verified ? GOLD : "#888888", 24);
+      const icon   = makeIcon(L, GOLD, 24);
       const marker = L.marker([v.lat, v.lng], { icon }).addTo(map);
       marker.bindPopup(popupHtml(v), {
         className: "lwd-venue-popup",
@@ -188,15 +188,11 @@ export default function VenueMapPanel({
         position: "absolute", bottom: 14, right: 14,
         background: "rgba(8,6,4,0.82)", backdropFilter: "blur(10px)",
         border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 8,
-        padding: "8px 12px", display: "flex", flexDirection: "column", gap: 5,
+        padding: "8px 12px", display: "flex", alignItems: "center", gap: 7,
         zIndex: 500, userSelect: "none",
       }}>
-        {[{ color: GOLD, label: "Verified" }, { color: "#888", label: "Listed" }].map(({ color, label }) => (
-          <div key={label} style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <div style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }} />
-            <span style={{ fontFamily: NU, fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.3px" }}>{label}</span>
-          </div>
-        ))}
+        <div style={{ width: 7, height: 7, borderRadius: "50%", background: GOLD, flexShrink: 0 }} />
+        <span style={{ fontFamily: NU, fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.3px" }}>Listing</span>
       </div>
 
       <style>{`

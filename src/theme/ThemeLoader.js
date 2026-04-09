@@ -21,7 +21,7 @@ const DEFAULT_FONTS = {
 };
 
 const DEFAULT_SITE_SETTINGS = {
-  defaultMode: "light",
+  defaultMode: "dark",
   adminDefaultMode: "light",
   lightOnly: false,
   borderRadiusCard: 6,
@@ -179,8 +179,10 @@ export function applyThemeToDocument() {
 
   // ── Default mode + light-only lock ─────────────────────────────────────────
   const lightOnly = site.lightOnly || false;
-  // Check for user theme preference first, then fall back to admin setting
-  const userTheme = typeof localStorage !== "undefined" ? localStorage.getItem("lwd_user_theme") : null;
+  // Check for user theme preference first (either key), then fall back to admin setting
+  const userTheme = typeof localStorage !== "undefined"
+    ? (localStorage.getItem("lwd_user_dark_mode") || localStorage.getItem("lwd_user_theme"))
+    : null;
   const mode = lightOnly ? "light" : (userTheme || site.defaultMode || DEFAULT_SITE_SETTINGS.defaultMode);
   root.setAttribute("data-lwd-mode", mode);
   if (lightOnly) root.setAttribute("data-lwd-light-only", "true");

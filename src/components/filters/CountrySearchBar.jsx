@@ -174,7 +174,7 @@ function LuxPanel({ label, children }) {
 // ═════════════════════════════════════════════════════════════════════════════
 export default function CountrySearchBar({
   filters, onFiltersChange, viewMode, onViewMode, sortMode, onSortChange, total, regions,
-  onVendorSearch, countryFilter,
+  onVendorSearch, countryFilter, mapContent,
 }) {
   const C = useTheme();
   const dark = C.black === "#080808";
@@ -513,6 +513,20 @@ export default function CountrySearchBar({
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="6.75" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="11.5" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>
           </button>
+          {mapContent && (
+            <button onClick={() => onViewMode?.("map")} title="Map view" aria-pressed={viewMode === "map"}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: viewMode === "map" ? CL.viewActive : "transparent",
+                border: "1px solid rgba(160,148,125,0.28)", borderLeft: "none", borderRadius: "0 3px 3px 0",
+                color: viewMode === "map" ? "#fff" : CL.text,
+                cursor: "pointer", width: 30, height: 30, padding: 0,
+                transition: "all 0.25s",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 5L8 2L13 5V13L8 16L3 13V5Z" stroke="currentColor" strokeWidth="1.2" fill="none"/><circle cx="8" cy="8" r="1" fill="currentColor"/></svg>
+            </button>
+          )}
         </div>
       </div>
 

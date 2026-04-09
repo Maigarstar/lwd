@@ -28,6 +28,7 @@ import LatestSplit     from "../components/sections/LatestSplit";
 import FeaturedSlider  from "../components/sections/FeaturedSlider";
 import EditorialBanner from "../components/sections/EditorialBanner";
 import MapSection      from "../components/sections/MapSection";
+import VenueMapPanel  from "../components/maps/VenueMapPanel";
 import SEOBlock        from "../components/sections/SEOBlock";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
@@ -99,6 +100,17 @@ export default function ItalyPage({
   const [savedIds,     setSavedIds]     = useState([]);
   const [scrolled,     setScrolled]     = useState(false);
   const [qvItem,       setQvItem]       = useState(null);
+
+  // ── Desktop split list+map ─────────────────────────────────────────────────
+  const [hoveredId, setHoveredId] = useState(null);
+  const [pinnedId,  setPinnedId]  = useState(null);
+  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 1024);
+  const listColRef                = useRef(null);
+  useEffect(() => {
+    const h = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
 
   const isMobile = useIsMobile();
   const C = darkMode ? getDarkPalette() : getLightPalette();
@@ -340,6 +352,86 @@ export default function ItalyPage({
               </div>
             )}
 
+            {/* ══ DESKTOP LIST + MAP SPLIT VIEW ══════════════════════════════ */}
+            {filtered.length > 0 && viewMode === "list" && isDesktop && (
+              <div style={{
+                maxWidth: 1520,
+                margin: "0 auto",
+                padding: "24px 48px 32px",
+                display: "grid",
+                gridTemplateColumns: "58fr 42fr",
+                gap: 28,
+                alignItems: "start",
+              }}>
+                {/* Left — scrollable list */}
+                <div
+                  ref={listColRef}
+                  style={{
+                    overflowY: "auto",
+                    maxHeight: "calc(100vh - 120px)",
+                    paddingRight: 8,
+                    scrollbarWidth: "thin",
+                    scrollbarColor: "rgba(201,168,76,0.25) transparent",
+                  }}
+                >
+                  {filtered.slice(0, visibleCount).map((v) => (
+                    <div
+                      key={v.id}
+                      data-id={v.id}
+                      onMouseEnter={() => setHoveredId(v.id)}
+                      onMouseLeave={() => setHoveredId(null)}
+                      style={{
+                        borderRadius: 8,
+                        outline: pinnedId === v.id ? "2px solid #C9A84C" : "2px solid transparent",
+                        outlineOffset: 2,
+                        transition: "outline-color 0.2s",
+                      }}
+                    >
+                      <VenueHCard
+                        v={v}
+                        saved={savedIds.includes(v.id)}
+                        onSave={toggleSave}
+                        onView={() => onViewVenue?.(v)}
+                        onQuickView={() => setQvItem(v)}
+                      />
+                    </div>
+                  ))}
+                  {visibleCount < filtered.length && (
+                    <div style={{ textAlign: "center", marginTop: 24, marginBottom: 16 }}>
+                      <button
+                        onClick={() => setVisibleCount(c => c + 12)}
+                        style={{
+                          padding: "11px 28px", background: "#C9A84C", color: "#000",
+                          border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600,
+                          fontFamily: "var(--font-body)", fontSize: 13, letterSpacing: "0.05em",
+                        }}
+                      >
+                        Load More
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right — sticky map */}
+                <div style={{ position: "sticky", top: 80, height: "calc(100vh - 120px)" }}>
+                  <VenueMapPanel
+                    venues={filtered.filter(v => v.lat && v.lng)}
+                    hoveredId={hoveredId}
+                    activePinnedId={pinnedId}
+                    onPinHover={(id) => setHoveredId(id)}
+                    onPinLeave={() => setHoveredId(null)}
+                    onPinClick={(id) => {
+                      setPinnedId(id);
+                      const el = listColRef.current?.querySelector(`[data-id="${id}"]`);
+                      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }}
+                    onToggleView={() => setViewMode("grid")}
+                    label="Italy Wedding Map"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Batch 1 (first 6) */}
             <div className="lwd-venue-list-wrap" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
               {filtered.length === 0 ? (
@@ -415,7 +507,7 @@ export default function ItalyPage({
                     </div>
                   ))}
                 </SliderNav>
-              ) : (
+              ) : !isDesktop ? (
                 <div aria-label="Venue list" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
                   {batch1.map((v) => (
                     <VenueHCard
@@ -428,7 +520,7 @@ export default function ItalyPage({
                     />
                   ))}
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* ── Signature Collection, premium tier (unified pipeline) ── */}
@@ -459,7 +551,7 @@ export default function ItalyPage({
                       </div>
                     ))}
                   </SliderNav>
-                ) : (
+                ) : !isDesktop ? (
                   <div>
                     {batch2.map((v) => (
                       <VenueHCard
@@ -472,7 +564,7 @@ export default function ItalyPage({
                       />
                     ))}
                   </div>
-                )}
+                ) : null}
               </div>
             )}
 
