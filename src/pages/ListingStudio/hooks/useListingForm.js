@@ -402,6 +402,18 @@ export const useListingForm = (listingId = null) => {
       // Generate slug if not provided
       const slug = formData.slug || generateSlug(formData.venue_name);
 
+      // Validate slug matches name pattern (prevent data consistency issues)
+      const expectedSlug = generateSlug(formData.venue_name);
+      if (slug.toLowerCase() !== expectedSlug.toLowerCase()) {
+        setError(
+          `Slug must match the venue name pattern. ` +
+          `Expected: "${expectedSlug}" but got "${slug}". ` +
+          `The slug is auto-generated from your venue name.`
+        );
+        setLoading(false);
+        return false;
+      }
+
       // ── Upload any pending File objects to Supabase Storage ─────────────
       // Must happen before building the payload so every item has a real URL.
       setUploadProgress('Checking for files to upload…');
