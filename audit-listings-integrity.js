@@ -209,20 +209,29 @@ async function runAudit() {
 
     // Generate report
     console.log('\n📊 AUDIT RESULTS\n');
-    console.log(`Total Listings:     ${audit.totalListings}`);
-    console.log(`Clean:              ${audit.cleanCount}`);
-    console.log(`Affected:           ${audit.affectedCount}`);
-    console.log(`Pass Rate:          ${((audit.cleanCount / audit.totalListings) * 100).toFixed(1)}%\n`);
+    console.log(`${audit.totalListings} listings audited`);
+    console.log(`${audit.issues.missingName.length} corruption cases`);
+    console.log(`${audit.issues.duplicateSlug.length + audit.issues.duplicateName.length} duplicate or swapped records`);
+    console.log(`${audit.issues.missingRoutingContext.length} missing routing context issues`);
+    console.log(`${audit.issues.slugNameMismatch.length} minor slug formatting inconsistencies`);
+    console.log(`${audit.cleanCount}/${audit.totalListings} records structurally valid\n`);
 
-    if (audit.affectedCount > 0) {
-      console.log('⚠️  ISSUES FOUND:\n');
-      console.log(`Missing Names:                 ${audit.issues.missingName.length}`);
-      console.log(`Missing Slugs:                 ${audit.issues.missingSlug.length}`);
-      console.log(`Missing Routing Context:       ${audit.issues.missingRoutingContext.length}`);
-      console.log(`Slug/Name Mismatches:          ${audit.issues.slugNameMismatch.length}`);
-      console.log(`Duplicate Slugs:               ${audit.issues.duplicateSlug.length}`);
-      console.log(`Duplicate Names:               ${audit.issues.duplicateName.length}`);
-      console.log(`Suspicious Content Duplication: ${audit.issues.suspiciousContent.length}\n`);
+    const hasCriticalIssues = audit.issues.missingName.length > 0 ||
+                              audit.issues.duplicateSlug.length > 0 ||
+                              audit.issues.duplicateName.length > 0 ||
+                              audit.issues.missingRoutingContext.length > 0;
+
+    if (hasCriticalIssues) {
+      console.log('🚨 CRITICAL ISSUES FOUND:\n');
+      if (audit.issues.missingName.length > 0) console.log(`Missing Names:                 ${audit.issues.missingName.length}`);
+      if (audit.issues.missingSlug.length > 0) console.log(`Missing Slugs:                 ${audit.issues.missingSlug.length}`);
+      if (audit.issues.missingRoutingContext.length > 0) console.log(`Missing Routing Context:       ${audit.issues.missingRoutingContext.length}`);
+      if (audit.issues.duplicateSlug.length > 0) console.log(`Duplicate Slugs:               ${audit.issues.duplicateSlug.length}`);
+      if (audit.issues.duplicateName.length > 0) console.log(`Duplicate Names:               ${audit.issues.duplicateName.length}`);
+      if (audit.issues.suspiciousContent.length > 0) console.log(`Suspicious Content Duplication: ${audit.issues.suspiciousContent.length}\n`);
+    } else if (audit.issues.slugNameMismatch.length > 0) {
+      console.log('⚠️  MINOR ISSUES FOUND (slug formatting only):\n');
+      console.log(`Slug/Name Mismatches:          ${audit.issues.slugNameMismatch.length}\n`);
 
       console.log('⚠️  AFFECTED LISTINGS:\n');
       audit.findings.forEach((finding) => {
@@ -243,21 +252,31 @@ async function runAudit() {
 
     // Summary for next steps
     console.log('\n🔧 NEXT STEPS:\n');
-    if (audit.affectedCount > 0) {
+    if (hasCriticalIssues) {
+      console.log('🚨 CRITICAL ACTIONS REQUIRED:');
       console.log('1. Review audit-report.json for detailed findings');
-      console.log('2. For each affected listing:');
-      console.log('   - Verify correct data in database');
-      console.log('   - Restore from backup if corrupted');
-      console.log('   - Correct slug/name/location fields if mismatched');
+      console.log('2. For each corruption case:');
+      console.log('   - Restore from backup immediately');
+      console.log('   - Verify data integrity before returning to service');
       console.log('3. Merge or remove duplicate entries');
-      console.log('4. Re-run audit to confirm fixes');
+      console.log('4. Fix all missing fields and routing context');
+      console.log('5. Re-run audit to confirm fixes');
+      console.log('6. Then implement preventive guards');
+    } else if (audit.issues.slugNameMismatch.length > 0) {
+      console.log('✅ Database integrity appears clean');
+      console.log('\n1. Fix the ' + audit.issues.slugNameMismatch.length + ' slug formatting issue(s)');
+      console.log('2. Implement preventive guards:');
+      console.log('   - Add build guard for empty service files');
+      console.log('   - Add validation layer in updateListing()');
+      console.log('   - Add CI checks for admin vs public parity');
+      console.log('3. Re-run audit before each deploy');
     } else {
       console.log('✅ All listings are integrity-clean');
-      console.log('Proceed with preventive actions:\n');
-      console.log('1. Add defensive state reset in editor (done ✓)');
-      console.log('2. Add build guard for empty service files');
-      console.log('3. Add validation layer in updateListing()');
-      console.log('4. Add CI checks for admin vs public parity');
+      console.log('\nProceed with preventive actions:\n');
+      console.log('1. Add build guard for empty service files');
+      console.log('2. Add validation layer in updateListing()');
+      console.log('3. Add CI checks for admin vs public parity');
+      console.log('4. Run audit before each deploy');
     }
 
     process.exit(0);
