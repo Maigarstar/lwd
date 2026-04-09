@@ -41,8 +41,10 @@ import { VENDORS as ALL_VENDORS } from "../data/vendors";
 // ── Italy-only data subsets ─────────────────────────────────────────────────
 const ITALY_VENUES  = VENUES.filter((v) => v.countrySlug === "italy");
 // Fallback arrays if unified pipeline returns empty (for development/offline)
-const FEATURED_FALLBACK = ITALY_VENUES.filter((v) => v.featured);
+// Latest: first 5 venues
+// Signature: featured venues (separate from latest)
 const LATEST_5_FALLBACK = ITALY_VENUES.slice(0, 5);
+const FEATURED_FALLBACK = ITALY_VENUES.filter((v) => v.featured).slice(0, 3);
 const ITALY_REGIONS = [
   { slug: "all", name: "All Regions" },
   ...getRegionsByCountry("italy"),
