@@ -24,7 +24,7 @@
 //   • Aura annotation overlay (bottom-left glass panel)
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { geocodeItem } from "../../services/geocodingService";
+import { geocodeLocation } from "../../utils/geocoding/geocodeLocation";
 import { PinSyncBus } from "./PinSyncBus";
 import { trackEvent } from "../../lib/tracker";
 
@@ -475,9 +475,9 @@ export default function MASTERMap({
   async function _geocodeProgressively(L, map, needsGeo) {
     for (const v of needsGeo) {
       if (!mapRef.current) break;
-      const coords = await geocodeItem(v);
-      if (!coords || !mapRef.current) {
-        if (!coords) {
+      const result = await geocodeLocation(v);
+      if (!result || !mapRef.current) {
+        if (!result) {
           trackEvent("map_geocode_miss", {
             item_id:       v.id,
             item_name:     v.name,
@@ -487,7 +487,7 @@ export default function MASTERMap({
         }
         continue;
       }
-      _addPin(L, map, { ...v, lat: coords.lat, lng: coords.lng });
+      _addPin(L, map, { ...v, lat: result.lat, lng: result.lng });
     }
   }
 
