@@ -117,10 +117,12 @@ export default function RegionCategoryPage({
   const [isMobile, setIsMobile] = useState(false);
   const [dbListings, setDbListings] = useState([]);
   const [listingsLoaded, setListingsLoaded] = useState(false);
-  const [auraSummary,       setAuraSummary]       = useState(null);
-  const [summaryDismissed,  setSummaryDismissed]  = useState(false);
-  const [auraMapFilter,     setAuraMapFilter]     = useState(null); // category slug Aura drives on the map
-  const [auraCrossNav,      setAuraCrossNav]      = useState(null); // { label, url } cross-category navigation suggestion
+  const [auraSummary,         setAuraSummary]         = useState(null);
+  const [summaryDismissed,    setSummaryDismissed]    = useState(false);
+  const [auraMapFilter,       setAuraMapFilter]       = useState(null); // category slug Aura drives on the map
+  const [auraCrossNav,        setAuraCrossNav]        = useState(null); // { label, url } cross-category navigation suggestion
+  const [auraRecommendedIds,  setAuraRecommendedIds]  = useState(null); // [id1, id2, ...] — Aura-curated item IDs for pin glow
+  const [sparseZoneAlert,     setSparseZoneAlert]     = useState(null); // sparse zone detection: { category, count }
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
 
@@ -450,6 +452,38 @@ export default function RegionCategoryPage({
   }, []);
 
   const handleVenueFiltersChange = useCallback((f) => setVenueFilters(f), []);
+
+  // ── Sparse zone detection: < 3 pins visible for active category ────────────
+  const handleSparsePins = useCallback((data) => {
+    const { category, count } = data;
+    if (count < 3) {
+      // Find best nearby region suggestion (prefer regions with more listings)
+      let nearbyRegionUrl = null;
+      let nearbyRegionName = null;
+
+      if (relatedRegions && relatedRegions.length > 0) {
+        // Suggest the first related region (sorted by relevance in geo data)
+        const suggestedRegion = relatedRegions[0];
+        if (suggestedRegion) {
+          nearbyRegionName = suggestedRegion.name;
+          nearbyRegionUrl = getRegionCategoryPath(countrySlug, suggestedRegion.slug, category);
+        }
+      }
+
+      const categoryLabel = category === "wedding-venues" ? "venue" : category.replace(/-/g, " ");
+      const nearbyText = nearbyRegionName ? ` Try <strong>${nearbyRegionName}</strong> nearby.` : " Try nearby regions for more options.";
+
+      setSparseZoneAlert({
+        category,
+        count,
+        nearbyRegionUrl,
+        nearbyRegionName,
+        message: `Only ${count} ${categoryLabel}${count !== 1 ? "s" : ""} here.${nearbyText}`,
+      });
+    } else {
+      setSparseZoneAlert(null);
+    }
+  }, [relatedRegions, category, countrySlug]);
 
   // ── Search submit → route to CategoryPage ─────────────────────────────────
   const handleSearchSubmit = (e) => {
