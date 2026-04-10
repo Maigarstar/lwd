@@ -20,6 +20,7 @@ import { getRegionPageConfig } from "../services/regionPageConfig";
 import { fetchLocationContent } from "../services/locationContentService";
 
 import LuxuryVenueCard  from "../components/cards/LuxuryVenueCard";
+import LuxuryVendorCard from "../components/cards/LuxuryVendorCard";
 import VenueListItemCard from "../components/cards/VenueListItemCard";
 import { PinSyncBus }   from "../components/maps/PinSyncBus";
 import QuickViewModal   from "../components/modals/QuickViewModal";
@@ -86,6 +87,7 @@ export default function RegionPage({
   const [visibleCities, setVisibleCities] = useState(4);
   const [visibleRelated, setVisibleRelated] = useState(4);
   const [venueViewMode, setVenueViewMode] = useState("grid"); // grid, list — kept for legacy compat
+  const [listingMode, setListingMode] = useState("venues"); // "venues" | "vendors"
   const {
     mapOn,
     toggleMap,
@@ -286,6 +288,40 @@ export default function RegionPage({
     const uniqueStatic = staticVenues.filter((v) => !dbNames.has(v.name.toLowerCase()));
     return [...dbVenues, ...uniqueStatic];
   }, [region.slug, _cityData, dbListings]);
+
+  // Vendors for this region — from the same dbListings fetch
+  const regionVendors = useMemo(() => {
+    return dbListings
+      .filter((l) => l.listingType === "vendor" || l.cat === "vendor")
+      .map((l) => ({
+        id:          l.id,
+        name:        l.cardTitle || l.name || "",
+        region:      l.region    || "",
+        regionSlug:  l.regionSlug || l.region_slug || "",
+        countrySlug: l.countrySlug || l.country_slug || "",
+        city:        l.city || "",
+        citySlug:    l.citySlug || l.city_slug || "",
+        imgs:        Array.isArray(l.imgs)
+          ? l.imgs.map((img) => typeof img === "string" ? img : (img.src || img.url || "")).filter(Boolean)
+          : l.heroImage ? [l.heroImage] : [],
+        desc:        l.cardSummary || l.shortDescription || l.desc || "",
+        priceFrom:   l.priceFrom || "",
+        capacity:    l.capacityMax || l.capacityMin || l.capacity || null,
+        rating:      l.rating ?? null,
+        reviews:     l.reviewCount ?? l.reviews ?? null,
+        verified:    l.isVerified ?? l.verified ?? false,
+        featured:    l.isFeatured ?? l.featured ?? false,
+        lwdScore:    l.lwdScore ?? null,
+        tag:         l.cardBadge || l.tag || null,
+        styles:      Array.isArray(l.styles) ? l.styles : [],
+        slug:        l.slug || "",
+        lat:         l.lat ?? null,
+        lng:         l.lng ?? null,
+        type:        "vendor",
+        category:    l.category || l.categorySlug || "photographers",
+      }));
+  }, [dbListings]);
+
   const featuredVenues = useMemo(() => {
     // DB-pinned IDs take priority over hardcoded `featured: true` flag
     const pinnedIds = dbContent?.featured_venues;
@@ -753,6 +789,8 @@ export default function RegionPage({
             countryFilter={country?.name}
             mapOn={mapOn}
             onToggleMap={toggleMap}
+            mode={listingMode}
+            onModeChange={setListingMode}
           />
           {!mapOn && (
             <InfoStrip
@@ -765,9 +803,11 @@ export default function RegionPage({
         </div>
 
         {/* ── EXPLORE LAYOUT — map on · desktop ─────────────────────────────── */}
-        {mapOn && !isMobile && (
+        {mapOn && !isMobile && (() => {
+          const exploreItems = listingMode === "vendors" ? regionVendors : regionVenues;
+          return (
           <div
-            aria-label={`Explore venues in ${region.name}`}
+            aria-label={`Explore ${listingMode} in ${region.name}`}
             style={{
               display:      "flex",
               height:       "calc(100vh - 72px)",
@@ -786,7 +826,7 @@ export default function RegionPage({
             }}>
               {viewMode === "grid" ? (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 20 }}>
-                  {regionVenues.map((v) => (
+                  {exploreItems.map((v) => (
                     <div
                       key={v.id}
                       data-listing-id={v.id}
@@ -800,18 +840,16 @@ export default function RegionPage({
                         overflow:     "hidden",
                       }}
                     >
-                      <LuxuryVenueCard
-                        v={v}
-                        onView={() => onViewVenue(v.slug || v.id)}
-                        quickViewItem={qvItem}
-                        setQuickViewItem={setQvItem}
-                      />
+                      {listingMode === "vendors"
+                        ? <LuxuryVendorCard v={v} onView={() => onViewVenue(v.slug || v.id)} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
+                        : <LuxuryVenueCard  v={v} onView={() => onViewVenue(v.slug || v.id)} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
+                      }
                     </div>
                   ))}
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {regionVenues.map((v) => (
+                  {exploreItems.map((v) => (
                     <div
                       key={v.id}
                       data-listing-id={v.id}
@@ -840,8 +878,8 @@ export default function RegionPage({
               transition: "opacity 0.3s ease, transform 0.3s ease-out",
             }}>
               <MASTERMap
-                venues={regionVenues}
-                label={`${region.name} · Venues`}
+                venues={exploreItems}
+                label={`${region.name} · ${listingMode === "vendors" ? "Vendors" : "Venues"}`}
                 viewMode={viewMode}
                 onToggleView={toggleMap}
                 countrySlug={country?.slug || "italy"}
@@ -855,7 +893,8 @@ export default function RegionPage({
               />
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ── NORMAL SECTIONS — map off · mobile ──────────────────────────── */}
         {(!mapOn || isMobile) && (<>

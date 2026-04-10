@@ -186,6 +186,7 @@ export default function LocationPage({
   // Phase 2 will replace CountrySearchBar with MasterFilterBar and unify this
   const [filters, setFilters] = useState({ region: "all", capacity: "any", style: [], price: "any" });
   const [sortMode, setSortMode] = useState("recommended");
+  const [listingMode, setListingMode] = useState("venues"); // "venues" | "vendors"
 
   // ── Phase 1: shared view + map + pin state only ───────────────────────────────
   const {
@@ -948,6 +949,8 @@ export default function LocationPage({
             countryFilter={countryName}
             mapOn={mapOn}
             onToggleMap={toggleMap}
+            mode={listingMode}
+            onModeChange={setListingMode}
           />
           {!mapOn && (
             <InfoStrip
@@ -963,9 +966,11 @@ export default function LocationPage({
         </div>
 
         {/* ── EXPLORE LAYOUT — map on · desktop ─────────────────────────────── */}
-        {mapOn && !isMobile && (
+        {mapOn && !isMobile && (() => {
+          const exploreItems = listingMode === "vendors" ? locationVendors : locationVenues;
+          return (
           <div
-            aria-label={`Explore venues in ${currentLocation.name}`}
+            aria-label={`Explore ${listingMode} in ${currentLocation.name}`}
             style={{
               display:      "flex",
               height:       "calc(100vh - 72px)",
@@ -990,7 +995,7 @@ export default function LocationPage({
                     gap:                 20,
                   }}
                 >
-                  {locationVenues.map((v) => (
+                  {exploreItems.map((v) => (
                     <div
                       key={v.id}
                       data-listing-id={v.id}
@@ -1004,18 +1009,16 @@ export default function LocationPage({
                         overflow:     "hidden",
                       }}
                     >
-                      <LuxuryVenueCard
-                        v={v}
-                        onView={() => onViewVenue(v.slug || v.id)}
-                        quickViewItem={qvItem}
-                        setQuickViewItem={setQvItem}
-                      />
+                      {listingMode === "vendors"
+                        ? <LuxuryVendorCard v={v} onView={() => onViewVenue(v.slug || v.id)} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
+                        : <LuxuryVenueCard  v={v} onView={() => onViewVenue(v.slug || v.id)} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
+                      }
                     </div>
                   ))}
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {locationVenues.map((v) => (
+                  {exploreItems.map((v) => (
                     <div
                       key={v.id}
                       data-listing-id={v.id}
@@ -1044,8 +1047,8 @@ export default function LocationPage({
               transition: "opacity 0.3s ease, transform 0.3s ease-out",
             }}>
               <MASTERMap
-                venues={locationVenues}
-                label={`${currentLocation.name} · Venues`}
+                venues={exploreItems}
+                label={`${currentLocation.name} · ${listingMode === "vendors" ? "Vendors" : "Venues"}`}
                 viewMode={viewMode}
                 onToggleView={toggleMap}
                 countrySlug={currentLocation.countrySlug || currentLocation.slug}
@@ -1059,7 +1062,8 @@ export default function LocationPage({
               />
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ── NORMAL SECTIONS — map off · mobile ──────────────────────────── */}
         {(!mapOn || isMobile) && (<>

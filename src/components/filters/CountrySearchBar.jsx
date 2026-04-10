@@ -176,12 +176,16 @@ export default function CountrySearchBar({
   filters, onFiltersChange, viewMode, onViewMode, sortMode, onSortChange, total, regions,
   onVendorSearch, countryFilter,
   mapOn, onToggleMap,
+  mode: modeProp, onModeChange,
 }) {
   const C = useTheme();
   const dark = C.black === "#080808";
   const CL = buildPalette(dark);
 
-  const [mode, setMode] = useState("venues");
+  // mode is controlled by parent when modeProp is provided, otherwise local
+  const [modeLocal, setModeLocal] = useState("venues");
+  const mode    = modeProp !== undefined ? modeProp : modeLocal;
+  const setMode = (m) => { setModeLocal(m); onModeChange?.(m); };
   const [openMenu, setOpenMenu] = useState(null);
   const [hov, setHov] = useState(null);
   const barRef = useRef(null);
