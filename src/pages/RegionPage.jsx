@@ -19,8 +19,11 @@ import { fetchListings } from "../services/listings";
 import { getRegionPageConfig } from "../services/regionPageConfig";
 import { fetchLocationContent } from "../services/locationContentService";
 
-import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
-import QuickViewModal from "../components/modals/QuickViewModal";
+import LuxuryVenueCard  from "../components/cards/LuxuryVenueCard";
+import VenueListItemCard from "../components/cards/VenueListItemCard";
+import { PinSyncBus }   from "../components/maps/PinSyncBus";
+import QuickViewModal   from "../components/modals/QuickViewModal";
+import { useDirectoryState } from "../hooks/useDirectoryState";
 import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import FeaturedSlider from "../components/sections/FeaturedSlider";
@@ -82,7 +85,16 @@ export default function RegionPage({
   const [qvItem, setQvItem] = useState(null);
   const [visibleCities, setVisibleCities] = useState(4);
   const [visibleRelated, setVisibleRelated] = useState(4);
-  const [venueViewMode, setVenueViewMode] = useState("grid"); // grid, list, map
+  const [venueViewMode, setVenueViewMode] = useState("grid"); // grid, list — kept for legacy compat
+  const {
+    mapOn,
+    toggleMap,
+    mapTransitioning,
+    viewMode,
+    setViewMode,
+    activeListingId,
+    setActiveListingId,
+  } = useDirectoryState({ storageKey: "lwd-region-view" });
   const [currentPage, setCurrentPage] = useState(0);
   const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, region: regionSlug }));
   const [sortMode, setSortMode] = useState("recommended");
@@ -732,33 +744,121 @@ export default function RegionPage({
           <CountrySearchBar
             filters={filters}
             onFiltersChange={handleFiltersChange}
-            viewMode={venueViewMode}
-            onViewMode={setVenueViewMode}
+            viewMode={viewMode}
+            onViewMode={setViewMode}
             sortMode={sortMode}
             onSortChange={setSortMode}
             total={regionVenues.length}
             regions={[{ name: region.name, slug: region.slug }]}
             countryFilter={country?.name}
-            mapContent={
-              venueViewMode === "map" ? (
-                <MASTERMap
-                  venues={regionVenues}
-                  label={`${region.name} · Wedding Venues`}
-                  viewMode="grid"
-                  onToggleView={() => setVenueViewMode("grid")}
-                  countrySlug={country?.slug || "england"}
-                  pageBg={C.black}
-                />
-              ) : null
-            }
+            mapOn={mapOn}
+            onToggleMap={toggleMap}
           />
-          <InfoStrip
-            availableRegions={cities.map((c) => ({ name: c.name, slug: c.slug }))}
-            filters={filters}
-            onFiltersChange={handleFiltersChange}
-            defaultFilters={DEFAULT_FILTERS}
-          />
+          {!mapOn && (
+            <InfoStrip
+              availableRegions={cities.map((c) => ({ name: c.name, slug: c.slug }))}
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              defaultFilters={DEFAULT_FILTERS}
+            />
+          )}
         </div>
+
+        {/* ── EXPLORE LAYOUT — map on · desktop ─────────────────────────────── */}
+        {mapOn && !isMobile && (
+          <div
+            aria-label={`Explore venues in ${region.name}`}
+            style={{
+              display:      "flex",
+              height:       "calc(100vh - 72px)",
+              overflow:     "hidden",
+              background:   C.black,
+              borderBottom: `1px solid rgba(201,168,76,0.12)`,
+            }}
+          >
+            {/* Left: scrollable card panel */}
+            <div style={{
+              flex:       "0 1 900px",
+              overflowY:  "auto",
+              padding:    "40px 20px 40px 85px",
+              opacity:    mapTransitioning ? 0.55 : 1,
+              transition: "opacity 0.2s ease",
+            }}>
+              {viewMode === "grid" ? (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 20 }}>
+                  {regionVenues.map((v) => (
+                    <div
+                      key={v.id}
+                      data-listing-id={v.id}
+                      onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
+                      onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
+                      style={{
+                        height:       560,
+                        outline:      activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
+                        borderRadius: "var(--lwd-radius-card, 8px)",
+                        transition:   "outline 0.2s",
+                        overflow:     "hidden",
+                      }}
+                    >
+                      <LuxuryVenueCard
+                        v={v}
+                        onView={() => onViewVenue(v.slug || v.id)}
+                        quickViewItem={qvItem}
+                        setQuickViewItem={setQvItem}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {regionVenues.map((v) => (
+                    <div
+                      key={v.id}
+                      data-listing-id={v.id}
+                      onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
+                      onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
+                    >
+                      <VenueListItemCard
+                        v={v}
+                        onView={() => onViewVenue(v.slug || v.id)}
+                        isHighlighted={activeListingId === v.id}
+                        quickViewItem={qvItem}
+                        setQuickViewItem={setQvItem}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Right: MASTERMap */}
+            <div style={{
+              flex:       1,
+              position:   "relative",
+              opacity:    mapTransitioning ? 0 : 1,
+              transform:  mapTransitioning ? "translateX(24px)" : "translateX(0)",
+              transition: "opacity 0.3s ease, transform 0.3s ease-out",
+            }}>
+              <MASTERMap
+                venues={regionVenues}
+                label={`${region.name} · Venues`}
+                viewMode={viewMode}
+                onToggleView={toggleMap}
+                countrySlug={country?.slug || "italy"}
+                pageBg={C.black}
+                activeListingId={activeListingId}
+                onPinClick={(listingId) => {
+                  setActiveListingId(listingId);
+                  const el = document.querySelector(`[data-listing-id="${listingId}"]`);
+                  if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ── NORMAL SECTIONS — map off · mobile ──────────────────────────── */}
+        {(!mapOn || isMobile) && (<>
 
         {/* ═══ TRUST SIGNAL STRIP — region-specific authority tags ═══════════ */}
         {region.trustSignals && region.trustSignals.length > 0 && (
@@ -1133,6 +1233,7 @@ export default function RegionPage({
         <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={actualCountrySlug === "england"} showItaly={actualCountrySlug === "italy"} showUSA={actualCountrySlug === "usa"} darkMode={darkMode} />
 
 
+        </>)}
         {/* Quick-view modal */}
         {qvItem && (
           <QuickViewModal

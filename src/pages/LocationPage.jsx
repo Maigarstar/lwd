@@ -31,8 +31,9 @@ import GCard           from "../components/cards/GCard";
 import GCardMobile     from "../components/cards/GCardMobile";
 import HCard           from "../components/cards/HCard";
 import QuickViewModal  from "../components/modals/QuickViewModal";
-import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
-import LuxuryVendorCard from "../components/cards/LuxuryVendorCard";
+import LuxuryVenueCard  from "../components/cards/LuxuryVenueCard";
+import LuxuryVendorCard  from "../components/cards/LuxuryVendorCard";
+import VenueListItemCard from "../components/cards/VenueListItemCard";
 import SliderNav       from "../components/ui/SliderNav";
 import FeaturedSlider  from "../components/sections/FeaturedSlider";
 import { useInView, revealStyle } from "../components/ui/Animations";
@@ -192,9 +193,11 @@ export default function LocationPage({
     setViewMode,
     mapOn,
     toggleMap,
+    setMapOn,
+    mapTransitioning,
     activeListingId,
     setActiveListingId,
-  } = useDirectoryState();
+  } = useDirectoryState({ storageKey: "lwd-location-view" });
 
   const [visibleCount, setVisibleCount] = useState(12);
   const [savedIds, setSavedIds] = useState([]);
@@ -943,28 +946,123 @@ export default function LocationPage({
             total={locationVenues.length}
             regions={_regions.filter(r => r.countrySlug === currentLocation.slug).map(r => ({ slug: r.slug, name: r.name }))}
             countryFilter={countryName}
-            mapContent={
-              viewMode === "map" ? (
-                <MASTERMap
-                  items={mapVenues.map(v => ({ ...v, type: "venue", category: "wedding-venues" }))}
-                  label={`${currentLocation.name} · Wedding Venues`}
-                  viewMode="grid"
-                  countrySlug={currentLocation.countrySlug}
-                  pageBg={C.black}
-                />
-              ) : null
-            }
+            mapOn={mapOn}
+            onToggleMap={toggleMap}
           />
-          <InfoStrip
-            regionNames={
-              (Array.isArray(_locationContent?.infoRegions) && _locationContent.infoRegions.length > 0)
-                ? _locationContent.infoRegions
-                : _regions.filter(r => r.countrySlug === currentLocation.slug).map(r => r.name)
-            }
-            vibes={_locationContent?.infoVibes}
-            services={_locationContent?.infoServices}
-          />
+          {!mapOn && (
+            <InfoStrip
+              regionNames={
+                (Array.isArray(_locationContent?.infoRegions) && _locationContent.infoRegions.length > 0)
+                  ? _locationContent.infoRegions
+                  : _regions.filter(r => r.countrySlug === currentLocation.slug).map(r => r.name)
+              }
+              vibes={_locationContent?.infoVibes}
+              services={_locationContent?.infoServices}
+            />
+          )}
         </div>
+
+        {/* ── EXPLORE LAYOUT — map on · desktop ─────────────────────────────── */}
+        {mapOn && !isMobile && (
+          <div
+            aria-label={`Explore venues in ${currentLocation.name}`}
+            style={{
+              display:      "flex",
+              height:       "calc(100vh - 72px)",
+              overflow:     "hidden",
+              background:   C.black,
+              borderBottom: `1px solid rgba(201,168,76,0.12)`,
+            }}
+          >
+            {/* Left: scrollable card panel */}
+            <div style={{
+              flex:       "0 1 900px",
+              overflowY:  "auto",
+              padding:    "40px 20px 40px 85px",
+              opacity:    mapTransitioning ? 0.55 : 1,
+              transition: "opacity 0.2s ease",
+            }}>
+              {viewMode === "grid" ? (
+                <div
+                  style={{
+                    display:             "grid",
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                    gap:                 20,
+                  }}
+                >
+                  {locationVenues.map((v) => (
+                    <div
+                      key={v.id}
+                      data-listing-id={v.id}
+                      onMouseEnter={() => { setActiveListingId(v.id); }}
+                      onMouseLeave={() => { setActiveListingId(null); }}
+                      style={{
+                        height:       560,
+                        outline:      activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
+                        borderRadius: "var(--lwd-radius-card, 8px)",
+                        transition:   "outline 0.2s",
+                        overflow:     "hidden",
+                      }}
+                    >
+                      <LuxuryVenueCard
+                        v={v}
+                        onView={() => onViewVenue(v.slug || v.id)}
+                        quickViewItem={qvItem}
+                        setQuickViewItem={setQvItem}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {locationVenues.map((v) => (
+                    <div
+                      key={v.id}
+                      data-listing-id={v.id}
+                      onMouseEnter={() => setActiveListingId(v.id)}
+                      onMouseLeave={() => setActiveListingId(null)}
+                    >
+                      <VenueListItemCard
+                        v={v}
+                        onView={() => onViewVenue(v.slug || v.id)}
+                        isHighlighted={activeListingId === v.id}
+                        quickViewItem={qvItem}
+                        setQuickViewItem={setQvItem}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Right: MASTERMap — full height, no hacks */}
+            <div style={{
+              flex:       1,
+              position:   "relative",
+              opacity:    mapTransitioning ? 0 : 1,
+              transform:  mapTransitioning ? "translateX(24px)" : "translateX(0)",
+              transition: "opacity 0.3s ease, transform 0.3s ease-out",
+            }}>
+              <MASTERMap
+                venues={locationVenues}
+                label={`${currentLocation.name} · Venues`}
+                viewMode={viewMode}
+                onToggleView={toggleMap}
+                countrySlug={currentLocation.countrySlug || currentLocation.slug}
+                pageBg={C.black}
+                activeListingId={activeListingId}
+                onPinClick={(listingId) => {
+                  setActiveListingId(listingId);
+                  const el = document.querySelector(`[data-listing-id="${listingId}"]`);
+                  if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ── NORMAL SECTIONS — map off · mobile ──────────────────────────── */}
+        {(!mapOn || isMobile) && (<>
 
         {/* ═══ ABOUT SECTION ════════════════════════════════════════════════ */}
         {(_locationContent?.aboutContent || _locationContent?.seoContent || currentLocation?.evergreenContent) && (
@@ -1315,6 +1413,7 @@ export default function LocationPage({
           darkMode={darkMode}
         />
 
+        </>)}
         {/* Quick View Modal */}
         {qvItem && (
           <QuickViewModal
