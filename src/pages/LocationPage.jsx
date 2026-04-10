@@ -188,6 +188,13 @@ export default function LocationPage({
   const [sortMode, setSortMode] = useState("recommended");
   const [listingMode, setListingMode] = useState("venues"); // "venues" | "vendors"
 
+  // ── Reset filters + mode whenever the page location changes ─────────────────
+  useEffect(() => {
+    setFilters({ region: "all", capacity: "any", style: [], price: "any" });
+    setSortMode("recommended");
+    setListingMode("venues");
+  }, [locationSlug]);
+
   // ── Phase 1: shared view + map + pin state only ───────────────────────────────
   const {
     viewMode,
@@ -524,27 +531,79 @@ export default function LocationPage({
     return [];
   }, [currentLocation, locationType, _vendors, _featuredVendorIds]);
 
-  // ── Get filterable venues for this location ─────────────────────────────────
+  // ── Get ALL venues for this location (unfiltered — used for editorial slices) ─
   const locationVenues = useMemo(() => {
-    let filtered = [];
+    let base = [];
     if (locationType === "country") {
-      filtered = _venues.filter(v => v.countrySlug === currentLocation?.slug);
+      base = _venues.filter(v => v.countrySlug === currentLocation?.slug);
     } else if (locationType === "region") {
-      filtered = _venues.filter(v => v.regionSlug === currentLocation?.slug);
+      base = _venues.filter(v => v.regionSlug === currentLocation?.slug);
     } else if (locationType === "city") {
-      filtered = _venues.filter(v => v.citySlug === currentLocation?.slug);
+      base = _venues.filter(v => v.citySlug === currentLocation?.slug);
     }
-
-    // Apply search query
     if (searchQuery) {
-      filtered = filtered.filter(v =>
-        v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (v.description || "").toLowerCase().includes(searchQuery.toLowerCase())
+      const q = searchQuery.toLowerCase();
+      base = base.filter(v =>
+        v.name?.toLowerCase().includes(q) ||
+        (v.desc || v.description || "").toLowerCase().includes(q)
       );
     }
-
-    return filtered;
+    return base;
   }, [currentLocation, locationType, _venues, searchQuery]);
+
+  // ── Apply CountrySearchBar filters + sort on top of locationVenues ───────────
+  const filteredVenues = useMemo(() => {
+    let out = [...locationVenues];
+
+    // Region (sub-region filter on a country page)
+    if (filters.region && filters.region !== "all") {
+      out = out.filter(v => v.regionSlug === filters.region || v.region?.toLowerCase() === filters.region.toLowerCase());
+    }
+
+    // Style
+    if (filters.style && filters.style !== "All Styles") {
+      out = out.filter(v => Array.isArray(v.styles) ? v.styles.includes(filters.style) : v.style === filters.style);
+    }
+
+    // Capacity
+    if (filters.capacity && filters.capacity !== "Any Capacity") {
+      out = out.filter(v => {
+        const cap = v.capacity ?? v.capacityMax ?? v.capacityMin;
+        if (cap == null) return false;
+        if (filters.capacity === "Up to 50")  return cap <= 50;
+        if (filters.capacity === "51–100")    return cap >= 51  && cap <= 100;
+        if (filters.capacity === "101–200")   return cap >= 101 && cap <= 200;
+        if (filters.capacity === "200+")      return cap > 200;
+        return true;
+      });
+    }
+
+    // Price / Budget — parse "£X–£Y" ranges
+    if (filters.price && filters.price !== "All Budgets") {
+      out = out.filter(v => {
+        const raw = v.priceFromRaw ?? (typeof v.priceFrom === "number" ? v.priceFrom : parseInt((v.priceFrom || "").replace(/[^0-9]/g, ""), 10));
+        if (!raw || isNaN(raw)) return true; // don't exclude if unknown
+        const nums = filters.price.replace(/£|,/g, "").split("–").map(n => parseInt(n, 10));
+        if (nums.length === 2) return raw >= nums[0] && raw <= nums[1];
+        if (filters.price.includes("+")) return raw >= (nums[0] || 0);
+        return true;
+      });
+    }
+
+    // Sort
+    switch (sortMode) {
+      case "rating":      out = out.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)); break;
+      case "price-low":   out = out.sort((a, b) => (a.priceFromRaw ?? Infinity) - (b.priceFromRaw ?? Infinity)); break;
+      case "price-high":  out = out.sort((a, b) => (b.priceFromRaw ?? 0) - (a.priceFromRaw ?? 0)); break;
+      default:
+        out = out.sort((a, b) => {
+          if (b.featured !== a.featured) return b.featured ? 1 : -1;
+          return (b.lwdScore ?? b.rating ?? 0) - (a.lwdScore ?? a.rating ?? 0);
+        });
+    }
+
+    return out;
+  }, [locationVenues, filters, sortMode]);
 
   // ── Compute editorial split venues (Latest / Random / Featured) ─────────────
   const editorialVenues = useMemo(() => {
@@ -944,7 +1003,7 @@ export default function LocationPage({
             onViewMode={setViewMode}
             sortMode={sortMode}
             onSortChange={setSortMode}
-            total={locationVenues.length}
+            total={filteredVenues.length}
             regions={_regions.filter(r => r.countrySlug === currentLocation.slug).map(r => ({ slug: r.slug, name: r.name }))}
             countryFilter={countryName}
             mapOn={mapOn}
@@ -967,7 +1026,7 @@ export default function LocationPage({
 
         {/* ── EXPLORE LAYOUT — map on · desktop ─────────────────────────────── */}
         {mapOn && !isMobile && (() => {
-          const exploreItems = listingMode === "vendors" ? locationVendors : locationVenues;
+          const exploreItems = listingMode === "vendors" ? locationVendors : filteredVenues;
           return (
           <div
             aria-label={`Explore ${listingMode} in ${currentLocation.name}`}
@@ -1167,7 +1226,7 @@ export default function LocationPage({
         </section>
 
         {/* ═══ SIGNATURE VENUES — matching RegionPage card row pattern ═══════ */}
-        {locationVenues.length > 0 && viewMode !== "map" && (
+        {filteredVenues.length > 0 && viewMode !== "map" && (
           <div style={{ background: darkMode ? C.dark : "#ffffff" }}>
           <section
             aria-label={`Wedding professionals in ${currentLocation.name}`}
@@ -1203,12 +1262,12 @@ export default function LocationPage({
             <div ref={grid1Ref}>
               {viewMode === "grid" ? (
                 <SliderNav
-                  key={locationVenues[0]?.id || "empty"}
+                  key={filteredVenues[0]?.id || "empty"}
                   className="lwd-region-venue-grid"
                   cardWidth={360}
                   gap={isMobile ? 12 : 16}
                 >
-                  {locationVenues.slice(0, 4).map((v, i) => (
+                  {filteredVenues.slice(0, 4).map((v, i) => (
                     <div
                       key={v.id}
                       className="lwd-region-venue-card"
@@ -1230,7 +1289,7 @@ export default function LocationPage({
                 </SliderNav>
               ) : (
                 <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-                  {locationVenues.slice(0, 4).map((v, i) => (
+                  {filteredVenues.slice(0, 4).map((v, i) => (
                     <HCard
                       key={v.id}
                       v={v}
@@ -1247,7 +1306,7 @@ export default function LocationPage({
         )}
 
         {/* ═══ ALL VENUES — full grid/list below signature row ═════════════════ */}
-        {locationVenues.length > 4 && viewMode !== "map" && (
+        {filteredVenues.length > 4 && viewMode !== "map" && (
           <section
             aria-label={`More listings in ${currentLocation.name}`}
             className="lwd-region-section"
@@ -1285,7 +1344,7 @@ export default function LocationPage({
                 cardWidth={360}
                 gap={isMobile ? 12 : 16}
               >
-                {locationVenues.slice(4, visibleCount).filter(venue => venue?.imgs?.length > 0).map((v, i) => (
+                {filteredVenues.slice(4, visibleCount).filter(venue => venue?.imgs?.length > 0).map((v, i) => (
                   <div
                     key={v.id}
                     className="lwd-region-venue-card"
@@ -1306,7 +1365,7 @@ export default function LocationPage({
               </SliderNav>
             ) : (
               <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-                {locationVenues.slice(4, visibleCount).filter(venue => venue?.imgs?.length > 0).map((v) => (
+                {filteredVenues.slice(4, visibleCount).filter(venue => venue?.imgs?.length > 0).map((v) => (
                   <HCard
                     key={v.id}
                     v={v}
@@ -1318,7 +1377,7 @@ export default function LocationPage({
               </div>
             )}
 
-            {visibleCount < locationVenues.length && (
+            {visibleCount < filteredVenues.length && (
               <div style={{ textAlign: "center", marginTop: 30 }}>
                 <button
                   onClick={() => setVisibleCount(v => v + 12)}

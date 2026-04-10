@@ -100,6 +100,13 @@ export default function RegionPage({
   const [currentPage, setCurrentPage] = useState(0);
   const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, region: regionSlug }));
   const [sortMode, setSortMode] = useState("recommended");
+
+  // ── Reset filters + mode whenever the region changes ────────────────────────
+  useEffect(() => {
+    setFilters({ ...DEFAULT_FILTERS, region: regionSlug });
+    setSortMode("recommended");
+    setListingMode("venues");
+  }, [regionSlug]);
   const [citiesWithContent, setCitiesWithContent] = useState([]);
   const [dbContent,         setDbContent]         = useState(null);
   const [slideIdx,          setSlideIdx]          = useState(0);
@@ -321,6 +328,45 @@ export default function RegionPage({
         category:    l.category || l.categorySlug || "photographers",
       }));
   }, [dbListings]);
+
+  // ── Apply CountrySearchBar filters + sort on top of regionVenues ─────────────
+  const filteredRegionVenues = useMemo(() => {
+    let out = [...regionVenues];
+    if (filters.region && filters.region !== "all" && filters.region !== regionSlug) {
+      out = out.filter(v => v.regionSlug === filters.region || v.region?.toLowerCase() === filters.region.toLowerCase());
+    }
+    if (filters.style && filters.style !== "All Styles") {
+      out = out.filter(v => Array.isArray(v.styles) ? v.styles.includes(filters.style) : v.style === filters.style);
+    }
+    if (filters.capacity && filters.capacity !== "Any Capacity") {
+      out = out.filter(v => {
+        const cap = v.capacity ?? v.capacityMax ?? v.capacityMin;
+        if (cap == null) return false;
+        if (filters.capacity === "Up to 50")  return cap <= 50;
+        if (filters.capacity === "51–100")    return cap >= 51  && cap <= 100;
+        if (filters.capacity === "101–200")   return cap >= 101 && cap <= 200;
+        if (filters.capacity === "200+")      return cap > 200;
+        return true;
+      });
+    }
+    if (filters.price && filters.price !== "All Budgets") {
+      out = out.filter(v => {
+        const raw = v.priceFromRaw ?? (typeof v.priceFrom === "number" ? v.priceFrom : parseInt((v.priceFrom || "").replace(/[^0-9]/g, ""), 10));
+        if (!raw || isNaN(raw)) return true;
+        const nums = filters.price.replace(/£|,/g, "").split("–").map(n => parseInt(n, 10));
+        if (nums.length === 2) return raw >= nums[0] && raw <= nums[1];
+        if (filters.price.includes("+")) return raw >= (nums[0] || 0);
+        return true;
+      });
+    }
+    switch (sortMode) {
+      case "rating":     out = out.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)); break;
+      case "price-low":  out = out.sort((a, b) => (a.priceFromRaw ?? Infinity) - (b.priceFromRaw ?? Infinity)); break;
+      case "price-high": out = out.sort((a, b) => (b.priceFromRaw ?? 0) - (a.priceFromRaw ?? 0)); break;
+      default: out = out.sort((a, b) => { if (b.featured !== a.featured) return b.featured ? 1 : -1; return (b.lwdScore ?? b.rating ?? 0) - (a.lwdScore ?? a.rating ?? 0); });
+    }
+    return out;
+  }, [regionVenues, filters, sortMode, regionSlug]);
 
   const featuredVenues = useMemo(() => {
     // DB-pinned IDs take priority over hardcoded `featured: true` flag
@@ -784,7 +830,7 @@ export default function RegionPage({
             onViewMode={setViewMode}
             sortMode={sortMode}
             onSortChange={setSortMode}
-            total={regionVenues.length}
+            total={filteredRegionVenues.length}
             regions={[{ name: region.name, slug: region.slug }]}
             countryFilter={country?.name}
             mapOn={mapOn}
@@ -804,7 +850,7 @@ export default function RegionPage({
 
         {/* ── EXPLORE LAYOUT — map on · desktop ─────────────────────────────── */}
         {mapOn && !isMobile && (() => {
-          const exploreItems = listingMode === "vendors" ? regionVendors : regionVenues;
+          const exploreItems = listingMode === "vendors" ? regionVendors : filteredRegionVenues;
           return (
           <div
             aria-label={`Explore ${listingMode} in ${region.name}`}
@@ -1067,7 +1113,7 @@ export default function RegionPage({
         {/* ═══ CATEGORY SHORTCUTS ════════════════════════════════════════════ */}
 
         {/* ═══ FEATURED LISTINGS / COMING SOON ═══════════════════════════════ */}
-        {regionVenues.length > 0 ? (
+        {filteredRegionVenues.length > 0 ? (
           <>
             {/* Venue grid — first 4 cards with heading + AI text */}
             <section
@@ -1103,12 +1149,12 @@ export default function RegionPage({
 
               <div ref={grid1Ref}>
                 <SliderNav
-                  key={regionVenues[0]?.id || "empty"}
+                  key={filteredRegionVenues[0]?.id || "empty"}
                   className="lwd-region-venue-grid"
                   cardWidth={360}
                   gap={isMobile ? 12 : 16}
                 >
-                  {regionVenues.slice(0, 4).map((v, i) => (
+                  {filteredRegionVenues.slice(0, 4).map((v, i) => (
                     <div
                       key={v.id}
                       className="lwd-region-venue-card"
