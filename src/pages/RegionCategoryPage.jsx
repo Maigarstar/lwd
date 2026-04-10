@@ -2,6 +2,7 @@
 // Editorial intent page for every Region × Category combination.
 // e.g. /uk/london/wedding-venues  /italy/tuscany/photographers
 // Data-driven: one template, many region×category combos.
+// Phase 1: adopts useDirectoryState + transformListing (shared platform logic).
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { ThemeCtx, useTheme } from "../theme/ThemeContext";
 import { getDarkPalette, getLightPalette, DARK_C } from "../theme/tokens";
@@ -22,7 +23,10 @@ import { VENDORS } from "../data/vendors.js";
 import { getUserCountryFromIP, sortByCountryPriority } from "../services/geoLocationService";
 import { fetchListings } from "../services/listings";
 
-import { DEFAULT_FILTERS } from "../data/italyVenues";
+// ── Phase 1: shared directory state + transform ───────────────────────────────
+import { useDirectoryState, applyDirectoryFilters, applyDirectorySort } from "../hooks/useDirectoryState";
+import { transformListing, transformListings, mergeListings } from "../utils/transformListing";
+import { DEFAULT_FILTERS } from "../data/italyVenues"; // Phase 2: remove when MasterFilterBar replaces CountrySearchBar
 
 import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
@@ -31,7 +35,6 @@ import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
 import VenueListItemCard from "../components/cards/VenueListItemCard";
 import MASTERMap        from "../components/maps/MASTERMap";
 import { PinSyncBus }  from "../components/maps/PinSyncBus";
-import { getInitialViewState, saveViewState } from "../components/maps/ViewStateManager";
 import QuickViewModal  from "../components/modals/QuickViewModal";
 import AICommandBar    from "../components/filters/AICommandBar";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
@@ -98,41 +101,58 @@ export default function RegionCategoryPage({
   const [qvItem, setQvItem] = useState(null);
   const [mapOpen, setMapOpen] = useState(false);
   const [userCountryCode, setUserCountryCode] = useState(null);
-  const [activeFilters, setActiveFilters] = useState({
-    styles: [],
-    prices: [],
-    capacities: [],
-    locations: [],
-  });
-  const [venueFilters, setVenueFilters] = useState(() => ({ ...DEFAULT_FILTERS, region: regionSlug }));
-  const [sortMode, setSortMode] = useState("recommended");
-
-  // ── View state — persisted to localStorage ────────────────────────────────
-  const [viewMode, setViewMode] = useState(() => getInitialViewState().viewMode);
-  const [mapOn, setMapOn]       = useState(() => getInitialViewState().mapOn);
-  const [mapTransitioning, setMapTransitioning] = useState(false);
-  // Single ID drives all card ↔ pin focus sync
-  const [activeListingId, setActiveListingId] = useState(null);
-
-  const [isMobile, setIsMobile] = useState(false);
   const [dbListings, setDbListings] = useState([]);
   const [listingsLoaded, setListingsLoaded] = useState(false);
   const [auraSummary,         setAuraSummary]         = useState(null);
   const [summaryDismissed,    setSummaryDismissed]    = useState(false);
-  const [auraMapFilter,       setAuraMapFilter]       = useState(null); // category slug Aura drives on the map
-  const [auraCrossNav,        setAuraCrossNav]        = useState(null); // { label, url } cross-category navigation suggestion
-  const [auraRecommendedIds,  setAuraRecommendedIds]  = useState(null); // [id1, id2, ...] — Aura-curated item IDs for pin glow
-  const [sparseZoneAlert,     setSparseZoneAlert]     = useState(null); // sparse zone detection: { category, count }
+  const [auraMapFilter,       setAuraMapFilter]       = useState(null);
+  const [auraCrossNav,        setAuraCrossNav]        = useState(null);
+  const [auraRecommendedIds,  setAuraRecommendedIds]  = useState(null);
+  const [sparseZoneAlert,     setSparseZoneAlert]     = useState(null);
+
+  // ── Phase 1: shared directory state (replaces viewMode/mapOn/isMobile/activeListingId) ──
+  const {
+    filters,
+    updateFilters,
+    viewMode,
+    setViewMode,
+    mapOn,
+    toggleMap:       handleToggleMap,
+    setMapOn,
+    mapTransitioning,
+    activeListingId,
+    setActiveListingId,
+    isMobile,
+  } = useDirectoryState({
+    initialFilters: {
+      region:   regionSlug   || null,
+      country:  countrySlug  || null,
+      category: categorySlug || null,
+    },
+  });
+
+  // ── Legacy filter shim — CountrySearchBar still drives venueFilters shape ──
+  // Phase 2 will replace CountrySearchBar with MasterFilterBar.
+  // For now, keep venueFilters in sync with the shared filters object.
+  const venueFilters = useMemo(() => ({
+    region:   filters.region   || regionSlug || "all",
+    style:    filters.styles?.[0] || "All Styles",
+    capacity: filters.capacity || "All Capacities",
+    price:    filters.priceFrom ? `£${filters.priceFrom}+` : "All Prices",
+  }), [filters, regionSlug]);
+
+  const setVenueFilters = useCallback((f) => {
+    updateFilters({
+      region:    f.region   !== "all" ? f.region   : null,
+      styles:    f.style    && f.style    !== "All Styles"      ? [f.style]    : [],
+      capacity:  f.capacity && f.capacity !== "All Capacities"  ? f.capacity   : null,
+    });
+  }, [updateFilters]);
+
+  const sortMode    = filters.sort || "recommended";
+  const setSortMode = useCallback((s) => updateFilters({ sort: s }), [updateFilters]);
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
-
-  // ── Mobile detection ────────────────────────────────────────────────────────
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
 
   // ── Apply immersive refinement filters on mount ───────────────────────────
   useEffect(() => {
@@ -163,33 +183,8 @@ export default function RegionCategoryPage({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── View state handlers (persist to localStorage) ─────────────────────────
-  const handleViewMode = useCallback((mode) => {
-    setViewMode(mode);
-    saveViewState(mode, mapOn);
-  }, [mapOn]);
-
-  const handleToggleMap = useCallback(() => {
-    setMapTransitioning(true);
-    setTimeout(() => setMapTransitioning(false), 480);
-    setMapOn((prev) => {
-      const next = !prev;
-      saveViewState(viewMode, next);
-      return next;
-    });
-  }, [viewMode]);
-
-  // ── PinSyncBus: pin click → scroll to card ────────────────────────────────
-  useEffect(() => {
-    const off = PinSyncBus.on("pin:click", (id) => {
-      setActiveListingId(id);
-      const el = document.querySelector(`[data-listing-id="${id}"]`);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
-    const offHover = PinSyncBus.on("pin:hover", (id) => setActiveListingId(id));
-    const offLeave = PinSyncBus.on("pin:leave", ()  => setActiveListingId(null));
-    return () => { off(); offHover(); offLeave(); };
-  }, []);
+  // ── View mode handler (wraps shared setViewMode) ─────────────────────────
+  const handleViewMode = useCallback((mode) => setViewMode(mode), [setViewMode]);
 
   // ── Fetch live Supabase listings for this region/country ──────────────────
   useEffect(() => {
@@ -242,43 +237,8 @@ export default function RegionCategoryPage({
   // ── Listings — wedding-venues → VENUES (+ DB), else → VENDORS ───────────
   const listings = useMemo(() => {
     if (categorySlug === "wedding-venues") {
-      // Convert DB listings → venue shape (same transform as RegionPage)
-      const dbVenues = dbListings.map((l) => ({
-        id:          l.id,
-        name:        l.cardTitle || l.name || "",
-        region:      l.region    || "",
-        regionSlug:  l.regionSlug || l.region_slug || "",
-        countrySlug: l.countrySlug || l.country_slug || "",
-        city:        l.city || "",
-        citySlug:    l.citySlug || l.city_slug || "",
-        imgs:        Array.isArray(l.imgs)
-          ? l.imgs.map((img) => typeof img === "string" ? img : (img.src || img.url || "")).filter(Boolean)
-          : l.heroImage ? [l.heroImage] : [],
-        desc:        l.cardSummary || l.shortDescription || l.desc || "",
-        priceFrom:   (() => {
-          const p = l.priceFrom;
-          if (!p) return "";
-          if (typeof p === "string" && p.includes("£")) return p;
-          const num = parseInt(p, 10);
-          if (isNaN(num)) return p;
-          const sym = (l.priceCurrency || "GBP") === "EUR" ? "€" : (l.priceCurrency || "GBP") === "USD" ? "$" : "£";
-          return `${sym}${num.toLocaleString("en-GB")}`;
-        })(),
-        capacity:    l.capacityMax || l.capacityMin || l.capacity || null,
-        rating:      l.rating ?? null,
-        reviews:     l.reviewCount ?? l.reviews ?? null,
-        verified:    l.isVerified ?? l.verified ?? false,
-        featured:    l.isFeatured ?? l.featured ?? false,
-        lwdScore:    l.lwdScore ?? null,
-        tag:         l.cardBadge || l.tag || null,
-        styles:      Array.isArray(l.styles) ? l.styles : [],
-        includes:    Array.isArray(l.amenities) ? l.amenities : [],
-        slug:        l.slug || "",
-        showcaseUrl: l.showcaseEnabled && l.slug ? `/showcase/${l.slug}` : null,
-        lat:         l.lat ?? null,
-        lng:         l.lng ?? null,
-        online:      true,
-      }));
+      // Transform DB rows via shared utility
+      const dbVenues = transformListings(dbListings, { type: "venue", category: "wedding-venues" });
 
       // Static venues matching this region/country
       let staticVenues;
@@ -292,10 +252,8 @@ export default function RegionCategoryPage({
         staticVenues = VENUES;
       }
 
-      // Merge: DB first, deduplicate by name against static
-      const dbNames = new Set(dbVenues.map((v) => v.name.toLowerCase()));
-      const uniqueStatic = staticVenues.filter((v) => !dbNames.has((v.name || "").toLowerCase()));
-      return [...dbVenues, ...uniqueStatic];
+      // Merge: DB first, deduplicate by name
+      return mergeListings(dbVenues, staticVenues);
     }
 
     const vendorCats = geoSlugToVendorCategory(categorySlug);
@@ -368,58 +326,17 @@ export default function RegionCategoryPage({
   }, [listings, categorySlug]);
 
   // ── Apply filters to listings ───────────────────────────────────────────────
-  const filteredListings = useMemo(() => {
-    if (categorySlug !== "wedding-venues") return listings;
+  // ── Filter + sort via shared utilities ────────────────────────────────────
+  const filteredListings = useMemo(
+    () => applyDirectoryFilters(listings, filters),
+    [listings, filters],
+  );
 
-    return listings.filter((v) => {
-      // Style filter
-      if (activeFilters.styles?.length > 0) {
-        const hasStyle = activeFilters.styles.some((s) =>
-          v.styles?.includes(s)
-        );
-        if (!hasStyle) return false;
-      }
-
-      // Price filter
-      if (activeFilters.prices?.length > 0) {
-        let priceMatch = false;
-        activeFilters.prices.forEach((priceRange) => {
-          if (priceRange === "£0–15k" && v.priceFrom <= 15000) priceMatch = true;
-          if (priceRange === "£15–30k" && v.priceFrom > 15000 && v.priceFrom <= 30000) priceMatch = true;
-          if (priceRange === "£30k+" && v.priceFrom > 30000) priceMatch = true;
-        });
-        if (!priceMatch) return false;
-      }
-
-      // Capacity filter
-      if (activeFilters.capacities?.length > 0) {
-        let capacityMatch = false;
-        activeFilters.capacities.forEach((capRange) => {
-          if (capRange === "Up to 50" && v.capacity <= 50) capacityMatch = true;
-          if (capRange === "50–100" && v.capacity > 50 && v.capacity <= 100) capacityMatch = true;
-          if (capRange === "100–200" && v.capacity > 100 && v.capacity <= 200) capacityMatch = true;
-          if (capRange === "200+" && v.capacity > 200) capacityMatch = true;
-        });
-        if (!capacityMatch) return false;
-      }
-
-      // Location filter
-      if (activeFilters.locations?.length > 0) {
-        if (!activeFilters.locations.includes(v.region)) return false;
-      }
-
-      return true;
-    });
-  }, [listings, activeFilters, categorySlug]);
-
-  // ── Sort filtered listings by country priority (geo-targeting) ─────────────
   const sortedFilteredListings = useMemo(() => {
-    if (!userCountryCode) {
-      return filteredListings;
-    }
-    // For wedding-venues, use countrySlug field; for vendors, use countrySlug too
-    return sortByCountryPriority(filteredListings, userCountryCode, "countrySlug");
-  }, [filteredListings, userCountryCode]);
+    const sorted = applyDirectorySort(filteredListings, filters.sort);
+    if (!userCountryCode) return sorted;
+    return sortByCountryPriority(sorted, userCountryCode, "countrySlug");
+  }, [filteredListings, filters.sort, userCountryCode]);
 
   const listingCount = sortedFilteredListings.length;
 
@@ -451,7 +368,7 @@ export default function RegionCategoryPage({
     return () => window.removeEventListener("scroll", fn);
   }, []);
 
-  const handleVenueFiltersChange = useCallback((f) => setVenueFilters(f), []);
+  const handleVenueFiltersChange = useCallback((f) => setVenueFilters(f), [setVenueFilters]);
 
   // ── Sparse zone detection: < 3 pins visible for active category ────────────
   const handleSparsePins = useCallback((data) => {
@@ -1123,10 +1040,7 @@ export default function RegionCategoryPage({
               }}
               onMapIntent={(open) => {
                 if (open && !mapOn && !isMobile) {
-                  setMapTransitioning(true);
-                  setTimeout(() => setMapTransitioning(false), 480);
                   setMapOn(true);
-                  saveViewState(viewMode, true);
                 }
               }}
             />
@@ -1184,8 +1098,7 @@ export default function RegionCategoryPage({
                       className="lwd-venue-grid"
                       style={{
                         display:             "grid",
-                        gridTemplateColumns: "repeat(2, 386px)",
-                        justifyContent:      "start",
+                        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
                         gap:                 20,
                       }}
                       aria-label="Venue grid"
@@ -1197,7 +1110,6 @@ export default function RegionCategoryPage({
                           onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
                           onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
                           style={{
-                            width:        386,
                             height:       560,
                             outline:      activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
                             borderRadius: "var(--lwd-radius-card, 8px)",
