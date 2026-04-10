@@ -181,30 +181,20 @@ export default function LocationPage({
   const themeCtx = useTheme();
   const darkMode = themeCtx.darkMode;
   const [searchQuery, setSearchQuery] = useState("");
+  // Keep local filter state — CountrySearchBar uses old shape { region, style, capacity, price }
+  // Phase 2 will replace CountrySearchBar with MasterFilterBar and unify this
+  const [filters, setFilters] = useState({ region: "all", capacity: "any", style: [], price: "any" });
+  const [sortMode, setSortMode] = useState("recommended");
 
-  // ── Phase 1: shared directory state ─────────────────────────────────────────
+  // ── Phase 1: shared view + map + pin state only ───────────────────────────────
   const {
-    filters,
-    updateFilters,
     viewMode,
     setViewMode,
     mapOn,
     toggleMap,
-    isMobile: _isMobile,
     activeListingId,
     setActiveListingId,
-  } = useDirectoryState({
-    initialFilters: {
-      country:  locationType === "country" ? locationSlug : null,
-      region:   locationType === "region"  ? locationSlug : null,
-      city:     locationType === "city"    ? locationSlug : null,
-    },
-  });
-
-  // Legacy shims — CountrySearchBar still uses old shape (Phase 2 removes these)
-  const setFilters    = useCallback((f) => updateFilters(f), [updateFilters]);
-  const sortMode      = filters.sort || "recommended";
-  const setSortMode   = useCallback((s) => updateFilters({ sort: s }), [updateFilters]);
+  } = useDirectoryState();
 
   const [visibleCount, setVisibleCount] = useState(12);
   const [savedIds, setSavedIds] = useState([]);
