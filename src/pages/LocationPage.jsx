@@ -2,8 +2,11 @@
 // Dynamic location page renderer — country, region, city pages unified
 // Loads location data by slug and renders appropriate template
 
+// Phase 1: shared directory state + transform
 import "../category.css";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useDirectoryState } from "../hooks/useDirectoryState";
+import { transformListings } from "../utils/transformListing";
 
 import { useTheme }        from "../theme/ThemeContext";
 import { DARK_C }          from "../theme/tokens";
@@ -178,15 +181,35 @@ export default function LocationPage({
   const themeCtx = useTheme();
   const darkMode = themeCtx.darkMode;
   const [searchQuery, setSearchQuery] = useState("");
-  const [filters, setFilters] = useState({ region: "all", capacity: "any", style: [], price: "any" });
-  const [viewMode, setViewMode] = useState("grid");
-  const [sortMode, setSortMode] = useState("recommended");
+
+  // ── Phase 1: shared directory state ─────────────────────────────────────────
+  const {
+    filters,
+    updateFilters,
+    viewMode,
+    setViewMode,
+    mapOn,
+    toggleMap,
+    isMobile: _isMobile,
+    activeListingId,
+    setActiveListingId,
+  } = useDirectoryState({
+    initialFilters: {
+      country:  locationType === "country" ? locationSlug : null,
+      region:   locationType === "region"  ? locationSlug : null,
+      city:     locationType === "city"    ? locationSlug : null,
+    },
+  });
+
+  // Legacy shims — CountrySearchBar still uses old shape (Phase 2 removes these)
+  const setFilters    = useCallback((f) => updateFilters(f), [updateFilters]);
+  const sortMode      = filters.sort || "recommended";
+  const setSortMode   = useCallback((s) => updateFilters({ sort: s }), [updateFilters]);
 
   const [visibleCount, setVisibleCount] = useState(12);
   const [savedIds, setSavedIds] = useState([]);
   const [scrolled, setScrolled] = useState(false);
   const [qvItem, setQvItem] = useState(null);
-  const [mapOpen, setMapOpen] = useState(false);
   const filterBarRef = useRef(null);
 
   // ── Animation refs for venue rows ─────────────────────────────────────────
@@ -292,7 +315,7 @@ export default function LocationPage({
       else if (locationType === "region") f.region_slug = locationSlug;
       else if (locationType === "city")   f.city_slug   = locationSlug;
       fetchListings({ ...f, status: "published" })
-        .then(d => setFetchedVenues(Array.isArray(d) ? d : []))
+        .then(d => setFetchedVenues(transformListings(Array.isArray(d) ? d : [], { type: "venue" })))
         .catch(() => {});
     }
     if (!vendors || vendors.length === 0) {
