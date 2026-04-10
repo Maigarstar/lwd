@@ -26,7 +26,7 @@ import InfoStrip       from "../components/sections/InfoStrip";
 import LatestSplit     from "../components/sections/LatestSplit";
 import FeaturedSlider  from "../components/sections/FeaturedSlider";
 import EditorialBanner from "../components/sections/EditorialBanner";
-import MapSection      from "../components/sections/MapSection";
+import MASTERMap       from "../components/maps/MASTERMap";
 import SEOBlock        from "../components/sections/SEOBlock";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
@@ -250,10 +250,15 @@ export default function ItalyPage({
           onVendorSearch={(q) => onViewCategory?.({ searchQuery: q.location || q.category })}
           countryFilter="Italy"
           mapContent={
-            <MapSection
-              venues={filtered}
-              vendors={ITALY_VENDORS}
-              countryFilter="Italy"
+            <MASTERMap
+              items={[
+                ...filtered.map(v => ({ ...v, type: "venue", category: "wedding-venues" })),
+                ...ITALY_VENDORS.map(v => ({ ...v, type: "vendor", category: v.category || "photographers" }))
+              ]}
+              label="Italy · All Suppliers"
+              viewMode="grid"
+              countrySlug="italy"
+              pageBg="#080808"
             />
           }
         />

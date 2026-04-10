@@ -17,6 +17,7 @@ import LatestVenuesStrip    from "../components/sections/LatestVenuesStrip";
 import LatestVendorsStrip   from "../components/sections/LatestVendorsStrip";
 import MottoStrip           from "../components/sections/MottoStrip";
 import MapSection      from "../components/sections/MapSection";
+import MASTERMap from "../components/maps/MASTERMap";
 import SEOBlock        from "../components/sections/SEOBlock";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import CatNav          from "../components/nav/CatNav";
@@ -930,14 +931,12 @@ export default function LocationPage({
             countryFilter={countryName}
             mapContent={
               viewMode === "map" ? (
-                <MapSection
-                  venues={mapVenues}
-                  vendors={[]}
-                  headerLabel={`Wedding Professionals in ${currentLocation.name}`}
-                  mapTitle={`◎ ${currentLocation.name} Wedding Directory`}
-                  countryFilter={countryName}
-                  onMarkerClick={(slug) => onViewVenue(slug)}
-                  onClose={() => setViewMode("grid")}
+                <MASTERMap
+                  items={mapVenues.map(v => ({ ...v, type: "venue", category: "wedding-venues" }))}
+                  label={`${currentLocation.name} · Wedding Venues`}
+                  viewMode="grid"
+                  countrySlug={currentLocation.countrySlug}
+                  pageBg={C.black}
                 />
               ) : null
             }

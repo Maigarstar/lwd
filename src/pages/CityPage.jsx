@@ -8,7 +8,7 @@ import { VENUES } from "../data/italyVenues";
 import { fetchLocationContent } from "../services/locationContentService";
 import GCard from "../components/cards/GCard";
 import GCardMobile from "../components/cards/GCardMobile";
-import MapSection from "../components/sections/MapSection";
+import MASTERMap from "../components/maps/MASTERMap";
 import SiteFooter from "../components/sections/SiteFooter";
 import HomeNav from "../components/nav/HomeNav";
 import "../category.css";
@@ -353,10 +353,12 @@ export default function CityPage({
 
       {/* ── Map ─────────────────────────────────────────────────────────────── */}
       {cityVenues.length > 0 && (
-        <MapSection
-          venues={cityVenues}
-          mapTitle={`Venues in ${heroTitle}`}
-          headerLabel="Where to celebrate"
+        <MASTERMap
+          items={cityVenues.map(v => ({ ...v, type: "venue", category: "wedding-venues" }))}
+          label={`${heroTitle} · Wedding Venues`}
+          viewMode="grid"
+          countrySlug={countrySlug}
+          pageBg={C.black}
         />
       )}
 

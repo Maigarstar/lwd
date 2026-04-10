@@ -26,6 +26,7 @@ import LatestSplit     from "../components/sections/LatestSplit";
 import FeaturedSlider  from "../components/sections/FeaturedSlider";
 import EditorialBanner from "../components/sections/EditorialBanner";
 import MapSection      from "../components/sections/MapSection";
+import MASTERMap from "../components/maps/MASTERMap";
 import SEOBlock        from "../components/sections/SEOBlock";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import FilterBar       from "../components/filters/FilterBar";
@@ -264,7 +265,15 @@ export default function CountryTemplate({
         />
 
         {/* ══ MAP VIEW ══════════════════════════════════════════════════════ */}
-        {viewMode === "map" && <MapSection venues={filtered} />}
+        {viewMode === "map" && (
+          <MASTERMap
+            items={filtered.map(v => ({ ...v, type: "venue", category: "wedding-venues" }))}
+            label="Italy · Wedding Venues"
+            viewMode="grid"
+            countrySlug="italy"
+            pageBg={C.black}
+          />
+        )}
 
         {/* ══ LIST / GRID VIEW ══════════════════════════════════════════════ */}
         {viewMode !== "map" && (

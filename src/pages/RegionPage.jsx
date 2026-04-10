@@ -31,7 +31,7 @@ import HomeNav from "../components/nav/HomeNav";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
 import AICommandBar from "../components/filters/AICommandBar";
 import InfoStrip from "../components/sections/InfoStrip";
-import MapSection from "../components/sections/MapSection";
+import MASTERMap from "../components/maps/MASTERMap";
 import { useInView, CountUp, SplitText, revealStyle } from "../components/ui/Animations";
 import MasterCategoryCard, { LUXURY_ICONS } from "../components/cards/MasterCategoryCard";
 import "../category.css";
@@ -741,14 +741,13 @@ export default function RegionPage({
             countryFilter={country?.name}
             mapContent={
               venueViewMode === "map" ? (
-                <MapSection
+                <MASTERMap
                   venues={regionVenues}
-                  vendors={[]}
-                  headerLabel={`${regionVenues.length} Wedding Venues in ${region.name}`}
-                  mapTitle={`◎ ${region.name} Wedding Venues`}
-                  countryFilter={country?.name || "England"}
-                  onMarkerClick={(slug) => onViewVenue(slug)}
-                  onClose={() => setVenueViewMode("grid")}
+                  label={`${region.name} · Wedding Venues`}
+                  viewMode="grid"
+                  onToggleView={() => setVenueViewMode("grid")}
+                  countrySlug={country?.slug || "england"}
+                  pageBg={C.black}
                 />
               ) : null
             }

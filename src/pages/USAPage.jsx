@@ -9,7 +9,7 @@ import { STYLES, CAPS, PRICES, DEFAULT_FILTERS } from "../data/italyVenues";
 import HomeNav from "../components/nav/HomeNav";
 import SiteFooter from "../components/sections/SiteFooter";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
-import MapSection from "../components/sections/MapSection";
+import MASTERMap from "../components/maps/MASTERMap";
 import GCard from "../components/cards/GCard";
 import GCardMobile from "../components/cards/GCardMobile";
 import QuickViewModal from "../components/modals/QuickViewModal";
@@ -487,10 +487,15 @@ export default function USAPage({
             onVendorSearch={(q) => onViewCategory?.({ searchQuery: q.location || q.category })}
             countryFilter="USA"
             mapContent={
-              <MapSection
-                venues={filteredVenues}
-                vendors={USA_VENDORS}
-                countryFilter="USA"
+              <MASTERMap
+                items={[
+                  ...filteredVenues.map(v => ({ ...v, type: "venue", category: "wedding-venues" })),
+                  ...USA_VENDORS.map(v => ({ ...v, type: "vendor" }))
+                ]}
+                label="USA · All Venues & Suppliers"
+                viewMode="grid"
+                countrySlug="usa"
+                pageBg={C.black}
               />
             }
           />
