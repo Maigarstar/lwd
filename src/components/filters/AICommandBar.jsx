@@ -8,7 +8,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState, useRef, useCallback } from "react";
 import { useTheme } from "../../theme/ThemeContext";
-import { parseVenueQuery } from "../../services/aiSearchService";
+import { parseVenueQuery, clientParse } from "../../services/aiSearchService";
 
 const NU = "var(--font-body)";
 const GD = "var(--font-heading-primary)";
@@ -39,6 +39,37 @@ const TEMPLATES = {
     (r) => `${r} wedding with Michelin dining`,
   ],
 };
+
+// ── Client-side category intent detector ────────────────────────────────────
+const CATEGORY_KEYWORDS = {
+  "photographers":    ["photographer", "photography", "photo"],
+  "wedding-planners": ["planner", "planning", "coordinator"],
+  "florists":         ["florist", "flowers", "floral"],
+  "videographers":    ["videographer", "videography", "video", "film"],
+  "caterers":         ["caterer", "catering", "chef", "cuisine"],
+  "musicians":        ["musician", "band", "music", "entertainment", "dj"],
+  "hair-beauty":      ["hair", "beauty", "makeup", "stylist"],
+  "wedding-venues":   ["venue", "villa", "estate", "castle", "palazzo", "manor", "chateau"],
+};
+
+function detectCategoryIntent(query) {
+  const q = query.toLowerCase();
+  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (keywords.some((k) => q.includes(k))) return cat;
+  }
+  return null;
+}
+
+// Spatial queries → auto-open map. Editorial/ranking queries → keep list/grid.
+const SPATIAL_TRIGGERS = ["near", "around", "in the area", "across", "show me on", "where", "nearby", "within", "spread", "coverage", "region", "map"];
+const RANKING_TRIGGERS = ["best", "top rated", "most popular", "featured", "editor", "exclusive", "highest rated", "reviews"];
+
+function hasSpatialIntent(query) {
+  const q = query.toLowerCase();
+  const isRanking = RANKING_TRIGGERS.some((k) => q.includes(k));
+  if (isRanking) return false;
+  return SPATIAL_TRIGGERS.some((k) => q.includes(k));
+}
 
 function buildSuggestions(regionName, countryName, entityType) {
   const location = regionName || countryName || "your destination";
@@ -155,12 +186,15 @@ export default function AICommandBar({
   defaultFilters,
   onSummary,
   onClearSummary,
+  onCategoryIntent,   // fn(categorySlug | null) — fires when Aura detects a supplier/venue category
+  onMapIntent,        // fn(true | false) — fires true when query has spatial/proximity intent
 }) {
   const C = useTheme();
   const inputRef = useRef(null);
 
   const [query,            setQuery]            = useState("");
   const [loading,          setLoading]          = useState(false);
+  const [isRefining,       setIsRefining]       = useState(false);
   const [error,            setError]            = useState(null);
   const [aiActive,         setAiActive]         = useState(false);
   const [aiAppliedFilters, setAiAppliedFilters] = useState(null);
@@ -199,16 +233,30 @@ export default function AICommandBar({
     setAiSummary(parsed.summary || null);
     setAiActive(true);
     onSummary?.(parsed.summary || null);
-  }, [defaultFilters, onFiltersChange, onSummary]);
+    // Detect category intent and spatial intent from raw query
+    const cat     = detectCategoryIntent(query);
+    const spatial = hasSpatialIntent(query);
+    onCategoryIntent?.(cat);
+    if (spatial) onMapIntent?.(true);
+  }, [defaultFilters, onFiltersChange, onSummary, onCategoryIntent, onMapIntent, query]);
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
+  // ── Submit — two-phase: instant client parse + AI refine in parallel ─────────
   const handleSubmit = useCallback(async (q) => {
     const trimmed = (q || query).trim();
     if (!trimmed || trimmed.length < 3 || loading) return;
 
-    setLoading(true);
     setError(null);
 
+    // ── Phase 1: instant client-side keyword parse (< 1ms) ───────────────────
+    const fastResult = clientParse(trimmed, availableRegions);
+    if (fastResult) {
+      applyParsed(fastResult);
+      setIsRefining(true);   // show subtle "Refining…" indicator
+    } else {
+      setLoading(true);      // nothing fast found — show full loading state
+    }
+
+    // ── Phase 2: AI edge function refines in parallel ─────────────────────────
     try {
       const parsed = await parseVenueQuery({
         query:   trimmed,
@@ -222,19 +270,23 @@ export default function AICommandBar({
       });
 
       const hasResult = parsed.region || parsed.style || parsed.capacity || parsed.price || parsed.services;
-      if (!hasResult) {
+      if (!hasResult && !fastResult) {
         setError("We couldn't identify specific filters — try adding a region, style, or guest count.");
         return;
       }
-      applyParsed(parsed);
+      if (hasResult) applyParsed(parsed);
     } catch (err) {
-      setError(
-        err.message === "not_configured"
-          ? "AI search isn't configured — use the filters below."
-          : `Error: ${err.message}`
-      );
+      // If fast path already showed results, don't surface the AI error
+      if (!fastResult) {
+        setError(
+          err.message === "not_configured"
+            ? "AI search isn't configured — use the filters below."
+            : `Error: ${err.message}`
+        );
+      }
     } finally {
       setLoading(false);
+      setIsRefining(false);
     }
   }, [query, loading, countrySlug, countryName, availableRegions, applyParsed]);
 
@@ -245,11 +297,14 @@ export default function AICommandBar({
     setAiAppliedFilters(null);
     setAiSummary(null);
     setError(null);
+    setIsRefining(false);
+    setLoading(false);
     onFiltersChange(defaultFilters);
     onSummary?.(null);
     onClearSummary?.();
+    onCategoryIntent?.(null);
     inputRef.current?.focus();
-  }, [defaultFilters, onFiltersChange, onSummary, onClearSummary]);
+  }, [defaultFilters, onFiltersChange, onSummary, onClearSummary, onCategoryIntent]);
 
   // ── Remove single dimension ────────────────────────────────────────────────
   const removeDimension = useCallback((key) => {
@@ -468,6 +523,20 @@ export default function AICommandBar({
               }}>
                 <span style={{ color: GOLD_DIM, fontSize: 9, flexShrink: 0 }}>✦</span>
                 {aiSummary}
+                {isRefining && (
+                  <span style={{
+                    marginLeft:    6,
+                    fontFamily:    NU,
+                    fontSize:      10,
+                    fontStyle:     "normal",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color:         GOLD_DIM,
+                    opacity:       0.7,
+                  }}>
+                    Refining…
+                  </span>
+                )}
               </div>
             )}
           </div>

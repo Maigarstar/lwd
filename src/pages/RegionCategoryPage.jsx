@@ -3,8 +3,8 @@
 // e.g. /uk/london/wedding-venues  /italy/tuscany/photographers
 // Data-driven: one template, many region×category combos.
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { ThemeCtx } from "../theme/ThemeContext";
-import { getDarkPalette, getLightPalette, getDefaultMode, DARK_C } from "../theme/tokens";
+import { ThemeCtx, useTheme } from "../theme/ThemeContext";
+import { getDarkPalette, getLightPalette, DARK_C } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
 
 import {
@@ -29,8 +29,9 @@ import DirectoryBrands from "../components/sections/DirectoryBrands";
 import ImmersiveSearch from "../components/search/ImmersiveSearch";
 import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
 import VenueListItemCard from "../components/cards/VenueListItemCard";
-import VenueMapPanel    from "../components/maps/VenueMapPanel";
-import MapSection      from "../components/sections/MapSection";
+import MASTERMap        from "../components/maps/MASTERMap";
+import { PinSyncBus }  from "../components/maps/PinSyncBus";
+import { getInitialViewState, saveViewState } from "../components/maps/ViewStateManager";
 import QuickViewModal  from "../components/modals/QuickViewModal";
 import AICommandBar    from "../components/filters/AICommandBar";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
@@ -83,8 +84,11 @@ export default function RegionCategoryPage({
   categorySlug = null,
   footerNav = {},
 }) {
+  // ── Theme (global, persisted) ─────────────────────────────────────────────
+  const themeCtx = useTheme();
+  const darkMode = themeCtx.darkMode;
+
   // ── State ──────────────────────────────────────────────────────────────────
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode() === "dark");
   const [scrolled, setScrolled] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [immersiveOpen, setImmersiveOpen] = useState(false);
@@ -102,14 +106,21 @@ export default function RegionCategoryPage({
   });
   const [venueFilters, setVenueFilters] = useState(() => ({ ...DEFAULT_FILTERS, region: regionSlug }));
   const [sortMode, setSortMode] = useState("recommended");
-  const [venueViewMode, setVenueViewMode] = useState("grid");
+
+  // ── View state — persisted to localStorage ────────────────────────────────
+  const [viewMode, setViewMode] = useState(() => getInitialViewState().viewMode);
+  const [mapOn, setMapOn]       = useState(() => getInitialViewState().mapOn);
+  const [mapTransitioning, setMapTransitioning] = useState(false);
+  // Single ID drives all card ↔ pin focus sync
+  const [activeListingId, setActiveListingId] = useState(null);
+
   const [isMobile, setIsMobile] = useState(false);
-  const [hoveredVenueId, setHoveredVenueId] = useState(null);
-  const [activePinnedId, setActivePinnedId] = useState(null);
   const [dbListings, setDbListings] = useState([]);
   const [listingsLoaded, setListingsLoaded] = useState(false);
   const [auraSummary,       setAuraSummary]       = useState(null);
   const [summaryDismissed,  setSummaryDismissed]  = useState(false);
+  const [auraMapFilter,     setAuraMapFilter]     = useState(null); // category slug Aura drives on the map
+  const [auraCrossNav,      setAuraCrossNav]      = useState(null); // { label, url } cross-category navigation suggestion
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
 
@@ -148,6 +159,34 @@ export default function RegionCategoryPage({
       if (summary) { setAuraSummary(summary); setSummaryDismissed(false); }
     } catch (_) { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── View state handlers (persist to localStorage) ─────────────────────────
+  const handleViewMode = useCallback((mode) => {
+    setViewMode(mode);
+    saveViewState(mode, mapOn);
+  }, [mapOn]);
+
+  const handleToggleMap = useCallback(() => {
+    setMapTransitioning(true);
+    setTimeout(() => setMapTransitioning(false), 480);
+    setMapOn((prev) => {
+      const next = !prev;
+      saveViewState(viewMode, next);
+      return next;
+    });
+  }, [viewMode]);
+
+  // ── PinSyncBus: pin click → scroll to card ────────────────────────────────
+  useEffect(() => {
+    const off = PinSyncBus.on("pin:click", (id) => {
+      setActiveListingId(id);
+      const el = document.querySelector(`[data-listing-id="${id}"]`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    const offHover = PinSyncBus.on("pin:hover", (id) => setActiveListingId(id));
+    const offLeave = PinSyncBus.on("pin:leave", ()  => setActiveListingId(null));
+    return () => { off(); offHover(); offLeave(); };
   }, []);
 
   // ── Fetch live Supabase listings for this region/country ──────────────────
@@ -449,7 +488,7 @@ export default function RegionCategoryPage({
         <HomeNav
           hasHero={true}
           darkMode={darkMode}
-          onToggleDark={() => setDarkMode((d) => !d)}
+          onToggleDark={themeCtx.toggleDark}
           onNavigateStandard={() => onBackHome()}
           onNavigateAbout={() => onBackHome()}
         />
@@ -932,6 +971,84 @@ export default function RegionCategoryPage({
               </div>
             )}
 
+            {/* ═══ AURA CROSS-CATEGORY NAVIGATION SUGGESTION ═══ */}
+            {auraCrossNav && (
+              <div style={{
+                background:   darkMode ? "rgba(201,168,76,0.05)" : "rgba(201,168,76,0.06)",
+                borderLeft:   "3px solid rgba(201,168,76,0.55)",
+                borderBottom: `1px solid ${darkMode ? "rgba(201,168,76,0.1)" : "rgba(201,168,76,0.15)"}`,
+              }}>
+                <div style={{
+                  maxWidth:       1280,
+                  margin:         "0 auto",
+                  padding:        isMobile ? "14px 20px" : "16px 48px",
+                  display:        "flex",
+                  alignItems:     "center",
+                  justifyContent: "space-between",
+                  gap:            16,
+                  flexWrap:       "wrap",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                    <span style={{ color: "rgba(201,168,76,0.85)", fontSize: 10, flexShrink: 0 }}>✦</span>
+                    <span style={{
+                      fontFamily:    GD,
+                      fontSize:      isMobile ? 13 : 14,
+                      fontWeight:    300,
+                      fontStyle:     "italic",
+                      color:         C.off,
+                      letterSpacing: "0.01em",
+                    }}>
+                      Looking for{" "}
+                      <span style={{ fontWeight: 500 }}>{auraCrossNav.label}</span>
+                      {auraCrossNav.region ? ` in ${auraCrossNav.region}` : ""}?
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                    <a
+                      href={auraCrossNav.url}
+                      style={{
+                        display:       "inline-flex",
+                        alignItems:    "center",
+                        gap:           6,
+                        fontFamily:    NU,
+                        fontSize:      9,
+                        fontWeight:    700,
+                        letterSpacing: "0.14em",
+                        textTransform: "uppercase",
+                        color:         "rgba(201,168,76,0.9)",
+                        background:    "rgba(201,168,76,0.1)",
+                        border:        "1px solid rgba(201,168,76,0.35)",
+                        borderRadius:  4,
+                        padding:       "7px 14px",
+                        textDecoration: "none",
+                        transition:    "all 0.2s",
+                        whiteSpace:    "nowrap",
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(201,168,76,0.18)"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.6)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "rgba(201,168,76,0.1)"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.35)"; }}
+                    >
+                      View {auraCrossNav.label} →
+                    </a>
+                    <button
+                      onClick={() => setAuraCrossNav(null)}
+                      aria-label="Dismiss"
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        color: darkMode ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)",
+                        fontSize: 16, lineHeight: 1, padding: "2px 4px",
+                        transition: "color 0.15s",
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = darkMode ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.55)"}
+                      onMouseLeave={e => e.currentTarget.style.color = darkMode ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.25)"}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* ═══ AI COMMAND BAR + FILTER BAR — same as RegionPage ═══ */}
             <AICommandBar
               countrySlug={countrySlug}
@@ -945,31 +1062,52 @@ export default function RegionCategoryPage({
               onFiltersChange={handleVenueFiltersChange}
               defaultFilters={DEFAULT_FILTERS}
               onSummary={(s) => { setAuraSummary(s || null); setSummaryDismissed(false); }}
-              onClearSummary={() => setAuraSummary(null)}
+              onClearSummary={() => { setAuraSummary(null); setAuraMapFilter(null); setAuraCrossNav(null); }}
+              onCategoryIntent={(cat) => {
+                if (!cat) { setAuraMapFilter(null); setAuraCrossNav(null); return; }
+                if (cat !== categorySlug) {
+                  // Cross-category intent — suggest navigation, don't filter current page
+                  const CAT_LABELS = {
+                    "wedding-venues":   "Wedding Venues",
+                    "photographers":    "Photographers",
+                    "wedding-planners": "Wedding Planners",
+                    "florists":         "Florists",
+                    "videographers":    "Videographers",
+                    "caterers":         "Caterers",
+                    "musicians":        "Musicians",
+                    "hair-beauty":      "Hair & Beauty",
+                  };
+                  const label = CAT_LABELS[cat] || cat;
+                  const url   = getRegionCategoryPath(countrySlug, regionSlug || "all", cat);
+                  setAuraCrossNav({ label, url, region: regionName || countryName });
+                  setAuraMapFilter(null);
+                } else {
+                  // Same-category — treat as filter intent
+                  setAuraMapFilter(cat);
+                  setAuraCrossNav(null);
+                }
+              }}
+              onMapIntent={(open) => {
+                if (open && !mapOn && !isMobile) {
+                  setMapTransitioning(true);
+                  setTimeout(() => setMapTransitioning(false), 480);
+                  setMapOn(true);
+                  saveViewState(viewMode, true);
+                }
+              }}
             />
             <CountrySearchBar
               filters={venueFilters}
               onFiltersChange={handleVenueFiltersChange}
-              viewMode={venueViewMode}
-              onViewMode={setVenueViewMode}
+              viewMode={viewMode}
+              onViewMode={handleViewMode}
               sortMode={sortMode}
               onSortChange={setSortMode}
               total={listingCount}
               regions={[{ name: regionName, slug: regionSlug }]}
               countryFilter={countryName}
-              mapContent={
-                venueViewMode === "map" ? (
-                  <MapSection
-                    venues={filteredListings}
-                    vendors={[]}
-                    headerLabel={`${listingCount} ${categoryLabel}${regionName ? ` in ${regionName}` : ""}`}
-                    mapTitle={`◎ ${regionName ? `${regionName} ` : ""}${categoryLabel}`}
-                    countryFilter={countryName || "England"}
-                    onMarkerClick={(slug) => onViewVenue(slug)}
-                    onClose={() => setVenueViewMode("grid")}
-                  />
-                ) : null
-              }
+              mapOn={mapOn}
+              onToggleMap={categorySlug === "wedding-venues" ? handleToggleMap : undefined}
             />
             <InfoStrip
               availableRegions={[{ name: regionName, slug: regionSlug }]}
@@ -986,38 +1124,94 @@ export default function RegionCategoryPage({
               aria-label={`${categoryLabel} listings`}
               style={{
                 background: darkMode ? C.dark : "#f2f0ea",
-                padding: venueViewMode === "list" && !isMobile
-                  ? "40px 0 72px 48px"
-                  : "40px 48px 72px",
+                padding: isMobile
+                  ? "40px 0 72px"
+                  : (viewMode === "list" || mapOn)
+                    ? "40px 0 72px 48px"
+                    : "40px 48px 72px",
                 borderBottom: `1px solid ${C.border}`,
               }}
             >
-              <div style={{ maxWidth: venueViewMode === "list" ? "none" : 1280, margin: "0 auto" }}>
+              <div style={{ maxWidth: (viewMode === "list" || mapOn) ? "none" : 1280, margin: "0 auto" }}>
 
-              {categorySlug === "wedding-venues" ? (
-                venueViewMode === "grid" ? (
-                  <div
-                    className="lwd-venue-grid"
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(3,1fr)",
-                      gap: 16,
-                    }}
-                    aria-label="Venue grid"
-                  >
-                    {sortedFilteredListings.map((v) => (
-                      <LuxuryVenueCard
-                        key={v.id}
-                        v={v}
-                        onView={() => onViewVenue(v.id || v.slug)}
-                        quickViewItem={qvItem}
-                        setQuickViewItem={setQvItem}
-                      />
-                    ))}
+              {categorySlug === "wedding-venues" && viewMode === "grid" && (
+                /* ── GRID VIEW (map off: 3-col | map on: 2-col + MASTERMap bleed) ── */
+                  <div style={{
+                    display: mapOn && !isMobile ? "grid" : "block",
+                    gridTemplateColumns: mapOn && !isMobile
+                      ? "minmax(0, 1fr) clamp(340px, 36vw, 520px)"
+                      : undefined,
+                    alignItems: "start",
+                    gap: mapOn && !isMobile ? 0 : undefined,
+                  }}>
+                    {/* Left: venue grid */}
+                    <div style={{
+                      opacity: mapTransitioning ? 0.55 : 1,
+                      transition: "opacity 0.2s ease",
+                    }}>
+                      <div
+                        className="lwd-venue-grid"
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: isMobile ? "1fr" : mapOn ? "repeat(2,1fr)" : "repeat(3,1fr)",
+                          gap: isMobile ? 3 : mapOn ? 20 : 16,
+                          transition: "grid-template-columns 0.25s ease, gap 0.25s ease",
+                        }}
+                        aria-label="Venue grid"
+                      >
+                        {sortedFilteredListings.map((v) => (
+                          <div
+                            key={v.id}
+                            data-listing-id={v.id}
+                            onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
+                            onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
+                            style={{
+                              outline: activeListingId === v.id && mapOn
+                                ? `2px solid rgba(201,168,76,0.5)` : "none",
+                              borderRadius: "var(--lwd-radius-card, 8px)",
+                              transition: "outline 0.2s",
+                            }}
+                          >
+                            <LuxuryVenueCard
+                              v={v}
+                              onView={() => onViewVenue(v.id || v.slug)}
+                              quickViewItem={qvItem}
+                              setQuickViewItem={setQvItem}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Right: MASTERMap bleed (grid + map on, desktop only) */}
+                    {mapOn && !isMobile && (
+                      <div style={{
+                        position:  "sticky",
+                        top:       72,
+                        height:    "calc(100vh - 72px)",
+                        marginRight: -48,  // bleed out of section padding
+                        opacity:   mapTransitioning ? 0 : 1,
+                        transform: mapTransitioning ? "translateX(24px)" : "translateX(0)",
+                        transition: "opacity 0.3s ease, transform 0.3s ease-out",
+                      }}>
+                        <MASTERMap
+                          venues={sortedFilteredListings}
+                          label={`Venue Map · ${regionName || countryName || "Italy"}`}
+                          viewMode="grid"
+                          onToggleView={handleToggleMap}
+                          countrySlug={countrySlug || "italy"}
+                          pageBg={darkMode ? C.dark : "#f2f0ea"}
+                          auraSummary={auraSummary && !summaryDismissed ? auraSummary : null}
+                          activeFilter={auraMapFilter}
+                          onFilterChange={(cat) => setAuraMapFilter(cat)}
+                        />
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <>
-                    {/* Mobile: Show Map button */}
+              )}
+              {categorySlug === "wedding-venues" && viewMode !== "grid" && (
+                <>
+                  {/* Mobile: Show Map button */}
                     {isMobile && (
                       <div style={{ marginBottom: 20 }}>
                         <button
@@ -1048,14 +1242,14 @@ export default function RegionCategoryPage({
                       </div>
                     )}
 
-                    {/* List + Map Layout — mirrors WeddingPlannersPage pattern */}
+                    {/* List + Map Layout */}
                     <div style={{
                       ...(isMobile
                         ? { display: "flex", flexDirection: "column", gap: 12 }
                         : {
                             display:             "grid",
-                            gridTemplateColumns: "minmax(0, 1fr) clamp(360px, 32vw, 480px)",
-                            columnGap:           32,
+                            gridTemplateColumns: "minmax(0, 1fr) clamp(360px, 36vw, 520px)",
+                            columnGap:           0,
                             alignItems:          "start",
                             minWidth:            0,
                           }
@@ -1072,14 +1266,15 @@ export default function RegionCategoryPage({
                         {sortedFilteredListings.map((v) => (
                           <div
                             key={v.id}
-                            data-venue-id={v.id}
-                            onMouseEnter={() => setHoveredVenueId(v.id)}
-                            onMouseLeave={() => setHoveredVenueId(null)}
+                            data-listing-id={v.id}
+                            onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
+                            onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
+                            onClick={() => PinSyncBus.emit("card:click", v.id)}
                           >
                             <VenueListItemCard
                               v={v}
                               onView={() => onViewVenue(v.id || v.slug)}
-                              isHighlighted={hoveredVenueId === v.id || activePinnedId === v.id}
+                              isHighlighted={activeListingId === v.id}
                               quickViewItem={qvItem}
                               setQuickViewItem={setQvItem}
                             />
@@ -1087,30 +1282,24 @@ export default function RegionCategoryPage({
                         ))}
                       </div>
 
-                      {/* Right: sticky map panel — flush to viewport right edge */}
+                      {/* Right: MASTERMap — sticky, full height, right bleed */}
                       {!isMobile && (
                         <div style={{
-                          width:    "100%",
-                          minWidth: 0,
-                          position: "sticky",
-                          top:      72,
-                          height:   "calc(100vh - 120px)",
-                          borderRadius: "var(--lwd-radius-card) 0 0 var(--lwd-radius-card)",
-                          overflow: "hidden",
+                          position:   "sticky",
+                          top:        72,
+                          height:     "calc(100vh - 120px)",
+                          marginRight: -48,
                         }}>
-                          <VenueMapPanel
+                          <MASTERMap
                             venues={sortedFilteredListings}
-                            hoveredId={hoveredVenueId}
-                            activePinnedId={activePinnedId}
-                            onPinHover={setHoveredVenueId}
-                            onPinLeave={() => setHoveredVenueId(null)}
-                            onPinClick={(id) => {
-                              setActivePinnedId(id);
-                              const el = document.querySelector(`[data-venue-id="${id}"]`);
-                              if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                            }}
-                            onToggleView={() => setVenueViewMode("grid")}
-                            label={`Venue Map · ${regionName || "All Regions"}`}
+                            label={`Venue Map · ${regionName || countryName || "Italy"}`}
+                            viewMode="list"
+                            onToggleView={() => handleViewMode("grid")}
+                            countrySlug={countrySlug || "italy"}
+                            pageBg={darkMode ? C.dark : "#f2f0ea"}
+                            auraSummary={auraSummary && !summaryDismissed ? auraSummary : null}
+                            activeFilter={auraMapFilter}
+                            onFilterChange={(cat) => setAuraMapFilter(cat)}
                           />
                         </div>
                       )}
@@ -1167,22 +1356,22 @@ export default function RegionCategoryPage({
                             </button>
                           </div>
                           <div style={{ flex: 1, overflow: "hidden" }}>
-                            <MapSection
+                            <MASTERMap
                               venues={sortedFilteredListings}
-                              vendors={[]}
-                              headerLabel={`${listingCount} ${categoryLabel}`}
-                              mapTitle={`◎ ${categoryLabel}`}
-                              countryFilter={countryName || "Italy"}
-                              onMarkerClick={(slug) => onViewVenue(slug)}
-                              onClose={() => setMapOpen(false)}
+                              label={`${categoryLabel} · ${regionName || countryName || "Italy"}`}
+                              viewMode="grid"
+                              onToggleView={() => setMapOpen(false)}
+                              countrySlug={countrySlug || "italy"}
+                              pageBg={darkMode ? C.dark : "#f2f0ea"}
+                              auraSummary={auraSummary && !summaryDismissed ? auraSummary : null}
                             />
                           </div>
                         </div>
                       </div>
                     )}
-                  </>
-                )
-              ) : (
+                </>
+              )}
+              {categorySlug !== "wedding-venues" && (
                 <div
                   style={{
                     display: "grid",

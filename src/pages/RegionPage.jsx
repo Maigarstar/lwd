@@ -927,66 +927,6 @@ export default function RegionPage({
         )}
 
         {/* ═══ CATEGORY SHORTCUTS ════════════════════════════════════════════ */}
-        <section
-          aria-label="Browse by category"
-          className="lwd-region-categories"
-          style={{
-            background: "#000000",
-            padding: isMobile ? "56px 20px" : "72px 48px",
-          }}
-        >
-          <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-            {/* Heading */}
-            <div style={{ textAlign: "center", marginBottom: 48 }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 12,
-                  marginBottom: 16,
-                }}
-              >
-                <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
-                <span
-                  style={{
-                    fontFamily: NU,
-                    fontSize: 9,
-                    letterSpacing: "0.3em",
-                    textTransform: "uppercase",
-                    color: "#C9A84C",
-                    fontWeight: 600,
-                  }}
-                >
-                  Find Your Team
-                </span>
-                <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
-              </div>
-              <h2
-                style={{
-                  fontFamily: GD,
-                  fontSize: isMobile ? "clamp(22px, 6vw, 30px)" : "clamp(26px, 3vw, 36px)",
-                  fontWeight: 400,
-                  color: "#f5f0e8",
-                  lineHeight: 1.2,
-                  margin: 0,
-                }}
-              >
-                <span style={{ color: "rgba(245,240,232,0.85)" }}>{region.name}</span>{" "}
-                <span style={{ fontStyle: "italic", color: "#C9A84C" }}>Wedding Vendors</span>
-              </h2>
-            </div>
-
-            {/* Paginated category carousel — SOON badge on categories with no live listings */}
-            <CategoryCarousel
-              categories={VENDOR_CATEGORIES}
-              C={DARK_C}
-              onSelect={(slug) => onViewRegionCategory(countrySlug, regionSlug, slug)}
-              activeCategorySlugs={activeCategorySlugs}
-              isMobile={isMobile}
-            />
-          </div>
-        </section>
 
         {/* ═══ FEATURED LISTINGS / COMING SOON ═══════════════════════════════ */}
         {regionVenues.length > 0 ? (
@@ -1158,6 +1098,37 @@ export default function RegionPage({
         {/* Districts + Related Regions — removed per user request */}
 
         {/* SEO & AI Panel — hidden per user request */}
+
+        {/* ═══ FIND YOUR TEAM — Category Shortcuts ══════════════════════ */}
+        <section
+          aria-label="Browse by category"
+          className="lwd-region-categories"
+          style={{
+            background: "#000000",
+            padding: isMobile ? "56px 20px" : "72px 48px",
+          }}
+        >
+          <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+            <div style={{ textAlign: "center", marginBottom: 48 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
+                <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
+                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: "#C9A84C", fontWeight: 600 }}>Find Your Team</span>
+                <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
+              </div>
+              <h2 style={{ fontFamily: GD, fontSize: isMobile ? "clamp(22px, 6vw, 30px)" : "clamp(26px, 3vw, 36px)", fontWeight: 400, color: "#f5f0e8", lineHeight: 1.2, margin: 0 }}>
+                <span style={{ color: "rgba(245,240,232,0.85)" }}>{region.name}</span>{" "}
+                <span style={{ fontStyle: "italic", color: "#C9A84C" }}>Wedding Vendors</span>
+              </h2>
+            </div>
+            <CategoryCarousel
+              categories={VENDOR_CATEGORIES}
+              C={DARK_C}
+              onSelect={(slug) => onViewRegionCategory(countrySlug, regionSlug, slug)}
+              activeCategorySlugs={activeCategorySlugs}
+              isMobile={isMobile}
+            />
+          </div>
+        </section>
 
         {/* ═══ BROWSE BY REGION ══════════════════════════════════════════ */}
         <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={actualCountrySlug === "england"} showItaly={actualCountrySlug === "italy"} showUSA={actualCountrySlug === "usa"} darkMode={darkMode} />

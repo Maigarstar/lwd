@@ -174,7 +174,8 @@ function LuxPanel({ label, children }) {
 // ═════════════════════════════════════════════════════════════════════════════
 export default function CountrySearchBar({
   filters, onFiltersChange, viewMode, onViewMode, sortMode, onSortChange, total, regions,
-  onVendorSearch, countryFilter, mapContent,
+  onVendorSearch, countryFilter,
+  mapOn, onToggleMap,
 }) {
   const C = useTheme();
   const dark = C.black === "#080808";
@@ -389,8 +390,8 @@ export default function CountrySearchBar({
       style={{
         background:   CL.barBg,
         borderBottom: `1px solid ${CL.divider}`,
-        position:     window.innerWidth <= 768 ? "relative" : "sticky",
-        top:          window.innerWidth <= 768 ? undefined : NAV_H,
+        position:     "sticky",
+        top:          NAV_H,
         zIndex:       800,
         boxShadow:    "none",
       }}
@@ -487,8 +488,8 @@ export default function CountrySearchBar({
           <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "vendors" ? "vendors" : "venues"}
         </span>
 
-        {/* Grid / List / Map view switcher — hidden on mobile (grid only) */}
-        <div style={{ display: window.innerWidth <= 768 ? "none" : "flex", alignItems: "center", gap: 4 }}>
+        {/* Grid / List / Map view switcher */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <button onClick={() => onViewMode?.("grid")} title="Grid view" aria-pressed={viewMode === "grid"}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
@@ -505,7 +506,7 @@ export default function CountrySearchBar({
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               background: viewMode === "list" ? CL.viewActive : "transparent",
-              border: "1px solid rgba(160,148,125,0.28)", borderLeft: "none", borderRadius: 0,
+              border: "1px solid rgba(160,148,125,0.28)", borderLeft: "none", borderRadius: "0 3px 3px 0",
               color: viewMode === "list" ? "#fff" : CL.text,
               cursor: "pointer", width: 30, height: 30, padding: 0,
               transition: "all 0.25s",
@@ -513,18 +514,29 @@ export default function CountrySearchBar({
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="6.75" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="11.5" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>
           </button>
-          {mapContent && (
-            <button onClick={() => onViewMode?.("map")} title="Map view" aria-pressed={viewMode === "map"}
+          {onToggleMap && (
+            <button
+              onClick={onToggleMap}
+              title={mapOn ? "Hide explore view" : "Explore on map"}
+              aria-pressed={mapOn}
               style={{
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: viewMode === "map" ? CL.viewActive : "transparent",
-                border: "1px solid rgba(160,148,125,0.28)", borderLeft: "none", borderRadius: "0 3px 3px 0",
-                color: viewMode === "map" ? "#fff" : CL.text,
-                cursor: "pointer", width: 30, height: 30, padding: 0,
-                transition: "all 0.25s",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                background: mapOn ? "#080808" : "#080808",
+                border: `1px solid ${mapOn ? "rgba(201,168,76,0.75)" : "rgba(201,168,76,0.30)"}`,
+                borderLeft: "none", borderRadius: "0 3px 3px 0",
+                color: mapOn ? "rgba(201,168,76,1)" : "rgba(201,168,76,0.60)",
+                cursor: "pointer", height: 30, padding: "0 9px",
+                transition: "all 0.25s", fontFamily: NU, fontSize: 9,
+                fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase",
+                whiteSpace: "nowrap",
               }}
             >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 5L8 2L13 5V13L8 16L3 13V5Z" stroke="currentColor" strokeWidth="1.2" fill="none"/><circle cx="8" cy="8" r="1" fill="currentColor"/></svg>
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" transform="scale(0.7) translate(1,1)"/>
+                <line x1="3" y1="6" x2="3" y2="13" transform="scale(0.7) translate(1,1)"/>
+                <line x1="9" y1="3" x2="9" y2="10" transform="scale(0.7) translate(1,1)"/>
+              </svg>
+              Explore
             </button>
           )}
         </div>

@@ -4,8 +4,8 @@
 import "../category.css";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
-import { ThemeCtx }        from "../theme/ThemeContext";
-import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
+import { ThemeCtx, useTheme } from "../theme/ThemeContext";
+import { getDarkPalette, getLightPalette } from "../theme/tokens";
 import {
   VENUES,
   REGIONS,
@@ -16,7 +16,6 @@ import {
   getRegionNameBySlug,
 } from "../data/italyVenues";
 import { getRegionsByCountry } from "../data/geo";
-import { usePremiumCardData } from "../hooks/usePremiumCardData";
 
 // ── Components ──────────────────────────────────────────────────────────────
 import { useChat }     from "../chat/ChatContext";
@@ -28,25 +27,20 @@ import LatestSplit     from "../components/sections/LatestSplit";
 import FeaturedSlider  from "../components/sections/FeaturedSlider";
 import EditorialBanner from "../components/sections/EditorialBanner";
 import MapSection      from "../components/sections/MapSection";
-import VenueMapPanel  from "../components/maps/VenueMapPanel";
 import SEOBlock        from "../components/sections/SEOBlock";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
-import VenueHCard      from "../components/cards/VenueHCard";
-import VendorHCard     from "../components/cards/VendorHCard";
-import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
-import LuxuryVendorCard from "../components/cards/LuxuryVendorCard";
+import HCard           from "../components/cards/HCard";
+import GCard           from "../components/cards/GCard";
+import GCardMobile     from "../components/cards/GCardMobile";
 import QuickViewModal  from "../components/modals/QuickViewModal";
 import SliderNav       from "../components/ui/SliderNav";
 import { VENDORS as ALL_VENDORS } from "../data/vendors";
 
 // ── Italy-only data subsets ─────────────────────────────────────────────────
 const ITALY_VENUES  = VENUES.filter((v) => v.countrySlug === "italy");
-// Fallback arrays if unified pipeline returns empty (for development/offline)
-// Latest: first 5 venues
-// Signature: featured venues (separate from latest)
-const LATEST_5_FALLBACK = ITALY_VENUES.slice(0, 5);
-const FEATURED_FALLBACK = ITALY_VENUES.filter((v) => v.featured).slice(0, 3);
+const FEATURED      = ITALY_VENUES.filter((v) => v.featured);
+const LATEST_5      = ITALY_VENUES.slice(0, 5);
 const ITALY_REGIONS = [
   { slug: "all", name: "All Regions" },
   ...getRegionsByCountry("italy"),
@@ -79,7 +73,6 @@ function useIsMobile(bp = 768) {
 export default function ItalyPage({
   onBack         = () => {},
   onViewVenue    = () => {},
-  onViewVendor   = () => {},
   onViewRegion   = () => {},
   onViewCategory = () => {},
   initialRegion       = null,
@@ -88,7 +81,7 @@ export default function ItalyPage({
   footerNav = {},
 }) {
   // ── State ──────────────────────────────────────────────────────────────────
-  const [darkMode,     setDarkMode]     = useState(() => getDefaultMode() === "dark");
+  const { darkMode, toggleDark } = useTheme();
   const [searchQuery,  setSearchQuery]  = useState(initialSearchQuery || "");
   const [filters,      setFilters]      = useState(() => ({
     ...DEFAULT_FILTERS,
@@ -101,38 +94,8 @@ export default function ItalyPage({
   const [scrolled,     setScrolled]     = useState(false);
   const [qvItem,       setQvItem]       = useState(null);
 
-  // ── Desktop split list+map ─────────────────────────────────────────────────
-  const [hoveredId, setHoveredId] = useState(null);
-  const [pinnedId,  setPinnedId]  = useState(null);
-  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 1024);
-  const listColRef                = useRef(null);
-  useEffect(() => {
-    const h = () => setIsDesktop(window.innerWidth >= 1024);
-    window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
-  }, []);
-
   const isMobile = useIsMobile();
   const C = darkMode ? getDarkPalette() : getLightPalette();
-
-  // ── Fetch premium card data from unified pipeline (with fallback to hardcoded) ──
-  const { listings: latestVenuesFromPipeline } = usePremiumCardData({
-    sectionType: "latest",
-    listingType: "venue",
-  });
-  const { listings: signatureVenuesFromPipeline } = usePremiumCardData({
-    sectionType: "signature",
-    listingType: "venue",
-  });
-  const { listings: latestVendorsFromPipeline } = usePremiumCardData({
-    sectionType: "latest",
-    listingType: "vendor",
-  });
-
-  // Use pipeline data, fall back to hardcoded arrays if empty
-  const latestVenues = latestVenuesFromPipeline.length > 0 ? latestVenuesFromPipeline : LATEST_5_FALLBACK;
-  const signatureVenues = signatureVenuesFromPipeline.length > 0 ? signatureVenuesFromPipeline : FEATURED_FALLBACK;
-  const latestVendors = latestVendorsFromPipeline.length > 0 ? latestVendorsFromPipeline : ITALY_VENDORS.slice(0, 8);
 
   // ── Register active context with global chat ────────────────────────────
   const { setChatContext } = useChat();
@@ -236,12 +199,12 @@ export default function ItalyPage({
   const handleFiltersChange = useCallback((f) => setFilters(f), []);
   const handleViewMode      = useCallback((m) => setViewMode(m), []);
   const handleLoadMore      = useCallback(() => setVisibleCount((c) => c + 12), []);
-  const handleToggleDark    = useCallback(() => setDarkMode((d) => !d), []);
+  const handleToggleDark    = toggleDark;
 
   // ── Batched venue slices (8 on mobile, 12 on desktop) ─────────────────
   const batch1 = filtered.slice(0, isMobile ? 8 : 12);
   const batch2 = filtered.slice(isMobile ? 8 : 12, Math.min(visibleCount, filtered.length));
-  const showSlider = signatureVenues.length > 0 && filtered.length >= 5;
+  const showSlider = FEATURED.length > 0 && filtered.length >= 5;
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
@@ -299,7 +262,7 @@ export default function ItalyPage({
         {viewMode !== "map" && (
           <>
             {/* ── Bridge: Choose your backdrop ── */}
-            <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "56px 16px 0" : "56px 48px 0", textAlign: "center" }}>
+            <div style={{ maxWidth: 1280, margin: "0 auto", padding: "56px 48px 0", textAlign: "center" }}>
               <p style={{
                 fontFamily: "var(--font-heading-primary)",
                 fontSize: "clamp(22px,2.5vw,32px)",
@@ -312,11 +275,11 @@ export default function ItalyPage({
               </p>
             </div>
 
-            {/* ── Latest Venues + editorial text split (unified pipeline) ── */}
-            <LatestSplit venues={latestVenues} />
+            {/* ── Latest 5 + editorial text split ── */}
+            <LatestSplit venues={LATEST_5} />
 
             {/* ── Divider ── */}
-            <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "0 16px" : "0 48px" }}>
+            <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 48px" }}>
               <div style={{ height: 1, background: C.border }} />
             </div>
           </>
@@ -326,7 +289,7 @@ export default function ItalyPage({
           <>
             {/* ── Bridge: Latest Venues ── */}
             {filtered.length > 0 && (
-              <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "52px 16px 8px" : "52px 48px 8px" }}>
+              <div style={{ maxWidth: 1280, margin: "0 auto", padding: "52px 48px 8px" }}>
                 <p style={{
                   fontFamily: "var(--font-heading-primary)",
                   fontSize: "clamp(22px,2.5vw,32px)",
@@ -352,88 +315,8 @@ export default function ItalyPage({
               </div>
             )}
 
-            {/* ══ DESKTOP LIST + MAP SPLIT VIEW ══════════════════════════════ */}
-            {filtered.length > 0 && viewMode === "list" && isDesktop && (
-              <div style={{
-                maxWidth: 1520,
-                margin: "0 auto",
-                padding: "24px 48px 32px",
-                display: "grid",
-                gridTemplateColumns: "58fr 42fr",
-                gap: 28,
-                alignItems: "start",
-              }}>
-                {/* Left — scrollable list */}
-                <div
-                  ref={listColRef}
-                  style={{
-                    overflowY: "auto",
-                    maxHeight: "calc(100vh - 120px)",
-                    paddingRight: 8,
-                    scrollbarWidth: "thin",
-                    scrollbarColor: "rgba(201,168,76,0.25) transparent",
-                  }}
-                >
-                  {filtered.slice(0, visibleCount).map((v) => (
-                    <div
-                      key={v.id}
-                      data-id={v.id}
-                      onMouseEnter={() => setHoveredId(v.id)}
-                      onMouseLeave={() => setHoveredId(null)}
-                      style={{
-                        borderRadius: 8,
-                        outline: pinnedId === v.id ? "2px solid #C9A84C" : "2px solid transparent",
-                        outlineOffset: 2,
-                        transition: "outline-color 0.2s",
-                      }}
-                    >
-                      <VenueHCard
-                        v={v}
-                        saved={savedIds.includes(v.id)}
-                        onSave={toggleSave}
-                        onView={() => onViewVenue?.(v)}
-                        onQuickView={() => setQvItem(v)}
-                      />
-                    </div>
-                  ))}
-                  {visibleCount < filtered.length && (
-                    <div style={{ textAlign: "center", marginTop: 24, marginBottom: 16 }}>
-                      <button
-                        onClick={() => setVisibleCount(c => c + 12)}
-                        style={{
-                          padding: "11px 28px", background: "#C9A84C", color: "#000",
-                          border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600,
-                          fontFamily: "var(--font-body)", fontSize: 13, letterSpacing: "0.05em",
-                        }}
-                      >
-                        Load More
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Right — sticky map */}
-                <div style={{ position: "sticky", top: 80, height: "calc(100vh - 120px)" }}>
-                  <VenueMapPanel
-                    venues={filtered.filter(v => v.lat && v.lng)}
-                    hoveredId={hoveredId}
-                    activePinnedId={pinnedId}
-                    onPinHover={(id) => setHoveredId(id)}
-                    onPinLeave={() => setHoveredId(null)}
-                    onPinClick={(id) => {
-                      setPinnedId(id);
-                      const el = listColRef.current?.querySelector(`[data-id="${id}"]`);
-                      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    }}
-                    onToggleView={() => setViewMode("grid")}
-                    label="Italy Wedding Map"
-                  />
-                </div>
-              </div>
-            )}
-
             {/* Batch 1 (first 6) */}
-            <div className="lwd-venue-list-wrap" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
+            <div className="lwd-venue-list-wrap" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
               {filtered.length === 0 ? (
                 /* Empty state, brand-aligned tone */
                 <div style={{ textAlign: "center", padding: "100px 0" }}>
@@ -494,77 +377,71 @@ export default function ItalyPage({
                   </button>
                 </div>
               ) : viewMode === "grid" ? (
-                <SliderNav className="lwd-venue-grid" cardWidth={360} gap={24}>
+                <SliderNav className="lwd-venue-grid" cardWidth={isMobile ? 300 : 340} gap={isMobile ? 12 : 16}>
                   {batch1.map((v) => (
-                    <div key={v.id} className="lwd-venue-card" style={{ flex: "0 0 360px", width: 360, height: 560, scrollSnapAlign: "start" }}>
-                      <LuxuryVenueCard
-                        v={v}
-                        isMobile={isMobile}
-                        onView={() => onViewVenue?.(v)}
-                        quickViewItem={qvItem}
-                        setQuickViewItem={setQvItem}
-                      />
+                    <div key={v.id} className="lwd-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 340px", scrollSnapAlign: "start" }}>
+                      {isMobile ? (
+                        <GCardMobile v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} />
+                      ) : (
+                        <GCard v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} onQuickView={setQvItem} />
+                      )}
                     </div>
                   ))}
                 </SliderNav>
-              ) : !isDesktop ? (
-                <div aria-label="Venue list" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
+              ) : (
+                <div aria-label="Venue list">
                   {batch1.map((v) => (
-                    <VenueHCard
+                    <HCard
                       key={v.id}
                       v={v}
                       saved={savedIds.includes(v.id)}
                       onSave={toggleSave}
-                      onView={() => onViewVenue?.(v)}
-                      onQuickView={() => setQvItem(v)}
+                      onView={onViewVenue}
+                      onQuickView={setQvItem}
                     />
                   ))}
                 </div>
-              ) : null}
+              )}
             </div>
 
-            {/* ── Signature Collection, premium tier (unified pipeline) ── */}
+            {/* ── Signature Collection, premium tier ── */}
             {showSlider && (
               <div style={{ marginTop: 72 }}>
                 {/* Thin gold divider */}
-                <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "0 16px" : "0 48px", marginBottom: 0 }}>
+                <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 48px", marginBottom: 0 }}>
                   <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(201,168,76,0.3), transparent)" }} />
                 </div>
-                <FeaturedSlider venues={signatureVenues} />
+                <FeaturedSlider venues={FEATURED} />
               </div>
             )}
 
             {/* Batch 2 (venues 6 → visibleCount) */}
             {batch2.length > 0 && (
-              <div className="lwd-venue-grid-wrap" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
+              <div className="lwd-venue-grid-wrap" style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
                 {viewMode === "grid" ? (
-                  <SliderNav className="lwd-venue-grid" cardWidth={360} gap={24}>
+                  <SliderNav className="lwd-venue-grid" cardWidth={isMobile ? 300 : 340} gap={isMobile ? 12 : 16}>
                     {batch2.map((v) => (
-                      <div key={v.id} className="lwd-venue-card" style={{ flex: "0 0 360px", width: 360, height: 560, scrollSnapAlign: "start" }}>
-                        <LuxuryVenueCard
-                          v={v}
-                          isMobile={isMobile}
-                          onView={() => onViewVenue?.(v)}
-                          quickViewItem={qvItem}
-                          setQuickViewItem={setQvItem}
-                        />
+                      <div key={v.id} className="lwd-venue-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 340px", scrollSnapAlign: "start" }}>
+                        {isMobile ? (
+                          <GCardMobile v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} />
+                        ) : (
+                          <GCard v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} onQuickView={setQvItem} />
+                        )}
                       </div>
                     ))}
                   </SliderNav>
-                ) : !isDesktop ? (
-                  <div>
-                    {batch2.map((v) => (
-                      <VenueHCard
-                        key={v.id}
-                        v={v}
-                        saved={savedIds.includes(v.id)}
-                        onSave={toggleSave}
-                        onView={() => onViewVenue?.(v)}
-                        onQuickView={() => setQvItem(v)}
-                      />
-                    ))}
-                  </div>
-                ) : null}
+                ) : (
+                  batch2.map((v) => (
+                    <HCard
+                      key={v.id}
+                      v={v}
+                      saved={savedIds.includes(v.id)}
+                      onSave={toggleSave}
+                      onView={onViewVenue}
+                      onQuickView={setQvItem}
+                    />
+                  ))
+                )}
               </div>
             )}
 
@@ -573,10 +450,10 @@ export default function ItalyPage({
               <EditorialBanner />
             </div>
 
-            {/* ── Latest Vendors (unified pipeline) ── */}
-            {latestVendors.length > 0 && (
+            {/* ── Latest Vendors ── */}
+            {ITALY_VENDORS.length > 0 && (
               <>
-                <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "48px 16px 8px" : "48px 48px 8px", marginTop: 40 }}>
+                <div style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 48px 8px", marginTop: 40 }}>
                   <p style={{
                     fontFamily: "var(--font-heading-primary)",
                     fontSize: "clamp(22px,2.5vw,32px)",
@@ -600,17 +477,15 @@ export default function ItalyPage({
                     Planners, photographers, florists, and culinary artists, the professionals behind Italy's finest celebrations.
                   </p>
                 </div>
-                <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "28px 16px 0" : "28px 48px 0" }}>
-                  <SliderNav className="lwd-vendor-slider" cardWidth={360} gap={24}>
-                    {latestVendors.map((v) => (
-                      <div key={v.id} className="lwd-vendor-card" style={{ flex: "0 0 360px", width: 360, height: 560, scrollSnapAlign: "start" }}>
-                        <LuxuryVendorCard
-                          v={v}
-                          isMobile={isMobile}
-                          onView={() => onViewVendor?.(v)}
-                          quickViewItem={qvItem}
-                          setQuickViewItem={setQvItem}
-                        />
+                <div style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 0" }}>
+                  <SliderNav className="lwd-vendor-slider" cardWidth={isMobile ? 300 : 320} gap={isMobile ? 12 : 16}>
+                    {(isMobile ? ITALY_VENDORS.slice(0, 8) : ITALY_VENDORS.slice(0, 12)).map((v) => (
+                      <div key={v.id} className="lwd-vendor-card" style={{ flex: isMobile ? "0 0 300px" : "0 0 320px", scrollSnapAlign: "start" }}>
+                        {isMobile ? (
+                          <GCardMobile v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} />
+                        ) : (
+                          <GCard v={v} saved={savedIds.includes(v.id)} onSave={toggleSave} onView={onViewVenue} onQuickView={setQvItem} />
+                        )}
                       </div>
                     ))}
                   </SliderNav>

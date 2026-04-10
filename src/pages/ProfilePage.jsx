@@ -3,10 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 
 import CatNav from "../components/nav/CatNav";
 import SliderNav from "../components/ui/SliderNav";
-import PlannerMapPanel from "../components/map/PlannerMapPanel";
+import PlannerMapPanel from "../components/maps/PlannerMapPanel";
 
-import { ThemeCtx } from "../theme/ThemeCtx";
-import { getDarkPalette, getLightPalette, getDefaultMode } from "../theme/tokens";
+import { useTheme } from "../theme/ThemeContext";
 
 import { useChat } from "../chat/ChatContext";
 
@@ -55,8 +54,8 @@ export default function ProfilePage({
 }) {
   const chat = useChat();
 
-  const [darkMode, setDarkMode] = useState(() => getDefaultMode?.() === "dark");
-  const C = useMemo(() => (darkMode ? getDarkPalette() : getLightPalette()), [darkMode]);
+  const C = useTheme();
+  const darkMode = C.darkMode;
 
   const enriched = useMemo(() => {
     if (!entity) return null;
@@ -111,7 +110,6 @@ export default function ProfilePage({
   }
 
   return (
-    <ThemeCtx.Provider value={{ darkMode, setDarkMode, C }}>
       <div style={{ background: "#fff", minHeight: "100vh" }}>
         <CatNav crumbs={crumbs} />
 
@@ -219,7 +217,6 @@ export default function ProfilePage({
           />
         ) : null}
       </div>
-    </ThemeCtx.Provider>
   );
 }
 

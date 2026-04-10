@@ -5,8 +5,8 @@
 import "../category.css";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
-import { useTheme } from "../theme/ThemeContext";
-import { DARK_C } from "../theme/tokens";
+import { useTheme }        from "../theme/ThemeContext";
+import { DARK_C }          from "../theme/tokens";
 
 // ── Components ──────────────────────────────────────────────────────────────
 import { useChat }     from "../chat/ChatContext";
@@ -17,7 +17,6 @@ import LatestVenuesStrip    from "../components/sections/LatestVenuesStrip";
 import LatestVendorsStrip   from "../components/sections/LatestVendorsStrip";
 import MottoStrip           from "../components/sections/MottoStrip";
 import MapSection      from "../components/sections/MapSection";
-import VenueMapPanel  from "../components/maps/VenueMapPanel";
 import SEOBlock        from "../components/sections/SEOBlock";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import CatNav          from "../components/nav/CatNav";
@@ -177,7 +176,6 @@ export default function LocationPage({
   // ── State ──────────────────────────────────────────────────────────────────
   const themeCtx = useTheme();
   const darkMode = themeCtx.darkMode;
-  const toggleDark = themeCtx.toggleDark;
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({ region: "all", capacity: "any", style: [], price: "any" });
   const [viewMode, setViewMode] = useState("grid");
@@ -189,17 +187,6 @@ export default function LocationPage({
   const [qvItem, setQvItem] = useState(null);
   const [mapOpen, setMapOpen] = useState(false);
   const filterBarRef = useRef(null);
-
-  // ── Desktop split list+map ─────────────────────────────────────────────────
-  const [hoveredId, setHoveredId]   = useState(null);
-  const [pinnedId,  setPinnedId]    = useState(null);
-  const [isDesktop, setIsDesktop]   = useState(() => window.innerWidth >= 1024);
-  const listColRef                  = useRef(null);
-  useEffect(() => {
-    const h = () => setIsDesktop(window.innerWidth >= 1024);
-    window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
-  }, []);
 
   // ── Animation refs for venue rows ─────────────────────────────────────────
   const [grid1Ref, grid1In] = useInView({ threshold: 0.15 });
@@ -942,32 +929,19 @@ export default function LocationPage({
             regions={_regions.filter(r => r.countrySlug === currentLocation.slug).map(r => ({ slug: r.slug, name: r.name }))}
             countryFilter={countryName}
             mapContent={
-              <MapSection
-                venues={mapVenues}
-                vendors={[]}
-                headerLabel={`Wedding Professionals in ${currentLocation.name}`}
-                mapTitle={`◎ ${currentLocation.name} Wedding Directory`}
-                countryFilter={countryName}
-                onMarkerClick={(slug) => onViewVenue(slug)}
-                onClose={() => setViewMode("grid")}
-              />
+              viewMode === "map" ? (
+                <MapSection
+                  venues={mapVenues}
+                  vendors={[]}
+                  headerLabel={`Wedding Professionals in ${currentLocation.name}`}
+                  mapTitle={`◎ ${currentLocation.name} Wedding Directory`}
+                  countryFilter={countryName}
+                  onMarkerClick={(slug) => onViewVenue(slug)}
+                  onClose={() => setViewMode("grid")}
+                />
+              ) : null
             }
           />
-
-          {/* ══ MAP VIEW — side layout inline in page ══════════════════════ */}
-          {viewMode === "map" && (
-            <MapSection
-              venues={mapVenues}
-              vendors={[]}
-              headerLabel={`Wedding Professionals in ${currentLocation.name}`}
-              mapTitle={`◎ ${currentLocation.name} Wedding Directory`}
-              countryFilter={countryName}
-              onMarkerClick={(slug) => onViewVenue(slug)}
-              onClose={() => setViewMode("grid")}
-            />
-          )}
-
-          {viewMode !== "map" && (
           <InfoStrip
             regionNames={
               (Array.isArray(_locationContent?.infoRegions) && _locationContent.infoRegions.length > 0)
@@ -977,7 +951,6 @@ export default function LocationPage({
             vibes={_locationContent?.infoVibes}
             services={_locationContent?.infoServices}
           />
-          )}
         </div>
 
         {/* ═══ ABOUT SECTION ════════════════════════════════════════════════ */}
@@ -1007,7 +980,22 @@ export default function LocationPage({
           </section>
         )}
 
-        {/* Latest Venues Strip — removed site-wide */}
+        {/* Latest Venues Strip — Hidden when map is open */}
+        {_locationContent?.showLatestVenues !== false && (
+        <LatestVenuesStrip
+          venues={latestVenuesVenues}
+          heading={_locationContent?.latestVenuesHeading || ''}
+          subtext={_locationContent?.latestVenuesSub || ''}
+          locationName={currentLocation.name}
+          countrySlug={countryObj?.slug || currentLocation?.countrySlug || "italy"}
+          onViewVenue={onViewVenue}
+          onQuickView={setQvItem}
+          isMobile={isMobile}
+          cardStyle={_locationContent?.latestVenuesCardStyle || 'luxury'}
+          viewMode={viewMode}
+          onViewMode={setViewMode}
+        />
+        )}
 
         {/* Latest Vendors Strip — Hidden when map is open */}
         {_locationContent?.showLatestVendors !== false && (
@@ -1016,6 +1004,7 @@ export default function LocationPage({
           heading={_locationContent?.latestVendorsHeading || ''}
           subtext={_locationContent?.latestVendorsSub || ''}
           locationName={currentLocation.name}
+          countrySlug={countryObj?.slug || currentLocation?.countrySlug || "italy"}
           onViewVendor={onViewVenue}
           onQuickView={setQvItem}
           isMobile={isMobile}
@@ -1025,89 +1014,45 @@ export default function LocationPage({
         />
         )}
 
-        {/* ══ DESKTOP LIST + MAP SPLIT VIEW ══════════════════════════════════ */}
-        {locationVenues.length > 0 && viewMode === "list" && isDesktop && (
-          <div style={{ background: darkMode ? C.dark : "#ffffff" }}>
-            <div style={{
-              maxWidth: 1520,
-              margin: "0 auto",
-              padding: "24px 48px 32px",
-              display: "grid",
-              gridTemplateColumns: "58fr 42fr",
-              gap: 28,
-              alignItems: "start",
-            }}>
-              {/* Left — scrollable list */}
-              <div
-                ref={listColRef}
-                style={{
-                  overflowY: "auto",
-                  maxHeight: "calc(100vh - 120px)",
-                  paddingRight: 8,
-                  scrollbarWidth: "thin",
-                  scrollbarColor: "rgba(201,168,76,0.25) transparent",
-                }}
-              >
-                {locationVenues.slice(0, visibleCount).map((v) => (
-                  <div
-                    key={v.id}
-                    data-id={v.id}
-                    onMouseEnter={() => setHoveredId(v.id)}
-                    onMouseLeave={() => setHoveredId(null)}
-                    style={{
-                      borderRadius: 8,
-                      outline: pinnedId === v.id ? `2px solid ${C.gold}` : "2px solid transparent",
-                      outlineOffset: 2,
-                      transition: "outline-color 0.2s",
-                    }}
-                  >
-                    <HCard
-                      v={v}
-                      onView={() => onViewVenue(v.slug || v.id)}
-                      onQuickView={setQvItem}
-                      onSave={() => {}}
-                    />
-                  </div>
-                ))}
-                {visibleCount < locationVenues.length && (
-                  <div style={{ textAlign: "center", marginTop: 24, marginBottom: 16 }}>
-                    <button
-                      onClick={() => setVisibleCount(c => c + 12)}
-                      style={{
-                        padding: "11px 28px", background: C.gold, color: "#000",
-                        border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600,
-                        fontFamily: NU, fontSize: 13, letterSpacing: "0.05em",
-                      }}
-                    >
-                      Load More
-                    </button>
-                  </div>
-                )}
+        {/* ═══ FIND YOUR TEAM — Category Shortcuts ═════════════════════════════ */}
+        <section
+          aria-label="Browse by category"
+          className="lwd-region-categories"
+          style={{ background: "#000000", padding: isMobile ? "56px 20px" : "72px 48px" }}
+        >
+          <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+            <div style={{ textAlign: "center", marginBottom: 48 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
+                <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
+                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: "#C9A84C", fontWeight: 600 }}>Find Your Team</span>
+                <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
               </div>
-
-              {/* Right — sticky map */}
-              <div style={{ position: "sticky", top: 80, height: "calc(100vh - 120px)" }}>
-                <VenueMapPanel
-                  venues={locationVenues.filter(v => v.lat && v.lng)}
-                  hoveredId={hoveredId}
-                  activePinnedId={pinnedId}
-                  onPinHover={(id) => setHoveredId(id)}
-                  onPinLeave={() => setHoveredId(null)}
-                  onPinClick={(id) => {
-                    setPinnedId(id);
-                    const el = listColRef.current?.querySelector(`[data-id="${id}"]`);
-                    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                  }}
-                  onToggleView={() => setViewMode("grid")}
-                  label={`${currentLocation.name} Wedding Map`}
-                />
-              </div>
+              <h2 style={{ fontFamily: GD, fontSize: isMobile ? "clamp(22px, 6vw, 30px)" : "clamp(26px, 3vw, 36px)", fontWeight: 400, color: "#f5f0e8", lineHeight: 1.2, margin: 0 }}>
+                <span style={{ color: "rgba(245,240,232,0.85)" }}>{currentLocation?.name}</span>{" "}
+                <span style={{ fontStyle: "italic", color: "#C9A84C" }}>Wedding Vendors</span>
+              </h2>
             </div>
+            {!resolving && locationVenues.length === 0 ? (
+              <div style={{ border: "1px solid rgba(201,168,76,0.2)", borderRadius: "var(--lwd-radius-card)", padding: "40px", textAlign: "center", background: "rgba(201,168,76,0.03)", maxWidth: 560, margin: "0 auto" }}>
+                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, opacity: 0.7, border: "1px solid rgba(201,168,76,0.25)", borderRadius: 3, padding: "3px 10px", display: "inline-block", marginBottom: 14 }}>Coming Soon</span>
+                <p style={{ fontFamily: GD, fontSize: "clamp(16px,1.8vw,22px)", fontWeight: 300, fontStyle: "italic", color: C.grey, opacity: 0.5, margin: 0 }}>
+                  {currentLocation?.name} wedding professionals — curated and coming soon.
+                </p>
+              </div>
+            ) : (
+              <CategoryCarousel
+                categories={VENDOR_CATEGORIES}
+                C={DARK_C}
+                onSelect={(slug) => onViewCategory({ category: slug, countrySlug: currentLocation?.slug })}
+                activeCategorySlugs={activeCategorySlugs}
+                isMobile={isMobile}
+              />
+            )}
           </div>
-        )}
+        </section>
 
         {/* ═══ SIGNATURE VENUES — matching RegionPage card row pattern ═══════ */}
-        {locationVenues.length > 0 && viewMode !== "map" && !(viewMode === "list" && isDesktop) && (
+        {locationVenues.length > 0 && viewMode !== "map" && (
           <div style={{ background: darkMode ? C.dark : "#ffffff" }}>
           <section
             aria-label={`Wedding professionals in ${currentLocation.name}`}
@@ -1146,7 +1091,7 @@ export default function LocationPage({
                   key={locationVenues[0]?.id || "empty"}
                   className="lwd-region-venue-grid"
                   cardWidth={360}
-                  gap={isMobile ? 12 : 24}
+                  gap={isMobile ? 12 : 16}
                 >
                   {locationVenues.slice(0, 4).map((v, i) => (
                     <div
@@ -1187,7 +1132,7 @@ export default function LocationPage({
         )}
 
         {/* ═══ ALL VENUES — full grid/list below signature row ═════════════════ */}
-        {locationVenues.length > 4 && viewMode !== "map" && !(viewMode === "list" && isDesktop) && (
+        {locationVenues.length > 4 && viewMode !== "map" && (
           <section
             aria-label={`More listings in ${currentLocation.name}`}
             className="lwd-region-section"
@@ -1223,7 +1168,7 @@ export default function LocationPage({
               <SliderNav
                 className="lwd-region-venue-grid"
                 cardWidth={360}
-                gap={isMobile ? 12 : 24}
+                gap={isMobile ? 12 : 16}
               >
                 {locationVenues.slice(4, visibleCount).filter(venue => venue?.imgs?.length > 0).map((v, i) => (
                   <div
@@ -1328,43 +1273,22 @@ export default function LocationPage({
           />
         )}
 
-
-        {/* ═══ FIND YOUR TEAM — Category Shortcuts ════════════════════════════ */}
-        <section
-          aria-label="Browse by category"
-          className="lwd-region-categories"
-          style={{ background: "#000000", padding: isMobile ? "56px 20px" : "72px 48px" }}
-        >
-          <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-            <div style={{ textAlign: "center", marginBottom: 48 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
-                <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
-                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: "#C9A84C", fontWeight: 600 }}>Find Your Team</span>
-                <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
-              </div>
-              <h2 style={{ fontFamily: GD, fontSize: isMobile ? "clamp(22px, 6vw, 30px)" : "clamp(26px, 3vw, 36px)", fontWeight: 400, color: "#f5f0e8", lineHeight: 1.2, margin: 0 }}>
-                <span style={{ color: "rgba(245,240,232,0.85)" }}>{currentLocation?.name}</span>{" "}
-                <span style={{ fontStyle: "italic", color: "#C9A84C" }}>Wedding Vendors</span>
-              </h2>
-            </div>
-            {!resolving && locationVenues.length === 0 ? (
-              <div style={{ border: "1px solid rgba(201,168,76,0.2)", borderRadius: "var(--lwd-radius-card)", padding: "40px", textAlign: "center", background: "rgba(201,168,76,0.03)", maxWidth: 560, margin: "0 auto" }}>
-                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: C.gold, opacity: 0.7, border: "1px solid rgba(201,168,76,0.25)", borderRadius: 3, padding: "3px 10px", display: "inline-block", marginBottom: 14 }}>Coming Soon</span>
-                <p style={{ fontFamily: GD, fontSize: "clamp(16px,1.8vw,22px)", fontWeight: 300, fontStyle: "italic", color: C.grey, opacity: 0.5, margin: 0 }}>
-                  {currentLocation?.name} wedding professionals — curated and coming soon.
-                </p>
-              </div>
-            ) : (
-              <CategoryCarousel
-                categories={VENDOR_CATEGORIES}
-                C={DARK_C}
-                onSelect={(slug) => onViewCategory({ category: slug, countrySlug: currentLocation?.slug })}
-                activeCategorySlugs={activeCategorySlugs}
-                isMobile={isMobile}
-              />
-            )}
-          </div>
-        </section>
+        {/* Motto / Quote Banner */}
+        {_locationContent?.showMotto !== false && (
+          <MottoStrip
+            motto={
+              _locationContent?.motto ||
+              `${currentLocation.name}, where every moment becomes a memory worth keeping forever.`
+            }
+            subline={_locationContent?.mottoSubline || ''}
+            backgroundImage={_locationContent?.mottoBgImage || ''}
+            overlayOpacity={
+              _locationContent?.mottoOverlay != null
+                ? parseFloat(_locationContent.mottoOverlay)
+                : 0.55
+            }
+          />
+        )}
 
         {/* ═══ BROWSE BY REGION — footer area ═════════════════════════════════ */}
         <DirectoryBrands

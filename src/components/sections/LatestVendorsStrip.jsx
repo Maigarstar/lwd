@@ -3,10 +3,14 @@
 // Mirrors LatestVenuesStrip pattern exactly, using LuxuryVendorCard.
 import { useState } from "react";
 import { useTheme } from "../../theme/ThemeContext";
+import SliderNav from "../ui/SliderNav";
 import LuxuryVendorCard from "../cards/LuxuryVendorCard";
 import GCard from "../cards/GCard";
 import GCardMobile from "../cards/GCardMobile";
 import HCard from "../cards/HCard";
+import VenueListItemCard from "../cards/VenueListItemCard";
+import MASTERMap from "../maps/MASTERMap";
+import { PinSyncBus } from "../maps/PinSyncBus";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -16,6 +20,7 @@ export default function LatestVendorsStrip({
   heading,
   subtext,
   locationName = "",
+  countrySlug = "italy",
   onViewVendor,
   onQuickView,
   isMobile = false,
@@ -25,6 +30,8 @@ export default function LatestVendorsStrip({
 }) {
   const C = useTheme();
   const [qvItem, setQvItem] = useState(null);
+  const [hoveredVenueId, setHoveredVenueId] = useState(null);
+  const [activePinnedId, setActivePinnedId] = useState(null);
 
   if (vendors.length === 0) return null;
 
@@ -33,11 +40,13 @@ export default function LatestVendorsStrip({
     subtext ||
     `Planners, photographers, florists, and culinary artists — the professionals behind${locationName ? ` ${locationName}'s` : ""} finest celebrations.`;
 
+  const cardW = isMobile ? 300 : 320;
+
   return (
     <div style={{ background: C.black }}>
 
       {/* ── Editorial header ── */}
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "52px 48px 8px" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "52px 16px 8px" : "52px 48px 8px" }}>
         <p
           style={{
             fontFamily: GD,
@@ -66,56 +75,97 @@ export default function LatestVendorsStrip({
         </p>
       </div>
 
-      {/* ── Vendor card grid ── */}
+      {/* ── Vendor card slider ── */}
       <div
-        className="lwd-premium-grid"
-        style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 48px 56px" }}
+        className="lwd-vendor-list-wrap"
+        style={{
+          maxWidth: viewMode === "list" && !isMobile ? "none" : 1280,
+          margin: "0 auto",
+          padding: isMobile
+            ? "28px 0 56px"
+            : viewMode === "list"
+              ? "28px 0 56px 48px"
+              : "28px 48px 56px",
+        }}
       >
-        {viewMode === "grid" ? (
-          <div
-            className="lwd-vendor-grid"
-            style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 360px)",
-              gap: isMobile ? 12 : 16,
-              justifyContent: "center",
-            }}
-            aria-label="Vendors grid"
-          >
+        {isMobile ? (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
             {vendors.map((v) => (
-              <div
-                key={v.id}
-                className="lwd-vendor-card"
-              >
-                {cardStyle === "luxury" ? (
-                  <LuxuryVendorCard
-                    v={v}
-                    onView={onViewVendor}
-                    isMobile={isMobile}
-                    quickViewItem={qvItem}
-                    setQuickViewItem={setQvItem}
-                  />
-                ) : isMobile ? (
-                  <GCardMobile v={v} onView={onViewVendor} />
-                ) : (
-                  <GCard
-                    v={v}
-                    onView={onViewVendor}
-                    onQuickView={onQuickView || setQvItem}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div aria-label="Vendors list" style={{ maxWidth: 1280, margin: "0 auto" }}>
-            {vendors.map((v) => (
-              <HCard
+              <LuxuryVendorCard
                 key={v.id}
                 v={v}
                 onView={onViewVendor}
-                onQuickView={onQuickView || setQvItem}
-                onSave={() => {}}
+                isMobile={isMobile}
+                quickViewItem={qvItem}
+                setQuickViewItem={setQvItem}
+              />
+            ))}
+          </div>
+        ) : viewMode === "list" ? (
+          /* ── List + Map split layout ── */
+          <div style={{
+            display:             "grid",
+            gridTemplateColumns: "minmax(0, 1fr) clamp(360px, 32vw, 480px)",
+            columnGap:           32,
+            alignItems:          "start",
+            minWidth:            0,
+          }}>
+            {/* Left: vendor list */}
+            <div aria-label="Vendors list" style={{
+              minWidth:      0,
+              display:       "flex",
+              flexDirection: "column",
+              gap:           12,
+              paddingLeft:   50,
+            }}>
+              {vendors.map((v) => (
+                <div
+                  key={v.id}
+                  data-venue-id={v.id}
+                  onMouseEnter={() => { setHoveredVenueId(v.id); PinSyncBus.emit("card:hover", v.id); }}
+                  onMouseLeave={() => { setHoveredVenueId(null); PinSyncBus.emit("card:leave", v.id); }}
+                >
+                  <VenueListItemCard
+                    v={v}
+                    onView={() => onViewVendor?.(v.id || v.slug)}
+                    isHighlighted={hoveredVenueId === v.id || activePinnedId === v.id}
+                    quickViewItem={qvItem}
+                    setQuickViewItem={setQvItem}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Right: sticky map panel */}
+            <div style={{
+              width:        "100%",
+              minWidth:     0,
+              position:     "sticky",
+              top:          72,
+              height:       "calc(100vh - 72px)",
+              borderRadius: "var(--lwd-radius-card) 0 0 var(--lwd-radius-card)",
+              overflow:     "hidden",
+            }}>
+              <MASTERMap
+                venues={vendors}
+                label={`Vendors · ${locationName || "Latest"}`}
+                viewMode="list"
+                onToggleView={() => onViewMode?.("grid")}
+                countrySlug={countrySlug}
+                pageBg={C.black}
+              />
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))", gap: 16, maxWidth: 1180 }}>
+            {vendors.map((v) => (
+              <LuxuryVendorCard
+                key={v.id}
+                v={v}
+                onView={onViewVendor}
+                isMobile={false}
+                quickViewItem={qvItem}
+                setQuickViewItem={setQvItem}
               />
             ))}
           </div>
