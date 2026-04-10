@@ -407,7 +407,7 @@ export default function CountrySearchBar({
           display: "flex", background: "rgba(180,165,140,0.05)", borderRadius: 3,
           border: "1px solid rgba(160,148,125,0.28)", overflow: "hidden", flexShrink: 0,
         }}>
-          {["venues"].map((m) => (
+          {["venues", "vendors"].map((m) => (
             <button key={m} role="tab" aria-selected={mode === m}
               onClick={() => { setMode(m); setOpenMenu(null); }}
               style={{
