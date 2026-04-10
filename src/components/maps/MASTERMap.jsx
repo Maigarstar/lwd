@@ -24,6 +24,7 @@
 //   • Aura annotation overlay (bottom-left glass panel)
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { geocodeItem } from "../../services/geocodingService";
 import { PinSyncBus } from "./PinSyncBus";
 import { trackEvent } from "../../lib/tracker";
 
@@ -89,40 +90,6 @@ function loadLeaflet() {
   return leafletPromise;
 }
 
-// ── Geocode cache (session-scoped) ────────────────────────────────────────────
-const GEO_CACHE = {};
-
-async function geocodeItem(v) {
-  const cacheKey = v.id || v.slug || v.name;
-  if (GEO_CACHE[cacheKey]) return GEO_CACHE[cacheKey];
-
-  const name    = v.name    || "";
-  const city    = v.city    || v.citySlug    || "";
-  const region  = v.region  || v.regionSlug  || "";
-  const country = v.country || v.countrySlug || "";
-
-  const queries = [];
-  if (name && city && country)   queries.push(`${name}, ${city}, ${country}`);
-  if (name && region && country) queries.push(`${name}, ${region}, ${country}`);
-  if (name && country)           queries.push(`${name}, ${country}`);
-  if (region && country)         queries.push(`${region}, ${country}`);
-
-  for (const q of queries) {
-    try {
-      await new Promise((r) => setTimeout(r, 1100));
-      const res  = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`
-      );
-      const data = await res.json();
-      if (data?.[0]) {
-        const coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-        GEO_CACHE[cacheKey] = coords;
-        return coords;
-      }
-    } catch {}
-  }
-  return null;
-}
 
 // ── Pin icon factory ──────────────────────────────────────────────────────────
 // state:   "standard" | "featured" | "showcase" | "active" | "ghost"
