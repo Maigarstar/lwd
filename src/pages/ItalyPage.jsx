@@ -87,6 +87,7 @@ export default function ItalyPage({
     ...(initialRegion ? { region: initialRegion } : {}),
   }));
   const [viewMode,     setViewMode]     = useState("grid");
+  const [mapOn,        setMapOn]        = useState(false);
   const [sortMode,     setSortMode]     = useState("recommended");
   const [visibleCount, setVisibleCount] = useState(12);
   const [savedIds,     setSavedIds]     = useState([]);
@@ -237,22 +238,26 @@ export default function ItalyPage({
           regions={ITALY_REGIONS}
           onVendorSearch={(q) => onViewCategory?.({ searchQuery: q.location || q.category })}
           countryFilter="Italy"
-          mapContent={
-            <MASTERMap
-              items={[
-                ...filtered.map(v => ({ ...v, type: "venue", category: "wedding-venues" })),
-                ...ITALY_VENDORS.map(v => ({ ...v, type: "vendor", category: v.category || "photographers" }))
-              ]}
-              label="Italy · All Suppliers"
-              viewMode="grid"
-              countrySlug="italy"
-              pageBg="#080808"
-            />
-          }
+          mapOn={mapOn}
+          onToggleMap={() => setMapOn(!mapOn)}
         />
 
+        {/* ══ MAP VIEW ══════════════════════════════════════════════════════ */}
+        {mapOn && (
+          <MASTERMap
+            items={[
+              ...filtered.map(v => ({ ...v, type: "venue", category: "wedding-venues" })),
+              ...ITALY_VENDORS.map(v => ({ ...v, type: "vendor", category: v.category || "photographers" }))
+            ]}
+            label="Italy · All Suppliers"
+            viewMode="grid"
+            countrySlug="italy"
+            pageBg="#080808"
+          />
+        )}
+
         {/* ── Editorial content (hidden when map is active) ── */}
-        {viewMode !== "map" && (
+        {!mapOn && (
           <>
             {/* ── Bridge: Choose your backdrop ── */}
             <div style={{ maxWidth: 1280, margin: "0 auto", padding: "56px 48px 0", textAlign: "center" }}>

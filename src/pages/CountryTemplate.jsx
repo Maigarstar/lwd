@@ -79,6 +79,7 @@ export default function CountryTemplate({
     ...(initialRegion ? { region: initialRegion } : {}),
   }));
   const [viewMode,     setViewMode]     = useState("list");
+  const [mapOn,        setMapOn]        = useState(false);
   const [sortMode,     setSortMode]     = useState("recommended");
   const [visibleCount, setVisibleCount] = useState(12);
   const [savedIds,     setSavedIds]     = useState([]);
@@ -263,18 +264,20 @@ export default function CountryTemplate({
           total={filtered.length}
           regions={ITALY_REGIONS}
           countryFilter="Italy"
-          mapContent={
-            viewMode === "map" ? (
-              <MASTERMap
-                items={filtered.map(v => ({ ...v, type: "venue", category: "wedding-venues" }))}
-                label="Italy · Wedding Venues"
-                viewMode="grid"
-                countrySlug="italy"
-                pageBg={C.black}
-              />
-            ) : null
-          }
+          mapOn={mapOn}
+          onToggleMap={() => setMapOn(!mapOn)}
         />
+
+        {/* ══ MAP VIEW ══════════════════════════════════════════════════════ */}
+        {mapOn && (
+          <MASTERMap
+            items={filtered.map(v => ({ ...v, type: "venue", category: "wedding-venues" }))}
+            label="Italy · Wedding Venues"
+            viewMode="grid"
+            countrySlug="italy"
+            pageBg={C.black}
+          />
+        )}
 
         {/* ══ LIST / GRID VIEW ══════════════════════════════════════════════ */}
         {viewMode !== "map" && (
