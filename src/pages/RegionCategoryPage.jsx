@@ -1153,162 +1153,192 @@ export default function RegionCategoryPage({
             )}
 
             {/* ════════════════════════════════════════════════════════════════════
-                8. LISTINGS GRID / LIST+MAP VIEW
+                8. LISTINGS — EXPLORE LAYOUT (map on · desktop) or NORMAL SECTION
+                Explore layout: any category, map on, desktop only.
+                Normal section: map off, mobile, or non-venue categories.
             ════════════════════════════════════════════════════════════════════ */}
-            <section
-              className="lwd-rc-section"
-              aria-label={`${categoryLabel} listings`}
-              style={{
-                background: darkMode ? C.dark : "#f2f0ea",
-                padding: isMobile
-                  ? "40px 0 72px"
-                  : (viewMode === "list" || mapOn)
-                    ? "40px 0 72px 48px"
-                    : "40px 48px 72px",
-                borderBottom: `1px solid ${C.border}`,
-              }}
-            >
-              <div style={{ maxWidth: (viewMode === "list" || mapOn) ? "none" : 1280, margin: "0 auto" }}>
 
-              {categorySlug === "wedding-venues" && viewMode === "grid" && (
-                /* ── GRID VIEW (fixed+fluid: 900px canvas | 16px gap | fluid map) ── */
-                  <div style={{
-                    display: mapOn && !isMobile ? "flex" : "block",
-                    gap: mapOn && !isMobile ? "16px" : undefined,
-                    alignItems: "flex-start",
-                  }}>
-                    {/* Left: fixed 900px canvas (listings always same size) */}
-                    <div style={{
-                      flex: mapOn && !isMobile ? "0 1 900px" : undefined,
-                      opacity: mapTransitioning ? 0.55 : 1,
-                      transition: "opacity 0.2s ease",
-                    }}>
-                      <div
-                        className="lwd-venue-grid"
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: isMobile ? "1fr" : mapOn ? "repeat(2, 1fr)" : "repeat(3, 1fr)",
-                          gap: 16,
-                          transition: "grid-template-columns 0.25s ease, gap 0.25s ease",
-                        }}
-                        aria-label="Venue grid"
-                      >
-                        {sortedFilteredListings.map((v) => (
-                          <div
-                            key={v.id}
-                            data-listing-id={v.id}
-                            onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
-                            onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
-                            style={{
-                              outline: activeListingId === v.id && mapOn
-                                ? `2px solid rgba(201,168,76,0.5)` : "none",
-                              borderRadius: "var(--lwd-radius-card, 8px)",
-                              transition: "outline 0.2s",
-                            }}
-                          >
-                            <LuxuryVenueCard
-                              v={v}
-                              onView={() => onViewVenue(v.id || v.slug)}
-                              quickViewItem={qvItem}
-                              setQuickViewItem={setQvItem}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Right: fluid map (fills remaining space, bleeds to browser edge) */}
-                    {mapOn && !isMobile && (
-                      <div style={{
-                        flex: "1 0 auto",
-                        minWidth: "360px",
-                        position: "sticky",
-                        top: 0,
-                        marginTop: -40,
-                        marginBottom: -72,
-                        height: "calc(100vh + 112px)",
-                        marginRight: "calc(-1 * (100vw - 100%))",  // full viewport bleed
-                        paddingRight: "calc(100vw - 100%)",
-                        background: `linear-gradient(to right, ${darkMode ? "rgba(8,8,8,0.6)" : "rgba(242,240,234,0.6)"} 0%, ${darkMode ? "rgba(8,8,8,0.6)" : "rgba(242,240,234,0.6)"} 18%, transparent 72px)`,
-                        opacity: mapTransitioning ? 0 : 1,
-                        transform: mapTransitioning ? "translateX(32px)" : "translateX(0)",
-                        transition: "opacity 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.35s cubic-bezier(0.4,0,0.2,1)",
-                        zIndex: mapTransitioning ? -1 : 10,
-                      }}>
-                        <MASTERMap
-                          venues={sortedFilteredListings}
-                          label={`Venue Map · ${regionName || countryName || "Italy"}`}
-                          viewMode="grid"
-                          onToggleView={handleToggleMap}
-                          countrySlug={countrySlug || "italy"}
-                          pageBg={darkMode ? C.dark : "#f2f0ea"}
-                          auraSummary={auraSummary && !summaryDismissed ? auraSummary : null}
-                          activeFilter={auraMapFilter}
-                          onFilterChange={(cat) => setAuraMapFilter(cat)}
-                          auraRecommendedIds={auraRecommendedIds}
-                          onSparsePins={handleSparsePins}
-                          activeListingId={activeListingId}
-                          showFollowToggle={true}
-                          onPinClick={(listingId) => {
-                            setActiveListingId(listingId);
-                            // Scroll card into view
-                            const el = document.querySelector(`[data-listing-id="${listingId}"]`);
-                            if (el) {
-                              el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-                            }
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-              )}
-              {categorySlug === "wedding-venues" && viewMode !== "grid" && (
-                <>
-                  {/* Mobile: Show Map button */}
-                    {isMobile && (
-                      <div style={{ marginBottom: 20 }}>
-                        <button
-                          onClick={() => setMapOpen(true)}
+            {/* ── EXPLORE LAYOUT ── map on · desktop · any category ───────────── */}
+            {mapOn && !isMobile && (
+              <div
+                aria-label={`${categoryLabel} listings`}
+                style={{
+                  display:      "flex",
+                  height:       "calc(100vh - 72px)",
+                  overflow:     "hidden",
+                  background:   darkMode ? C.dark : "#f2f0ea",
+                  borderBottom: `1px solid ${C.border}`,
+                }}
+              >
+                {/* Left: scrollable card panel — owns its own padding, no hacks needed */}
+                <div style={{
+                  flex:       "0 1 900px",
+                  overflowY:  "auto",
+                  padding:    "40px 20px 40px 85px",
+                  opacity:    mapTransitioning ? 0.55 : 1,
+                  transition: "opacity 0.2s ease",
+                }}>
+                  {viewMode === "grid" ? (
+                    /* Grid — 2 × 386px fixed columns */
+                    <div
+                      className="lwd-venue-grid"
+                      style={{
+                        display:             "grid",
+                        gridTemplateColumns: "repeat(2, 386px)",
+                        justifyContent:      "start",
+                        gap:                 20,
+                      }}
+                      aria-label="Venue grid"
+                    >
+                      {sortedFilteredListings.map((v) => (
+                        <div
+                          key={v.id}
+                          data-listing-id={v.id}
+                          onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
+                          onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
                           style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            background: "rgba(201,168,76,0.08)",
-                            border: "1px solid rgba(201,168,76,0.3)",
-                            borderRadius: "var(--lwd-radius-input)",
-                            padding: "9px 18px",
-                            fontFamily: NU,
-                            fontSize: 11,
-                            fontWeight: 600,
-                            letterSpacing: "0.5px",
-                            color: "#C9A84C",
-                            cursor: "pointer",
+                            width:        386,
+                            height:       560,
+                            outline:      activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
+                            borderRadius: "var(--lwd-radius-card, 8px)",
+                            transition:   "outline 0.2s",
+                            overflow:     "hidden",
                           }}
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
-                            <line x1="9" y1="3" x2="9" y2="18" />
-                            <line x1="15" y1="6" x2="15" y2="21" />
-                          </svg>
-                          Show Map
-                        </button>
-                      </div>
-                    )}
+                          <LuxuryVenueCard
+                            v={v}
+                            onView={() => onViewVenue(v.id || v.slug)}
+                            quickViewItem={qvItem}
+                            setQuickViewItem={setQvItem}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    /* List — single column, full width */
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      {sortedFilteredListings.map((v) => (
+                        <div
+                          key={v.id}
+                          data-listing-id={v.id}
+                          onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
+                          onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
+                          onClick={() => PinSyncBus.emit("card:click", v.id)}
+                        >
+                          <VenueListItemCard
+                            v={v}
+                            onView={() => onViewVenue(v.id || v.slug)}
+                            isHighlighted={activeListingId === v.id}
+                            quickViewItem={qvItem}
+                            setQuickViewItem={setQvItem}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-                    {/* List + Map Layout */}
-                    <div style={isMobile
-                      ? { display: "flex", flexDirection: "column", gap: 12 }
-                      : { display: "flex", gap: "16px", alignItems: "flex-start" }
-                    }>
-                      {/* Left: venue list — same 900px canvas as grid */}
-                      <div style={{
-                        flex:          "0 1 900px",
-                        minWidth:      0,
-                        display:       "flex",
-                        flexDirection: "column",
-                        gap:           12,
-                        paddingLeft:   50,
-                      }}>
+                {/* Right: MASTERMap — naturally full height, zero hacks */}
+                <div style={{
+                  flex:       1,
+                  position:   "relative",
+                  opacity:    mapTransitioning ? 0 : 1,
+                  transform:  mapTransitioning ? "translateX(24px)" : "translateX(0)",
+                  transition: "opacity 0.3s ease, transform 0.3s ease-out",
+                }}>
+                  <MASTERMap
+                    venues={sortedFilteredListings}
+                    label={`Venue Map · ${regionName || countryName || "Italy"}`}
+                    viewMode={viewMode}
+                    onToggleView={viewMode === "grid" ? handleToggleMap : () => handleViewMode("grid")}
+                    countrySlug={countrySlug || "italy"}
+                    pageBg={darkMode ? C.dark : "#f2f0ea"}
+                    auraSummary={auraSummary && !summaryDismissed ? auraSummary : null}
+                    activeFilter={auraMapFilter}
+                    onFilterChange={(cat) => setAuraMapFilter(cat)}
+                    auraRecommendedIds={auraRecommendedIds}
+                    onSparsePins={handleSparsePins}
+                    activeListingId={activeListingId}
+                    showFollowToggle={true}
+                    onPinClick={(listingId) => {
+                      setActiveListingId(listingId);
+                      const el = document.querySelector(`[data-listing-id="${listingId}"]`);
+                      if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ── NORMAL SECTION ── map off · mobile · non-venue categories ─────── */}
+            {(!mapOn || isMobile) && (
+              <section
+                className="lwd-rc-section"
+                aria-label={`${categoryLabel} listings`}
+                style={{
+                  background:   darkMode ? C.dark : "#f2f0ea",
+                  padding:      isMobile ? "40px 0 72px" : "40px 48px 72px",
+                  borderBottom: `1px solid ${C.border}`,
+                }}
+              >
+                <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+
+                  {/* wedding-venues · grid view — mobile: 1-col, desktop: 3-col */}
+                  {categorySlug === "wedding-venues" && viewMode === "grid" && (
+                    <div
+                      className="lwd-venue-grid"
+                      style={{
+                        display:             "grid",
+                        gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+                        gap:                 isMobile ? 3 : 16,
+                      }}
+                      aria-label="Venue grid"
+                    >
+                      {sortedFilteredListings.map((v) => (
+                        <div
+                          key={v.id}
+                          data-listing-id={v.id}
+                          onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
+                          onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
+                        >
+                          <LuxuryVenueCard
+                            v={v}
+                            onView={() => onViewVenue(v.id || v.slug)}
+                            quickViewItem={qvItem}
+                            setQuickViewItem={setQvItem}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* wedding-venues · list view — single col, mobile map modal */}
+                  {categorySlug === "wedding-venues" && viewMode !== "grid" && (
+                    <>
+                      {isMobile && (
+                        <div style={{ marginBottom: 20 }}>
+                          <button
+                            onClick={() => setMapOpen(true)}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 8,
+                              background: "rgba(201,168,76,0.08)",
+                              border: "1px solid rgba(201,168,76,0.3)",
+                              borderRadius: "var(--lwd-radius-input)",
+                              padding: "9px 18px",
+                              fontFamily: NU, fontSize: 11, fontWeight: 600,
+                              letterSpacing: "0.5px", color: "#C9A84C", cursor: "pointer",
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                              <line x1="9" y1="3" x2="9" y2="18" />
+                              <line x1="15" y1="6" x2="15" y2="21" />
+                            </svg>
+                            Show Map
+                          </button>
+                        </div>
+                      )}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                         {sortedFilteredListings.map((v) => (
                           <div
                             key={v.id}
@@ -1328,120 +1358,54 @@ export default function RegionCategoryPage({
                         ))}
                       </div>
 
-                      {/* Right: MASTERMap — same size/position as grid view */}
-                      {!isMobile && (
-                        <div style={{
-                          flex:         "1 0 auto",
-                          minWidth:     "360px",
-                          position:     "sticky",
-                          top:          0,
-                          marginTop:    -40,
-                          marginBottom: -72,
-                          height:       "calc(100vh + 112px)",
-                          marginRight:  "calc(-1 * (100vw - 100%))",
-                          paddingRight: "calc(100vw - 100%)",
-                        }}>
-                          <MASTERMap
-                            venues={sortedFilteredListings}
-                            label={`Venue Map · ${regionName || countryName || "Italy"}`}
-                            viewMode="list"
-                            onToggleView={() => handleViewMode("grid")}
-                            countrySlug={countrySlug || "italy"}
-                            pageBg={darkMode ? C.dark : "#f2f0ea"}
-                            auraSummary={auraSummary && !summaryDismissed ? auraSummary : null}
-                            activeFilter={auraMapFilter}
-                            onFilterChange={(cat) => setAuraMapFilter(cat)}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Mobile Map Modal */}
-                    {isMobile && mapOpen && (
-                      <div
-                        style={{
-                          position: "fixed",
-                          inset: 0,
-                          background: "rgba(0,0,0,0.5)",
-                          display: "flex",
-                          alignItems: "flex-end",
-                          zIndex: 1000,
-                        }}
-                        onClick={() => setMapOpen(false)}
-                      >
+                      {/* Mobile map modal — full intelligence props, parity with desktop */}
+                      {isMobile && mapOpen && (
                         <div
-                          style={{
-                            width: "100%",
-                            height: "80vh",
-                            background: darkMode ? C.dark : "#f2f0ea",
-                            borderRadius: "16px 16px 0 0",
-                            overflow: "hidden",
-                            display: "flex",
-                            flexDirection: "column",
-                          }}
-                          onClick={(e) => e.stopPropagation()}
+                          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", zIndex: 1000 }}
+                          onClick={() => setMapOpen(false)}
                         >
                           <div
-                            style={{
-                              padding: "12px 16px",
-                              borderBottom: `1px solid ${C.border}`,
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                            }}
+                            style={{ width: "100%", height: "80vh", background: darkMode ? C.dark : "#f2f0ea", borderRadius: "16px 16px 0 0", overflow: "hidden", display: "flex", flexDirection: "column" }}
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <span style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, color: C.white }}>
-                              Map
-                            </span>
-                            <button
-                              onClick={() => setMapOpen(false)}
-                              style={{
-                                background: "none",
-                                border: "none",
-                                fontSize: 20,
-                                cursor: "pointer",
-                                color: C.grey,
-                              }}
-                            >
-                              ×
-                            </button>
-                          </div>
-                          <div style={{ flex: 1, overflow: "hidden" }}>
-                            <MASTERMap
-                              venues={sortedFilteredListings}
-                              label={`${categoryLabel} · ${regionName || countryName || "Italy"}`}
-                              viewMode="grid"
-                              onToggleView={() => setMapOpen(false)}
-                              countrySlug={countrySlug || "italy"}
-                              pageBg={darkMode ? C.dark : "#f2f0ea"}
-                              auraSummary={auraSummary && !summaryDismissed ? auraSummary : null}
-                            />
+                            <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, color: C.white }}>Map</span>
+                              <button onClick={() => setMapOpen(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.grey }}>×</button>
+                            </div>
+                            <div style={{ flex: 1, overflow: "hidden" }}>
+                              <MASTERMap
+                                venues={sortedFilteredListings}
+                                label={`${categoryLabel} · ${regionName || countryName || "Italy"}`}
+                                viewMode={viewMode}
+                                onToggleView={() => setMapOpen(false)}
+                                countrySlug={countrySlug || "italy"}
+                                pageBg={darkMode ? C.dark : "#f2f0ea"}
+                                auraSummary={auraSummary && !summaryDismissed ? auraSummary : null}
+                                activeFilter={auraMapFilter}
+                                onFilterChange={(cat) => setAuraMapFilter(cat)}
+                                auraRecommendedIds={auraRecommendedIds}
+                                onSparsePins={handleSparsePins}
+                                activeListingId={activeListingId}
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                </>
-              )}
-              {categorySlug !== "wedding-venues" && (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-                    gap: 24,
-                  }}
-                >
-                  {sortedFilteredListings.map((item) => (
-                    <ListingCard
-                      key={item.id}
-                      item={item}
-                      C={C}
-                      isVenue={false}
-                    />
-                  ))}
+                      )}
+                    </>
+                  )}
+
+                  {/* non-venue categories */}
+                  {categorySlug !== "wedding-venues" && (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 24 }}>
+                      {sortedFilteredListings.map((item) => (
+                        <ListingCard key={item.id} item={item} C={C} isVenue={false} />
+                      ))}
+                    </div>
+                  )}
+
                 </div>
-              )}
-            </div>
-            </section>
+              </section>
+            )}
           </>
         ) : (
           /* ── Premium "Coming Soon" editorial state ── */
