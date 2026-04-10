@@ -1135,17 +1135,15 @@ export default function RegionCategoryPage({
               <div style={{ maxWidth: (viewMode === "list" || mapOn) ? "none" : 1280, margin: "0 auto" }}>
 
               {categorySlug === "wedding-venues" && viewMode === "grid" && (
-                /* ── GRID VIEW (map off: 3-col | map on: 2-col + MASTERMap bleed) ── */
+                /* ── GRID VIEW (fixed+fluid: 900px canvas | 16px gap | fluid map) ── */
                   <div style={{
-                    display: mapOn && !isMobile ? "grid" : "block",
-                    gridTemplateColumns: mapOn && !isMobile
-                      ? "minmax(0, 1fr) clamp(340px, 36vw, 520px)"
-                      : undefined,
-                    alignItems: "start",
-                    gap: mapOn && !isMobile ? 0 : undefined,
+                    display: mapOn && !isMobile ? "flex" : "block",
+                    gap: mapOn && !isMobile ? "16px" : undefined,
+                    alignItems: "flex-start",
                   }}>
-                    {/* Left: venue grid */}
+                    {/* Left: fixed 900px canvas (listings always same size) */}
                     <div style={{
+                      flex: mapOn && !isMobile ? "0 1 900px" : undefined,
                       opacity: mapTransitioning ? 0.55 : 1,
                       transition: "opacity 0.2s ease",
                     }}>
@@ -1153,8 +1151,8 @@ export default function RegionCategoryPage({
                         className="lwd-venue-grid"
                         style={{
                           display: "grid",
-                          gridTemplateColumns: isMobile ? "1fr" : mapOn ? "repeat(2,1fr)" : "repeat(3,1fr)",
-                          gap: isMobile ? 3 : mapOn ? 20 : 16,
+                          gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+                          gap: 16,
                           transition: "grid-template-columns 0.25s ease, gap 0.25s ease",
                         }}
                         aria-label="Venue grid"
@@ -1183,16 +1181,21 @@ export default function RegionCategoryPage({
                       </div>
                     </div>
 
-                    {/* Right: MASTERMap bleed (grid + map on, desktop only) */}
+                    {/* Right: fluid map (fills remaining space, bleeds to browser edge) */}
                     {mapOn && !isMobile && (
                       <div style={{
-                        position:  "sticky",
-                        top:       72,
-                        height:    "calc(100vh - 72px)",
-                        marginRight: -48,  // bleed out of section padding
-                        opacity:   mapTransitioning ? 0 : 1,
-                        transform: mapTransitioning ? "translateX(24px)" : "translateX(0)",
-                        transition: "opacity 0.3s ease, transform 0.3s ease-out",
+                        flex: "1 0 auto",
+                        minWidth: "360px",
+                        position: "sticky",
+                        top: 0,  // full-height from top
+                        height: "100vh",
+                        marginRight: "calc(-1 * (100vw - 100%))",  // full viewport bleed
+                        paddingRight: "calc(100vw - 100%)",
+                        background: `linear-gradient(to right, ${darkMode ? "rgba(8,8,8,0.6)" : "rgba(242,240,234,0.6)"} 0%, ${darkMode ? "rgba(8,8,8,0.6)" : "rgba(242,240,234,0.6)"} 18%, transparent 72px)`,
+                        opacity: mapTransitioning ? 0 : 1,
+                        transform: mapTransitioning ? "translateX(32px)" : "translateX(0)",
+                        transition: "opacity 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.35s cubic-bezier(0.4,0,0.2,1)",
+                        zIndex: mapTransitioning ? -1 : 10,
                       }}>
                         <MASTERMap
                           venues={sortedFilteredListings}
@@ -1204,6 +1207,18 @@ export default function RegionCategoryPage({
                           auraSummary={auraSummary && !summaryDismissed ? auraSummary : null}
                           activeFilter={auraMapFilter}
                           onFilterChange={(cat) => setAuraMapFilter(cat)}
+                          auraRecommendedIds={auraRecommendedIds}
+                          onSparsePins={handleSparsePins}
+                          activeListingId={activeListingId}
+                          showFollowToggle={true}
+                          onPinClick={(listingId) => {
+                            setActiveListingId(listingId);
+                            // Scroll card into view
+                            const el = document.querySelector(`[data-listing-id="${listingId}"]`);
+                            if (el) {
+                              el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                            }
+                          }}
                         />
                       </div>
                     )}
