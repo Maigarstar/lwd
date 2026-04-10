@@ -601,7 +601,7 @@ export default function MASTERMap({
         height:       "100%",
         minHeight:    480,
         background:   "#0d1012",
-        borderRadius: "var(--lwd-radius-card, 8px) 0 0 var(--lwd-radius-card, 8px)",
+        borderRadius: 0,
         overflow:     "hidden",
       }}
     >

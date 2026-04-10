@@ -1143,12 +1143,14 @@ export default function RegionCategoryPage({
               mapOn={mapOn}
               onToggleMap={categorySlug === "wedding-venues" ? handleToggleMap : undefined}
             />
-            <InfoStrip
-              availableRegions={[{ name: regionName, slug: regionSlug }]}
-              filters={venueFilters}
-              onFiltersChange={handleVenueFiltersChange}
-              defaultFilters={DEFAULT_FILTERS}
-            />
+            {!mapOn && (
+              <InfoStrip
+                availableRegions={[{ name: regionName, slug: regionSlug }]}
+                filters={venueFilters}
+                onFiltersChange={handleVenueFiltersChange}
+                defaultFilters={DEFAULT_FILTERS}
+              />
+            )}
 
             {/* ════════════════════════════════════════════════════════════════════
                 8. LISTINGS GRID / LIST+MAP VIEW
@@ -1221,8 +1223,10 @@ export default function RegionCategoryPage({
                         flex: "1 0 auto",
                         minWidth: "360px",
                         position: "sticky",
-                        top: 0,  // full-height from top
-                        height: "100vh",
+                        top: 0,
+                        marginTop: -40,
+                        marginBottom: -72,
+                        height: "calc(100vh + 112px)",
                         marginRight: "calc(-1 * (100vw - 100%))",  // full viewport bleed
                         paddingRight: "calc(100vw - 100%)",
                         background: `linear-gradient(to right, ${darkMode ? "rgba(8,8,8,0.6)" : "rgba(242,240,234,0.6)"} 0%, ${darkMode ? "rgba(8,8,8,0.6)" : "rgba(242,240,234,0.6)"} 18%, transparent 72px)`,
@@ -1292,20 +1296,13 @@ export default function RegionCategoryPage({
                     )}
 
                     {/* List + Map Layout */}
-                    <div style={{
-                      ...(isMobile
-                        ? { display: "flex", flexDirection: "column", gap: 12 }
-                        : {
-                            display:             "grid",
-                            gridTemplateColumns: "minmax(0, 1fr) clamp(360px, 36vw, 520px)",
-                            columnGap:           0,
-                            alignItems:          "start",
-                            minWidth:            0,
-                          }
-                      ),
-                    }}>
-                      {/* Left: venue list */}
+                    <div style={isMobile
+                      ? { display: "flex", flexDirection: "column", gap: 12 }
+                      : { display: "flex", gap: "16px", alignItems: "flex-start" }
+                    }>
+                      {/* Left: venue list — same 900px canvas as grid */}
                       <div style={{
+                        flex:          "0 1 900px",
                         minWidth:      0,
                         display:       "flex",
                         flexDirection: "column",
@@ -1331,13 +1328,18 @@ export default function RegionCategoryPage({
                         ))}
                       </div>
 
-                      {/* Right: MASTERMap — sticky, full height, right bleed */}
+                      {/* Right: MASTERMap — same size/position as grid view */}
                       {!isMobile && (
                         <div style={{
-                          position:   "sticky",
-                          top:        72,
-                          height:     "calc(100vh - 120px)",
-                          marginRight: -48,
+                          flex:         "1 0 auto",
+                          minWidth:     "360px",
+                          position:     "sticky",
+                          top:          0,
+                          marginTop:    -40,
+                          marginBottom: -72,
+                          height:       "calc(100vh + 112px)",
+                          marginRight:  "calc(-1 * (100vw - 100%))",
+                          paddingRight: "calc(100vw - 100%)",
                         }}>
                           <MASTERMap
                             venues={sortedFilteredListings}
