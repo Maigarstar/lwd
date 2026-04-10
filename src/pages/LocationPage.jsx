@@ -433,7 +433,8 @@ export default function LocationPage({
       const nameFromSlug = locationSlug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
       return {
         slug: locationSlug,
-        name: supabaseRow.hero_title || nameFromSlug,
+        name: nameFromSlug,                              // canonical geo name — used for filters, map labels, suggestions
+        displayName: supabaseRow.hero_title || nameFromSlug, // editorial title — used for page heading only
         description: supabaseRow.hero_subtitle || "",
         countrySlug: supabaseRow.country_slug,
         regionSlug: supabaseRow.region_slug,
