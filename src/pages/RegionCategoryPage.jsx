@@ -1185,7 +1185,7 @@ export default function RegionCategoryPage({
                         className="lwd-venue-grid"
                         style={{
                           display: "grid",
-                          gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+                          gridTemplateColumns: isMobile ? "1fr" : mapOn ? "repeat(2, 1fr)" : "repeat(3, 1fr)",
                           gap: 16,
                           transition: "grid-template-columns 0.25s ease, gap 0.25s ease",
                         }}
