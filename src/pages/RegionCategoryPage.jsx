@@ -483,7 +483,7 @@ export default function RegionCategoryPage({
     } else {
       setSparseZoneAlert(null);
     }
-  }, [relatedRegions, category, countrySlug]);
+  }, [relatedRegions, categorySlug, countrySlug]);
 
   // ── Search submit → route to CategoryPage ─────────────────────────────────
   const handleSearchSubmit = (e) => {
