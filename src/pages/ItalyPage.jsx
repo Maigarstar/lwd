@@ -20,7 +20,6 @@ import { getRegionsByCountry } from "../data/geo";
 // ── Components ──────────────────────────────────────────────────────────────
 import { useChat }     from "../chat/ChatContext";
 import CatNav          from "../components/nav/CatNav";
-import CleanFilterBar  from "../components/filters/CleanFilterBar";
 import Hero            from "../components/hero/Hero";
 import InfoStrip       from "../components/sections/InfoStrip";
 import LatestSplit     from "../components/sections/LatestSplit";
@@ -218,17 +217,6 @@ export default function ItalyPage({
           scrolled={scrolled}
           darkMode={darkMode}
           onToggleDark={handleToggleDark}
-        />
-
-        {/* ── Clean filter bar ── */}
-        <CleanFilterBar
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          regions={ITALY_REGIONS}
-          sortMode={sortMode}
-          onSortChange={setSortMode}
-          resultCount={filtered.length}
-          C={C}
         />
 
         {/* ── Hero (72vh) ── */}

@@ -29,7 +29,7 @@ import MapSection      from "../components/sections/MapSection";
 import MASTERMap from "../components/maps/MASTERMap";
 import SEOBlock        from "../components/sections/SEOBlock";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
-import FilterBar       from "../components/filters/FilterBar";
+import CountrySearchBar from "../components/filters/CountrySearchBar";
 import HCard           from "../components/cards/HCard";
 import GCard           from "../components/cards/GCard";
 import QuickViewModal  from "../components/modals/QuickViewModal";
@@ -252,28 +252,29 @@ export default function CountryTemplate({
           </p>
         </div>
 
-        {/* ── Sticky filter bar ── */}
-        <FilterBar
+        {/* ── Sticky search bar with map integration ── */}
+        <CountrySearchBar
           filters={filters}
-          onChange={handleFiltersChange}
+          onFiltersChange={handleFiltersChange}
           viewMode={viewMode}
           onViewMode={handleViewMode}
           sortMode={sortMode}
           onSortChange={setSortMode}
           total={filtered.length}
           regions={ITALY_REGIONS}
+          countryFilter="Italy"
+          mapContent={
+            viewMode === "map" ? (
+              <MASTERMap
+                items={filtered.map(v => ({ ...v, type: "venue", category: "wedding-venues" }))}
+                label="Italy · Wedding Venues"
+                viewMode="grid"
+                countrySlug="italy"
+                pageBg={C.black}
+              />
+            ) : null
+          }
         />
-
-        {/* ══ MAP VIEW ══════════════════════════════════════════════════════ */}
-        {viewMode === "map" && (
-          <MASTERMap
-            items={filtered.map(v => ({ ...v, type: "venue", category: "wedding-venues" }))}
-            label="Italy · Wedding Venues"
-            viewMode="grid"
-            countrySlug="italy"
-            pageBg={C.black}
-          />
-        )}
 
         {/* ══ LIST / GRID VIEW ══════════════════════════════════════════════ */}
         {viewMode !== "map" && (
