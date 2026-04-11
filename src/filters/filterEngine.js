@@ -96,7 +96,16 @@ export function applyVendorSort(listings, sortKey) {
 
     case "recommended":
     default:
-      return list.sort((a, b) => (b.lwdScore || 0) - (a.lwdScore || 0));
+      // Featured-first, then by lwdScore, then by rating (matches venue behaviour)
+      return list.sort((a, b) => {
+        const fa = a.featured ? 1 : 0;
+        const fb = b.featured ? 1 : 0;
+        if (fb !== fa) return fb - fa;
+        const sa = b.lwdScore || 0;
+        const sb = a.lwdScore || 0;
+        if (sa !== sb) return sa - sb;
+        return (b.rating || 0) - (a.rating || 0);
+      });
   }
 }
 

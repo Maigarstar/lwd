@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { ThemeCtx, useTheme } from "../theme/ThemeContext";
 import { getDarkPalette, getLightPalette, DARK_C } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
-import { normalizeStyle } from "../constants/styleMap";
+
 
 import {
   getRegionBySlug,
@@ -37,10 +37,9 @@ import {
   extractFilterOptions,
 } from "../filters";
 
-// ── Phase 1: shared directory state + transform ───────────────────────────────
-import { useDirectoryState, applyDirectoryFilters, applyDirectorySort } from "../hooks/useDirectoryState";
-import { transformListing, transformListings, mergeListings } from "../utils/transformListing";
-import { DEFAULT_FILTERS } from "../data/italyVenues"; // Phase 2: remove when MasterFilterBar replaces CountrySearchBar
+// ── Phase 1: shared directory state (view mode, map, mobile detection) ────────
+import { useDirectoryState } from "../hooks/useDirectoryState";
+import { transformListings, mergeListings } from "../utils/transformListing";
 
 import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
@@ -133,7 +132,8 @@ export default function RegionCategoryPage({
 
   // ── Category flags ──────────────────────────────────────────────────────────
   const isVenue = categorySlug === "wedding-venues";
-  const isVendor = !isVenue && !!geoSlugToVendorCategory(categorySlug);
+  // Phase B unified: ALL categories (including venues) go through dynamic filter engine
+  const isVendor = true; // Every category uses the dynamic system now
 
   // Initialize region filter from URL regionSlug (resolve slug → name for display)
   const initialRegionName = useMemo(() => {
@@ -194,31 +194,7 @@ export default function RegionCategoryPage({
     },
   });
 
-  // ── Legacy filter shim — CountrySearchBar still drives venueFilters shape ──
-  // Phase 2 will replace CountrySearchBar with MasterFilterBar.
-  // For now, keep venueFilters in sync with the shared filters object.
-  const venueFilters = useMemo(() => ({
-    region:   filters.region   || regionSlug || "all",
-    style:    filters.styles?.[0] || "All Styles",
-    capacity: filters.capacity || "All Capacities",
-    price:    filters.priceFrom ? `£${filters.priceFrom}+` : "All Prices",
-  }), [filters, regionSlug]);
-
-  const setVenueFilters = useCallback((f) => {
-    // Normalize UI style label to canonical data values
-    const normalizedStyles = f.style && f.style !== "All Styles"
-      ? normalizeStyle(f.style)
-      : [];
-
-    updateFilters({
-      region:    f.region   !== "all" ? f.region   : null,
-      styles:    normalizedStyles,
-      capacity:  f.capacity && f.capacity !== "All Capacities"  ? f.capacity   : null,
-    });
-  }, [updateFilters]);
-
-  const sortMode    = filters.sort || "recommended";
-  const setSortMode = useCallback((s) => updateFilters({ sort: s }), [updateFilters]);
+  // ── Legacy venue filter shim removed — all categories now use vendorFilters ──
 
   const C = darkMode ? getDarkPalette() : getLightPalette();
 
@@ -229,21 +205,19 @@ export default function RegionCategoryPage({
       if (!raw) return;
       sessionStorage.removeItem("lwd:immersive-refinement");
       const ref = JSON.parse(raw);
-      // Map refinement → venueFilters shape
-      const styleMap = {
-        "Romantic": "Romantic", "Historic": "Historic", "Rustic Luxe": "Rustic Luxe",
-        "Coastal": "Coastal", "Vineyard": "Vineyard", "Intimate": "Intimate", "Modern": null,
-      };
+      // Map refinement → vendorFilters (unified system)
       const capacityMap = {
         "Just us": "Up to 50", "Up to 50": "Up to 50",
-        "50–100": "51–100", "100–200": "101–200", "200+": "200+",
+        "50–100": "50–100", "100–200": "100–200", "200+": "200+",
       };
       const priceMap = { "Mid-range £££": "£££", "Luxury ££££": "££££" };
-      const next = { ...DEFAULT_FILTERS, region: regionSlug || "all" };
-      if (ref.style    && styleMap[ref.style])    next.style    = styleMap[ref.style];
-      if (ref.guests   && capacityMap[ref.guests]) next.capacity = capacityMap[ref.guests];
-      if (ref.budget   && priceMap[ref.budget])    next.price    = priceMap[ref.budget];
-      setVenueFilters(next);
+      setVendorFilters(prev => {
+        const next = { ...prev };
+        if (ref.style)  next.style    = ref.style;
+        if (ref.guests && capacityMap[ref.guests]) next.capacity = capacityMap[ref.guests];
+        if (ref.budget && priceMap[ref.budget])     next.budget   = priceMap[ref.budget];
+        return next;
+      });
       // Build concierge summary banner text
       const summary = buildImmersiveSummary(ref, categoryLabel, regionName, countryName);
       if (summary) { setAuraSummary(summary); setSummaryDismissed(false); }
@@ -355,72 +329,17 @@ export default function RegionCategoryPage({
     return VENDORS.filter((v) => vendorCats.includes(v.category));
   }, [categorySlug, regionSlug, countrySlug, region, regionName, dbListings]);
 
-  // ── Extract available filter values (wedding-venues only) ────────────────────
-  const availableFilters = useMemo(() => {
-    if (categorySlug !== "wedding-venues") {
-      return { styles: [], prices: [], capacities: [], locations: [] };
-    }
-    const styles = new Set();
-    const prices = new Set();
-    const capacities = new Set();
-    const locations = new Set();
-
-    listings.forEach((v) => {
-      // Styles
-      if (v.styles && Array.isArray(v.styles)) {
-        v.styles.forEach((s) => styles.add(s));
-      }
-      // Prices (extract from priceFrom field)
-      if (v.priceFrom) {
-        if (v.priceFrom <= 15000) prices.add("£0–15k");
-        if (v.priceFrom > 15000 && v.priceFrom <= 30000) prices.add("£15–30k");
-        if (v.priceFrom > 30000) prices.add("£30k+");
-      }
-      // Capacities
-      if (v.capacity) {
-        if (v.capacity <= 50) capacities.add("Up to 50");
-        if (v.capacity > 50 && v.capacity <= 100) capacities.add("50–100");
-        if (v.capacity > 100 && v.capacity <= 200) capacities.add("100–200");
-        if (v.capacity > 200) capacities.add("200+");
-      }
-      // Locations (region/district)
-      if (v.region) {
-        locations.add(v.region);
-      }
-    });
-
-    return {
-      styles: Array.from(styles).sort(),
-      prices: ["£0–15k", "£15–30k", "£30k+"],
-      capacities: ["Up to 50", "50–100", "100–200", "200+"],
-      locations: Array.from(locations).sort(),
-    };
-  }, [listings, categorySlug]);
-
-  // ── Apply filters to listings ───────────────────────────────────────────────
-  // ── Filter + sort via shared utilities ────────────────────────────────────
-  const filteredListings = useMemo(
-    () => applyDirectoryFilters(listings, filters),
-    [listings, filters],
-  );
-
-  const sortedFilteredListings = useMemo(() => {
-    const sorted = applyDirectorySort(filteredListings, filters.sort);
-    if (!userCountryCode) return sorted;
-    return sortByCountryPriority(sorted, userCountryCode, "countrySlug");
-  }, [filteredListings, filters.sort, userCountryCode]);
-
-  // ── Phase B: Dynamic vendor filtering + sorting (one final array for all vendor categories) ──
-  const vendorFinalListings = useMemo(() => {
-    if (!isVendor || !vendorFilterConfig) return sortedFilteredListings;
+  // ── Unified filtering + sorting (one engine for ALL categories) ─────────────
+  const finalListings = useMemo(() => {
+    if (!vendorFilterConfig) return listings;
     // Apply config-driven filters from the dynamic engine
     const filtered = applyVendorFilters(listings, vendorFilters, vendorFilterConfig.filters);
-    // Apply sort
-    return applyVendorSort(filtered, vendorFilters.sort || "recommended");
-  }, [isVendor, vendorFilterConfig, listings, sortedFilteredListings, vendorFilters]);
-
-  // ── One final visible array — Grid, List, Map all render from this ─────────
-  const finalListings = isVendor ? vendorFinalListings : sortedFilteredListings;
+    // Apply sort (featured-first for "recommended")
+    const sorted = applyVendorSort(filtered, vendorFilters.sort || "recommended");
+    // Geo-priority reorder when user country is known
+    if (!userCountryCode) return sorted;
+    return sortByCountryPriority(sorted, userCountryCode, "countrySlug");
+  }, [vendorFilterConfig, listings, vendorFilters, userCountryCode]);
   const listingCount = finalListings.length;
 
   // ── Phase B: Auto-populate filter options from data ─────────────────────────
@@ -537,7 +456,8 @@ export default function RegionCategoryPage({
     return () => window.removeEventListener("scroll", fn);
   }, []);
 
-  const handleVenueFiltersChange = useCallback((f) => setVenueFilters(f), [setVenueFilters]);
+  // Venue filter change handler — delegates to unified vendorFilters
+  const handleVenueFiltersChange = useCallback((f) => setVendorFilters(f), [setVendorFilters]);
 
   // ── Handle alternative category selection from empty result state ─────────
   const handleSelectAlternative = useCallback((altSlug) => {
@@ -1188,11 +1108,11 @@ export default function RegionCategoryPage({
               regionSlug={regionSlug}
               regionName={regionName}
               categorySlug={categorySlug}
-              entityType="venue"
-              availableRegions={availableFilters.locations.map(l => ({ name: l, slug: l.toLowerCase().replace(/\s+/g, "-") }))}
-              filters={venueFilters}
+              entityType={isVenue ? "venue" : "vendor"}
+              availableRegions={(vendorFilterOptions.region || []).map(l => ({ name: l, slug: l.toLowerCase().replace(/\s+/g, "-") }))}
+              filters={vendorFilters}
               onFiltersChange={handleVenueFiltersChange}
-              defaultFilters={DEFAULT_FILTERS}
+              defaultFilters={buildInitialFilters(vendorFilterConfig, initialRegionName)}
               onSummary={(s) => { setAuraSummary(s || null); setSummaryDismissed(false); }}
               onClearSummary={() => { setAuraSummary(null); setAuraMapFilter(null); setAuraCrossNav(null); }}
               onCategoryIntent={(cat) => {
@@ -1226,35 +1146,27 @@ export default function RegionCategoryPage({
               }}
             />
             <CountrySearchBar
-              filters={venueFilters}
+              filters={vendorFilters}
               onFiltersChange={handleVenueFiltersChange}
               viewMode={viewMode}
               onViewMode={handleViewMode}
-              sortMode={sortMode}
-              onSortChange={setSortMode}
+              sortMode={vendorFilters.sort || "recommended"}
+              onSortChange={(s) => setVendorFilters(prev => ({ ...prev, sort: s }))}
               total={listingCount}
               regions={[{ name: regionName, slug: regionSlug }]}
               countryFilter={countryName}
               mapOn={mapOn}
               onToggleMap={handleToggleMap}
-              mode={isVendor ? "vendor-dynamic" : undefined}
+              mode="vendor-dynamic"
               onRegionNavigate={handleVendorRegionNavigate}
-              // Phase B: Dynamic vendor filter props
+              // Dynamic vendor filter props
               vendorFilters={vendorFilters}
               onVendorFiltersChange={setVendorFilters}
               vendorFilterConfig={vendorFilterConfig}
               vendorFilterOptions={vendorFilterOptions}
-              vendorCategoryLabel={isVendor ? categoryLabel : undefined}
+              vendorCategoryLabel={categoryLabel}
               hideVendorFilterBar={hideVendorFilterBar}
             />
-            {!isVendor && !mapOn && (
-              <InfoStrip
-                availableRegions={[{ name: regionName, slug: regionSlug }]}
-                filters={venueFilters}
-                onFiltersChange={handleVenueFiltersChange}
-                defaultFilters={DEFAULT_FILTERS}
-              />
-            )}
 
             {/* ════════════════════════════════════════════════════════════════════
                 8. LISTINGS — EXPLORE LAYOUT (map on · desktop) or NORMAL SECTION
@@ -1321,8 +1233,8 @@ export default function RegionCategoryPage({
                               onView={() => onViewVenue(v.id || v.slug)}
                               quickViewItem={qvItem}
                               setQuickViewItem={setQvItem}
-                              matchedStyles={filters.styles || []}
-                              otherFilters={{ region: filters.region, capacity: filters.capacity }}
+                              matchedStyles={vendorFilters.style ? [vendorFilters.style] : []}
+                              otherFilters={{ region: vendorFilters.region, capacity: vendorFilters.capacity }}
                             />
                           ) : vendorFilterConfig?.card === "PlannerCard" ? (
                             <PlannerCard v={v} mode="grid" onView={() => onViewPlanner(v)} isMobile={isMobile} />
@@ -1368,7 +1280,7 @@ export default function RegionCategoryPage({
                   {listingCount > 0 && listingCount <= 3 && (
                     <NearMatchSection
                       allListings={listings}
-                      matchedStyles={filters.styles || []}
+                      matchedStyles={vendorFilters.style ? [vendorFilters.style] : []}
                       primaryResults={finalListings}
                       onView={onViewVenue}
                       darkMode={darkMode}
@@ -1458,8 +1370,8 @@ export default function RegionCategoryPage({
                             onView={() => onViewVenue(v.id || v.slug)}
                             quickViewItem={qvItem}
                             setQuickViewItem={setQvItem}
-                            matchedStyles={filters.styles || []}
-                            otherFilters={{ region: filters.region, capacity: filters.capacity }}
+                            matchedStyles={vendorFilters.style ? [vendorFilters.style] : []}
+                            otherFilters={{ region: vendorFilters.region, capacity: vendorFilters.capacity }}
                           />
                         </div>
                       ))}
