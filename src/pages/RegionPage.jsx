@@ -91,12 +91,18 @@ export default function RegionPage({
   const {
     mapOn,
     toggleMap,
+    setMapOn,
     mapTransitioning,
     viewMode,
-    setViewMode,
+    setViewMode: _setViewMode,
     activeListingId,
     setActiveListingId,
   } = useDirectoryState({ storageKey: "lwd-region-view" });
+  // List view always opens with the map (split layout)
+  const setViewMode = useCallback((mode) => {
+    _setViewMode(mode);
+    if (mode === "list" && !mapOn) setMapOn(true);
+  }, [_setViewMode, mapOn, setMapOn]);
   const [currentPage, setCurrentPage] = useState(0);
   const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, region: regionSlug }));
   const [sortMode, setSortMode] = useState("recommended");
@@ -1110,81 +1116,65 @@ export default function RegionPage({
           </section>
         )}
 
-        {/* ═══ CATEGORY SHORTCUTS ════════════════════════════════════════════ */}
-
-        {/* ═══ FEATURED LISTINGS / COMING SOON ═══════════════════════════════ */}
+        {/* ═══ DIRECTORY LISTINGS — viewMode-aware grid / list ═══════════════ */}
         {filteredRegionVenues.length > 0 ? (
           <>
-            {/* Venue grid — first 4 cards with heading + AI text */}
             <section
-              aria-label={`Venues in ${region.name}`}
+              aria-label={`${listingMode === "vendors" ? "Vendors" : "Venues"} in ${region.name}`}
               className="lwd-region-section"
               style={{
                 maxWidth: 1280,
                 margin: "0 auto",
-                padding: "24px 48px 32px",
+                padding: isMobile ? "24px 16px 32px" : "24px 48px 32px",
               }}
             >
-              <div style={{ marginBottom: 24 }}>
-                <h2
+              {viewMode === "grid" ? (
+                <div
+                  ref={grid1Ref}
                   style={{
-                    fontFamily: GD,
-                    fontSize: "clamp(26px, 3vw, 36px)",
-                    fontWeight: 400,
-                    color: C.off,
-                    lineHeight: 1.2,
-                    margin: 0,
+                    display: "grid",
+                    gridTemplateColumns: isMobile
+                      ? "1fr"
+                      : "repeat(auto-fill, minmax(340px, 1fr))",
+                    gap: isMobile ? 16 : 20,
                   }}
                 >
-                  Latest Wedding{" "}
-                  <span style={{ fontStyle: "italic", color: C.gold }}>Vendors</span>
-                </h2>
-                <p style={{
-                  fontFamily: NU, fontSize: 14, color: C.grey,
-                  lineHeight: 1.75, maxWidth: 680, fontWeight: 300, margin: "12px 0 0",
-                }}>
-                  The finest photographers, planners, florists and stylists working across {region.name}. Each one trusted by our editorial team and verified by real couples.
-                </p>
-              </div>
-
-              <div ref={grid1Ref}>
-                <SliderNav
-                  key={filteredRegionVenues[0]?.id || "empty"}
-                  className="lwd-region-venue-grid"
-                  cardWidth={360}
-                  gap={isMobile ? 12 : 16}
-                >
-                  {filteredRegionVenues.slice(0, 4).map((v, i) => (
+                  {(listingMode === "vendors" ? regionVendors : filteredRegionVenues).map((v, i) => (
                     <div
                       key={v.id}
-                      className="lwd-region-venue-card"
+                      data-listing-id={v.id}
                       style={{
-                        flex: "0 0 360px",
-                        scrollSnapAlign: "start",
-                        ...revealStyle(grid1In, i),
+                        height: 560,
+                        ...revealStyle(grid1In, i < 8 ? i : 0),
                       }}
                     >
-                      <LuxuryVenueCard
+                      {listingMode === "vendors"
+                        ? <LuxuryVendorCard v={v} onView={() => onViewVenue(v.slug || v.id)} isMobile={isMobile} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
+                        : <LuxuryVenueCard  v={v} onView={() => onViewVenue(v.slug || v.id)} isMobile={isMobile} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
+                      }
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {(listingMode === "vendors" ? regionVendors : filteredRegionVenues).map((v) => (
+                    <div key={v.id} data-listing-id={v.id}>
+                      <VenueListItemCard
                         v={v}
-                        isMobile={isMobile}
                         onView={() => onViewVenue(v.slug || v.id)}
                         quickViewItem={qvItem}
                         setQuickViewItem={setQvItem}
                       />
                     </div>
                   ))}
-                </SliderNav>
-              </div>
+                </div>
+              )}
             </section>
 
-            {/* Featured Venues section — removed per user request */}
-
-            {/* ═══ E-E-A-T EDITORIAL — between map & second grid ═════════════ */}
+            {/* ═══ E-E-A-T EDITORIAL — below directory listings ══════════════ */}
             {region.editorial && (
               <EditorialSection editorial={region.editorial} region={region} C={C} />
             )}
-
-            {/* More venues slider — removed per user request */}
           </>
         ) : (
           /* ── Premium "Coming Soon" editorial state ── */

@@ -21,6 +21,7 @@ import LatestVendorsStrip   from "../components/sections/LatestVendorsStrip";
 import MottoStrip           from "../components/sections/MottoStrip";
 import MapSection      from "../components/sections/MapSection";
 import MASTERMap from "../components/maps/MASTERMap";
+import { PinSyncBus } from "../components/maps/PinSyncBus";
 import SEOBlock        from "../components/sections/SEOBlock";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import CatNav          from "../components/nav/CatNav";
@@ -1012,25 +1013,27 @@ export default function LocationPage({
           />
         )}
 
-        {/* ═══ AI COMMAND BAR + FILTER BAR ════════ */}
+        {/* ═══ AI COMMAND BAR ════════ */}
+        <AICommandBar
+          countrySlug={currentLocation.slug}
+          countryName={countryName}
+          regionSlug={null}
+          regionName={null}
+          entityType="listing"
+          availableRegions={_regions.filter(r => r.countrySlug === currentLocation.slug).map(r => ({ slug: r.slug, name: r.name }))}
+          filters={filters}
+          onFiltersChange={setFilters}
+          defaultFilters={DEFAULT_FILTERS}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
+
+        {/* ═══ STICKY FILTER BAR ════════ */}
         <div ref={filterBarRef} style={{
           position:   "relative",
-          zIndex:     800,
+          zIndex:     690,
           marginTop:  0,
         }}>
-          <AICommandBar
-            countrySlug={currentLocation.slug}
-            countryName={countryName}
-            regionSlug={null}
-            regionName={null}
-            entityType="listing"
-            availableRegions={_regions.filter(r => r.countrySlug === currentLocation.slug).map(r => ({ slug: r.slug, name: r.name }))}
-            filters={filters}
-            onFiltersChange={setFilters}
-            defaultFilters={DEFAULT_FILTERS}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-          />
           <CountrySearchBar
             filters={filters}
             onFiltersChange={setFilters}
@@ -1045,6 +1048,7 @@ export default function LocationPage({
             onToggleMap={toggleMap}
             mode={listingMode}
             onModeChange={setListingMode}
+            hideListView
           />
           {!mapOn && (
             <InfoStrip
@@ -1057,7 +1061,6 @@ export default function LocationPage({
               services={_locationContent?.infoServices}
             />
           )}
-        </div>
 
         {/* ── EXPLORE LAYOUT — map on · desktop ─────────────────────────────── */}
         {mapOn && !isMobile && (() => {
@@ -1093,8 +1096,8 @@ export default function LocationPage({
                     <div
                       key={v.id}
                       data-listing-id={v.id}
-                      onMouseEnter={() => { setActiveListingId(v.id); }}
-                      onMouseLeave={() => { setActiveListingId(null); }}
+                      onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
+                      onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
                       style={{
                         height:       560,
                         outline:      activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
@@ -1116,8 +1119,8 @@ export default function LocationPage({
                     <div
                       key={v.id}
                       data-listing-id={v.id}
-                      onMouseEnter={() => setActiveListingId(v.id)}
-                      onMouseLeave={() => setActiveListingId(null)}
+                      onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
+                      onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
                     >
                       <VenueListItemCard
                         v={v}
@@ -1147,12 +1150,6 @@ export default function LocationPage({
                 onToggleView={toggleMap}
                 countrySlug={currentLocation.countrySlug || currentLocation.slug}
                 pageBg={C.black}
-                activeListingId={activeListingId}
-                onPinClick={(listingId) => {
-                  setActiveListingId(listingId);
-                  const el = document.querySelector(`[data-listing-id="${listingId}"]`);
-                  if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-                }}
               />
             </div>
           </div>
@@ -1189,39 +1186,7 @@ export default function LocationPage({
           </section>
         )}
 
-        {/* Latest Venues Strip — Hidden when map is open */}
-        {_locationContent?.showLatestVenues !== false && (
-        <LatestVenuesStrip
-          venues={latestVenuesVenues}
-          heading={_locationContent?.latestVenuesHeading || ''}
-          subtext={_locationContent?.latestVenuesSub || ''}
-          locationName={currentLocation.name}
-          countrySlug={countryObj?.slug || currentLocation?.countrySlug || "italy"}
-          onViewVenue={onViewVenue}
-          onQuickView={setQvItem}
-          isMobile={isMobile}
-          cardStyle={_locationContent?.latestVenuesCardStyle || 'luxury'}
-          viewMode={viewMode}
-          onViewMode={setViewMode}
-        />
-        )}
-
-        {/* Latest Vendors Strip — Hidden when map is open */}
-        {_locationContent?.showLatestVendors !== false && (
-        <LatestVendorsStrip
-          vendors={latestVendorsVenues}
-          heading={_locationContent?.latestVendorsHeading || ''}
-          subtext={_locationContent?.latestVendorsSub || ''}
-          locationName={currentLocation.name}
-          countrySlug={countryObj?.slug || currentLocation?.countrySlug || "italy"}
-          onViewVendor={onViewVenue}
-          onQuickView={setQvItem}
-          isMobile={isMobile}
-          cardStyle={_locationContent?.latestVendorsCardStyle || 'luxury'}
-          viewMode={viewMode}
-          onViewMode={setViewMode}
-        />
-        )}
+        {/* LatestVenuesStrip / LatestVendorsStrip removed — unified directory section below handles all listings */}
 
         {/* ═══ FIND YOUR TEAM — Category Shortcuts ═════════════════════════════ */}
         <section
@@ -1260,157 +1225,44 @@ export default function LocationPage({
           </div>
         </section>
 
-        {/* ═══ SIGNATURE VENUES — matching RegionPage card row pattern ═══════ */}
-        {filteredVenues.length > 0 && viewMode !== "map" && (
-          <div style={{ background: darkMode ? C.dark : "#ffffff" }}>
+        {/* ═══ DIRECTORY LISTINGS — unified viewMode-aware grid / list ═══════ */}
+        {filteredVenues.length > 0 && (
           <section
             aria-label={`Wedding professionals in ${currentLocation.name}`}
             className="lwd-region-section"
             style={{
               maxWidth: 1280,
               margin: "0 auto",
-              padding: "24px 48px 32px",
+              padding: isMobile ? "24px 16px 32px" : "24px 48px 32px",
             }}
           >
-            <div style={{ marginBottom: 24 }}>
-              <h2
-                style={{
-                  fontFamily: GD,
-                  fontSize: "clamp(26px, 3vw, 36px)",
-                  fontWeight: 400,
-                  color: C.off,
-                  lineHeight: 1.2,
-                  margin: 0,
-                }}
-              >
-                {_locationContent?.featuredVenuesTitle || "Signature"}{" "}
-                <span style={{ fontStyle: "italic", color: C.gold }}>Listings</span>
-              </h2>
-              <p style={{
-                fontFamily: NU, fontSize: 14, color: C.grey,
-                lineHeight: 1.75, maxWidth: 680, fontWeight: 300, margin: "12px 0 0",
-              }}>
-                The finest wedding professionals across {currentLocation.name}. Each one curated by our editorial team and trusted by real couples.
-              </p>
-            </div>
-
             <div ref={grid1Ref}>
-              {viewMode === "grid" ? (
-                <SliderNav
-                  key={filteredVenues[0]?.id || "empty"}
-                  className="lwd-region-venue-grid"
-                  cardWidth={360}
-                  gap={isMobile ? 12 : 16}
-                >
-                  {filteredVenues.slice(0, 4).map((v, i) => (
-                    <div
-                      key={v.id}
-                      className="lwd-region-venue-card"
-                      style={{
-                        flex: "0 0 360px",
-                        scrollSnapAlign: "start",
-                        ...revealStyle(grid1In, i),
-                      }}
-                    >
-                      <LuxuryVenueCard
-                        v={v}
-                        isMobile={isMobile}
-                        onView={() => onViewVenue(v.slug || v.id)}
-                        quickViewItem={qvItem}
-                        setQuickViewItem={setQvItem}
-                      />
-                    </div>
-                  ))}
-                </SliderNav>
-              ) : (
-                <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-                  {filteredVenues.slice(0, 4).map((v, i) => (
-                    <HCard
-                      key={v.id}
-                      v={v}
-                      onView={() => onViewVenue(v.slug || v.id)}
-                      onQuickView={setQvItem}
-                      onSave={() => {}}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-          </div>
-        )}
-
-        {/* ═══ ALL VENUES — full grid/list below signature row ═════════════════ */}
-        {filteredVenues.length > 4 && viewMode !== "map" && (
-          <section
-            aria-label={`More listings in ${currentLocation.name}`}
-            className="lwd-region-section"
-            style={{
-              maxWidth: 1280,
-              margin: "0 auto",
-              padding: "24px 48px 32px",
-            }}
-          >
-            <div style={{ marginBottom: 24 }}>
-              <h2
+              <div
                 style={{
-                  fontFamily: GD,
-                  fontSize: "clamp(22px, 2.5vw, 30px)",
-                  fontWeight: 400,
-                  color: C.off,
-                  lineHeight: 1.2,
-                  margin: 0,
+                  display: "grid",
+                  gridTemplateColumns: isMobile
+                    ? "1fr"
+                    : "repeat(auto-fill, minmax(340px, 1fr))",
+                  gap: isMobile ? 16 : 20,
                 }}
               >
-                More Wedding{" "}
-                <span style={{ fontStyle: "italic", color: C.gold }}>Professionals</span>
-              </h2>
-              <p style={{
-                fontFamily: NU, fontSize: 14, color: C.grey,
-                lineHeight: 1.75, maxWidth: 680, fontWeight: 300, margin: "12px 0 0",
-              }}>
-                Venues, photographers, planners, florists and stylists across {currentLocation.name}. Each one trusted by our editorial team and verified by real couples.
-              </p>
-            </div>
-
-            {viewMode === "grid" ? (
-              <SliderNav
-                className="lwd-region-venue-grid"
-                cardWidth={360}
-                gap={isMobile ? 12 : 16}
-              >
-                {filteredVenues.slice(4, visibleCount).filter(venue => venue?.imgs?.length > 0).map((v, i) => (
+                {filteredVenues.slice(0, visibleCount).map((v, i) => (
                   <div
                     key={v.id}
-                    className="lwd-region-venue-card"
+                    data-listing-id={v.id}
                     style={{
-                      flex: "0 0 360px",
-                      scrollSnapAlign: "start",
+                      height: 560,
+                      ...revealStyle(grid1In, i < 8 ? i : 0),
                     }}
                   >
-                    <LuxuryVenueCard
-                      v={v}
-                      isMobile={isMobile}
-                      onView={() => onViewVenue(v.slug || v.id)}
-                      quickViewItem={qvItem}
-                      setQuickViewItem={setQvItem}
-                    />
+                    {listingMode === "vendors"
+                      ? <LuxuryVendorCard v={v} onView={() => onViewVenue(v.slug || v.id)} isMobile={isMobile} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
+                      : <LuxuryVenueCard  v={v} onView={() => onViewVenue(v.slug || v.id)} isMobile={isMobile} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
+                    }
                   </div>
                 ))}
-              </SliderNav>
-            ) : (
-              <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-                {filteredVenues.slice(4, visibleCount).filter(venue => venue?.imgs?.length > 0).map((v) => (
-                  <HCard
-                    key={v.id}
-                    v={v}
-                    onView={() => onViewVenue(v.slug || v.id)}
-                    onQuickView={setQvItem}
-                    onSave={() => {}}
-                  />
-                ))}
               </div>
-            )}
+            </div>
 
             {visibleCount < filteredVenues.length && (
               <div style={{ textAlign: "center", marginTop: 30 }}>
@@ -1512,6 +1364,7 @@ export default function LocationPage({
         />
 
         </>)}
+        </div>
         {/* Quick View Modal */}
         {qvItem && (
           <QuickViewModal

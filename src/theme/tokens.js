@@ -1,6 +1,6 @@
 // ─── src/theme/tokens.js ─────────────────────────────────────────────────────
 
-/** Compact (scrolled) nav height in px, sticky filter bar sits at this offset */
+/** Nav height in px, sticky filter bar sits at this offset */
 export const NAV_H = 56;
 
 export const DARK_C = {

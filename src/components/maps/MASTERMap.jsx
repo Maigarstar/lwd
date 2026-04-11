@@ -92,62 +92,80 @@ function loadLeaflet() {
 
 
 // ── Pin icon factory ──────────────────────────────────────────────────────────
+// Premium teardrop — rounded head, short softly curved point.
+// 3-layer structure: outer ring → main body → inner core circle.
+// Hierarchy by size only (same design, different scale):
+//   standard: 20px, featured: 26px, showcase/editors: 32px
 // state:   "standard" | "featured" | "showcase" | "hover" | "active" | "ghost"
 // color:   hex string (defaults to GOLD)
 // variant: "filled" (venues) | "outline" (suppliers)
-function makePinIcon(L, state = "standard", size = 22, color = GOLD, variant = "filled") {
-  const h  = Math.round(size * 1.45);
-  const cx = size / 2;
-  const cy = size * 0.45;
-  const r  = size * 0.22;
+function makePinIcon(L, state = "standard", size = 20, color = GOLD, variant = "filled") {
+  // Size hierarchy — state drives scale
+  const tierSize = state === "showcase" ? 32
+    : state === "featured" ? 26
+    : size;
+  const w = tierSize;
+  const h = Math.round(w * 1.375);  // compact ratio — point ≈40-50% of head
 
   const isGhost  = state === "ghost";
   const isHover  = state === "hover";
   const isActive = state === "active";
-  const pinColor = isGhost ? `rgba(201,168,76,0.35)` : color;
-  const scale    = isActive ? 1.4 : isHover ? 1.15 : 1;
+  const hoverScale = isActive ? 1.15 : isHover ? 1.12 : 1;
+  const pinColor   = isGhost ? `rgba(201,168,76,0.35)` : color;
 
-  // Outer ring for featured / showcase
-  let outerRing = "";
-  if (state === "featured") {
-    outerRing = `<circle cx="${cx}" cy="${cy}" r="${size * 0.48}" fill="none"
-      stroke="${color}" stroke-width="1.5" opacity="0.35"/>`;
-  }
-  if (state === "showcase") {
-    outerRing = `<circle cx="${cx}" cy="${cy}" r="${size * 0.48}" fill="none"
-      stroke="#E8E0D0" stroke-width="1.5" opacity="0.5"/>`;
-  }
+  // Outer ring — thin stroke on all pins, stronger for featured/showcase
+  const outerOpacity = state === "showcase" ? 0.5
+    : state === "featured" ? 0.4
+    : 0.3;
+  const outerStroke = state === "showcase" ? 1.4
+    : state === "featured" ? 1.2
+    : 0.9;
+  const outerColor = state === "showcase" ? "#E8E0D0" : pinColor;
 
-  // Hover or active glow ring — stronger on active
-  const glowRing = (isActive || isHover)
-    ? `<circle cx="${cx}" cy="${cy}" r="${size * (isActive ? 0.58 : 0.50)}" fill="none"
-        stroke="${color}" stroke-width="${isActive ? 1.8 : 1.3}" opacity="${isActive ? 0.5 : 0.3}"
-        class="${isActive ? "lwd-pin-glow-ring-active" : "lwd-pin-glow-ring"}"/>`
+  // Glow filter for hover/active
+  const glowId = `lwd-glow-${Math.random().toString(36).slice(2, 6)}`;
+  const glowFilter = (isActive || isHover)
+    ? `<defs><filter id="${glowId}" x="-50%" y="-40%" width="200%" height="200%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="${isActive ? 2.5 : 1.8}" result="blur"/>
+        <feFlood flood-color="${pinColor}" flood-opacity="${isActive ? 0.4 : 0.25}"/>
+        <feComposite in2="blur" operator="in" result="glow"/>
+        <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter></defs>`
     : "";
+  const filterAttr = (isActive || isHover) ? `filter="url(#${glowId})"` : "";
 
   // Pin body: filled (venues) vs outline (suppliers)
   const pathFill    = variant === "outline" ? "rgba(10,8,6,0.82)" : pinColor;
   const pathStroke  = variant === "outline" ? pinColor : "none";
-  const pathSW      = variant === "outline" ? "1.6" : "0";
-  const pathOpacity = isGhost ? 0.45 : 0.92;
+  const pathSW      = variant === "outline" ? "1.4" : "0";
+  const pathOpacity = isGhost ? 0.4 : 0.92;
 
+  // Core circle radius — ~1/3 of head
+  const coreR = w * 0.14;
+
+  // Rendered size with hover scale
+  const rw = w * hoverScale;
+  const rh = h * hoverScale;
+
+  // Teardrop path using viewBox 0 0 32 44 (normalised), scaled to w×h
   return L.divIcon({
     className: `lwd-mmap-pin lwd-mmap-pin--${state}`,
-    iconSize:    [size * scale, h * scale],
-    iconAnchor:  [(size * scale) / 2, h * scale],
-    popupAnchor: [0, -(h * scale - 4)],
+    iconSize:    [rw, rh],
+    iconAnchor:  [rw / 2, rh],
+    popupAnchor: [0, -(rh - 4)],
     html: `
-      <svg viewBox="0 0 ${size} ${h}" width="${size * scale}" height="${h * scale}"
-        xmlns="http://www.w3.org/2000/svg" style="overflow:visible;display:block">
-        ${outerRing}${glowRing}
-        <path d="M${cx} 1C${size * 0.23} 1 1 ${cy * 0.51} 1 ${cy}
-          c0 ${size * 0.38} ${cx - 1} ${h * 0.64 - cy} ${cx - 1} ${h * 0.64 - cy}
-          s${cx - 1} ${-(h * 0.64 - cy - size * 0.38)} ${cx - 1} ${-(h * 0.64 - cy - size * 0.38)}
-          C${size - 1} ${cy + size * 0.38} ${size - 1} ${cy} ${size - 1} ${cy}
-          C${size - 1} ${cy * 0.51} ${size * 0.77} 1 ${cx} 1z"
-          fill="${pathFill}" stroke="${pathStroke}" stroke-width="${pathSW}"
-          opacity="${pathOpacity}"/>
-        <circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(255,255,255,0.9)"/>
+      <svg viewBox="0 0 32 44" width="${rw}" height="${rh}"
+        xmlns="http://www.w3.org/2000/svg" style="overflow:visible;display:block;
+        transition:transform 0.22s cubic-bezier(0.34,1.4,0.64,1);
+        transform-origin:center bottom;">
+        ${glowFilter}
+        <g ${filterAttr}>
+          <path d="M16 2C8.3 2 2 8.3 2 16c0 4.5 2.2 8.5 5.5 11L16 40c0 0 8.5-13 8.5-13 3.3-2.5 5.5-6.5 5.5-11C30 8.3 23.7 2 16 2z"
+            fill="none" stroke="${outerColor}" stroke-width="${outerStroke}" opacity="${outerOpacity}"/>
+          <path d="M16 3.5C9.1 3.5 3.5 9.1 3.5 16c0 4 1.9 7.6 4.9 9.8L16 37.5l7.6-11.7c3-2.2 4.9-5.8 4.9-9.8C28.5 9.1 22.9 3.5 16 3.5z"
+            fill="${pathFill}" stroke="${pathStroke}" stroke-width="${pathSW}" opacity="${pathOpacity}"/>
+          <circle cx="16" cy="15.5" r="${coreR / w * 32}" fill="rgba(255,255,255,0.92)"/>
+        </g>
       </svg>`,
   });
 }
@@ -414,7 +432,7 @@ export default function MASTERMap({
       v.isFeatured ? "featured" : "standard"
     );
 
-    const icon = makePinIcon(L, pinState, 22, color, variant);
+    const icon = makePinIcon(L, pinState, 20, color, variant);
     const marker = L.marker([v.lat, v.lng], {
       icon,
       zIndexOffset: v.isFeatured || v.isShowcase ? 200 : 0,
@@ -501,24 +519,21 @@ export default function MASTERMap({
       const color    = PIN_COLOURS[category] || GOLD;
       const variant  = type === "vendor" ? "outline" : "filled";
 
-      // Determine pin state: active > hover > standard
+      // Determine pin state: active > hover > restore original
       let pinState = state;
-      let pinSize = 22;
       let zIndex = 0;
 
       if (isTarget) {
         if (active) {
           pinState = "active";
-          pinSize = 28;
           zIndex = 500;
         } else if (hover) {
           pinState = "hover";
-          pinSize = 24;
           zIndex = 300;
         }
       }
 
-      marker.setIcon(makePinIcon(L, pinState, pinSize, color, variant));
+      marker.setIcon(makePinIcon(L, pinState, 20, color, variant));
       marker.setZIndexOffset(zIndex);
     });
   }, []);
@@ -535,9 +550,11 @@ export default function MASTERMap({
   useEffect(() => {
     const offCardHover = PinSyncBus.on("card:hover", (id) => {
       _highlightPin(id, true, false); // active=true, hover=false
-      if (followMode) _panToPin(id);
       const entry = markersRef.current.find((m) => m.id === id);
       if (entry && mapRef.current) {
+        // Auto-zoom to pin on hover — zoom in but never below current zoom
+        const targetZoom = Math.max(mapRef.current.getZoom(), 10);
+        mapRef.current.setView([entry.lat, entry.lng], targetZoom, { animate: true, duration: 0.5 });
         _openPopup(mapRef.current, entry.marker, entry.item);
       }
     });

@@ -804,20 +804,6 @@ function App() {
         {page === "region" && (
           <RegionPage onBack={goHome} onViewVenue={goVenue} onViewCategory={goCategory} onViewRegion={goRegion} onViewRegionCategory={goRegionCategory} onViewCountry={goCountry} countrySlug={activeCountrySlug} regionSlug={activeRegionSlug} footerNav={footerNav} />
         )}
-        {page === "region-category" && activeCategorySlug === "wedding-planners" && (
-          <WeddingPlannersPage
-            onBack={() => goRegion(activeCountrySlug, activeRegionSlug)}
-            onBackHome={goHome}
-            onViewCategory={goCategory}
-            onViewRegion={goRegion}
-            onViewRegionCategory={goRegionCategory}
-            onViewPlanner={(planner) => goPlannerProfile(activeCountrySlug, activeRegionSlug, planner)}
-            countrySlug={activeCountrySlug}
-            regionSlug={activeRegionSlug}
-            categorySlug={activeCategorySlug}
-            footerNav={footerNav}
-          />
-        )}
         {page === "planner-profile" && (() => {
           const currentPlanner = getPlannerByIdOrSlug(activePlannerSlug);
           const similarPlanners = VENDORS.filter(
@@ -915,7 +901,7 @@ function App() {
         {page === "aura-discovery" && (
           <AuraDiscoveryDemoPage onViewVenue={goVenue} />
         )}
-        {page === "region-category" && activeCategorySlug !== "wedding-planners" && (
+        {page === "region-category" && (
           <RegionCategoryPage
             onBack={() => goRegion(activeCountrySlug, activeRegionSlug)}
             onBackHome={goHome}
@@ -924,6 +910,7 @@ function App() {
             onViewRegion={goRegion}
             onViewRegionCategory={goRegionCategory}
             onViewCountry={goCountry}
+            onViewPlanner={(planner) => goPlannerProfile(activeCountrySlug, activeRegionSlug, planner)}
             countrySlug={activeCountrySlug}
             regionSlug={activeRegionSlug}
             categorySlug={activeCategorySlug}

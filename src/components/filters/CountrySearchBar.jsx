@@ -6,6 +6,7 @@ import { useTheme } from "../../theme/ThemeContext";
 import { CAPS, DEFAULT_FILTERS } from "../../data/italyVenues";
 import { LOCATIONS as GROUPED_LOCATIONS } from "../../data/globalVendors";
 import { NAV_H } from "../../theme/tokens";
+import { PLANNER_SERVICE_TIERS } from "../../data/vendors";
 import { track } from "../../utils/track";
 
 const NU = "var(--font-body)";
@@ -173,10 +174,12 @@ function LuxPanel({ label, children }) {
 // CountrySearchBar — the unified sticky bar with luxury mega menus
 // ═════════════════════════════════════════════════════════════════════════════
 export default function CountrySearchBar({
-  filters, onFiltersChange, viewMode, onViewMode, sortMode, onSortChange, total, regions,
+  filters, onFiltersChange, viewMode, onViewMode, sortMode, onSortChange, total, regions, hideListView,
   onVendorSearch, countryFilter,
   mapOn, onToggleMap,
   mode: modeProp, onModeChange,
+  // Planner-specific props
+  plannerFilters, onPlannerFiltersChange, plannerRegions,
 }) {
   const C = useTheme();
   const dark = C.black === "#080808";
@@ -404,7 +407,7 @@ export default function CountrySearchBar({
         borderBottom: `1px solid ${CL.divider}`,
         position:     "sticky",
         top:          NAV_H,
-        zIndex:       800,
+        zIndex:       690,
         boxShadow:    "none",
       }}
     >
@@ -414,23 +417,36 @@ export default function CountrySearchBar({
         display: "flex", alignItems: "center", gap: 12, height: 60,
         overflowX: "auto", WebkitOverflowScrolling: "touch",
       }}>
-        {/* Mode toggle */}
-        <div role="tablist" aria-label="Search mode" style={{
-          display: "flex", background: "rgba(180,165,140,0.05)", borderRadius: 3,
-          border: "1px solid rgba(160,148,125,0.28)", overflow: "hidden", flexShrink: 0,
-        }}>
-          {["venues", "vendors"].map((m) => (
-            <button key={m} role="tab" aria-selected={mode === m}
-              onClick={() => { setMode(m); setOpenMenu(null); }}
-              style={{
-                background: mode === m ? CL.activeTab : "transparent", border: "none",
-                color: mode === m ? "#fff" : CL.text, fontSize: 9, fontWeight: 700,
-                letterSpacing: "1.5px", textTransform: "uppercase", padding: "6px 14px",
-                cursor: "pointer", fontFamily: NU, transition: "all 0.2s",
-              }}
-            >{m === "venues" ? "Venues" : "Vendors"}</button>
-          ))}
-        </div>
+        {/* Mode toggle — hidden for planners (single-category page) */}
+        {mode === "planners" ? (
+          <div style={{
+            display: "flex", background: CL.activeTab, borderRadius: 3,
+            border: "1px solid rgba(160,148,125,0.28)", overflow: "hidden", flexShrink: 0,
+          }}>
+            <span style={{
+              color: "#fff", fontSize: 9, fontWeight: 700,
+              letterSpacing: "1.5px", textTransform: "uppercase", padding: "6px 14px",
+              fontFamily: NU,
+            }}>Planners</span>
+          </div>
+        ) : (
+          <div role="tablist" aria-label="Search mode" style={{
+            display: "flex", background: "rgba(180,165,140,0.05)", borderRadius: 3,
+            border: "1px solid rgba(160,148,125,0.28)", overflow: "hidden", flexShrink: 0,
+          }}>
+            {["venues", "vendors"].map((m) => (
+              <button key={m} role="tab" aria-selected={mode === m}
+                onClick={() => { setMode(m); setOpenMenu(null); }}
+                style={{
+                  background: mode === m ? CL.activeTab : "transparent", border: "none",
+                  color: mode === m ? "#fff" : CL.text, fontSize: 9, fontWeight: 700,
+                  letterSpacing: "1.5px", textTransform: "uppercase", padding: "6px 14px",
+                  cursor: "pointer", fontFamily: NU, transition: "all 0.2s",
+                }}
+              >{m === "venues" ? "Venues" : "Vendors"}</button>
+            ))}
+          </div>
+        )}
 
         <div style={{ width: 1, height: 24, background: CL.border, flexShrink: 0 }} />
 
@@ -493,11 +509,41 @@ export default function CountrySearchBar({
           </>
         )}
 
+        {/* ═══ PLANNER TRIGGERS ══════════════════════════════════════════ */}
+        {mode === "planners" && plannerFilters && (
+          <>
+            <TriggerBtn menuKey="p-tier" label={plannerFilters.tier === "All" ? "All Tiers" : plannerFilters.tier} active={plannerFilters.tier !== "All"} />
+            {plannerRegions && plannerRegions.length > 1 && (
+              <TriggerBtn menuKey="p-region" label={plannerFilters.region === "All" ? "All Regions" : plannerFilters.region} active={plannerFilters.region !== "All"} />
+            )}
+            <TriggerBtn menuKey="p-sort" label={
+              plannerFilters.sort === "recommended" ? "Recommended"
+              : plannerFilters.sort === "rating" ? "Highest Rated"
+              : plannerFilters.sort === "price-low" ? "Price: Low → High"
+              : plannerFilters.sort === "price-high" ? "Price: High → Low"
+              : plannerFilters.sort === "reviews" ? "Most Reviews"
+              : "Recommended"
+            } active={plannerFilters.sort !== "recommended"} />
+
+            {(plannerFilters.tier !== "All" || plannerFilters.region !== "All" || plannerFilters.sort !== "recommended") && (
+              <button onClick={() => onPlannerFiltersChange?.({ tier: "All", region: "All", sort: "recommended" })} aria-label="Clear all filters"
+                style={{
+                  background: "none", border: "none", color: CL.goldDim, fontSize: 9,
+                  cursor: "pointer", fontFamily: NU, letterSpacing: "1px", textTransform: "uppercase",
+                  padding: "4px 6px", transition: "color 0.2s", whiteSpace: "nowrap", flexShrink: 0,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = CL.gold; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = CL.goldDim; }}
+              >✕ Clear</button>
+            )}
+          </>
+        )}
+
         {/* ═══ SHARED: count + view mode controls (always visible) ═══════ */}
         <div style={{ flex: 1 }} />
 
         <span style={{ fontSize: 10, color: CL.count, whiteSpace: "nowrap", fontFamily: NU }}>
-          <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "vendors" ? "vendors" : "venues"}
+          <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "planners" ? "planners" : mode === "vendors" ? "vendors" : "venues"}
         </span>
 
         {/* Grid / List / Map view switcher */}
@@ -509,7 +555,7 @@ export default function CountrySearchBar({
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               background: viewMode === "grid" ? CL.viewActive : "transparent",
-              borderRadius: "3px 0 0 3px",
+              borderRadius: hideListView ? "3px" : "3px 0 0 3px",
               color: viewMode === "grid" ? "#fff" : CL.text,
               cursor: "pointer", width: 30, height: 30, padding: 0,
               transition: "all 0.25s",
@@ -519,6 +565,7 @@ export default function CountrySearchBar({
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/></svg>
           </button>
+          {!hideListView && (
           <button onClick={() => {
             setPressedButton("list");
             onViewMode?.("list");
@@ -537,21 +584,24 @@ export default function CountrySearchBar({
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="6.75" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="11.5" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>
           </button>
+          )}
           {onToggleMap && (
             <button
-              onClick={onToggleMap}
+              onClick={viewMode !== "list" ? onToggleMap : undefined}
               title={mapOn ? "Hide explore view" : "Explore on map"}
               aria-pressed={mapOn}
+              aria-disabled={viewMode === "list"}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
                 background: mapOn ? "#080808" : "#080808",
                 border: `1px solid ${mapOn ? "rgba(201,168,76,0.75)" : "rgba(201,168,76,0.30)"}`,
                 borderLeft: "none", borderRadius: "0 3px 3px 0",
-                color: mapOn ? "rgba(201,168,76,1)" : "rgba(201,168,76,0.60)",
-                cursor: "pointer", height: 30, padding: "0 9px",
+                color: viewMode === "list" ? "rgba(201,168,76,0.40)" : mapOn ? "rgba(201,168,76,1)" : "rgba(201,168,76,0.60)",
+                cursor: viewMode === "list" ? "default" : "pointer", height: 30, padding: "0 9px",
                 transition: "all 0.25s", fontFamily: NU, fontSize: 9,
                 fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase",
                 whiteSpace: "nowrap",
+                opacity: viewMode === "list" ? 0.75 : 1,
               }}
             >
               <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -589,6 +639,17 @@ export default function CountrySearchBar({
             {openMenu === "v-category" && renderVendorCategoryPanel()}
             {openMenu === "v-budget"   && renderOptionsPanel("Budget", BUDGETS, vendorBudget, (v) => { setVendorBudget(v); setOpenMenu(null); })}
             {openMenu === "v-avail"    && renderOptionsPanel("Availability", AVAILABILITY, vendorAvail, (v) => { setVendorAvail(v); setOpenMenu(null); })}
+
+            {/* ── Planner mega menus ── */}
+            {openMenu === "p-tier" && renderOptionsPanel("Service Tier", ["All", ...PLANNER_SERVICE_TIERS], plannerFilters?.tier || "All", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, tier: v }); setOpenMenu(null); })}
+            {openMenu === "p-region" && renderOptionsPanel("Region", ["All", ...(plannerRegions || [])], plannerFilters?.region || "All", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, region: v }); setOpenMenu(null); })}
+            {openMenu === "p-sort" && renderOptionsPanel("Sort By", [
+              { value: "recommended", label: "Recommended" },
+              { value: "rating", label: "Highest Rated" },
+              { value: "price-low", label: "Price: Low to High" },
+              { value: "price-high", label: "Price: High to Low" },
+              { value: "reviews", label: "Most Reviews" },
+            ].map(o => o.value === "recommended" ? "recommended" : o.value), plannerFilters?.sort || "recommended", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, sort: v }); setOpenMenu(null); })}
           </div>
         </div>
       )}

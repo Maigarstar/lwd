@@ -36,11 +36,13 @@ import NearMatchSection from "../components/sections/NearMatchSection";
 import ImmersiveSearch from "../components/search/ImmersiveSearch";
 import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
 import VenueListItemCard from "../components/cards/VenueListItemCard";
+import PlannerCard from "../components/cards/PlannerCard";
 import MASTERMap        from "../components/maps/MASTERMap";
 import { PinSyncBus }  from "../components/maps/PinSyncBus";
 import QuickViewModal  from "../components/modals/QuickViewModal";
 import AICommandBar    from "../components/filters/AICommandBar";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
+import PlannerFilterBar from "../components/filters/PlannerFilterBar";
 import InfoStrip        from "../components/sections/InfoStrip";
 import HomeNav          from "../components/nav/HomeNav";
 import RegionRealWeddings from "../components/sections/RegionRealWeddings";
@@ -85,6 +87,7 @@ export default function RegionCategoryPage({
   onViewRegion = () => {},
   onViewRegionCategory = () => {},
   onViewCountry = () => {},
+  onViewPlanner = () => {},
   countrySlug = null,
   regionSlug = null,
   categorySlug = null,
@@ -113,6 +116,10 @@ export default function RegionCategoryPage({
   const [auraRecommendedIds,  setAuraRecommendedIds]  = useState(null);
   const [sparseZoneAlert,     setSparseZoneAlert]     = useState(null);
   const [isFilteringTransition, setIsFilteringTransition] = useState(false);
+
+  // ── Planner-specific state ──────────────────────────────────────────────────
+  const isPlanner = categorySlug === "wedding-planners";
+  const [plannerFilters, setPlannerFilters] = useState({ tier: "All", region: "All", sort: "recommended" });
 
   // ── Phase 1: shared directory state (replaces viewMode/mapOn/isMobile/activeListingId) ──
   const {
@@ -193,7 +200,11 @@ export default function RegionCategoryPage({
   }, []);
 
   // ── View mode handler (wraps shared setViewMode) ─────────────────────────
-  const handleViewMode = useCallback((mode) => setViewMode(mode), [setViewMode]);
+  // List view always opens with the map (split layout)
+  const handleViewMode = useCallback((mode) => {
+    setViewMode(mode);
+    if (mode === "list" && !mapOn) setMapOn(true);
+  }, [setViewMode, mapOn, setMapOn]);
 
   // ── Fetch live Supabase listings for this region/country ──────────────────
   useEffect(() => {
@@ -347,7 +358,39 @@ export default function RegionCategoryPage({
     return sortByCountryPriority(sorted, userCountryCode, "countrySlug");
   }, [filteredListings, filters.sort, userCountryCode]);
 
-  const listingCount = sortedFilteredListings.length;
+  // ── Planner-specific filtering + sorting (one final array for all views) ──
+  const plannerFinalListings = useMemo(() => {
+    if (!isPlanner) return sortedFilteredListings;
+    let list = [...listings]; // geo-filtered planners from the listings useMemo
+    // Apply tier filter
+    if (plannerFilters.tier && plannerFilters.tier !== "All") {
+      list = list.filter(p => p.serviceTier === plannerFilters.tier);
+    }
+    // Apply region filter (sub-region within geo results)
+    if (plannerFilters.region && plannerFilters.region !== "All") {
+      list = list.filter(p => p.region === plannerFilters.region);
+    }
+    // Sort
+    const parsePrice = (v) => { const m = String(v?.priceFrom || v?.priceLabel || "").match(/[\d,]+/); return m ? parseInt(m[0].replace(/,/g, ""), 10) : 0; };
+    switch (plannerFilters.sort) {
+      case "rating":     list.sort((a, b) => (b.rating || 0) - (a.rating || 0)); break;
+      case "price-low":  list.sort((a, b) => parsePrice(a) - parsePrice(b)); break;
+      case "price-high": list.sort((a, b) => parsePrice(b) - parsePrice(a)); break;
+      case "reviews":    list.sort((a, b) => (b.reviews || 0) - (a.reviews || 0)); break;
+      default:           list.sort((a, b) => (b.lwdScore || 0) - (a.lwdScore || 0)); break;
+    }
+    return list;
+  }, [isPlanner, listings, sortedFilteredListings, plannerFilters]);
+
+  // ── One final visible array — Grid, List, Map all render from this ─────────
+  const finalListings = isPlanner ? plannerFinalListings : sortedFilteredListings;
+  const listingCount = finalListings.length;
+
+  // Planner regions for filter dropdown
+  const plannerRegions = useMemo(() => {
+    if (!isPlanner) return [];
+    return [...new Set(listings.map(p => p.region).filter(Boolean))].sort();
+  }, [isPlanner, listings]);
 
   // ── Filter transition feedback — smooth fade when results change ──────────
   // Trigger a brief opacity transition to signal that filtering just happened
@@ -355,7 +398,7 @@ export default function RegionCategoryPage({
     setIsFilteringTransition(true);
     const timer = setTimeout(() => setIsFilteringTransition(false), 100);
     return () => clearTimeout(timer);
-  }, [sortedFilteredListings]);
+  }, [finalListings]);
 
   // ── Related categories (sibling categories in same region) ────────────────
   const siblingCategories = useMemo(
@@ -1100,26 +1143,39 @@ export default function RegionCategoryPage({
                 }
               }}
             />
-            <CountrySearchBar
-              filters={venueFilters}
-              onFiltersChange={handleVenueFiltersChange}
-              viewMode={viewMode}
-              onViewMode={handleViewMode}
-              sortMode={sortMode}
-              onSortChange={setSortMode}
-              total={listingCount}
-              regions={[{ name: regionName, slug: regionSlug }]}
-              countryFilter={countryName}
-              mapOn={mapOn}
-              onToggleMap={categorySlug === "wedding-venues" ? handleToggleMap : undefined}
-            />
-            {!mapOn && (
-              <InfoStrip
-                availableRegions={[{ name: regionName, slug: regionSlug }]}
-                filters={venueFilters}
-                onFiltersChange={handleVenueFiltersChange}
-                defaultFilters={DEFAULT_FILTERS}
+            {isPlanner ? (
+              <PlannerFilterBar
+                regions={plannerRegions}
+                filters={plannerFilters}
+                onFilterChange={setPlannerFilters}
+                viewMode={viewMode}
+                onViewChange={handleViewMode}
+                totalCount={listingCount}
               />
+            ) : (
+              <>
+                <CountrySearchBar
+                  filters={venueFilters}
+                  onFiltersChange={handleVenueFiltersChange}
+                  viewMode={viewMode}
+                  onViewMode={handleViewMode}
+                  sortMode={sortMode}
+                  onSortChange={setSortMode}
+                  total={listingCount}
+                  regions={[{ name: regionName, slug: regionSlug }]}
+                  countryFilter={countryName}
+                  mapOn={mapOn}
+                  onToggleMap={categorySlug === "wedding-venues" ? handleToggleMap : undefined}
+                />
+                {!mapOn && (
+                  <InfoStrip
+                    availableRegions={[{ name: regionName, slug: regionSlug }]}
+                    filters={venueFilters}
+                    onFiltersChange={handleVenueFiltersChange}
+                    defaultFilters={DEFAULT_FILTERS}
+                  />
+                )}
+              </>
             )}
 
             {/* ════════════════════════════════════════════════════════════════════
@@ -1157,7 +1213,7 @@ export default function RegionCategoryPage({
                       darkMode={darkMode}
                     />
                   ) : viewMode === "grid" ? (
-                    /* Grid — 2 × 386px fixed columns */
+                    /* Grid — 2-col (venues/planners) */
                     <div
                       className="lwd-venue-grid"
                       style={{
@@ -1165,37 +1221,41 @@ export default function RegionCategoryPage({
                         gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
                         gap:                 20,
                       }}
-                      aria-label="Venue grid"
+                      aria-label={isPlanner ? "Planner grid" : "Venue grid"}
                     >
-                      {sortedFilteredListings.map((v) => (
+                      {finalListings.map((v) => (
                         <div
                           key={v.id}
                           data-listing-id={v.id}
                           onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
                           onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
                           style={{
-                            height:       560,
+                            height:       isPlanner ? 460 : 560,
                             outline:      activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
                             borderRadius: "var(--lwd-radius-card, 8px)",
                             transition:   "outline 0.2s",
                             overflow:     "hidden",
                           }}
                         >
-                          <LuxuryVenueCard
-                            v={v}
-                            onView={() => onViewVenue(v.id || v.slug)}
-                            quickViewItem={qvItem}
-                            setQuickViewItem={setQvItem}
-                            matchedStyles={filters.styles || []}
-                            otherFilters={{ region: filters.region, capacity: filters.capacity }}
-                          />
+                          {isPlanner ? (
+                            <PlannerCard v={v} mode="grid" onView={() => onViewPlanner(v)} isMobile={isMobile} />
+                          ) : (
+                            <LuxuryVenueCard
+                              v={v}
+                              onView={() => onViewVenue(v.id || v.slug)}
+                              quickViewItem={qvItem}
+                              setQuickViewItem={setQvItem}
+                              matchedStyles={filters.styles || []}
+                              otherFilters={{ region: filters.region, capacity: filters.capacity }}
+                            />
+                          )}
                         </div>
                       ))}
                     </div>
                   ) : (
                     /* List — single column, full width */
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      {sortedFilteredListings.map((v) => (
+                      {finalListings.map((v) => (
                         <div
                           key={v.id}
                           data-listing-id={v.id}
@@ -1203,13 +1263,17 @@ export default function RegionCategoryPage({
                           onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
                           onClick={() => PinSyncBus.emit("card:click", v.id)}
                         >
-                          <VenueListItemCard
-                            v={v}
-                            onView={() => onViewVenue(v.id || v.slug)}
-                            isHighlighted={activeListingId === v.id}
-                            quickViewItem={qvItem}
-                            setQuickViewItem={setQvItem}
-                          />
+                          {isPlanner ? (
+                            <PlannerCard v={v} mode="list" listMode onView={() => onViewPlanner(v)} isMobile={isMobile} isHighlighted={activeListingId === v.id} />
+                          ) : (
+                            <VenueListItemCard
+                              v={v}
+                              onView={() => onViewVenue(v.id || v.slug)}
+                              isHighlighted={activeListingId === v.id}
+                              quickViewItem={qvItem}
+                              setQuickViewItem={setQvItem}
+                            />
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1220,7 +1284,7 @@ export default function RegionCategoryPage({
                     <NearMatchSection
                       allListings={listings}
                       matchedStyles={filters.styles || []}
-                      primaryResults={sortedFilteredListings}
+                      primaryResults={finalListings}
                       onView={onViewVenue}
                       darkMode={darkMode}
                       categoryLabel={categoryLabel}
@@ -1237,7 +1301,7 @@ export default function RegionCategoryPage({
                   transition: "opacity 0.3s ease, transform 0.3s ease-out",
                 }}>
                   <MASTERMap
-                    venues={sortedFilteredListings}
+                    venues={finalListings}
                     label={`Venue Map · ${regionName || countryName || "Italy"}`}
                     viewMode={viewMode}
                     onToggleView={viewMode === "grid" ? handleToggleMap : () => handleViewMode("grid")}
@@ -1297,7 +1361,7 @@ export default function RegionCategoryPage({
                       }}
                       aria-label="Venue grid"
                     >
-                      {sortedFilteredListings.map((v) => (
+                      {finalListings.map((v) => (
                         <div
                           key={v.id}
                           data-listing-id={v.id}
@@ -1361,7 +1425,7 @@ export default function RegionCategoryPage({
                         opacity: isFilteringTransition ? 0.7 : 1,
                         transition: "opacity 0.15s ease",
                       }}>
-                        {sortedFilteredListings.map((v) => (
+                        {finalListings.map((v) => (
                           <div
                             key={v.id}
                             data-listing-id={v.id}
@@ -1396,7 +1460,7 @@ export default function RegionCategoryPage({
                             </div>
                             <div style={{ flex: 1, overflow: "hidden" }}>
                               <MASTERMap
-                                venues={sortedFilteredListings}
+                                venues={finalListings}
                                 label={`${categoryLabel} · ${regionName || countryName || "Italy"}`}
                                 viewMode={viewMode}
                                 onToggleView={() => setMapOpen(false)}
@@ -1416,10 +1480,40 @@ export default function RegionCategoryPage({
                     </>
                   )}
 
-                  {/* non-venue categories */}
-                  {categorySlug !== "wedding-venues" && (
+                  {/* wedding-planners · grid/list */}
+                  {isPlanner && viewMode === "grid" && (
+                    <div style={{
+                      display: "grid",
+                      gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(320px, 1fr))",
+                      gap: isMobile ? 12 : 24,
+                      opacity: isFilteringTransition ? 0.7 : 1,
+                      transition: "opacity 0.15s ease",
+                    }}>
+                      {finalListings.map((p) => (
+                        <PlannerCard key={p.id} v={p} mode="grid" onView={() => onViewPlanner(p)} isMobile={isMobile} />
+                      ))}
+                    </div>
+                  )}
+                  {isPlanner && viewMode !== "grid" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16, opacity: isFilteringTransition ? 0.7 : 1, transition: "opacity 0.15s ease" }}>
+                      {finalListings.map((p) => (
+                        <PlannerCard
+                          key={p.id}
+                          v={p}
+                          mode="list"
+                          listMode
+                          onView={() => onViewPlanner(p)}
+                          isMobile={isMobile}
+                          isHighlighted={activeListingId === p.id}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* other non-venue, non-planner categories */}
+                  {categorySlug !== "wedding-venues" && !isPlanner && (
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 24 }}>
-                      {sortedFilteredListings.map((item) => (
+                      {finalListings.map((item) => (
                         <ListingCard key={item.id} item={item} C={C} isVenue={false} />
                       ))}
                     </div>
