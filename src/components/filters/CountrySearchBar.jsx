@@ -505,7 +505,6 @@ export default function CountrySearchBar({
             <TriggerBtn menuKey="v-location" label={vendorLocLabel} active={vendorLocation && vendorLocation !== "all"} />
             <TriggerBtn menuKey="v-category" label={vendorCategory} active={vendorCategory !== "All Categories"} />
             <TriggerBtn menuKey="v-budget" label={vendorBudget} active={vendorBudget !== "All Budgets"} />
-            <TriggerBtn menuKey="v-avail" label={vendorAvail} active={vendorAvail !== "Any Date"} />
 
             <button onClick={handleVendorSearch}
               style={{
@@ -649,8 +648,7 @@ export default function CountrySearchBar({
             {/* ── Vendor mega menus ── */}
             {openMenu === "v-location" && renderVendorLocationPanel()}
             {openMenu === "v-category" && renderVendorCategoryPanel()}
-            {openMenu === "v-budget"   && renderOptionsPanel("Budget", BUDGETS, vendorBudget, (v) => { setVendorBudget(v); setOpenMenu(null); onVendorSearch?.({ location: vendorLocation, category: vendorCategory, budget: v, availability: vendorAvail }); })}
-            {openMenu === "v-avail"    && renderOptionsPanel("Availability", AVAILABILITY, vendorAvail, (v) => { setVendorAvail(v); setOpenMenu(null); onVendorSearch?.({ location: vendorLocation, category: vendorCategory, budget: vendorBudget, availability: v }); })}
+            {openMenu === "v-budget"   && renderOptionsPanel("Budget", BUDGETS, vendorBudget, (v) => { setVendorBudget(v); setOpenMenu(null); onVendorSearch?.({ location: vendorLocation, category: vendorCategory, budget: v }); })}
 
             {/* ── Planner mega menus ── */}
             {openMenu === "p-tier" && renderOptionsPanel("Service Tier", ["All", ...PLANNER_SERVICE_TIERS], plannerFilters?.tier || "All", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, tier: v }); setOpenMenu(null); })}
