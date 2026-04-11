@@ -188,6 +188,7 @@ export default function CountrySearchBar({
   const setMode = (m) => { setModeLocal(m); onModeChange?.(m); };
   const [openMenu, setOpenMenu] = useState(null);
   const [hov, setHov] = useState(null);
+  const [pressedButton, setPressedButton] = useState(null); // ← Track button animation state
   const barRef = useRef(null);
 
   // Vendor-specific local state
@@ -195,6 +196,13 @@ export default function CountrySearchBar({
   const [vendorCategory, setVendorCategory] = useState("All Categories");
   const [vendorBudget, setVendorBudget]     = useState("All Budgets");
   const [vendorAvail, setVendorAvail]       = useState("Any Date");
+
+  // ── Animation cleanup: reset pressed button after animation completes ──
+  useEffect(() => {
+    if (!pressedButton) return;
+    const timer = setTimeout(() => { setPressedButton(null); }, 120);
+    return () => clearTimeout(timer);
+  }, [pressedButton]);
 
   // Close on outside click + Escape
   useEffect(() => {
@@ -494,34 +502,37 @@ export default function CountrySearchBar({
 
         {/* Grid / List / Map view switcher */}
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <button onClick={(e) => {
+          <button onClick={() => {
+            setPressedButton("grid");
             onViewMode?.("grid");
-            e.currentTarget.style.transform = "scale(0.92)";
-            setTimeout(() => { e.currentTarget.style.transform = "scale(1)"; }, 120);
           }} title="Grid view" aria-pressed={viewMode === "grid"}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               background: viewMode === "grid" ? CL.viewActive : "transparent",
-              border: "1px solid rgba(160,148,125,0.28)", borderRadius: "3px 0 0 3px",
+              borderRadius: "3px 0 0 3px",
               color: viewMode === "grid" ? "#fff" : CL.text,
               cursor: "pointer", width: 30, height: 30, padding: 0,
               transition: "all 0.25s",
+              transform: pressedButton === "grid" ? "scale(0.92)" : "scale(1)",
+              border: "1px solid rgba(160,148,125,0.28)",
             }}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/></svg>
           </button>
-          <button onClick={(e) => {
+          <button onClick={() => {
+            setPressedButton("list");
             onViewMode?.("list");
-            e.currentTarget.style.transform = "scale(0.92)";
-            setTimeout(() => { e.currentTarget.style.transform = "scale(1)"; }, 120);
           }} title="List view" aria-pressed={viewMode === "list"}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               background: viewMode === "list" ? CL.viewActive : "transparent",
-              border: "1px solid rgba(160,148,125,0.28)", borderLeft: "none", borderRadius: "0 3px 3px 0",
+              borderRadius: "0 3px 3px 0",
               color: viewMode === "list" ? "#fff" : CL.text,
               cursor: "pointer", width: 30, height: 30, padding: 0,
               transition: "all 0.25s",
+              transform: pressedButton === "list" ? "scale(0.92)" : "scale(1)",
+              border: "1px solid rgba(160,148,125,0.28)",
+              borderLeft: "none",
             }}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="6.75" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="11.5" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>
