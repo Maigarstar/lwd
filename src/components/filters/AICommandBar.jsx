@@ -189,6 +189,8 @@ export default function AICommandBar({
   onClearSummary,
   onCategoryIntent,   // fn(categorySlug | null) — fires when Aura detects a supplier/venue category
   onMapIntent,        // fn(true | false) — fires true when query has spatial/proximity intent
+  searchQuery = "",
+  onSearchChange,
 }) {
   const C = useTheme();
   const inputRef = useRef(null);
@@ -301,6 +303,7 @@ export default function AICommandBar({
   // ── Clear ──────────────────────────────────────────────────────────────────
   const handleClear = useCallback(() => {
     setQuery("");
+    onSearchChange?.("");
     setAiActive(false);
     setAiAppliedFilters(null);
     setAiSummary(null);
@@ -312,7 +315,7 @@ export default function AICommandBar({
     onClearSummary?.();
     onCategoryIntent?.(null);
     inputRef.current?.focus();
-  }, [defaultFilters, onFiltersChange, onSummary, onClearSummary, onCategoryIntent]);
+  }, [defaultFilters, onFiltersChange, onSummary, onClearSummary, onCategoryIntent, onSearchChange]);
 
   // ── Remove single dimension ────────────────────────────────────────────────
   const removeDimension = useCallback((key) => {
@@ -381,7 +384,12 @@ export default function AICommandBar({
               type="text"
               className="lwd-ai-input"
               value={query}
-              onChange={e => { setQuery(e.target.value); if (error) setError(null); }}
+              onChange={e => {
+                const newQuery = e.target.value;
+                setQuery(newQuery);
+                onSearchChange?.(newQuery);
+                if (error) setError(null);
+              }}
               onKeyDown={e => { if (e.key === "Enter" && !loading) handleSubmit(); }}
               placeholder="Describe your ideal venue, and we'll refine the search."
               disabled={loading}

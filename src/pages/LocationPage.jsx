@@ -1023,6 +1023,8 @@ export default function LocationPage({
             filters={filters}
             onFiltersChange={setFilters}
             defaultFilters={DEFAULT_FILTERS}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
           />
           <CountrySearchBar
             filters={filters}
