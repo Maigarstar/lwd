@@ -31,6 +31,7 @@ import { DEFAULT_FILTERS } from "../data/italyVenues"; // Phase 2: remove when M
 
 import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
+import EmptyResultState from "../components/sections/EmptyResultState";
 import ImmersiveSearch from "../components/search/ImmersiveSearch";
 import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
 import VenueListItemCard from "../components/cards/VenueListItemCard";
@@ -352,6 +353,33 @@ export default function RegionCategoryPage({
     [categorySlug],
   );
 
+  // ── Alternative categories (for empty/low result UX) ──────────────────────
+  // Compute result counts for all categories to suggest when current is empty
+  const alternativeCategories = useMemo(() => {
+    const alternatives = [];
+    VENDOR_CATEGORIES.forEach((vc) => {
+      if (vc.slug === categorySlug) return; // Skip current category
+
+      // Apply same filters but with this category
+      const categoryListings = listings.filter((v) => {
+        const catMatch = !filters.category || v.category === filters.category || vc.slug === "wedding-venues";
+        const regionMatch = !filters.region || v.region === filters.region || v.regionSlug === filters.region;
+        return catMatch && regionMatch;
+      });
+
+      if (categoryListings.length > 0) {
+        alternatives.push({
+          category: vc.label,
+          slug: vc.slug,
+          count: categoryListings.length,
+        });
+      }
+    });
+
+    // Sort by count descending, take top 6
+    return alternatives.sort((a, b) => b.count - a.count).slice(0, 6);
+  }, [listings, filters.category, filters.region, categorySlug]);
+
   // ── Related regions (same category in nearby regions) ─────────────────────
   const relatedRegions = useMemo(() => {
     if (!region?.relatedRegionSlugs?.length) return [];
@@ -375,6 +403,15 @@ export default function RegionCategoryPage({
   }, []);
 
   const handleVenueFiltersChange = useCallback((f) => setVenueFilters(f), [setVenueFilters]);
+
+  // ── Handle alternative category selection from empty result state ─────────
+  const handleSelectAlternative = useCallback((altSlug) => {
+    const path = getRegionCategoryPath(countrySlug || "italy", regionSlug || "all", altSlug);
+    // Navigate to the new category
+    if (onViewRegionCategory) {
+      onViewRegionCategory(countrySlug || "italy", regionSlug || "all", altSlug);
+    }
+  }, [countrySlug, regionSlug, onViewRegionCategory]);
 
   // ── Sparse zone detection: < 3 pins visible for active category ────────────
   const handleSparsePins = useCallback((data) => {
@@ -1098,7 +1135,15 @@ export default function RegionCategoryPage({
                   opacity:    mapTransitioning ? 0.55 : 1,
                   transition: "opacity 0.2s ease",
                 }}>
-                  {viewMode === "grid" ? (
+                  {listingCount <= 3 ? (
+                    <EmptyResultState
+                      resultCount={listingCount}
+                      categoryLabel={categoryLabel}
+                      alternatives={alternativeCategories}
+                      onSelectAlternative={handleSelectAlternative}
+                      darkMode={darkMode}
+                    />
+                  ) : viewMode === "grid" ? (
                     /* Grid — 2 × 386px fixed columns */
                     <div
                       className="lwd-venue-grid"
@@ -1153,7 +1198,7 @@ export default function RegionCategoryPage({
                         </div>
                       ))}
                     </div>
-                  )}
+                  ))}
                 </div>
 
                 {/* Right: MASTERMap — naturally full height, zero hacks */}
@@ -1201,8 +1246,19 @@ export default function RegionCategoryPage({
               >
                 <div style={{ maxWidth: 1280, margin: "0 auto" }}>
 
+                  {/* Empty/low result state */}
+                  {listingCount <= 3 && categorySlug === "wedding-venues" && (
+                    <EmptyResultState
+                      resultCount={listingCount}
+                      categoryLabel={categoryLabel}
+                      alternatives={alternativeCategories}
+                      onSelectAlternative={handleSelectAlternative}
+                      darkMode={darkMode}
+                    />
+                  )}
+
                   {/* wedding-venues · grid view — mobile: 1-col, desktop: 3-col */}
-                  {categorySlug === "wedding-venues" && viewMode === "grid" && (
+                  {categorySlug === "wedding-venues" && viewMode === "grid" && listingCount > 3 && (
                     <div
                       className="lwd-venue-grid"
                       style={{
@@ -1231,7 +1287,7 @@ export default function RegionCategoryPage({
                   )}
 
                   {/* wedding-venues · list view — single col, mobile map modal */}
-                  {categorySlug === "wedding-venues" && viewMode !== "grid" && (
+                  {categorySlug === "wedding-venues" && viewMode !== "grid" && listingCount > 3 && (
                     <>
                       {isMobile && (
                         <div style={{ marginBottom: 20 }}>

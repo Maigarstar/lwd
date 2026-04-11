@@ -252,7 +252,7 @@ export const VENUES = [
   { id:20, name:"Castello di Ama",             region:"Tuscany",      city:"Gaiole in Chianti",
     countrySlug:"italy", regionSlug:"tuscany", citySlug:"chianti", legacyCityName:"Gaiole in Chianti",
     lat: 43.4501, lng: 11.3452, online: false,
-    styles:["Vineyard","Intimate","Garden"],             capacity:70,
+    styles:["Contemporary","Vineyard","Intimate","Garden"], capacity:70,
     priceLabel:"£££",  priceFrom:"£15,000", rating:4.9, reviews:48,
     featured:false, verified:true, lwdScore:82, tag:null,
     desc:"An extraordinary fusion of Chianti wine estate and contemporary art gallery. Exchange vows among sculpture by Louise Bourgeois and Anish Kapoor, then dine beneath a Canopy of stars in the vineyard.",
