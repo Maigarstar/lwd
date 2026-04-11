@@ -1,8 +1,11 @@
 // ─── src/data/italyVenues.js ─────────────────────────────────────────────────
 import { hydrateScores } from "../engine/index.js";
 
+// Helper: Generate URL-friendly slug from venue name
+const makeSlug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
 export const VENUES = [
-  { id:1,  name:"Villa Rosanova",            region:"Tuscany",      city:"San Casciano",
+  { id:1,  name:"Villa Rosanova",            slug:"villa-rosanova", region:"Tuscany",      city:"San Casciano",
     countrySlug:"italy", regionSlug:"tuscany", legacyCityName:"San Casciano",
     lat: 43.6562, lng: 11.1843, online: true,
     styles:["Rustic Luxe","Classic","Garden"],          capacity:180,
@@ -15,7 +18,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:2,  name:"Palazzo Vendramin",         region:"Veneto",       city:"Venice",
+  { id:2,  name:"Palazzo Vendramin", slug:"palazzo-vendramin",         region:"Veneto",       city:"Venice",
     countrySlug:"italy", regionSlug:"venice", legacyRegionName:"Veneto",
     lat: 45.4408, lng: 12.3155, online: true,
     styles:["Black Tie","Romantic","Historic"],         capacity:120,
@@ -28,7 +31,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1534113414509-0eec2bfb493f?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:3,  name:"Villa d'Este Estate",       region:"Lombardy",     city:"Cernobbio",
+  { id:3,  name:"Villa d'Este Estate", slug:"villa-d-este-estate",       region:"Lombardy",     city:"Cernobbio",
     countrySlug:"italy", regionSlug:"lake-como", citySlug:"cernobbio", legacyRegionName:"Lombardy",
     lat: 45.8401, lng: 9.0697, online: false,
     styles:["Black Tie","Elegant","Lakeside"],           capacity:200,
@@ -41,7 +44,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1535498730771-e735b998cd64?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:4,  name:"Masseria Torre Coccaro",    region:"Puglia",       city:"Fasano",
+  { id:4,  name:"Masseria Torre Coccaro", slug:"masseria-torre-coccaro",    region:"Puglia",       city:"Fasano",
     countrySlug:"italy", regionSlug:"puglia", citySlug:"fasano",
     lat: 40.8359, lng: 17.3615, online: true,
     styles:["Rustic Luxe","Garden","Bohemian"],          capacity:150,
@@ -54,7 +57,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1562133567-b6a0a9c7e6eb?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:5,  name:"Ravello Cliffside Estate",  region:"Campania",     city:"Ravello",
+  { id:5,  name:"Ravello Cliffside Estate", slug:"ravello-cliffside-estate",  region:"Campania",     city:"Ravello",
     countrySlug:"italy", regionSlug:"amalfi-coast", citySlug:"ravello", legacyRegionName:"Campania",
     lat: 40.6478, lng: 14.6122, online: false,
     styles:["Romantic","Destination","Coastal"],         capacity:80,
@@ -67,7 +70,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:6,  name:"Castello di Vicarello",     region:"Tuscany",      city:"Cinigiano",
+  { id:6,  name:"Castello di Vicarello", slug:"castello-di-vicarello",     region:"Tuscany",      city:"Cinigiano",
     countrySlug:"italy", regionSlug:"tuscany", legacyCityName:"Cinigiano",
     lat: 42.8851, lng: 11.4232, online: true,
     styles:["Medieval","Rustic Luxe","Intimate"],        capacity:60,
@@ -80,7 +83,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:7,  name:"Villa Cimbrone",            region:"Campania",     city:"Ravello",
+  { id:7,  name:"Villa Cimbrone", slug:"villa-cimbrone",            region:"Campania",     city:"Ravello",
     countrySlug:"italy", regionSlug:"amalfi-coast", citySlug:"ravello", legacyRegionName:"Campania",
     lat: 40.6497, lng: 14.6122, online: false,
     styles:["Garden","Romantic","Historic"],             capacity:100,
@@ -93,7 +96,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1560703650-ef3e0f254ae0?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1541370976299-4d24ebbc9077?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:8,  name:"Tenuta di Neri",            region:"Tuscany",      city:"Montalcino",
+  { id:8,  name:"Tenuta di Neri", slug:"tenuta-di-neri",            region:"Tuscany",      city:"Montalcino",
     countrySlug:"italy", regionSlug:"tuscany", citySlug:"val-d-orcia", legacyCityName:"Montalcino",
     lat: 43.0560, lng: 11.4892, online: true,
     styles:["Vineyard","Rustic","Intimate"],             capacity:80,
@@ -106,7 +109,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1416339698674-4f118dd3388b?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:9,  name:"Villa Balbianello",         region:"Lombardy",     city:"Lenno",
+  { id:9,  name:"Villa Balbianello", slug:"villa-balbianello",         region:"Lombardy",     city:"Lenno",
     countrySlug:"italy", regionSlug:"lake-como", legacyRegionName:"Lombardy", legacyCityName:"Lenno",
     lat: 45.9783, lng: 9.1483, online: false,
     styles:["Historic","Romantic","Lakeside"],           capacity:50,
@@ -119,7 +122,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1530841377377-3ff06c0ca713?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1583267746897-2cf415887172?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:10, name:"Convento dell'Annunciata",  region:"Lombardy",     city:"Medole",
+  { id:10, name:"Convento dell'Annunciata", slug:"convento-dell-annunciata",  region:"Lombardy",     city:"Medole",
     countrySlug:"italy", regionSlug:"lombardy", legacyCityName:"Medole",
     lat: 45.3618, lng: 10.5209, online: false,
     styles:["Classic","Religious","Historic"],           capacity:200,
@@ -132,7 +135,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1522413452208-996ff3f3e740?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:11, name:"Villa Tasca",               region:"Sicily",       city:"Palermo",
+  { id:11, name:"Villa Tasca", slug:"villa-tasca",               region:"Sicily",       city:"Palermo",
     countrySlug:"italy", regionSlug:"sicily", citySlug:"palermo",
     lat: 38.1234, lng: 13.3765, online: true,
     styles:["Garden","Historic","Romantic"],             capacity:250,
@@ -145,7 +148,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1505236858219-8359eb29e329?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:12, name:"Grand Hotel Timeo",          region:"Sicily",       city:"Taormina",
+  { id:12, name:"Grand Hotel Timeo", slug:"grand-hotel-timeo",          region:"Sicily",       city:"Taormina",
     countrySlug:"italy", regionSlug:"sicily", citySlug:"taormina",
     lat: 37.8515, lng: 15.2866, online: true,
     styles:["Black Tie","Destination","Coastal"],        capacity:120,
@@ -158,7 +161,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1498307833015-e7b400441eb8?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:13, name:"Il Borro",                   region:"Tuscany",      city:"Loro Ciuffenna",
+  { id:13, name:"Il Borro", slug:"il-borro",                   region:"Tuscany",      city:"Loro Ciuffenna",
     countrySlug:"italy", regionSlug:"tuscany", legacyCityName:"Loro Ciuffenna",
     lat: 43.5691, lng: 11.6219, online: false,
     styles:["Vineyard","Rustic Luxe","Exclusive"],       capacity:200,
@@ -171,7 +174,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1429087969512-1e85aab2683d?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:14, name:"Villa La Vedetta",            region:"Tuscany",      city:"Florence",
+  { id:14, name:"Villa La Vedetta", slug:"villa-la-vedetta",            region:"Tuscany",      city:"Florence",
     countrySlug:"italy", regionSlug:"tuscany", citySlug:"florence",
     lat: 43.7648, lng: 11.2619, online: true,
     styles:["Black Tie","Romantic","Garden"],            capacity:100,
@@ -184,7 +187,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:15, name:"Borgo Egnazia",               region:"Puglia",       city:"Savelletri",
+  { id:15, name:"Borgo Egnazia", slug:"borgo-egnazia",               region:"Puglia",       city:"Savelletri",
     countrySlug:"italy", regionSlug:"puglia", legacyCityName:"Savelletri",
     lat: 40.7589, lng: 17.5392, online: true,
     styles:["Rustic Luxe","Destination","Garden"],       capacity:300,
@@ -197,7 +200,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1584132905271-512c958d674a?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1495562569060-2eec283d3391?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:16, name:"Villa Crespi",                region:"Piedmont",     city:"Orta San Giulio",
+  { id:16, name:"Villa Crespi", slug:"villa-crespi",                region:"Piedmont",     city:"Orta San Giulio",
     countrySlug:"italy", regionSlug:"piedmont", legacyCityName:"Orta San Giulio",
     lat: 45.7989, lng: 8.4089, online: false,
     styles:["Intimate","Romantic","Historic"],           capacity:60,
@@ -210,7 +213,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1600585152220-90363fe7e115?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:17, name:"Monteverdi Tuscany",          region:"Tuscany",      city:"Castiglioncello",
+  { id:17, name:"Monteverdi Tuscany", slug:"monteverdi-tuscany",          region:"Tuscany",      city:"Castiglioncello",
     countrySlug:"italy", regionSlug:"tuscany", citySlug:"val-d-orcia", legacyCityName:"Castiglioncello",
     lat: 43.0423, lng: 11.1891, online: true,
     styles:["Intimate","Vineyard","Rustic Luxe"],        capacity:80,
@@ -223,7 +226,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1479839672679-a46483c0e7c8?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:18, name:"Hotel Caruso",                region:"Campania",     city:"Ravello",
+  { id:18, name:"Hotel Caruso", slug:"hotel-caruso",                region:"Campania",     city:"Ravello",
     countrySlug:"italy", regionSlug:"amalfi-coast", citySlug:"ravello", legacyRegionName:"Campania",
     lat: 40.6521, lng: 14.6108, online: false,
     styles:["Black Tie","Romantic","Coastal"],           capacity:90,
@@ -236,7 +239,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1554254648-2d58a1bc3fd5?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:19, name:"Aman Venice",                 region:"Veneto",       city:"Venice",
+  { id:19, name:"Aman Venice", slug:"aman-venice",                 region:"Veneto",       city:"Venice",
     countrySlug:"italy", regionSlug:"venice", legacyRegionName:"Veneto",
     lat: 45.4371, lng: 12.3268, online: true,
     styles:["Black Tie","Historic","Romantic"],          capacity:80,
@@ -249,7 +252,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1568792923760-d70635a89fdc?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1527838832700-5059252407fa?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:20, name:"Castello di Ama",             region:"Tuscany",      city:"Gaiole in Chianti",
+  { id:20, name:"Castello di Ama", slug:"castello-di-ama",             region:"Tuscany",      city:"Gaiole in Chianti",
     countrySlug:"italy", regionSlug:"tuscany", citySlug:"chianti", legacyCityName:"Gaiole in Chianti",
     lat: 43.4501, lng: 11.3452, online: false,
     styles:["Contemporary","Vineyard","Intimate","Garden"], capacity:70,
@@ -262,7 +265,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=900&q=80"] },
   // ── London ──────────────────────────────────────────────────────────────────
-  { id:101, name:"Spencer House",                region:"London",       city:"Mayfair",
+  { id:101, name:"Spencer House", slug:"spencer-house",                region:"London",       city:"Mayfair",
     countrySlug:"england", regionSlug:"london", citySlug:"mayfair",
     lat: 51.5046, lng: -0.1395, online: true,
     styles:["Black Tie","Historic","Elegant"],           capacity:250,
@@ -275,7 +278,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:102, name:"Kew Gardens Orangery",         region:"London",       city:"Richmond",
+  { id:102, name:"Kew Gardens Orangery", slug:"kew-gardens-orangery",         region:"London",       city:"Richmond",
     countrySlug:"england", regionSlug:"london", citySlug:"richmond",
     lat: 51.4787, lng: -0.2956, online: true,
     styles:["Garden","Romantic","Classic"],               capacity:150,
@@ -288,7 +291,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1582653291997-079a1c04e5a1?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1490750967868-88df5691cc00?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:103, name:"The Ned",                      region:"London",       city:"City of London",
+  { id:103, name:"The Ned", slug:"the-ned",                      region:"London",       city:"City of London",
     countrySlug:"england", regionSlug:"london",
     lat: 51.5131, lng: -0.0880, online: true,
     styles:["Black Tie","Historic","Intimate"],            capacity:120,
@@ -301,7 +304,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1523978591478-c753949ff840?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:104, name:"Syon Park",                    region:"London",       city:"Brentford",
+  { id:104, name:"Syon Park", slug:"syon-park",                    region:"London",       city:"Brentford",
     countrySlug:"england", regionSlug:"london",
     lat: 51.4747, lng: -0.3106, online: false,
     styles:["Garden","Historic","Elegant"],                capacity:200,
@@ -314,7 +317,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1551632436-cbf8dd35adfa?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1590523741831-ab7e8b8f9c7f?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:105, name:"Claridge's Ballroom",          region:"London",       city:"Mayfair",
+  { id:105, name:"Claridge's Ballroom", slug:"claridge-s-ballroom",          region:"London",       city:"Mayfair",
     countrySlug:"england", regionSlug:"london", citySlug:"mayfair",
     lat: 51.5124, lng: -0.1470, online: true,
     styles:["Black Tie","Art Deco","Elegant"],              capacity:300,
@@ -327,7 +330,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1444201983204-c43cbd584d93?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:106, name:"Hampstead Pergola",            region:"London",       city:"Hampstead",
+  { id:106, name:"Hampstead Pergola", slug:"hampstead-pergola",            region:"London",       city:"Hampstead",
     countrySlug:"england", regionSlug:"london", citySlug:"hampstead",
     lat: 51.5633, lng: -0.1781, online: false,
     styles:["Garden","Romantic","Bohemian"],                capacity:80,
@@ -340,7 +343,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1592229505726-ca121723b8ef?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1464207687429-7505649dae38?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:107, name:"The Savoy",                     region:"London",       city:"Strand",
+  { id:107, name:"The Savoy", slug:"the-savoy",                     region:"London",       city:"Strand",
     countrySlug:"england", regionSlug:"london", citySlug:"strand",
     lat: 51.5103, lng: -0.1204, online: true,
     styles:["Art Deco","Black Tie","Elegant"],                capacity:400,
@@ -353,7 +356,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:108, name:"Fulham Palace",                  region:"London",       city:"Fulham",
+  { id:108, name:"Fulham Palace", slug:"fulham-palace",                  region:"London",       city:"Fulham",
     countrySlug:"england", regionSlug:"london", citySlug:"fulham",
     lat: 51.4696, lng: -0.2156, online: true,
     styles:["Historic","Garden","Romantic"],                   capacity:180,
@@ -366,7 +369,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1583244685026-d8519b5e3d21?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:109, name:"One Marylebone",                 region:"London",       city:"Marylebone",
+  { id:109, name:"One Marylebone", slug:"one-marylebone",                 region:"London",       city:"Marylebone",
     countrySlug:"england", regionSlug:"london", citySlug:"marylebone",
     lat: 51.5230, lng: -0.1595, online: true,
     styles:["Modern","Elegant","Intimate"],                    capacity:220,
@@ -379,7 +382,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:110, name:"The Hurlingham Club",            region:"London",       city:"Fulham",
+  { id:110, name:"The Hurlingham Club", slug:"the-hurlingham-club",            region:"London",       city:"Fulham",
     countrySlug:"england", regionSlug:"london", citySlug:"fulham",
     lat: 51.4679, lng: -0.2045, online: false,
     styles:["Garden","Classic","Elegant"],                     capacity:350,
@@ -392,7 +395,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:111, name:"Strawberry Hill House",          region:"London",       city:"Twickenham",
+  { id:111, name:"Strawberry Hill House", slug:"strawberry-hill-house",          region:"London",       city:"Twickenham",
     countrySlug:"england", regionSlug:"london", citySlug:"twickenham",
     lat: 51.4348, lng: -0.3367, online: true,
     styles:["Gothic","Historic","Romantic"],                   capacity:120,
@@ -405,7 +408,7 @@ export const VENUES = [
           "https://images.unsplash.com/photo-1570125909517-53cb21c89ff2?auto=format&fit=crop&w=900&q=80",
           "https://images.unsplash.com/photo-1534430480587-fd02834b5ee0?auto=format&fit=crop&w=900&q=80"] },
 
-  { id:112, name:"Eltham Palace",                  region:"London",       city:"Greenwich",
+  { id:112, name:"Eltham Palace", slug:"eltham-palace",                  region:"London",       city:"Greenwich",
     countrySlug:"england", regionSlug:"london", citySlug:"greenwich",
     lat: 51.4510, lng: 0.0503, online: true,
     styles:["Art Deco","Historic","Garden"],                   capacity:160,
