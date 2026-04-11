@@ -165,10 +165,10 @@ export default function ItalyPage({
     const parsePrice = (s) => parseInt(String(s).replace(/[^0-9]/g, ""), 10) || 0;
     const q = searchQuery.trim().toLowerCase();
     let result = ITALY_VENUES.filter((v) => {
-      const rOk = filters.region   === "all"       || v.region           === getRegionNameBySlug(filters.region);
-      const sOk = filters.style    === STYLES[0]  || v.styles.includes(filters.style);
-      const pOk = filters.price    === PRICES[0]  || v.priceLabel       === filters.price;
-      const cOk = matchesCapacity(v, filters.capacity);
+      const rOk = !filters.region || filters.region === "all" || v.region === getRegionNameBySlug(filters.region) || v.regionSlug === filters.region;
+      const sOk = !filters.style || filters.style === STYLES[0] || (v.styles && v.styles.includes(filters.style));
+      const pOk = !filters.price || filters.price === PRICES[0] || v.priceLabel === filters.price;
+      const cOk = !filters.capacity || filters.capacity === CAPS[0] || matchesCapacity(v, filters.capacity);
       const qOk = !q || v.name.toLowerCase().includes(q) || (v.desc || "").toLowerCase().includes(q) || (v.city || "").toLowerCase().includes(q) || (v.region || "").toLowerCase().includes(q);
       return rOk && sOk && pOk && cOk && qOk;
     });

@@ -41,6 +41,7 @@ import MasterCategoryCard, { LUXURY_ICONS } from "../components/cards/MasterCate
 
 // ── Data services (self-fetch when rendered standalone) ─────────────────────
 import { COUNTRIES, REGIONS, CITIES, getCountryBySlug, VENDOR_CATEGORIES } from "../data/geo";
+import { VENUES as STATIC_VENUES } from "../data/italyVenues";
 import { fetchListings } from "../services/listings";
 import { fetchLocationContent, buildLocationKey, fetchLocationMetadata } from "../services/locationContentService";
 import { DEFAULT_FILTERS } from "../data/venues";
@@ -316,8 +317,35 @@ export default function LocationPage({
       else if (locationType === "region") f.region_slug = locationSlug;
       else if (locationType === "city")   f.city_slug   = locationSlug;
       fetchListings({ ...f, status: "published" })
-        .then(d => setFetchedVenues(transformListings(Array.isArray(d) ? d : [], { type: "venue" })))
-        .catch(() => {});
+        .then(d => {
+          const fetched = Array.isArray(d) ? d : [];
+          // If Supabase returns empty, try static fallback
+          if (fetched.length === 0) {
+            let staticMatched = [];
+            if (locationType === "country") {
+              staticMatched = STATIC_VENUES.filter(v => v.countrySlug === locationSlug);
+            } else if (locationType === "region") {
+              staticMatched = STATIC_VENUES.filter(v => v.regionSlug === locationSlug);
+            } else if (locationType === "city") {
+              staticMatched = STATIC_VENUES.filter(v => v.citySlug === locationSlug);
+            }
+            setFetchedVenues(transformListings(staticMatched, { type: "venue" }));
+          } else {
+            setFetchedVenues(transformListings(fetched, { type: "venue" }));
+          }
+        })
+        .catch(() => {
+          // On error, also try static fallback
+          let staticMatched = [];
+          if (locationType === "country") {
+            staticMatched = STATIC_VENUES.filter(v => v.countrySlug === locationSlug);
+          } else if (locationType === "region") {
+            staticMatched = STATIC_VENUES.filter(v => v.regionSlug === locationSlug);
+          } else if (locationType === "city") {
+            staticMatched = STATIC_VENUES.filter(v => v.citySlug === locationSlug);
+          }
+          setFetchedVenues(transformListings(staticMatched, { type: "venue" }));
+        });
     }
     if (!vendors || vendors.length === 0) {
       const f = { listing_type: 'vendor' };
