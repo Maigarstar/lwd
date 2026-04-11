@@ -1262,7 +1262,7 @@ export default function LocationPage({
         </section>
 
         {/* ═══ DIRECTORY LISTINGS — unified viewMode-aware grid / list ═══════ */}
-        {filteredVenues.length > 0 && (
+        {(listingMode === "vendors" ? filteredVendors.length : filteredVenues.length) > 0 && (
           <section
             aria-label={`Wedding professionals in ${currentLocation.name}`}
             className="lwd-region-section"
