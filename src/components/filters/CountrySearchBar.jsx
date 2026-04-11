@@ -72,6 +72,18 @@ const PHOTOGRAPHER_STYLES = [
   "Elopement",
 ];
 
+const VIDEOGRAPHER_STYLES = [
+  "All",
+  "Cinematic Films",
+  "Documentary Style",
+  "Editorial Style",
+  "Drone Aerials",
+  "Destination Films",
+  "Elopement Films",
+  "Same-Day Edits",
+  "Short Films",
+];
+
 // ── Warm stone palette — no pure white, no heavy black ───────────────────────
 const STONE = "#F6F3EE";          // warm stone base
 const STONE_DEEP = "#EBE6DC";     // deeper stone for refinement panels
@@ -205,6 +217,8 @@ export default function CountrySearchBar({
   plannerFilters, onPlannerFiltersChange, plannerRegions,
   // Photographer-specific props
   photoFilters, onPhotoFiltersChange, photoRegions,
+  // Videographer-specific props
+  videoFilters, onVideoFiltersChange, videoRegions,
 }) {
   const C = useTheme();
   const dark = C.black === "#080808";
@@ -443,7 +457,7 @@ export default function CountrySearchBar({
         overflowX: "auto", WebkitOverflowScrolling: "touch",
       }}>
         {/* Mode toggle — hidden for planners (single-category page) */}
-        {(mode === "planners" || mode === "photographers") ? (
+        {(mode === "planners" || mode === "photographers" || mode === "videographers") ? (
           <div style={{
             display: "flex", background: CL.activeTab, borderRadius: 3,
             border: "1px solid rgba(160,148,125,0.28)", overflow: "hidden", flexShrink: 0,
@@ -452,7 +466,7 @@ export default function CountrySearchBar({
               color: "#fff", fontSize: 9, fontWeight: 700,
               letterSpacing: "1.5px", textTransform: "uppercase", padding: "6px 14px",
               fontFamily: NU,
-            }}>{mode === "planners" ? "Planners" : "Photographers"}</span>
+            }}>{mode === "planners" ? "Planners" : mode === "photographers" ? "Photographers" : "Videographers"}</span>
           </div>
         ) : (
           <div role="tablist" aria-label="Search mode" style={{
@@ -595,11 +609,41 @@ export default function CountrySearchBar({
           </>
         )}
 
+        {/* ═══ VIDEOGRAPHER TRIGGERS ══════════════════════════════════ */}
+        {mode === "videographers" && videoFilters && (
+          <>
+            <TriggerBtn menuKey="vid-style" label={videoFilters.style === "All" || !videoFilters.style ? "All Styles" : videoFilters.style} active={videoFilters.style && videoFilters.style !== "All"} />
+            {videoRegions && videoRegions.length > 1 && (
+              <TriggerBtn menuKey="vid-region" label={videoFilters.region === "All" ? "All Regions" : videoFilters.region} active={videoFilters.region !== "All"} />
+            )}
+            <TriggerBtn menuKey="vid-sort" label={
+              videoFilters.sort === "recommended" ? "Recommended"
+              : videoFilters.sort === "rating" ? "Highest Rated"
+              : videoFilters.sort === "price-low" ? "Price: Low \u2192 High"
+              : videoFilters.sort === "price-high" ? "Price: High \u2192 Low"
+              : videoFilters.sort === "reviews" ? "Most Reviews"
+              : "Recommended"
+            } active={videoFilters.sort !== "recommended"} />
+
+            {(videoFilters.style !== "All" || videoFilters.region !== "All" || videoFilters.sort !== "recommended") && (
+              <button onClick={() => onVideoFiltersChange?.({ style: "All", region: "All", sort: "recommended" })} aria-label="Clear all filters"
+                style={{
+                  background: "none", border: "none", color: CL.goldDim, fontSize: 9,
+                  cursor: "pointer", fontFamily: NU, letterSpacing: "1px", textTransform: "uppercase",
+                  padding: "4px 6px", transition: "color 0.2s", whiteSpace: "nowrap", flexShrink: 0,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = CL.gold; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = CL.goldDim; }}
+              >✕ Clear</button>
+            )}
+          </>
+        )}
+
         {/* ═══ SHARED: count + view mode controls (always visible) ═══════ */}
         <div style={{ flex: 1 }} />
 
         <span style={{ fontSize: 10, color: CL.count, whiteSpace: "nowrap", fontFamily: NU }}>
-          <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "planners" ? "planners" : mode === "photographers" ? "photographers" : mode === "vendors" ? "vendors" : "venues"}
+          <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "planners" ? "planners" : mode === "photographers" ? "photographers" : mode === "videographers" ? "videographers" : mode === "vendors" ? "vendors" : "venues"}
         </span>
 
         {/* Grid / List / Map view switcher */}
@@ -710,6 +754,18 @@ export default function CountrySearchBar({
             {/* ── Photographer mega menus ── */}
             {openMenu === "ph-style" && renderOptionsPanel("Style", PHOTOGRAPHER_STYLES, photoFilters?.style || "All", (v) => { onPhotoFiltersChange?.({ ...photoFilters, style: v }); setOpenMenu(null); })}
             {openMenu === "ph-region" && renderOptionsPanel("Region", ["All", ...(photoRegions || [])], photoFilters?.region || "All", (v) => { onPhotoFiltersChange?.({ ...photoFilters, region: v }); setOpenMenu(null); })}
+
+            {/* ── Videographer mega menus ── */}
+            {openMenu === "vid-style" && renderOptionsPanel("Style", VIDEOGRAPHER_STYLES, videoFilters?.style || "All", (v) => { onVideoFiltersChange?.({ ...videoFilters, style: v }); setOpenMenu(null); })}
+            {openMenu === "vid-region" && renderOptionsPanel("Region", ["All", ...(videoRegions || [])], videoFilters?.region || "All", (v) => { onVideoFiltersChange?.({ ...videoFilters, region: v }); setOpenMenu(null); })}
+            {openMenu === "vid-sort" && renderOptionsPanel("Sort By", [
+              { slug: "recommended", name: "Recommended" },
+              { slug: "rating",      name: "Highest Rated" },
+              { slug: "price-low",   name: "Price: Low \u2192 High" },
+              { slug: "price-high",  name: "Price: High \u2192 Low" },
+              { slug: "reviews",     name: "Most Reviews" },
+            ], videoFilters?.sort || "recommended", (v) => { onVideoFiltersChange?.({ ...videoFilters, sort: v }); setOpenMenu(null); })}
+
             {openMenu === "ph-sort" && renderOptionsPanel("Sort By", [
               { slug: "recommended", name: "Recommended" },
               { slug: "rating",      name: "Highest Rated" },

@@ -1092,6 +1092,7 @@ export function getRegionCategoryPath(countrySlug, regionSlug, categorySlug) {
 const GEO_TO_VENDOR_CAT = {
   "wedding-planners": ["planner"],
   "photographers":    ["photographer"],
+  "videographers":    ["videographer"],
   "florists":         ["florist"],
   "caterers":         ["caterer"],
   "entertainment":    ["musician", "celebrant"],

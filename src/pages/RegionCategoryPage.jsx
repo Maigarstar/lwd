@@ -120,8 +120,10 @@ export default function RegionCategoryPage({
   // ── Category flags ──────────────────────────────────────────────────────────
   const isPlanner = categorySlug === "wedding-planners";
   const isPhotographer = categorySlug === "photographers";
+  const isVideographer = categorySlug === "videographers";
   const [plannerFilters, setPlannerFilters] = useState({ tier: "All", region: "All", sort: "recommended", specialty: "All" });
   const [photoFilters, setPhotoFilters] = useState({ style: "All", region: "All", sort: "recommended" });
+  const [videoFilters, setVideoFilters] = useState({ style: "All", region: "All", sort: "recommended" });
 
   // ── Phase 1: shared directory state (replaces viewMode/mapOn/isMobile/activeListingId) ──
   const {
@@ -410,8 +412,29 @@ export default function RegionCategoryPage({
     return list;
   }, [isPhotographer, listings, sortedFilteredListings, photoFilters]);
 
+  // ── Videographer-specific filtering + sorting ───────────────────────────────
+  const videoFinalListings = useMemo(() => {
+    if (!isVideographer) return sortedFilteredListings;
+    let list = [...listings];
+    if (videoFilters.style && videoFilters.style !== "All") {
+      const kw = videoFilters.style.toLowerCase();
+      list = list.filter(p => p.specialties?.some(s => s.toLowerCase().includes(kw)));
+    }
+    if (videoFilters.region && videoFilters.region !== "All") {
+      list = list.filter(p => p.region === videoFilters.region);
+    }
+    switch (videoFilters.sort) {
+      case "rating":     list.sort((a, b) => (b.rating || 0) - (a.rating || 0)); break;
+      case "price-low":  { const pp = (v) => { const m = String(v?.priceFrom || "").match(/[\d,]+/); return m ? parseInt(m[0].replace(/,/g, ""), 10) : 0; }; list.sort((a, b) => pp(a) - pp(b)); break; }
+      case "price-high": { const pp = (v) => { const m = String(v?.priceFrom || "").match(/[\d,]+/); return m ? parseInt(m[0].replace(/,/g, ""), 10) : 0; }; list.sort((a, b) => pp(b) - pp(a)); break; }
+      case "reviews":    list.sort((a, b) => (b.reviews || 0) - (a.reviews || 0)); break;
+      default:           list.sort((a, b) => (b.lwdScore || 0) - (a.lwdScore || 0)); break;
+    }
+    return list;
+  }, [isVideographer, listings, sortedFilteredListings, videoFilters]);
+
   // ── One final visible array — Grid, List, Map all render from this ─────────
-  const finalListings = isPlanner ? plannerFinalListings : isPhotographer ? photoFinalListings : sortedFilteredListings;
+  const finalListings = isPlanner ? plannerFinalListings : isPhotographer ? photoFinalListings : isVideographer ? videoFinalListings : sortedFilteredListings;
   const listingCount = finalListings.length;
 
   // Planner regions for filter dropdown
@@ -425,6 +448,12 @@ export default function RegionCategoryPage({
     if (!isPhotographer) return [];
     return [...new Set(listings.map(p => p.region).filter(Boolean))].sort();
   }, [isPhotographer, listings]);
+
+  // Videographer regions for filter dropdown
+  const videoRegions = useMemo(() => {
+    if (!isVideographer) return [];
+    return [...new Set(listings.map(p => p.region).filter(Boolean))].sort();
+  }, [isVideographer, listings]);
 
   // ── Filter transition feedback — smooth fade when results change ──────────
   // Trigger a brief opacity transition to signal that filtering just happened
@@ -1189,15 +1218,18 @@ export default function RegionCategoryPage({
               countryFilter={countryName}
               mapOn={mapOn}
               onToggleMap={handleToggleMap}
-              mode={isPlanner ? "planners" : isPhotographer ? "photographers" : undefined}
+              mode={isPlanner ? "planners" : isPhotographer ? "photographers" : isVideographer ? "videographers" : undefined}
               plannerFilters={plannerFilters}
               onPlannerFiltersChange={setPlannerFilters}
               plannerRegions={plannerRegions}
               photoFilters={photoFilters}
               onPhotoFiltersChange={setPhotoFilters}
               photoRegions={photoRegions}
+              videoFilters={videoFilters}
+              onVideoFiltersChange={setVideoFilters}
+              videoRegions={videoRegions}
             />
-            {!isPlanner && !isPhotographer && !mapOn && (
+            {!isPlanner && !isPhotographer && !isVideographer && !mapOn && (
               <InfoStrip
                 availableRegions={[{ name: regionName, slug: regionSlug }]}
                 filters={venueFilters}
