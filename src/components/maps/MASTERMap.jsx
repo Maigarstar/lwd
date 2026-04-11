@@ -92,7 +92,7 @@ function loadLeaflet() {
 
 
 // ── Pin icon factory ──────────────────────────────────────────────────────────
-// state:   "standard" | "featured" | "showcase" | "active" | "ghost"
+// state:   "standard" | "featured" | "showcase" | "hover" | "active" | "ghost"
 // color:   hex string (defaults to GOLD)
 // variant: "filled" (venues) | "outline" (suppliers)
 function makePinIcon(L, state = "standard", size = 22, color = GOLD, variant = "filled") {
@@ -102,9 +102,10 @@ function makePinIcon(L, state = "standard", size = 22, color = GOLD, variant = "
   const r  = size * 0.22;
 
   const isGhost  = state === "ghost";
+  const isHover  = state === "hover";
   const isActive = state === "active";
   const pinColor = isGhost ? `rgba(201,168,76,0.35)` : color;
-  const scale    = isActive ? 1.2 : 1;
+  const scale    = isActive ? 1.4 : isHover ? 1.15 : 1;
 
   // Outer ring for featured / showcase
   let outerRing = "";
@@ -117,11 +118,11 @@ function makePinIcon(L, state = "standard", size = 22, color = GOLD, variant = "
       stroke="#E8E0D0" stroke-width="1.5" opacity="0.5"/>`;
   }
 
-  // Active glow ring
-  const glowRing = isActive
-    ? `<circle cx="${cx}" cy="${cy}" r="${size * 0.52}" fill="none"
-        stroke="${color}" stroke-width="1.2" opacity="0.4"
-        class="lwd-pin-glow-ring"/>`
+  // Hover or active glow ring — stronger on active
+  const glowRing = (isActive || isHover)
+    ? `<circle cx="${cx}" cy="${cy}" r="${size * (isActive ? 0.58 : 0.50)}" fill="none"
+        stroke="${color}" stroke-width="${isActive ? 1.8 : 1.3}" opacity="${isActive ? 0.5 : 0.3}"
+        class="${isActive ? "lwd-pin-glow-ring-active" : "lwd-pin-glow-ring"}"/>`
     : "";
 
   // Pin body: filled (venues) vs outline (suppliers)
@@ -492,17 +493,33 @@ export default function MASTERMap({
   }
 
   // ── Highlight a pin ───────────────────────────────────────────────────────
-  const _highlightPin = useCallback((id, active) => {
+  const _highlightPin = useCallback((id, active, hover = false) => {
     const L = window.L;
     if (!L || !mapRef.current) return;
     markersRef.current.forEach(({ id: pid, marker, state, category, type }) => {
       const isTarget = pid === id;
       const color    = PIN_COLOURS[category] || GOLD;
       const variant  = type === "vendor" ? "outline" : "filled";
-      marker.setIcon(
-        makePinIcon(L, isTarget && active ? "active" : state, isTarget && active ? 26 : 22, color, variant)
-      );
-      marker.setZIndexOffset(isTarget && active ? 500 : 0);
+
+      // Determine pin state: active > hover > standard
+      let pinState = state;
+      let pinSize = 22;
+      let zIndex = 0;
+
+      if (isTarget) {
+        if (active) {
+          pinState = "active";
+          pinSize = 28;
+          zIndex = 500;
+        } else if (hover) {
+          pinState = "hover";
+          pinSize = 24;
+          zIndex = 300;
+        }
+      }
+
+      marker.setIcon(makePinIcon(L, pinState, pinSize, color, variant));
+      marker.setZIndexOffset(zIndex);
     });
   }, []);
 
@@ -517,7 +534,7 @@ export default function MASTERMap({
   // ── PinSyncBus listeners ──────────────────────────────────────────────────
   useEffect(() => {
     const offCardHover = PinSyncBus.on("card:hover", (id) => {
-      _highlightPin(id, true);
+      _highlightPin(id, true, false); // active=true, hover=false
       if (followMode) _panToPin(id);
       const entry = markersRef.current.find((m) => m.id === id);
       if (entry && mapRef.current) {
@@ -526,12 +543,12 @@ export default function MASTERMap({
     });
 
     const offCardLeave = PinSyncBus.on("card:leave", (id) => {
-      _highlightPin(id, false);
+      _highlightPin(id, false, false); // active=false, hover=false
       if (popupRef.current) { popupRef.current.remove(); popupRef.current = null; }
     });
 
     const offCardClick = PinSyncBus.on("card:click", (id) => {
-      _highlightPin(id, true);
+      _highlightPin(id, true, false); // active=true, hover=false
       _panToPin(id);
       if (mapRef.current) {
         const entry = markersRef.current.find((m) => m.id === id);
@@ -545,7 +562,16 @@ export default function MASTERMap({
       }
     });
 
-    return () => { offCardHover(); offCardLeave(); offCardClick(); };
+    // Pin hover events (direct pin interaction)
+    const offPinHover = PinSyncBus.on("pin:hover", (id) => {
+      _highlightPin(id, false, true); // active=false, hover=true
+    });
+
+    const offPinLeave = PinSyncBus.on("pin:leave", (id) => {
+      _highlightPin(id, false, false); // active=false, hover=false
+    });
+
+    return () => { offCardHover(); offCardLeave(); offCardClick(); offPinHover(); offPinLeave(); };
   }, [followMode, _highlightPin, _panToPin]);
 
   // ── Filter bar pill renderer ──────────────────────────────────────────────
@@ -782,17 +808,37 @@ export default function MASTERMap({
         .lwd-mmap-popup .leaflet-popup-content {
           margin: 0 !important; padding: 0 !important; width: auto !important;
         }
-        .lwd-mmap-pin--active { transition: transform 0.15s ease; }
-        @keyframes lwd-pin-pulse {
+        /* Pin state transitions — instant and smooth */
+        .lwd-mmap-pin { cursor: pointer; }
+        .lwd-mmap-pin { transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.12s ease; }
+        .lwd-mmap-pin--hover { transition: transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .lwd-mmap-pin--active { transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.18s ease; }
+
+        /* Pin animations — subtle and luxury */
+        @keyframes lwd-pin-hover-pulse {
           0%,100% { transform: scale(1); }
-          50%      { transform: scale(1.18); }
+          50%      { transform: scale(1.12); }
         }
-        .lwd-mmap-pin--active svg { animation: lwd-pin-pulse 1.8s ease-in-out infinite; }
+        .lwd-mmap-pin--hover svg { animation: lwd-pin-hover-pulse 1.4s ease-in-out infinite; }
+
+        @keyframes lwd-pin-active-pulse {
+          0%,100% { transform: scale(1); }
+          50%      { transform: scale(1.22); }
+        }
+        .lwd-mmap-pin--active svg { animation: lwd-pin-active-pulse 1.6s ease-in-out infinite; }
+
+        /* Glow ring animations */
         @keyframes lwd-ring-pulse {
-          0%,100% { opacity: 0.4; transform: scale(1); }
-          50%      { opacity: 0.15; transform: scale(1.3); }
+          0%,100% { opacity: 0.3; transform: scale(1); }
+          50%      { opacity: 0.15; transform: scale(1.25); }
         }
-        .lwd-pin-glow-ring { animation: lwd-ring-pulse 2s ease-in-out infinite; }
+        .lwd-pin-glow-ring { animation: lwd-ring-pulse 1.8s ease-in-out infinite; }
+
+        @keyframes lwd-ring-pulse-active {
+          0%,100% { opacity: 0.5; transform: scale(1); }
+          50%      { opacity: 0.2; transform: scale(1.35); }
+        }
+        .lwd-pin-glow-ring-active { animation: lwd-ring-pulse-active 1.5s ease-in-out infinite; }
         .leaflet-control-zoom {
           border: 1px solid rgba(201,168,76,0.2) !important;
           border-radius: 6px !important;
