@@ -729,9 +729,14 @@ export default function LocationPage({
   // ── Filtered vendors (applies vendor search filters) ────────────────────────
   const filteredVendors = useMemo(() => {
     let list = [...locationVendors];
+    // Category filter
     const catId = VENDOR_CAT_MAP[vendorSearch.category];
     if (catId) {
       list = list.filter(v => v.category === catId);
+    }
+    // Region filter
+    if (vendorSearch.location && vendorSearch.location !== "all") {
+      list = list.filter(v => v.regionSlug === vendorSearch.location || v.region === vendorSearch.location);
     }
     return list;
   }, [locationVendors, vendorSearch]);

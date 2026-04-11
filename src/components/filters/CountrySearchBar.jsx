@@ -380,7 +380,7 @@ export default function CountrySearchBar({
             label={r.name}
             active={vendorLocation === r.slug}
             isFirst={i === 0}
-            onSelect={() => { setVendorLocation(r.slug); setOpenMenu(null); }}
+            onSelect={() => { setVendorLocation(r.slug); setOpenMenu(null); onVendorSearch?.({ location: r.slug, category: vendorCategory, budget: vendorBudget, availability: vendorAvail }); }}
             onHover={() => setHov(`vloc-${r.slug}`)}
             hovered={hov === `vloc-${r.slug}`}
           />
@@ -398,7 +398,7 @@ export default function CountrySearchBar({
             label={cat}
             active={vendorCategory === cat}
             isFirst={i === 0}
-            onSelect={() => { setVendorCategory(cat); setOpenMenu(null); }}
+            onSelect={() => { setVendorCategory(cat); setOpenMenu(null); onVendorSearch?.({ location: vendorLocation, category: cat, budget: vendorBudget, availability: vendorAvail }); }}
             onHover={() => setHov(`cat-${cat}`)}
             hovered={hov === `cat-${cat}`}
           />
@@ -649,8 +649,8 @@ export default function CountrySearchBar({
             {/* ── Vendor mega menus ── */}
             {openMenu === "v-location" && renderVendorLocationPanel()}
             {openMenu === "v-category" && renderVendorCategoryPanel()}
-            {openMenu === "v-budget"   && renderOptionsPanel("Budget", BUDGETS, vendorBudget, (v) => { setVendorBudget(v); setOpenMenu(null); })}
-            {openMenu === "v-avail"    && renderOptionsPanel("Availability", AVAILABILITY, vendorAvail, (v) => { setVendorAvail(v); setOpenMenu(null); })}
+            {openMenu === "v-budget"   && renderOptionsPanel("Budget", BUDGETS, vendorBudget, (v) => { setVendorBudget(v); setOpenMenu(null); onVendorSearch?.({ location: vendorLocation, category: vendorCategory, budget: v, availability: vendorAvail }); })}
+            {openMenu === "v-avail"    && renderOptionsPanel("Availability", AVAILABILITY, vendorAvail, (v) => { setVendorAvail(v); setOpenMenu(null); onVendorSearch?.({ location: vendorLocation, category: vendorCategory, budget: vendorBudget, availability: v }); })}
 
             {/* ── Planner mega menus ── */}
             {openMenu === "p-tier" && renderOptionsPanel("Service Tier", ["All", ...PLANNER_SERVICE_TIERS], plannerFilters?.tier || "All", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, tier: v }); setOpenMenu(null); })}
