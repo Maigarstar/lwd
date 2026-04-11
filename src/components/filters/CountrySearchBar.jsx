@@ -60,6 +60,18 @@ const PLANNER_SPECIALTIES = [
   "Design & Styling",
 ];
 
+const PHOTOGRAPHER_STYLES = [
+  "All",
+  "Fine Art Editorial",
+  "Documentary",
+  "Cinematic",
+  "Destination Travel",
+  "Luxury Portraits",
+  "Film & Analog",
+  "Engagement Sessions",
+  "Elopement",
+];
+
 // ── Warm stone palette — no pure white, no heavy black ───────────────────────
 const STONE = "#F6F3EE";          // warm stone base
 const STONE_DEEP = "#EBE6DC";     // deeper stone for refinement panels
@@ -191,6 +203,8 @@ export default function CountrySearchBar({
   mode: modeProp, onModeChange,
   // Planner-specific props
   plannerFilters, onPlannerFiltersChange, plannerRegions,
+  // Photographer-specific props
+  photoFilters, onPhotoFiltersChange, photoRegions,
 }) {
   const C = useTheme();
   const dark = C.black === "#080808";
@@ -429,7 +443,7 @@ export default function CountrySearchBar({
         overflowX: "auto", WebkitOverflowScrolling: "touch",
       }}>
         {/* Mode toggle — hidden for planners (single-category page) */}
-        {mode === "planners" ? (
+        {(mode === "planners" || mode === "photographers") ? (
           <div style={{
             display: "flex", background: CL.activeTab, borderRadius: 3,
             border: "1px solid rgba(160,148,125,0.28)", overflow: "hidden", flexShrink: 0,
@@ -438,7 +452,7 @@ export default function CountrySearchBar({
               color: "#fff", fontSize: 9, fontWeight: 700,
               letterSpacing: "1.5px", textTransform: "uppercase", padding: "6px 14px",
               fontFamily: NU,
-            }}>Planners</span>
+            }}>{mode === "planners" ? "Planners" : "Photographers"}</span>
           </div>
         ) : (
           <div role="tablist" aria-label="Search mode" style={{
@@ -551,11 +565,41 @@ export default function CountrySearchBar({
           </>
         )}
 
+        {/* ═══ PHOTOGRAPHER TRIGGERS ═══════════════════════════════════ */}
+        {mode === "photographers" && photoFilters && (
+          <>
+            <TriggerBtn menuKey="ph-style" label={photoFilters.style === "All" || !photoFilters.style ? "All Styles" : photoFilters.style} active={photoFilters.style && photoFilters.style !== "All"} />
+            {photoRegions && photoRegions.length > 1 && (
+              <TriggerBtn menuKey="ph-region" label={photoFilters.region === "All" ? "All Regions" : photoFilters.region} active={photoFilters.region !== "All"} />
+            )}
+            <TriggerBtn menuKey="ph-sort" label={
+              photoFilters.sort === "recommended" ? "Recommended"
+              : photoFilters.sort === "rating" ? "Highest Rated"
+              : photoFilters.sort === "price-low" ? "Price: Low \u2192 High"
+              : photoFilters.sort === "price-high" ? "Price: High \u2192 Low"
+              : photoFilters.sort === "reviews" ? "Most Reviews"
+              : "Recommended"
+            } active={photoFilters.sort !== "recommended"} />
+
+            {(photoFilters.style !== "All" || photoFilters.region !== "All" || photoFilters.sort !== "recommended") && (
+              <button onClick={() => onPhotoFiltersChange?.({ style: "All", region: "All", sort: "recommended" })} aria-label="Clear all filters"
+                style={{
+                  background: "none", border: "none", color: CL.goldDim, fontSize: 9,
+                  cursor: "pointer", fontFamily: NU, letterSpacing: "1px", textTransform: "uppercase",
+                  padding: "4px 6px", transition: "color 0.2s", whiteSpace: "nowrap", flexShrink: 0,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = CL.gold; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = CL.goldDim; }}
+              >✕ Clear</button>
+            )}
+          </>
+        )}
+
         {/* ═══ SHARED: count + view mode controls (always visible) ═══════ */}
         <div style={{ flex: 1 }} />
 
         <span style={{ fontSize: 10, color: CL.count, whiteSpace: "nowrap", fontFamily: NU }}>
-          <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "planners" ? "planners" : mode === "vendors" ? "vendors" : "venues"}
+          <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "planners" ? "planners" : mode === "photographers" ? "photographers" : mode === "vendors" ? "vendors" : "venues"}
         </span>
 
         {/* Grid / List / Map view switcher */}
@@ -662,6 +706,17 @@ export default function CountrySearchBar({
               { slug: "reviews",     name: "Most Reviews" },
             ], plannerFilters?.sort || "recommended", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, sort: v }); setOpenMenu(null); })}
             {openMenu === "p-specialty" && renderOptionsPanel("Specialty", PLANNER_SPECIALTIES, plannerFilters?.specialty || "All", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, specialty: v }); setOpenMenu(null); })}
+
+            {/* ── Photographer mega menus ── */}
+            {openMenu === "ph-style" && renderOptionsPanel("Style", PHOTOGRAPHER_STYLES, photoFilters?.style || "All", (v) => { onPhotoFiltersChange?.({ ...photoFilters, style: v }); setOpenMenu(null); })}
+            {openMenu === "ph-region" && renderOptionsPanel("Region", ["All", ...(photoRegions || [])], photoFilters?.region || "All", (v) => { onPhotoFiltersChange?.({ ...photoFilters, region: v }); setOpenMenu(null); })}
+            {openMenu === "ph-sort" && renderOptionsPanel("Sort By", [
+              { slug: "recommended", name: "Recommended" },
+              { slug: "rating",      name: "Highest Rated" },
+              { slug: "price-low",   name: "Price: Low \u2192 High" },
+              { slug: "price-high",  name: "Price: High \u2192 Low" },
+              { slug: "reviews",     name: "Most Reviews" },
+            ], photoFilters?.sort || "recommended", (v) => { onPhotoFiltersChange?.({ ...photoFilters, sort: v }); setOpenMenu(null); })}
           </div>
         </div>
       )}

@@ -117,9 +117,11 @@ export default function RegionCategoryPage({
   const [sparseZoneAlert,     setSparseZoneAlert]     = useState(null);
   const [isFilteringTransition, setIsFilteringTransition] = useState(false);
 
-  // ── Planner-specific state ──────────────────────────────────────────────────
+  // ── Category flags ──────────────────────────────────────────────────────────
   const isPlanner = categorySlug === "wedding-planners";
+  const isPhotographer = categorySlug === "photographers";
   const [plannerFilters, setPlannerFilters] = useState({ tier: "All", region: "All", sort: "recommended", specialty: "All" });
+  const [photoFilters, setPhotoFilters] = useState({ style: "All", region: "All", sort: "recommended" });
 
   // ── Phase 1: shared directory state (replaces viewMode/mapOn/isMobile/activeListingId) ──
   const {
@@ -387,8 +389,29 @@ export default function RegionCategoryPage({
     return list;
   }, [isPlanner, listings, sortedFilteredListings, plannerFilters]);
 
+  // ── Photographer-specific filtering + sorting ───────────────────────────────
+  const photoFinalListings = useMemo(() => {
+    if (!isPhotographer) return sortedFilteredListings;
+    let list = [...listings];
+    if (photoFilters.style && photoFilters.style !== "All") {
+      const kw = photoFilters.style.toLowerCase();
+      list = list.filter(p => p.specialties?.some(s => s.toLowerCase().includes(kw)));
+    }
+    if (photoFilters.region && photoFilters.region !== "All") {
+      list = list.filter(p => p.region === photoFilters.region);
+    }
+    switch (photoFilters.sort) {
+      case "rating":     list.sort((a, b) => (b.rating || 0) - (a.rating || 0)); break;
+      case "price-low":  { const pp = (v) => { const m = String(v?.priceFrom || "").match(/[\d,]+/); return m ? parseInt(m[0].replace(/,/g, ""), 10) : 0; }; list.sort((a, b) => pp(a) - pp(b)); break; }
+      case "price-high": { const pp = (v) => { const m = String(v?.priceFrom || "").match(/[\d,]+/); return m ? parseInt(m[0].replace(/,/g, ""), 10) : 0; }; list.sort((a, b) => pp(b) - pp(a)); break; }
+      case "reviews":    list.sort((a, b) => (b.reviews || 0) - (a.reviews || 0)); break;
+      default:           list.sort((a, b) => (b.lwdScore || 0) - (a.lwdScore || 0)); break;
+    }
+    return list;
+  }, [isPhotographer, listings, sortedFilteredListings, photoFilters]);
+
   // ── One final visible array — Grid, List, Map all render from this ─────────
-  const finalListings = isPlanner ? plannerFinalListings : sortedFilteredListings;
+  const finalListings = isPlanner ? plannerFinalListings : isPhotographer ? photoFinalListings : sortedFilteredListings;
   const listingCount = finalListings.length;
 
   // Planner regions for filter dropdown
@@ -396,6 +419,12 @@ export default function RegionCategoryPage({
     if (!isPlanner) return [];
     return [...new Set(listings.map(p => p.region).filter(Boolean))].sort();
   }, [isPlanner, listings]);
+
+  // Photographer regions for filter dropdown
+  const photoRegions = useMemo(() => {
+    if (!isPhotographer) return [];
+    return [...new Set(listings.map(p => p.region).filter(Boolean))].sort();
+  }, [isPhotographer, listings]);
 
   // ── Filter transition feedback — smooth fade when results change ──────────
   // Trigger a brief opacity transition to signal that filtering just happened
@@ -1160,12 +1189,15 @@ export default function RegionCategoryPage({
               countryFilter={countryName}
               mapOn={mapOn}
               onToggleMap={handleToggleMap}
-              mode={isPlanner ? "planners" : undefined}
+              mode={isPlanner ? "planners" : isPhotographer ? "photographers" : undefined}
               plannerFilters={plannerFilters}
               onPlannerFiltersChange={setPlannerFilters}
               plannerRegions={plannerRegions}
+              photoFilters={photoFilters}
+              onPhotoFiltersChange={setPhotoFilters}
+              photoRegions={photoRegions}
             />
-            {!isPlanner && !mapOn && (
+            {!isPlanner && !isPhotographer && !mapOn && (
               <InfoStrip
                 availableRegions={[{ name: regionName, slug: regionSlug }]}
                 filters={venueFilters}
