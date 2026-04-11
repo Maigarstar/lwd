@@ -189,12 +189,14 @@ export default function LocationPage({
   const [filters, setFilters] = useState({ region: "all", capacity: "Any Capacity", style: "All Styles", price: "All Budgets" });
   const [sortMode, setSortMode] = useState("recommended");
   const [listingMode, setListingMode] = useState("venues"); // "venues" | "vendors"
+  const [vendorSearch, setVendorSearch] = useState({ location: "all", category: "All Categories", budget: "All Budgets", availability: "Any Date" });
 
   // ── Reset filters + mode whenever the page location changes ─────────────────
   useEffect(() => {
     setFilters({ region: "all", capacity: "Any Capacity", style: "All Styles", price: "All Budgets" });
     setSortMode("recommended");
     setListingMode("venues");
+    setVendorSearch({ location: "all", category: "All Categories", budget: "All Budgets", availability: "Any Date" });
   }, [locationSlug]);
 
   // ── Phase 1: shared view + map + pin state only ───────────────────────────────
@@ -682,6 +684,39 @@ export default function LocationPage({
     return filtered;
   }, [currentLocation, locationType, _vendors]);
 
+  // ── Label → category mapping for vendor search ──────────────────────────────
+  const VENDOR_CAT_MAP = {
+    "All Categories": null,
+    "Top Wedding Planners": "planner",
+    "Hair & Makeup": "hair-makeup",
+    "Best Photographers": "photographer",
+    "Best Videographers": "videographer",
+    "Bridal Dresses": "bridal-dresses",
+    "Guest Attire": "guest-attire",
+    "Wedding Flowers": "florist",
+    "Styling & Decor": "styling-decor",
+    "Wedding Cakes": "cakes",
+    "Wedding Accessories": "accessories",
+    "Stationery & Invitations": "stationery",
+    "Health & Beauty": "health-beauty",
+    "Celebrants": "celebrant",
+    "Event Production": "event-production",
+    "Wedding Caterers": "caterer",
+    "Entertainment": "entertainment",
+    "Gift Registry": "gift-registry",
+    "Luxury Transport": "transport",
+  };
+
+  // ── Filtered vendors (applies vendor search filters) ────────────────────────
+  const filteredVendors = useMemo(() => {
+    let list = [...locationVendors];
+    const catId = VENDOR_CAT_MAP[vendorSearch.category];
+    if (catId) {
+      list = list.filter(v => v.category === catId);
+    }
+    return list;
+  }, [locationVendors, vendorSearch]);
+
   // ── Compute Latest Vendors strip vendors ─────────────────────────────────────
   const latestVendorsVenues = useMemo(() => {
     const mode  = _locationContent?.latestVendorsMode  || 'latest';
@@ -1041,13 +1076,14 @@ export default function LocationPage({
             onViewMode={setViewMode}
             sortMode={sortMode}
             onSortChange={setSortMode}
-            total={filteredVenues.length}
+            total={listingMode === "vendors" ? filteredVendors.length : filteredVenues.length}
             regions={_regions.filter(r => r.countrySlug === currentLocation.slug).map(r => ({ slug: r.slug, name: r.name }))}
             countryFilter={countryName}
             mapOn={mapOn}
             onToggleMap={toggleMap}
             mode={listingMode}
             onModeChange={setListingMode}
+            onVendorSearch={(s) => { setVendorSearch(s); setListingMode("vendors"); }}
             hideListView
           />
           {!mapOn && (
@@ -1064,7 +1100,7 @@ export default function LocationPage({
 
         {/* ── EXPLORE LAYOUT — map on · desktop ─────────────────────────────── */}
         {mapOn && !isMobile && (() => {
-          const exploreItems = listingMode === "vendors" ? locationVendors : filteredVenues;
+          const exploreItems = listingMode === "vendors" ? filteredVendors : filteredVenues;
           return (
           <div
             aria-label={`Explore ${listingMode} in ${currentLocation.name}`}
@@ -1246,7 +1282,7 @@ export default function LocationPage({
                   gap: isMobile ? 16 : 20,
                 }}
               >
-                {filteredVenues.slice(0, visibleCount).map((v, i) => (
+                {(listingMode === "vendors" ? filteredVendors : filteredVenues).slice(0, visibleCount).map((v, i) => (
                   <div
                     key={v.id}
                     data-listing-id={v.id}
@@ -1264,7 +1300,7 @@ export default function LocationPage({
               </div>
             </div>
 
-            {visibleCount < filteredVenues.length && (
+            {visibleCount < (listingMode === "vendors" ? filteredVendors : filteredVenues).length && (
               <div style={{ textAlign: "center", marginTop: 30 }}>
                 <button
                   onClick={() => setVisibleCount(v => v + 12)}
