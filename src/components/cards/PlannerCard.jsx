@@ -710,9 +710,10 @@ function GridCard({ v, onView, isMobile }) {
         boxShadow:       hov ? "0 16px 48px rgba(0,0,0,0.25), 0 4px 12px rgba(201,168,76,0.08)" : "0 2px 12px rgba(0,0,0,0.1)",
         scrollSnapAlign: isMobile ? "start" : undefined,
         scrollMarginTop: isMobile ? 12 : undefined,
-        height:          isMobile ? "75vh" : 460,
-        minHeight:       isMobile ? 440 : 400,
-        maxHeight:       480,
+        height:          isMobile ? "calc(100dvh - 10px)" : 560,
+        minHeight:       isMobile ? "calc(100dvh - 10px)" : 520,
+        maxHeight:       isMobile ? "calc(100dvh - 10px)" : 580,
+        maxWidth:        isMobile ? undefined : 416,
       }}
     >
       {/* ── Full-bleed swipeable media background ── */}

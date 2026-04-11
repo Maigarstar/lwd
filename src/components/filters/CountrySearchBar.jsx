@@ -49,6 +49,17 @@ const SORT_OPTIONS = [
   { slug: "price-high",  name: "Price: High \u2192 Low" },
 ];
 
+const PLANNER_SPECIALTIES = [
+  "All",
+  "Destination Weddings",
+  "Luxury & High-End",
+  "English Speaking",
+  "Full Service",
+  "Elopements & Intimate",
+  "Cultural & Multi-Faith",
+  "Design & Styling",
+];
+
 // ── Warm stone palette — no pure white, no heavy black ───────────────────────
 const STONE = "#F6F3EE";          // warm stone base
 const STONE_DEEP = "#EBE6DC";     // deeper stone for refinement panels
@@ -519,14 +530,15 @@ export default function CountrySearchBar({
             <TriggerBtn menuKey="p-sort" label={
               plannerFilters.sort === "recommended" ? "Recommended"
               : plannerFilters.sort === "rating" ? "Highest Rated"
-              : plannerFilters.sort === "price-low" ? "Price: Low → High"
-              : plannerFilters.sort === "price-high" ? "Price: High → Low"
+              : plannerFilters.sort === "price-low" ? "Price: Low \u2192 High"
+              : plannerFilters.sort === "price-high" ? "Price: High \u2192 Low"
               : plannerFilters.sort === "reviews" ? "Most Reviews"
               : "Recommended"
             } active={plannerFilters.sort !== "recommended"} />
+            <TriggerBtn menuKey="p-specialty" label={plannerFilters.specialty === "All" || !plannerFilters.specialty ? "All Specialties" : plannerFilters.specialty} active={plannerFilters.specialty && plannerFilters.specialty !== "All"} />
 
-            {(plannerFilters.tier !== "All" || plannerFilters.region !== "All" || plannerFilters.sort !== "recommended") && (
-              <button onClick={() => onPlannerFiltersChange?.({ tier: "All", region: "All", sort: "recommended" })} aria-label="Clear all filters"
+            {(plannerFilters.tier !== "All" || plannerFilters.region !== "All" || plannerFilters.sort !== "recommended" || (plannerFilters.specialty && plannerFilters.specialty !== "All")) && (
+              <button onClick={() => onPlannerFiltersChange?.({ tier: "All", region: "All", sort: "recommended", specialty: "All" })} aria-label="Clear all filters"
                 style={{
                   background: "none", border: "none", color: CL.goldDim, fontSize: 9,
                   cursor: "pointer", fontFamily: NU, letterSpacing: "1px", textTransform: "uppercase",
@@ -644,12 +656,13 @@ export default function CountrySearchBar({
             {openMenu === "p-tier" && renderOptionsPanel("Service Tier", ["All", ...PLANNER_SERVICE_TIERS], plannerFilters?.tier || "All", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, tier: v }); setOpenMenu(null); })}
             {openMenu === "p-region" && renderOptionsPanel("Region", ["All", ...(plannerRegions || [])], plannerFilters?.region || "All", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, region: v }); setOpenMenu(null); })}
             {openMenu === "p-sort" && renderOptionsPanel("Sort By", [
-              { value: "recommended", label: "Recommended" },
-              { value: "rating", label: "Highest Rated" },
-              { value: "price-low", label: "Price: Low to High" },
-              { value: "price-high", label: "Price: High to Low" },
-              { value: "reviews", label: "Most Reviews" },
-            ].map(o => o.value === "recommended" ? "recommended" : o.value), plannerFilters?.sort || "recommended", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, sort: v }); setOpenMenu(null); })}
+              { slug: "recommended", name: "Recommended" },
+              { slug: "rating",      name: "Highest Rated" },
+              { slug: "price-low",   name: "Price: Low \u2192 High" },
+              { slug: "price-high",  name: "Price: High \u2192 Low" },
+              { slug: "reviews",     name: "Most Reviews" },
+            ], plannerFilters?.sort || "recommended", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, sort: v }); setOpenMenu(null); })}
+            {openMenu === "p-specialty" && renderOptionsPanel("Specialty", PLANNER_SPECIALTIES, plannerFilters?.specialty || "All", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, specialty: v }); setOpenMenu(null); })}
           </div>
         </div>
       )}

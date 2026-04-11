@@ -42,7 +42,7 @@ import { PinSyncBus }  from "../components/maps/PinSyncBus";
 import QuickViewModal  from "../components/modals/QuickViewModal";
 import AICommandBar    from "../components/filters/AICommandBar";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
-import PlannerFilterBar from "../components/filters/PlannerFilterBar";
+// PlannerFilterBar removed — planners now use CountrySearchBar with mode="planners"
 import InfoStrip        from "../components/sections/InfoStrip";
 import HomeNav          from "../components/nav/HomeNav";
 import RegionRealWeddings from "../components/sections/RegionRealWeddings";
@@ -119,7 +119,7 @@ export default function RegionCategoryPage({
 
   // ── Planner-specific state ──────────────────────────────────────────────────
   const isPlanner = categorySlug === "wedding-planners";
-  const [plannerFilters, setPlannerFilters] = useState({ tier: "All", region: "All", sort: "recommended" });
+  const [plannerFilters, setPlannerFilters] = useState({ tier: "All", region: "All", sort: "recommended", specialty: "All" });
 
   // ── Phase 1: shared directory state (replaces viewMode/mapOn/isMobile/activeListingId) ──
   const {
@@ -369,6 +369,11 @@ export default function RegionCategoryPage({
     // Apply region filter (sub-region within geo results)
     if (plannerFilters.region && plannerFilters.region !== "All") {
       list = list.filter(p => p.region === plannerFilters.region);
+    }
+    // Apply specialty filter
+    if (plannerFilters.specialty && plannerFilters.specialty !== "All") {
+      const kw = plannerFilters.specialty.toLowerCase();
+      list = list.filter(p => p.specialties?.some(s => s.toLowerCase().includes(kw)));
     }
     // Sort
     const parsePrice = (v) => { const m = String(v?.priceFrom || v?.priceLabel || "").match(/[\d,]+/); return m ? parseInt(m[0].replace(/,/g, ""), 10) : 0; };
@@ -1143,39 +1148,30 @@ export default function RegionCategoryPage({
                 }
               }}
             />
-            {isPlanner ? (
-              <PlannerFilterBar
-                regions={plannerRegions}
-                filters={plannerFilters}
-                onFilterChange={setPlannerFilters}
-                viewMode={viewMode}
-                onViewChange={handleViewMode}
-                totalCount={listingCount}
+            <CountrySearchBar
+              filters={venueFilters}
+              onFiltersChange={handleVenueFiltersChange}
+              viewMode={viewMode}
+              onViewMode={handleViewMode}
+              sortMode={sortMode}
+              onSortChange={setSortMode}
+              total={listingCount}
+              regions={[{ name: regionName, slug: regionSlug }]}
+              countryFilter={countryName}
+              mapOn={mapOn}
+              onToggleMap={handleToggleMap}
+              mode={isPlanner ? "planners" : undefined}
+              plannerFilters={plannerFilters}
+              onPlannerFiltersChange={setPlannerFilters}
+              plannerRegions={plannerRegions}
+            />
+            {!isPlanner && !mapOn && (
+              <InfoStrip
+                availableRegions={[{ name: regionName, slug: regionSlug }]}
+                filters={venueFilters}
+                onFiltersChange={handleVenueFiltersChange}
+                defaultFilters={DEFAULT_FILTERS}
               />
-            ) : (
-              <>
-                <CountrySearchBar
-                  filters={venueFilters}
-                  onFiltersChange={handleVenueFiltersChange}
-                  viewMode={viewMode}
-                  onViewMode={handleViewMode}
-                  sortMode={sortMode}
-                  onSortChange={setSortMode}
-                  total={listingCount}
-                  regions={[{ name: regionName, slug: regionSlug }]}
-                  countryFilter={countryName}
-                  mapOn={mapOn}
-                  onToggleMap={categorySlug === "wedding-venues" ? handleToggleMap : undefined}
-                />
-                {!mapOn && (
-                  <InfoStrip
-                    availableRegions={[{ name: regionName, slug: regionSlug }]}
-                    filters={venueFilters}
-                    onFiltersChange={handleVenueFiltersChange}
-                    defaultFilters={DEFAULT_FILTERS}
-                  />
-                )}
-              </>
             )}
 
             {/* ════════════════════════════════════════════════════════════════════
@@ -1230,7 +1226,7 @@ export default function RegionCategoryPage({
                           onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
                           onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
                           style={{
-                            height:       isPlanner ? 460 : 560,
+                            height:       560,
                             outline:      activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
                             borderRadius: "var(--lwd-radius-card, 8px)",
                             transition:   "outline 0.2s",
@@ -1484,13 +1480,15 @@ export default function RegionCategoryPage({
                   {isPlanner && viewMode === "grid" && (
                     <div style={{
                       display: "grid",
-                      gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(320px, 1fr))",
-                      gap: isMobile ? 12 : 24,
+                      gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(416px, 1fr))",
+                      gap: isMobile ? 12 : 20,
                       opacity: isFilteringTransition ? 0.7 : 1,
                       transition: "opacity 0.15s ease",
                     }}>
                       {finalListings.map((p) => (
-                        <PlannerCard key={p.id} v={p} mode="grid" onView={() => onViewPlanner(p)} isMobile={isMobile} />
+                        <div key={p.id} style={{ height: 560, overflow: "hidden", borderRadius: "var(--lwd-radius-card, 8px)" }}>
+                          <PlannerCard v={p} mode="grid" onView={() => onViewPlanner(p)} isMobile={isMobile} />
+                        </div>
                       ))}
                     </div>
                   )}
