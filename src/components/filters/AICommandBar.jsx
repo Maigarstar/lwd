@@ -9,7 +9,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import { parseVenueQuery, clientParse } from "../../services/aiSearchService";
-import { normalizeStyles } from "../../constants/styleMap";
+import { normalizeStyles, resolveAuraSemanticIntent } from "../../constants/styleMap";
 
 const NU = "var(--font-body)";
 const GD = "var(--font-heading-primary)";
@@ -221,10 +221,11 @@ export default function AICommandBar({
 
   // ── Apply parsed result to filter state ───────────────────────────────────
   const applyParsed = useCallback((parsed) => {
-    // CRITICAL: Normalize style from Aura to canonical data values
-    // Aura may output either UI labels or data values; normalizeStyles handles both
+    // CRITICAL: Resolve Aura semantic intent to full category mapping
+    // When Aura outputs "Rustic" (canonical value), we must expand it to ["Rustic", "Rustic Luxe"]
+    // to match what user would get selecting "Rustic & Country" filter (semantic parity)
     const normalizedStyles = parsed.style
-      ? normalizeStyles([parsed.style])  // normalizeStyles returns array
+      ? resolveAuraSemanticIntent(parsed.style)  // Returns full category values
       : [];
 
     const next = {

@@ -15,100 +15,187 @@
  * ────────────────────────────────────────────────────────────────────────── */
 
 /**
+ * ─── STRICT STYLE TAXONOMY ──────────────────────────────────────────────────
+ *
+ * Each category is a specific, recognizable aesthetic.
+ * No catch-all values. No generic adjectives. No features masquerading as styles.
+ *
+ * Refined from semantic audit (STYLE_TAXONOMY_AUDIT.md) with these rules:
+ * - "Elegant" removed (too generic, appeared 5+ times)
+ * - "Modern" consolidated (was in 3 categories)
+ * - "Intimate" removed (atmosphere, not aesthetic)
+ * - All remaining values have clear, defensible meaning
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/**
  * Canonical mapping: UI Label → Array of real data values
  *
  * This mapping is curated from analysis of actual venue/vendor style arrays.
  * When a user selects a UI label, it expands to all matching data values.
+ *
+ * CRITICAL: Each value must genuinely represent that aesthetic category.
+ * Better to return 5 correct results than 7 with false positives.
  */
 export const STYLE_MAP = {
-  // Grouping: Traditional Luxury
+  // Traditional design, heritage architecture, timeless elegance
   "Classic & Traditional": [
     "Classic",
-    "Elegant",
     "Historic",
   ],
 
-  // Grouping: Contemporary/Modern
+  // Modern design, clean lines, architectural innovation
   "Contemporary & Modern": [
-    "Modern",
     "Minimalist",
     "Art Deco",
   ],
 
-  // Grouping: Rustic & Nature
+  // Natural, countryside, earthy aesthetic
   "Rustic & Country": [
     "Rustic",
     "Rustic Luxe",
   ],
 
-  // Grouping: Intimate & Personal
+  // Eclectic, artistic, unconventional, expressive
   "Bohemian & Free-Spirit": [
     "Bohemian",
-    "Intimate",
   ],
 
-  // Grouping: Opulent & Formal
+  // Formal opulence, luxury positioning, exclusive access
   "Glamorous & Grand": [
     "Black Tie",
-    "Elegant",
     "Exclusive",
   ],
 
-  // Grouping: Intimate & Elopement
+  // Small gatherings, romantic atmosphere, personal scale
   "Intimate & Elopement": [
-    "Intimate",
     "Romantic",
   ],
 
-  // Grouping: Destination & Exotic
+  // Travel-worthy locations, exotic settings, destination weddings
   "Destination": [
     "Destination",
     "Coastal",
     "Lakeside",
   ],
 
-  // Grouping: Outdoor & Natural
+  // Open-air venues, natural settings, outdoor celebrations
   "Festival & Outdoor": [
     "Garden",
     "Vineyard",
     "Coastal",
   ],
 
-  // Grouping: Creative & Alternative
+  // Non-traditional, artistic, unconventional spaces
   "Alternative & Creative": [
-    "Modern",
-    "Contemporary",
     "Gothic",
+    "Contemporary",
   ],
 
-  // Grouping: Opulent & Luxury
+  // High-end properties, premium positioning, heritage luxury
   "Luxury & Opulent": [
-    "Elegant",
-    "Black Tie",
     "Historic",
     "Exclusive",
   ],
 
-  // Grouping: Romantic & Whimsical
+  // Sentimental, enchanting, dreamlike atmosphere
   "Romantic & Whimsical": [
     "Romantic",
     "Garden",
-    "Intimate",
   ],
 
-  // Grouping: Minimalist & Chic
+  // Clean design, spare aesthetic, architectural purity
   "Minimalist & Chic": [
-    "Modern",
     "Minimalist",
-    "Contemporary",
   ],
 
-  // Grouping: Formal & Black Tie
+  // Formal evening wear events, traditional black-tie venues
   "Black Tie & Formal": [
     "Black Tie",
     "Classic",
     "Historic",
   ],
+};
+
+/**
+ * STYLE TAXONOMY - Extended metadata for each category
+ *
+ * Powers:
+ * - Aura semantic understanding ("show me romantic venues")
+ * - SEO landing pages ("Classic Wedding Venues in Italy")
+ * - Editorial consistency (marketing copy, filters, recommendations)
+ * - Filter descriptions (tooltip help text)
+ *
+ * Structure:
+ * - description: Human-readable category meaning
+ * - query_aliases: Natural language variations that map to this category
+ * - seo_title_pattern: For auto-generated SEO pages
+ */
+export const STYLE_TAXONOMY = {
+  "Classic & Traditional": {
+    description: "Timeless elegance, period venues, heritage architecture",
+    query_aliases: ["classic", "traditional", "elegant", "historic", "timeless"],
+    seo_title: "Classic & Traditional Wedding Venues",
+  },
+  "Contemporary & Modern": {
+    description: "Modern design, clean lines, architectural innovation",
+    query_aliases: ["modern", "contemporary", "minimalist", "art deco", "innovative"],
+    seo_title: "Contemporary & Modern Wedding Venues",
+  },
+  "Rustic & Country": {
+    description: "Natural, countryside, earthy aesthetic",
+    query_aliases: ["rustic", "country", "farmhouse", "barn", "estate"],
+    seo_title: "Rustic & Country Wedding Venues",
+  },
+  "Bohemian & Free-Spirit": {
+    description: "Eclectic, artistic, unconventional, expressive",
+    query_aliases: ["bohemian", "boho", "artistic", "eclectic", "unconventional"],
+    seo_title: "Bohemian & Free-Spirit Wedding Venues",
+  },
+  "Glamorous & Grand": {
+    description: "Formal opulence, luxury positioning, exclusive access",
+    query_aliases: ["glamorous", "grand", "formal", "opulent", "luxurious"],
+    seo_title: "Glamorous & Grand Wedding Venues",
+  },
+  "Intimate & Elopement": {
+    description: "Small gatherings, romantic atmosphere, personal scale",
+    query_aliases: ["intimate", "elopement", "small", "romantic", "couple"],
+    seo_title: "Intimate & Elopement Wedding Venues",
+  },
+  "Destination": {
+    description: "Travel-worthy locations, exotic settings, destination weddings",
+    query_aliases: ["destination", "exotic", "travel", "coastal", "tropical"],
+    seo_title: "Destination Wedding Venues",
+  },
+  "Festival & Outdoor": {
+    description: "Open-air venues, natural settings, outdoor celebrations",
+    query_aliases: ["outdoor", "garden", "festival", "vineyard", "al fresco"],
+    seo_title: "Festival & Outdoor Wedding Venues",
+  },
+  "Alternative & Creative": {
+    description: "Non-traditional, artistic, unconventional spaces",
+    query_aliases: ["alternative", "creative", "artistic", "gothic", "unconventional"],
+    seo_title: "Alternative & Creative Wedding Venues",
+  },
+  "Luxury & Opulent": {
+    description: "High-end properties, premium positioning, heritage luxury",
+    query_aliases: ["luxury", "opulent", "exclusive", "premium", "high-end"],
+    seo_title: "Luxury & Opulent Wedding Venues",
+  },
+  "Romantic & Whimsical": {
+    description: "Sentimental, enchanting, dreamlike atmosphere",
+    query_aliases: ["romantic", "whimsical", "dreamy", "enchanting", "fairy tale"],
+    seo_title: "Romantic & Whimsical Wedding Venues",
+  },
+  "Minimalist & Chic": {
+    description: "Clean design, spare aesthetic, architectural purity",
+    query_aliases: ["minimalist", "chic", "clean", "modern", "simple"],
+    seo_title: "Minimalist & Chic Wedding Venues",
+  },
+  "Black Tie & Formal": {
+    description: "Formal evening wear events, traditional black-tie venues",
+    query_aliases: ["black tie", "formal", "traditional", "elegant", "ceremony"],
+    seo_title: "Black Tie & Formal Wedding Venues",
+  },
 };
 
 /**
@@ -133,14 +220,19 @@ export const STYLE_REVERSE_MAP = (() => {
 /**
  * Normalize a style value to canonical data values
  *
+ * STRICT MODE: Unknown styles return empty array (safer than false positives)
+ *
  * @param {string} styleInput - Either a UI label or a data value
+ * @param {boolean} strictMode - If true, unknown values return [] instead of [value]
  * @returns {string[]} Array of canonical data values
  *
  * Usage:
- *   normalizeStyle("Rustic & Country") → ["Rustic", "Rustic Luxe", "Garden", "Vineyard"]
- *   normalizeStyle("Rustic Luxe") → ["Rustic Luxe"]  (pass-through if already canonical)
+ *   normalizeStyle("Rustic & Country") → ["Rustic", "Rustic Luxe"]
+ *   normalizeStyle("Rustic Luxe") → ["Rustic Luxe"]  (canonical value)
+ *   normalizeStyle("Unknown", true) → [] (strict mode — safer)
+ *   normalizeStyle("Unknown", false) → ["Unknown"] (legacy fallback)
  */
-export function normalizeStyle(styleInput) {
+export function normalizeStyle(styleInput, strictMode = true) {
   if (!styleInput) return [];
 
   // If it's a known UI label, map it to data values
@@ -148,13 +240,28 @@ export function normalizeStyle(styleInput) {
     return STYLE_MAP[styleInput];
   }
 
+  // Get all canonical values from the map
+  const allCanonicalValues = [...new Set(Object.values(STYLE_MAP).flat())];
+
   // If it's already a data value (not in UI labels), pass it through
   // This allows Aura to output real data values directly
-  if (Object.values(STYLE_MAP).flat().includes(styleInput)) {
+  if (allCanonicalValues.includes(styleInput)) {
     return [styleInput];
   }
 
-  // Unknown value — pass through as-is (will likely match nothing, which is correct)
+  // Unknown value handling
+  if (strictMode) {
+    // STRICT: Better to return nothing than wrong results
+    if (typeof window !== 'undefined' && window.console) {
+      console.warn(`[STYLE_MAP] Unknown style in strict mode: "${styleInput}" — returning empty array`);
+    }
+    return [];
+  }
+
+  // LEGACY: Pass through as-is (will likely match nothing anyway)
+  if (typeof window !== 'undefined' && window.console) {
+    console.warn(`[STYLE_MAP] Unknown style in legacy mode: "${styleInput}" — passing through`);
+  }
   return [styleInput];
 }
 
@@ -166,12 +273,66 @@ export function normalizeStyle(styleInput) {
  *
  * Usage:
  *   normalizeStyles(["Rustic & Country", "Romantic & Whimsical"])
- *   → ["Rustic", "Rustic Luxe", "Garden", "Vineyard", "Romantic", "Intimate", "Garden"]
- *   (note: Garden appears twice but Set/dedupe later)
+ *   → ["Rustic", "Rustic Luxe", "Romantic", "Garden"]
  */
 export function normalizeStyles(styles) {
   if (!Array.isArray(styles) || styles.length === 0) return [];
   return [...new Set(styles.flatMap((s) => normalizeStyle(s)))];
+}
+
+/**
+ * CRITICAL: Resolve Aura semantic intent to full category mapping
+ *
+ * Problem:
+ * - User selects "Rustic & Country" UI filter → returns ["Rustic", "Rustic Luxe"]
+ * - Aura outputs "Rustic" (canonical data value) → was returning just ["Rustic"]
+ * - Results differed! System appeared broken.
+ *
+ * Solution:
+ * When Aura outputs a canonical value, we find which category it belongs to,
+ * then return ALL values from that category (full semantic intent).
+ *
+ * @param {string} aurasStyleValue - Raw value from Aura (e.g., "Rustic", "Romantic")
+ * @returns {string[]} Full category values representing Aura's semantic intent
+ *
+ * Usage:
+ *   When Aura outputs "Rustic" → find it's in "Rustic & Country" → return ["Rustic", "Rustic Luxe"]
+ *   When Aura outputs "Romantic" → find it's in "Romantic & Whimsical" → return ["Romantic", "Garden"]
+ *   When Aura outputs "Unknown" → return [] (strict safety mode)
+ */
+export function resolveAuraSemanticIntent(aurasStyleValue, strictMode = true) {
+  if (!aurasStyleValue) return [];
+
+  // First, check if it's a UI category label (user selected from dropdown)
+  if (STYLE_MAP[aurasStyleValue]) {
+    return STYLE_MAP[aurasStyleValue];
+  }
+
+  // Second, check if it's a canonical data value (Aura parsed it from text)
+  // Find which category(s) this value belongs to
+  const matchingCategories = [];
+  Object.entries(STYLE_MAP).forEach(([category, values]) => {
+    if (values.includes(aurasStyleValue)) {
+      matchingCategories.push(category);
+    }
+  });
+
+  if (matchingCategories.length > 0) {
+    // Return values from the FIRST matching category (primary semantic intent)
+    // If a value appears in multiple categories (e.g., "Historic"), we use the first one
+    const primaryCategory = matchingCategories[0];
+    return STYLE_MAP[primaryCategory];
+  }
+
+  // Unknown value
+  if (strictMode) {
+    console.warn(
+      `[AURA_SEMANTIC] Unknown style value: "${aurasStyleValue}" — returning empty array`
+    );
+    return [];
+  }
+
+  return [aurasStyleValue];
 }
 
 /**
@@ -209,4 +370,121 @@ export function getAllStyleLabels() {
  */
 export function getAllCanonicalStyles() {
   return [...new Set(Object.values(STYLE_MAP).flat())].sort();
+}
+
+/**
+ * DEBUG: Log truth verification for a filter operation
+ *
+ * Use this to visually confirm:
+ * - Mapping is correct
+ * - Results are justified
+ * - No false positives creeping in
+ *
+ * @param {object} context - Debug context object
+ * @param {string} context.selectedStyle - User-selected filter label
+ * @param {array} context.matchedListings - Listings that passed the filter
+ * @param {array} context.canonicalValues - Normalized canonical values
+ * @param {object} context.metadata - Optional metadata
+ *
+ * Usage:
+ *   debugStyleMapping({
+ *     selectedStyle: "Rustic & Country",
+ *     canonicalValues: normalizeStyle("Rustic & Country"),
+ *     matchedListings: results.map(r => ({ id: r.id, styles: r.styles })),
+ *   })
+ */
+export function debugStyleMapping({ selectedStyle, canonicalValues, matchedListings, metadata = {} }) {
+  if (typeof window === 'undefined' || !window.console) return;
+
+  const log = {
+    filter: {
+      selectedStyle,
+      canonicalValues,
+      totalMatches: matchedListings.length,
+    },
+    matches: matchedListings.map((listing) => ({
+      id: listing.id,
+      name: listing.name,
+      styles: listing.styles,
+      matchedStyles: listing.styles.filter((s) => canonicalValues.includes(s)),
+    })),
+    metadata,
+  };
+
+  console.group(`🔍 STYLE FILTER DEBUG: "${selectedStyle}"`);
+  console.log("Filter Configuration:", log.filter);
+  console.table(log.matches);
+  if (Object.keys(metadata).length > 0) {
+    console.log("Metadata:", log.metadata);
+  }
+  console.groupEnd();
+
+  return log;
+}
+
+/**
+ * VALIDATION: Ensure no overlapping catch-all values
+ *
+ * Runs semantic checks on the taxonomy to catch mapping errors:
+ * - No value appears in more than 2 categories (unless intentional)
+ * - No truly generic values (e.g., "Elegant" shouldn't appear in 5+ categories)
+ * - All values have clear meaning
+ *
+ * @returns {object} Validation report
+ */
+export function validateStyleTaxonomy() {
+  const report = {
+    valid: true,
+    issues: [],
+    stats: {},
+  };
+
+  // Count occurrences of each value
+  const valueCount = {};
+  Object.entries(STYLE_MAP).forEach(([category, values]) => {
+    values.forEach((value) => {
+      valueCount[value] = (valueCount[value] || 0) + 1;
+    });
+  });
+
+  report.stats.totalCategories = Object.keys(STYLE_MAP).length;
+  report.stats.totalUniqueValues = Object.keys(valueCount).length;
+  report.stats.valueDistribution = valueCount;
+
+  // Check for overused values
+  const overusedValues = Object.entries(valueCount).filter(([_, count]) => count > 2);
+  if (overusedValues.length > 0) {
+    report.issues.push({
+      severity: "warning",
+      message: "Values appearing in 3+ categories (potential catch-all):",
+      values: overusedValues.map(([value, count]) => `${value} (${count} categories)`),
+    });
+  }
+
+  // Generic values that should never exist
+  const genericValues = ["Elegant", "Modern", "Intimate"];
+  const foundGeneric = genericValues.filter((generic) =>
+    Object.values(STYLE_MAP).flat().includes(generic)
+  );
+  if (foundGeneric.length > 0) {
+    report.valid = false;
+    report.issues.push({
+      severity: "error",
+      message: "Generic catch-all values found (these should have been removed):",
+      values: foundGeneric,
+    });
+  }
+
+  if (typeof window !== 'undefined' && window.console) {
+    console.group("📋 STYLE TAXONOMY VALIDATION");
+    console.log("Stats:", report.stats);
+    if (report.issues.length > 0) {
+      console.warn("Issues Found:", report.issues);
+    } else {
+      console.log("✓ Taxonomy is valid — no generic catch-all values detected");
+    }
+    console.groupEnd();
+  }
+
+  return report;
 }
