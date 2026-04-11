@@ -194,7 +194,87 @@ export const COUNTRIES = [
       summary: "Vast and diverse market. Napa Valley, The Hamptons, and New York City lead luxury intent. Ranch weddings and coastal estates strong.",
       focusKeywords: ["usa wedding venues", "luxury wedding usa", "napa valley wedding"],
     },
-    regions: [],
+    regions: ["new-york", "california"],
+  },
+  {
+    slug: "uae",
+    name: "UAE",
+    iso2: "AE",
+    listingCount: 0,
+    seo: {
+      title: "Luxury Wedding Venues in the UAE | LWD",
+      metaDescription: "Discover the UAE's finest luxury wedding venues and vendors. Dubai palaces, desert celebrations, and ultra-luxury production.",
+      canonicalPath: "/uae",
+    },
+    ai: {
+      summary: "Ultra-luxury destination market. Dubai dominates with palace weddings, desert glamour, and world-class production. Abu Dhabi rising as cultural alternative.",
+      focusKeywords: ["dubai wedding venues", "luxury wedding uae", "abu dhabi wedding"],
+    },
+    regions: ["dubai", "abu-dhabi"],
+  },
+  {
+    slug: "morocco",
+    name: "Morocco",
+    iso2: "MA",
+    listingCount: 0,
+    seo: {
+      title: "Luxury Wedding Venues in Morocco | LWD",
+      metaDescription: "Discover Morocco's finest luxury wedding venues and vendors. Marrakech riads, Atlas Mountain retreats, and palatial celebrations.",
+      canonicalPath: "/morocco",
+    },
+    ai: {
+      summary: "Exotic luxury destination. Marrakech dominates with riad courtyards, palace takeovers, and desert camp celebrations. Strong cultural fusion market.",
+      focusKeywords: ["morocco wedding venues", "marrakech wedding", "luxury wedding morocco"],
+    },
+    regions: ["marrakech"],
+  },
+  {
+    slug: "south-africa",
+    name: "South Africa",
+    iso2: "ZA",
+    listingCount: 0,
+    seo: {
+      title: "Luxury Wedding Venues in South Africa | LWD",
+      metaDescription: "Discover South Africa's finest luxury wedding venues and vendors. Cape Town winelands, safari lodges, and coastal estates.",
+      canonicalPath: "/south-africa",
+    },
+    ai: {
+      summary: "World-class destination market. Cape Town and Winelands lead with vineyard estates. Safari weddings in Greater Kruger a unique draw. Exceptional value for luxury.",
+      focusKeywords: ["south africa wedding venues", "cape town wedding", "winelands wedding"],
+    },
+    regions: ["cape-town", "winelands", "kruger"],
+  },
+  {
+    slug: "sweden",
+    name: "Sweden",
+    iso2: "SE",
+    listingCount: 0,
+    seo: {
+      title: "Luxury Wedding Venues in Sweden | LWD",
+      metaDescription: "Discover Sweden's finest luxury wedding venues and vendors. Scandinavian elegance, archipelago islands, and Nordic design.",
+      canonicalPath: "/sweden",
+    },
+    ai: {
+      summary: "Scandinavian minimalist luxury. Stockholm archipelago and castle weddings. Midnight sun summer celebrations and moody winter aesthetics.",
+      focusKeywords: ["sweden wedding venues", "stockholm wedding", "scandinavian wedding"],
+    },
+    regions: ["stockholm"],
+  },
+  {
+    slug: "canada",
+    name: "Canada",
+    iso2: "CA",
+    listingCount: 0,
+    seo: {
+      title: "Luxury Wedding Venues in Canada | LWD",
+      metaDescription: "Discover Canada's finest luxury wedding venues and vendors. Pacific Northwest mountains, Niagara wine country, and urban elegance.",
+      canonicalPath: "/canada",
+    },
+    ai: {
+      summary: "Diverse luxury market. Vancouver mountains and Pacific coastline, Toronto urban elegance, Niagara wine country. Whistler and Muskoka premium destinations.",
+      focusKeywords: ["canada wedding venues", "vancouver wedding", "luxury wedding canada"],
+    },
+    regions: ["british-columbia", "ontario"],
   },
 ];
 
@@ -801,6 +881,40 @@ const FRANCE_CITIES = [
   { slug: "perigueux", name: "Périgueux", regionSlug: "dordogne", countrySlug: "france", listingCount: 0, introEditorial: "Périgueux offers grand Périgord manor houses and restored abbey venues in the heart of the Dordogne." },
 ];
 
+// --- UAE regions -----------------------------------------------------------
+
+const UAE_REGIONS = [
+  { slug: "dubai", name: "Dubai", countrySlug: "uae", group: "UAE", priorityLevel: 1, listingCount: 0, heroTitle: "Weddings in Dubai", heroSubtitle: "Ultra-luxury celebrations in the world's most ambitious city.", heroImg: null, introEditorial: "Dubai delivers wedding experiences at a scale found nowhere else — desert palaces, Burj-view terraces, private island resorts, and world-class production teams.", categoryShortcuts: [], cities: [], localTerm: "Areas", seo: { title: "Luxury Wedding Venues in Dubai | LWD", metaDescription: "Discover Dubai's finest luxury wedding venues and vendors. Palace celebrations, desert glamour, and ultra-luxury production.", canonicalPath: "/uae/dubai" }, ai: { summary: "Dubai — ultra-luxury palace weddings, desert celebrations, and world-class production.", focusKeywords: ["dubai wedding venues", "luxury wedding dubai", "palace wedding dubai"] }, relatedRegionSlugs: ["abu-dhabi"] },
+  { slug: "abu-dhabi", name: "Abu Dhabi", countrySlug: "uae", group: "UAE", priorityLevel: 2, listingCount: 0, heroTitle: "Weddings in Abu Dhabi", heroSubtitle: "Cultural grandeur and island celebrations in the UAE capital.", heroImg: null, introEditorial: "Abu Dhabi offers a more refined, culturally rich alternative to Dubai — with palatial venues, Saadiyat Island resorts, and traditional Emirati celebrations.", categoryShortcuts: [], cities: [], localTerm: "Areas", seo: { title: "Luxury Wedding Venues in Abu Dhabi | LWD", metaDescription: "Discover Abu Dhabi's finest luxury wedding venues and vendors.", canonicalPath: "/uae/abu-dhabi" }, ai: { summary: "Abu Dhabi — cultural palace venues and island resort celebrations.", focusKeywords: ["abu dhabi wedding venues", "luxury wedding abu dhabi"] }, relatedRegionSlugs: ["dubai"] },
+];
+
+// --- Morocco regions -------------------------------------------------------
+
+const MOROCCO_REGIONS = [
+  { slug: "marrakech", name: "Marrakech", countrySlug: "morocco", group: "Morocco", priorityLevel: 1, listingCount: 0, heroTitle: "Weddings in Marrakech", heroSubtitle: "Palatial riads, desert camps, and Atlas Mountain retreats.", heroImg: null, introEditorial: "Marrakech is North Africa's premier luxury wedding destination — a sensory feast of zellige mosaics, rose gardens, candlelit courtyards, and Saharan starlight.", categoryShortcuts: [], cities: [], localTerm: "Areas", seo: { title: "Luxury Wedding Venues in Marrakech, Morocco | LWD", metaDescription: "Discover Marrakech's finest luxury wedding venues — palatial riads, desert celebrations, and Atlas Mountain retreats.", canonicalPath: "/morocco/marrakech" }, ai: { summary: "Marrakech — palatial riads, desert glamping, and exotic luxury.", focusKeywords: ["marrakech wedding venues", "luxury wedding morocco", "riad wedding marrakech"] }, relatedRegionSlugs: [] },
+];
+
+// --- South Africa regions --------------------------------------------------
+
+const SOUTH_AFRICA_REGIONS = [
+  { slug: "cape-town", name: "Cape Town", countrySlug: "south-africa", group: "South Africa", priorityLevel: 1, listingCount: 0, heroTitle: "Weddings in Cape Town", heroSubtitle: "Table Mountain views, coastal cliffs, and world-class winelands.", heroImg: null, introEditorial: "Cape Town is one of the world's most photogenic wedding cities — with Table Mountain as its crown, Atlantic coastline and a constellation of vineyard estates within thirty minutes' drive.", categoryShortcuts: [], cities: [], localTerm: "Areas", seo: { title: "Luxury Wedding Venues in Cape Town | LWD", metaDescription: "Discover Cape Town's finest luxury wedding venues and vendors. Mountain views, coastal estates, and world-class winelands.", canonicalPath: "/south-africa/cape-town" }, ai: { summary: "Cape Town — mountain, ocean, and vineyard estate celebrations.", focusKeywords: ["cape town wedding venues", "luxury wedding cape town", "south africa wedding"] }, relatedRegionSlugs: ["winelands"] },
+  { slug: "winelands", name: "Winelands", countrySlug: "south-africa", group: "South Africa", priorityLevel: 1, listingCount: 0, heroTitle: "Weddings in the Winelands", heroSubtitle: "Vineyard estates and Cape Dutch manor houses in Stellenbosch and Franschhoek.", heroImg: null, introEditorial: "The Cape Winelands — Stellenbosch, Franschhoek, and Paarl — offer South Africa's most elegant estate wedding venues, surrounded by vines, mountains, and world-class dining.", categoryShortcuts: [], cities: ["stellenbosch", "franschhoek"], localTerm: "Towns", seo: { title: "Luxury Wedding Venues in the Cape Winelands | LWD", metaDescription: "Discover the Cape Winelands' finest vineyard estate wedding venues — Stellenbosch, Franschhoek, and Paarl.", canonicalPath: "/south-africa/winelands" }, ai: { summary: "Cape Winelands — vineyard estates and Cape Dutch manor houses.", focusKeywords: ["winelands wedding venues", "stellenbosch wedding", "franschhoek wedding"] }, relatedRegionSlugs: ["cape-town"] },
+  { slug: "kruger", name: "Greater Kruger", countrySlug: "south-africa", group: "South Africa", priorityLevel: 2, listingCount: 0, heroTitle: "Safari Weddings", heroSubtitle: "Wild luxury — intimate lodge celebrations surrounded by African wildlife.", heroImg: null, introEditorial: "Greater Kruger's private game reserves offer the world's most dramatic wedding backdrop — sundowner ceremonies, bush dinners under ancient marula trees, and sunrise game drives.", categoryShortcuts: [], cities: [], localTerm: "Reserves", seo: { title: "Safari Wedding Venues in South Africa | LWD", metaDescription: "Discover luxury safari lodge wedding venues in Greater Kruger, South Africa.", canonicalPath: "/south-africa/kruger" }, ai: { summary: "Greater Kruger — safari lodge weddings in the African bush.", focusKeywords: ["safari wedding south africa", "kruger wedding venue", "bush wedding lodge"] }, relatedRegionSlugs: ["cape-town", "winelands"] },
+];
+
+// --- Sweden regions --------------------------------------------------------
+
+const SWEDEN_REGIONS = [
+  { slug: "stockholm", name: "Stockholm", countrySlug: "sweden", group: "Sweden", priorityLevel: 1, listingCount: 0, heroTitle: "Weddings in Stockholm", heroSubtitle: "Scandinavian elegance on the Baltic archipelago.", heroImg: null, introEditorial: "Stockholm spans fourteen islands linked by bridges and ferries — offering castle ballrooms, waterfront pavilions, converted industrial spaces, and midnight-sun archipelago celebrations.", categoryShortcuts: [], cities: [], localTerm: "Islands", seo: { title: "Luxury Wedding Venues in Stockholm, Sweden | LWD", metaDescription: "Discover Stockholm's finest luxury wedding venues — archipelago islands, castles, and Scandinavian design.", canonicalPath: "/sweden/stockholm" }, ai: { summary: "Stockholm — Scandinavian design, archipelago celebrations, and midnight sun.", focusKeywords: ["stockholm wedding venues", "luxury wedding sweden", "scandinavian wedding"] }, relatedRegionSlugs: [] },
+];
+
+// --- Canada regions --------------------------------------------------------
+
+const CANADA_REGIONS = [
+  { slug: "british-columbia", name: "British Columbia", countrySlug: "canada", group: "Canada", priorityLevel: 1, listingCount: 0, heroTitle: "Weddings in British Columbia", heroSubtitle: "Pacific coastline, mountain peaks, and west coast elegance.", heroImg: null, introEditorial: "British Columbia delivers Canada's most dramatic wedding landscapes — Vancouver's skyline meets ocean, Whistler's alpine grandeur, and the Okanagan's vineyard terraces.", categoryShortcuts: [], cities: ["vancouver", "whistler"], localTerm: "Cities", seo: { title: "Luxury Wedding Venues in British Columbia | LWD", metaDescription: "Discover British Columbia's finest luxury wedding venues — Vancouver, Whistler, and Pacific Northwest elegance.", canonicalPath: "/canada/british-columbia" }, ai: { summary: "British Columbia — mountains, Pacific coast, and west coast vineyard celebrations.", focusKeywords: ["vancouver wedding venues", "whistler wedding", "bc wedding venue"] }, relatedRegionSlugs: ["ontario"] },
+  { slug: "ontario", name: "Ontario", countrySlug: "canada", group: "Canada", priorityLevel: 1, listingCount: 0, heroTitle: "Weddings in Ontario", heroSubtitle: "Toronto elegance and Niagara wine country.", heroImg: null, introEditorial: "Ontario spans from Toronto's urban sophistication — heritage lofts, rooftop terraces, and gallery spaces — to Niagara-on-the-Lake's vineyard estates and Muskoka's lakeside retreats.", categoryShortcuts: [], cities: ["toronto", "niagara-on-the-lake"], localTerm: "Cities", seo: { title: "Luxury Wedding Venues in Ontario, Canada | LWD", metaDescription: "Discover Ontario's finest luxury wedding venues — Toronto, Niagara wine country, and Muskoka.", canonicalPath: "/canada/ontario" }, ai: { summary: "Ontario — Toronto urban elegance and Niagara wine country estates.", focusKeywords: ["toronto wedding venues", "niagara wedding", "ontario wedding venue"] }, relatedRegionSlugs: ["british-columbia"] },
+];
+
 // --- Assemble final REGIONS array -----------------------------------------
 
 export const REGIONS = [
@@ -809,6 +923,11 @@ export const REGIONS = [
   ...UK_IRELAND_FULL_REGIONS,
   ...UK_IRELAND_SKELETON_REGIONS,
   ...FRANCE_REGIONS,
+  ...UAE_REGIONS,
+  ...MOROCCO_REGIONS,
+  ...SOUTH_AFRICA_REGIONS,
+  ...SWEDEN_REGIONS,
+  ...CANADA_REGIONS,
 ];
 
 // ---------------------------------------------------------------------------
