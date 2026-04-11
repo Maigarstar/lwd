@@ -43,6 +43,7 @@ import MasterCategoryCard, { LUXURY_ICONS } from "../components/cards/MasterCate
 // ── Data services (self-fetch when rendered standalone) ─────────────────────
 import { COUNTRIES, REGIONS, CITIES, getCountryBySlug, VENDOR_CATEGORIES } from "../data/geo";
 import { VENUES as STATIC_VENUES } from "../data/italyVenues";
+import { VENDORS as STATIC_VENDORS } from "../data/vendors";
 import { fetchListings } from "../services/listings";
 import { fetchLocationContent, buildLocationKey, fetchLocationMetadata } from "../services/locationContentService";
 import { DEFAULT_FILTERS } from "../data/venues";
@@ -353,13 +354,31 @@ export default function LocationPage({
         });
     }
     if (!vendors || vendors.length === 0) {
+      // Static vendor fallback (same pattern as venues)
+      let staticVendorMatched = [];
+      if (locationType === "country") {
+        staticVendorMatched = STATIC_VENDORS.filter(v => v.countrySlug === locationSlug);
+      } else if (locationType === "region") {
+        staticVendorMatched = STATIC_VENDORS.filter(v => v.regionSlug === locationSlug);
+      } else if (locationType === "city") {
+        staticVendorMatched = STATIC_VENDORS.filter(v => v.citySlug === locationSlug);
+      }
+
       const f = { listing_type: 'vendor' };
       if (locationType === "country") f.country_slug = locationSlug;
       else if (locationType === "region") f.region_slug = locationSlug;
       else if (locationType === "city")   f.city_slug   = locationSlug;
       fetchListings({ ...f, status: "published" })
-        .then(d => setFetchedVendors(Array.isArray(d) ? d : []))
-        .catch(() => {});
+        .then(d => {
+          const fetched = Array.isArray(d) ? d : [];
+          // Merge: DB vendors take priority, static fills gaps
+          const dbIds = new Set(fetched.map(v => v.name?.toLowerCase()));
+          const merged = [...fetched, ...staticVendorMatched.filter(v => !dbIds.has(v.name?.toLowerCase()))];
+          setFetchedVendors(merged);
+        })
+        .catch(() => {
+          setFetchedVendors(staticVendorMatched);
+        });
     }
   }, [locationSlug, locationType, resolving]);
 
