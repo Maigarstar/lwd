@@ -506,16 +506,17 @@ export default function CountrySearchBar({
             <TriggerBtn menuKey="v-category" label={vendorCategory} active={vendorCategory !== "All Categories"} />
             <TriggerBtn menuKey="v-budget" label={vendorBudget} active={vendorBudget !== "All Budgets"} />
 
-            <button onClick={handleVendorSearch}
-              style={{
-                background: CL.searchBtn, border: "none", borderRadius: 3, color: "#fff",
-                padding: "7px 18px", fontSize: 9, fontWeight: 800, letterSpacing: "1.5px",
-                textTransform: "uppercase", cursor: "pointer", fontFamily: NU,
-                whiteSpace: "nowrap", flexShrink: 0, transition: "background 0.2s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = CL.searchHov)}
-              onMouseLeave={(e) => (e.currentTarget.style.background = CL.searchBtn)}
-            >Search</button>
+            {(vendorLocation !== "all" || vendorCategory !== "All Categories" || vendorBudget !== "All Budgets") && (
+              <button onClick={() => { setVendorLocation("all"); setVendorCategory("All Categories"); setVendorBudget("All Budgets"); onVendorSearch?.({ location: "all", category: "All Categories", budget: "All Budgets" }); }} aria-label="Clear all filters"
+                style={{
+                  background: "none", border: "none", color: CL.goldDim, fontSize: 9,
+                  cursor: "pointer", fontFamily: NU, letterSpacing: "1px", textTransform: "uppercase",
+                  padding: "4px 6px", transition: "color 0.2s", whiteSpace: "nowrap", flexShrink: 0,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = CL.gold; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = CL.goldDim; }}
+              >✕ Clear</button>
+            )}
           </>
         )}
 
