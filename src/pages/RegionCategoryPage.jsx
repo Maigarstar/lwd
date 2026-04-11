@@ -35,6 +35,7 @@ import EmptyResultState from "../components/sections/EmptyResultState";
 import NearMatchSection from "../components/sections/NearMatchSection";
 import ImmersiveSearch from "../components/search/ImmersiveSearch";
 import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
+import LuxuryVendorCard from "../components/cards/LuxuryVendorCard";
 import VenueListItemCard from "../components/cards/VenueListItemCard";
 import PlannerCard from "../components/cards/PlannerCard";
 import MASTERMap        from "../components/maps/MASTERMap";
@@ -121,6 +122,7 @@ export default function RegionCategoryPage({
   const isPlanner = categorySlug === "wedding-planners";
   const isPhotographer = categorySlug === "photographers";
   const isVideographer = categorySlug === "videographers";
+  const isVenue = categorySlug === "wedding-venues";
   const [plannerFilters, setPlannerFilters] = useState({ tier: "All", region: "All", sort: "recommended", specialty: "All" });
   const [photoFilters, setPhotoFilters] = useState({ style: "All", region: "All", sort: "recommended" });
   const [videoFilters, setVideoFilters] = useState({ style: "All", region: "All", sort: "recommended" });
@@ -1299,7 +1301,7 @@ export default function RegionCategoryPage({
                         >
                           {isPlanner ? (
                             <PlannerCard v={v} mode="grid" onView={() => onViewPlanner(v)} isMobile={isMobile} />
-                          ) : (
+                          ) : isVenue ? (
                             <LuxuryVenueCard
                               v={v}
                               onView={() => onViewVenue(v.id || v.slug)}
@@ -1307,6 +1309,13 @@ export default function RegionCategoryPage({
                               setQuickViewItem={setQvItem}
                               matchedStyles={filters.styles || []}
                               otherFilters={{ region: filters.region, capacity: filters.capacity }}
+                            />
+                          ) : (
+                            <LuxuryVendorCard
+                              v={v}
+                              onView={() => onViewVenue(v.slug || v.id)}
+                              quickViewItem={qvItem}
+                              setQuickViewItem={setQvItem}
                             />
                           )}
                         </div>
@@ -1573,11 +1582,23 @@ export default function RegionCategoryPage({
                     </div>
                   )}
 
-                  {/* other non-venue, non-planner categories */}
-                  {categorySlug !== "wedding-venues" && !isPlanner && (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 24 }}>
-                      {finalListings.map((item) => (
-                        <ListingCard key={item.id} item={item} C={C} isVenue={false} />
+                  {/* other non-venue, non-planner categories (photographers, videographers, florists, etc.) */}
+                  {!isVenue && !isPlanner && (
+                    <div style={{
+                      display: "grid",
+                      gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(340px, 1fr))",
+                      gap: isMobile ? 16 : 20,
+                    }}>
+                      {finalListings.map((v) => (
+                        <div key={v.id} style={{ height: 560, overflow: "hidden", borderRadius: "var(--lwd-radius-card, 8px)" }}>
+                          <LuxuryVendorCard
+                            v={v}
+                            onView={() => onViewVenue(v.slug || v.id)}
+                            isMobile={isMobile}
+                            quickViewItem={qvItem}
+                            setQuickViewItem={setQvItem}
+                          />
+                        </div>
                       ))}
                     </div>
                   )}
