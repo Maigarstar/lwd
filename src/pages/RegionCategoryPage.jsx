@@ -1262,7 +1262,7 @@ export default function RegionCategoryPage({
                   borderBottom: `1px solid ${C.border}`,
                 }}
               >
-                <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+                <div style={{ maxWidth: 1280, margin: "0 auto", overflow: "hidden" }}>
 
                   {/* Empty/low result state */}
                   {listingCount <= 3 && categorySlug === "wedding-venues" && (
@@ -1282,7 +1282,7 @@ export default function RegionCategoryPage({
                       style={{
                         display:             "grid",
                         gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-                        gap:                 isMobile ? 3 : 16,
+                        gap:                 isMobile ? 12 : 16,
                       }}
                       aria-label="Venue grid"
                     >
@@ -1310,20 +1310,31 @@ export default function RegionCategoryPage({
                   {categorySlug === "wedding-venues" && viewMode !== "grid" && listingCount > 3 && (
                     <>
                       {isMobile && (
-                        <div style={{ marginBottom: 20 }}>
+                        <div style={{ marginBottom: 24 }}>
                           <button
                             onClick={() => setMapOpen(true)}
                             style={{
-                              display: "flex", alignItems: "center", gap: 8,
-                              background: "rgba(201,168,76,0.08)",
-                              border: "1px solid rgba(201,168,76,0.3)",
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                              width: "100%",
+                              background: "rgba(201,168,76,0.12)",
+                              border: "1px solid rgba(201,168,76,0.35)",
                               borderRadius: "var(--lwd-radius-input)",
-                              padding: "9px 18px",
-                              fontFamily: NU, fontSize: 11, fontWeight: 600,
+                              padding: "14px 18px",
+                              minHeight: "48px",
+                              fontFamily: NU, fontSize: 13, fontWeight: 600,
                               letterSpacing: "0.5px", color: "#C9A84C", cursor: "pointer",
+                              transition: "all 0.2s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "rgba(201,168,76,0.18)";
+                              e.currentTarget.style.borderColor = "rgba(201,168,76,0.45)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "rgba(201,168,76,0.12)";
+                              e.currentTarget.style.borderColor = "rgba(201,168,76,0.35)";
                             }}
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
                               <line x1="9" y1="3" x2="9" y2="18" />
                               <line x1="15" y1="6" x2="15" y2="21" />
@@ -1332,7 +1343,7 @@ export default function RegionCategoryPage({
                           </button>
                         </div>
                       )}
-                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                         {sortedFilteredListings.map((v) => (
                           <div
                             key={v.id}
