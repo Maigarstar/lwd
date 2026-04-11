@@ -98,9 +98,10 @@ export const STYLE_MAP = {
   ],
 
   // Sentimental, enchanting, dreamlike atmosphere
+  // NOTE: "Garden" removed (belongs to Festival & Outdoor)
+  // Garden-only venues are architectural feature, not romantic aesthetic
   "Romantic & Whimsical": [
     "Romantic",
-    "Garden",
   ],
 
   // Clean design, spare aesthetic, architectural purity
