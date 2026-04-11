@@ -939,7 +939,10 @@ export default function RegionCategoryPage({
                       letterSpacing: "0.01em",
                       lineHeight:    1.45,
                     }}>
-                      {auraSummary}
+                      {auraSummary && listingCount > 0
+                        ? `${auraSummary} Showing ${listingCount} ${listingCount === 1 ? "result" : "results"}.`
+                        : auraSummary
+                      }
                     </p>
                   </div>
                   <button
