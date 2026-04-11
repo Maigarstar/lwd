@@ -9,6 +9,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import { parseVenueQuery, clientParse } from "../../services/aiSearchService";
+import { normalizeStyles } from "../../constants/styleMap";
 
 const NU = "var(--font-body)";
 const GD = "var(--font-heading-primary)";
@@ -220,13 +221,19 @@ export default function AICommandBar({
 
   // ── Apply parsed result to filter state ───────────────────────────────────
   const applyParsed = useCallback((parsed) => {
+    // CRITICAL: Normalize style from Aura to canonical data values
+    // Aura may output either UI labels or data values; normalizeStyles handles both
+    const normalizedStyles = parsed.style
+      ? normalizeStyles([parsed.style])  // normalizeStyles returns array
+      : [];
+
     const next = {
       ...defaultFilters,
-      ...(parsed.region   ? { region:   parsed.region   } : {}),
-      ...(parsed.style    ? { style:    parsed.style    } : {}),
-      ...(parsed.capacity ? { capacity: parsed.capacity } : {}),
-      ...(parsed.price    ? { price:    parsed.price    } : {}),
-      ...(parsed.services ? { services: parsed.services } : {}),
+      ...(parsed.region    ? { region:   parsed.region    } : {}),
+      ...(normalizedStyles.length > 0 ? { styles:  normalizedStyles } : {}),
+      ...(parsed.capacity  ? { capacity: parsed.capacity  } : {}),
+      ...(parsed.price     ? { price:    parsed.price     } : {}),
+      ...(parsed.services  ? { services: parsed.services  } : {}),
     };
     onFiltersChange(next);
     setAiAppliedFilters(parsed);

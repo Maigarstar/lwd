@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { trackSearch } from "./services/userEventService";
+import { normalizeStyle } from "./constants/styleMap";
 
 // ═══════════════════════════════════════════════════════════════
 // DESIGN TOKENS
@@ -1284,7 +1285,9 @@ export default function CategoryPage({ onBack = () => {}, onViewVenue = () => {}
   // Filter logic
   const filtered = VENUES.filter(v => {
     const rOk = filters.region === REGIONS[0] || v.region === filters.region;
-    const sOk = filters.style  === STYLES[0]  || v.styles.includes(filters.style);
+    // CRITICAL: Normalize style filter to canonical data values
+    const sOk = filters.style === STYLES[0] ||
+      normalizeStyle(filters.style).some(canonicalStyle => v.styles.includes(canonicalStyle));
     const pOk = filters.price  === PRICES[0]  || v.priceLabel === filters.price;
     const cOk = (() => {
       if (filters.capacity === CAPS[0]) return true;

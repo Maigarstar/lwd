@@ -7,6 +7,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { ThemeCtx, useTheme } from "../theme/ThemeContext";
 import { getDarkPalette, getLightPalette, DARK_C } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
+import { normalizeStyle } from "../constants/styleMap";
 
 import {
   getRegionBySlug,
@@ -142,9 +143,14 @@ export default function RegionCategoryPage({
   }), [filters, regionSlug]);
 
   const setVenueFilters = useCallback((f) => {
+    // Normalize UI style label to canonical data values
+    const normalizedStyles = f.style && f.style !== "All Styles"
+      ? normalizeStyle(f.style)
+      : [];
+
     updateFilters({
       region:    f.region   !== "all" ? f.region   : null,
-      styles:    f.style    && f.style    !== "All Styles"      ? [f.style]    : [],
+      styles:    normalizedStyles,
       capacity:  f.capacity && f.capacity !== "All Capacities"  ? f.capacity   : null,
     });
   }, [updateFilters]);
