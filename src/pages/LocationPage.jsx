@@ -6,7 +6,7 @@
 import "../category.css";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useDirectoryState } from "../hooks/useDirectoryState";
-import { transformListings } from "../utils/transformListing";
+import { transformListings, mergeListings } from "../utils/transformListing";
 
 import { useTheme }        from "../theme/ThemeContext";
 import { DARK_C }          from "../theme/tokens";
@@ -185,13 +185,13 @@ export default function LocationPage({
   const [searchQuery, setSearchQuery] = useState("");
   // Keep local filter state — CountrySearchBar uses old shape { region, style, capacity, price }
   // Phase 2 will replace CountrySearchBar with MasterFilterBar and unify this
-  const [filters, setFilters] = useState({ region: "all", capacity: "any", style: [], price: "any" });
+  const [filters, setFilters] = useState({ region: "all", capacity: "Any Capacity", style: "All Styles", price: "All Budgets" });
   const [sortMode, setSortMode] = useState("recommended");
   const [listingMode, setListingMode] = useState("venues"); // "venues" | "vendors"
 
   // ── Reset filters + mode whenever the page location changes ─────────────────
   useEffect(() => {
-    setFilters({ region: "all", capacity: "any", style: [], price: "any" });
+    setFilters({ region: "all", capacity: "Any Capacity", style: "All Styles", price: "All Budgets" });
     setSortMode("recommended");
     setListingMode("venues");
   }, [locationSlug]);
@@ -327,35 +327,26 @@ export default function LocationPage({
       if (locationType === "country") f.country_slug = locationSlug;
       else if (locationType === "region") f.region_slug = locationSlug;
       else if (locationType === "city")   f.city_slug   = locationSlug;
+      // Get matching static venues for this location
+      let staticMatched = [];
+      if (locationType === "country") {
+        staticMatched = STATIC_VENUES.filter(v => v.countrySlug === locationSlug);
+      } else if (locationType === "region") {
+        staticMatched = STATIC_VENUES.filter(v => v.regionSlug === locationSlug);
+      } else if (locationType === "city") {
+        staticMatched = STATIC_VENUES.filter(v => v.citySlug === locationSlug);
+      }
+      const staticTransformed = transformListings(staticMatched, { type: "venue" });
+
       fetchListings({ ...f, status: "published" })
         .then(d => {
           const fetched = Array.isArray(d) ? d : [];
-          // If Supabase returns empty, try static fallback
-          if (fetched.length === 0) {
-            let staticMatched = [];
-            if (locationType === "country") {
-              staticMatched = STATIC_VENUES.filter(v => v.countrySlug === locationSlug);
-            } else if (locationType === "region") {
-              staticMatched = STATIC_VENUES.filter(v => v.regionSlug === locationSlug);
-            } else if (locationType === "city") {
-              staticMatched = STATIC_VENUES.filter(v => v.citySlug === locationSlug);
-            }
-            setFetchedVenues(transformListings(staticMatched, { type: "venue" }));
-          } else {
-            setFetchedVenues(transformListings(fetched, { type: "venue" }));
-          }
+          const dbTransformed = transformListings(fetched, { type: "venue" });
+          // Merge: DB venues take priority, static fills gaps (deduplicated by name)
+          setFetchedVenues(mergeListings(dbTransformed, staticTransformed));
         })
         .catch(() => {
-          // On error, also try static fallback
-          let staticMatched = [];
-          if (locationType === "country") {
-            staticMatched = STATIC_VENUES.filter(v => v.countrySlug === locationSlug);
-          } else if (locationType === "region") {
-            staticMatched = STATIC_VENUES.filter(v => v.regionSlug === locationSlug);
-          } else if (locationType === "city") {
-            staticMatched = STATIC_VENUES.filter(v => v.citySlug === locationSlug);
-          }
-          setFetchedVenues(transformListings(staticMatched, { type: "venue" }));
+          setFetchedVenues(staticTransformed);
         });
     }
     if (!vendors || vendors.length === 0) {
@@ -599,9 +590,12 @@ export default function LocationPage({
       out = out.filter(v => v.regionSlug === filters.region || v.region?.toLowerCase() === filters.region.toLowerCase());
     }
 
-    // Style
-    if (filters.style && filters.style !== "All Styles") {
-      out = out.filter(v => Array.isArray(v.styles) ? v.styles.includes(filters.style) : v.style === filters.style);
+    // Style — guard against array-type style values (empty arrays are truthy)
+    if (filters.style && filters.style !== "All Styles" && (!Array.isArray(filters.style) || filters.style.length > 0)) {
+      const styleVal = Array.isArray(filters.style) ? filters.style[0] : filters.style;
+      if (styleVal) {
+        out = out.filter(v => Array.isArray(v.styles) ? v.styles.includes(styleVal) : v.style === styleVal);
+      }
     }
 
     // Capacity
