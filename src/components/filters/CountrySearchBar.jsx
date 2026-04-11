@@ -213,6 +213,8 @@ export default function CountrySearchBar({
   onVendorSearch, countryFilter,
   mapOn, onToggleMap,
   mode: modeProp, onModeChange,
+  // Vendor region navigation → URL change (e.g. /england/wedding-planners-in/kent)
+  onRegionNavigate,
   // Planner-specific props
   plannerFilters, onPlannerFiltersChange, plannerRegions,
   // Photographer-specific props
@@ -741,7 +743,7 @@ export default function CountrySearchBar({
 
             {/* ── Planner mega menus ── */}
             {openMenu === "p-tier" && renderOptionsPanel("Service Tier", ["All", ...PLANNER_SERVICE_TIERS], plannerFilters?.tier || "All", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, tier: v }); setOpenMenu(null); })}
-            {openMenu === "p-region" && renderOptionsPanel("Region", ["All", ...(plannerRegions || [])], plannerFilters?.region || "All", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, region: v }); setOpenMenu(null); })}
+            {openMenu === "p-region" && renderOptionsPanel("Region", ["All", ...(plannerRegions || [])], plannerFilters?.region || "All", (v) => { onRegionNavigate ? onRegionNavigate(v) : onPlannerFiltersChange?.({ ...plannerFilters, region: v }); setOpenMenu(null); })}
             {openMenu === "p-sort" && renderOptionsPanel("Sort By", [
               { slug: "recommended", name: "Recommended" },
               { slug: "rating",      name: "Highest Rated" },
@@ -753,11 +755,11 @@ export default function CountrySearchBar({
 
             {/* ── Photographer mega menus ── */}
             {openMenu === "ph-style" && renderOptionsPanel("Style", PHOTOGRAPHER_STYLES, photoFilters?.style || "All", (v) => { onPhotoFiltersChange?.({ ...photoFilters, style: v }); setOpenMenu(null); })}
-            {openMenu === "ph-region" && renderOptionsPanel("Region", ["All", ...(photoRegions || [])], photoFilters?.region || "All", (v) => { onPhotoFiltersChange?.({ ...photoFilters, region: v }); setOpenMenu(null); })}
+            {openMenu === "ph-region" && renderOptionsPanel("Region", ["All", ...(photoRegions || [])], photoFilters?.region || "All", (v) => { onRegionNavigate ? onRegionNavigate(v) : onPhotoFiltersChange?.({ ...photoFilters, region: v }); setOpenMenu(null); })}
 
             {/* ── Videographer mega menus ── */}
             {openMenu === "vid-style" && renderOptionsPanel("Style", VIDEOGRAPHER_STYLES, videoFilters?.style || "All", (v) => { onVideoFiltersChange?.({ ...videoFilters, style: v }); setOpenMenu(null); })}
-            {openMenu === "vid-region" && renderOptionsPanel("Region", ["All", ...(videoRegions || [])], videoFilters?.region || "All", (v) => { onVideoFiltersChange?.({ ...videoFilters, region: v }); setOpenMenu(null); })}
+            {openMenu === "vid-region" && renderOptionsPanel("Region", ["All", ...(videoRegions || [])], videoFilters?.region || "All", (v) => { onRegionNavigate ? onRegionNavigate(v) : onVideoFiltersChange?.({ ...videoFilters, region: v }); setOpenMenu(null); })}
             {openMenu === "vid-sort" && renderOptionsPanel("Sort By", [
               { slug: "recommended", name: "Recommended" },
               { slug: "rating",      name: "Highest Rated" },

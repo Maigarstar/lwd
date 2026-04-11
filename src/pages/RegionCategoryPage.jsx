@@ -123,9 +123,22 @@ export default function RegionCategoryPage({
   const isPhotographer = categorySlug === "photographers";
   const isVideographer = categorySlug === "videographers";
   const isVenue = categorySlug === "wedding-venues";
-  const [plannerFilters, setPlannerFilters] = useState({ tier: "All", region: "All", sort: "recommended", specialty: "All" });
-  const [photoFilters, setPhotoFilters] = useState({ style: "All", region: "All", sort: "recommended" });
-  const [videoFilters, setVideoFilters] = useState({ style: "All", region: "All", sort: "recommended" });
+  // Initialize region filter from URL regionSlug (resolve slug → name for display)
+  const initialRegionName = useMemo(() => {
+    if (!regionSlug) return "All";
+    const r = getRegionBySlug(regionSlug);
+    return r?.name || "All";
+  }, [regionSlug]);
+  const [plannerFilters, setPlannerFilters] = useState({ tier: "All", region: initialRegionName, sort: "recommended", specialty: "All" });
+  const [photoFilters, setPhotoFilters] = useState({ style: "All", region: initialRegionName, sort: "recommended" });
+  const [videoFilters, setVideoFilters] = useState({ style: "All", region: initialRegionName, sort: "recommended" });
+
+  // Sync vendor region filter state when URL regionSlug changes (navigation)
+  useEffect(() => {
+    setPlannerFilters(f => ({ ...f, region: initialRegionName }));
+    setPhotoFilters(f => ({ ...f, region: initialRegionName }));
+    setVideoFilters(f => ({ ...f, region: initialRegionName }));
+  }, [initialRegionName]);
 
   // ── Phase 1: shared directory state (replaces viewMode/mapOn/isMobile/activeListingId) ──
   const {
@@ -439,23 +452,48 @@ export default function RegionCategoryPage({
   const finalListings = isPlanner ? plannerFinalListings : isPhotographer ? photoFinalListings : isVideographer ? videoFinalListings : sortedFilteredListings;
   const listingCount = finalListings.length;
 
+  // All regions for this country (for vendor region dropdown + URL navigation)
+  const allCountryRegions = useMemo(() => {
+    if (!countrySlug) return [];
+    return getRegionsByCountry(countrySlug).map(r => r.name).sort();
+  }, [countrySlug]);
+
   // Planner regions for filter dropdown
   const plannerRegions = useMemo(() => {
     if (!isPlanner) return [];
-    return [...new Set(listings.map(p => p.region).filter(Boolean))].sort();
-  }, [isPlanner, listings]);
+    const fromListings = [...new Set(listings.map(p => p.region).filter(Boolean))];
+    // Merge listing regions with all country regions for full coverage
+    return [...new Set([...fromListings, ...allCountryRegions])].sort();
+  }, [isPlanner, listings, allCountryRegions]);
 
   // Photographer regions for filter dropdown
   const photoRegions = useMemo(() => {
     if (!isPhotographer) return [];
-    return [...new Set(listings.map(p => p.region).filter(Boolean))].sort();
-  }, [isPhotographer, listings]);
+    const fromListings = [...new Set(listings.map(p => p.region).filter(Boolean))];
+    return [...new Set([...fromListings, ...allCountryRegions])].sort();
+  }, [isPhotographer, listings, allCountryRegions]);
 
   // Videographer regions for filter dropdown
   const videoRegions = useMemo(() => {
     if (!isVideographer) return [];
-    return [...new Set(listings.map(p => p.region).filter(Boolean))].sort();
-  }, [isVideographer, listings]);
+    const fromListings = [...new Set(listings.map(p => p.region).filter(Boolean))];
+    return [...new Set([...fromListings, ...allCountryRegions])].sort();
+  }, [isVideographer, listings, allCountryRegions]);
+
+  // ── Region navigation: selecting a region in vendor filter → URL change ────
+  const handleVendorRegionNavigate = useCallback((regionName) => {
+    if (!regionName || regionName === "All") {
+      // Navigate to country-level (no region)
+      onViewRegionCategory(countrySlug, null, categorySlug);
+    } else {
+      // Find region slug from name
+      const regions = getRegionsByCountry(countrySlug);
+      const match = regions.find(r => r.name === regionName);
+      if (match) {
+        onViewRegionCategory(countrySlug, match.slug, categorySlug);
+      }
+    }
+  }, [countrySlug, categorySlug, onViewRegionCategory]);
 
   // ── Filter transition feedback — smooth fade when results change ──────────
   // Trigger a brief opacity transition to signal that filtering just happened
@@ -1221,6 +1259,7 @@ export default function RegionCategoryPage({
               mapOn={mapOn}
               onToggleMap={handleToggleMap}
               mode={isPlanner ? "planners" : isPhotographer ? "photographers" : isVideographer ? "videographers" : undefined}
+              onRegionNavigate={handleVendorRegionNavigate}
               plannerFilters={plannerFilters}
               onPlannerFiltersChange={setPlannerFilters}
               plannerRegions={plannerRegions}
