@@ -32,6 +32,7 @@ import { DEFAULT_FILTERS } from "../data/italyVenues"; // Phase 2: remove when M
 import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
 import EmptyResultState from "../components/sections/EmptyResultState";
+import NearMatchSection from "../components/sections/NearMatchSection";
 import ImmersiveSearch from "../components/search/ImmersiveSearch";
 import LuxuryVenueCard from "../components/cards/LuxuryVenueCard";
 import VenueListItemCard from "../components/cards/VenueListItemCard";
@@ -1201,6 +1202,18 @@ export default function RegionCategoryPage({
                       ))}
                     </div>
                   ))}
+
+                  {/* Near match suggestions (when results are low) */}
+                  {listingCount > 0 && listingCount <= 3 && (
+                    <NearMatchSection
+                      allListings={listings}
+                      matchedStyles={filters.styles || []}
+                      primaryResults={sortedFilteredListings}
+                      onView={onViewVenue}
+                      darkMode={darkMode}
+                      categoryLabel={categoryLabel}
+                    />
+                  )}
                 </div>
 
                 {/* Right: MASTERMap — naturally full height, zero hacks */}
