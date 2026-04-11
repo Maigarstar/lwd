@@ -195,7 +195,10 @@ export default function AICommandBar({
   const C = useTheme();
   const inputRef = useRef(null);
 
-  const [query,            setQuery]            = useState("");
+  // Use searchQuery prop if provided, otherwise maintain local state
+  const query = searchQuery ?? "";
+  const setQuery = onSearchChange || (() => {});
+
   const [loading,          setLoading]          = useState(false);
   const [isRefining,       setIsRefining]       = useState(false);
   const [error,            setError]            = useState(null);

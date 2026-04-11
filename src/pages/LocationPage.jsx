@@ -214,6 +214,17 @@ export default function LocationPage({
   const [qvItem, setQvItem] = useState(null);
   const filterBarRef = useRef(null);
 
+  // ── Ensure map is off by default on LocationPage (venues visible first) ─────
+  const mapOffsetInitialized = useRef(false);
+  useEffect(() => {
+    if (!mapOffsetInitialized.current) {
+      mapOffsetInitialized.current = true;
+      if (mapOn) {
+        setMapOn(false);
+      }
+    }
+  }, []);
+
   // ── Animation refs for venue rows ─────────────────────────────────────────
   const [grid1Ref, grid1In] = useInView({ threshold: 0.15 });
 
