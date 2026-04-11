@@ -494,7 +494,11 @@ export default function CountrySearchBar({
 
         {/* Grid / List / Map view switcher */}
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <button onClick={() => onViewMode?.("grid")} title="Grid view" aria-pressed={viewMode === "grid"}
+          <button onClick={(e) => {
+            onViewMode?.("grid");
+            e.currentTarget.style.transform = "scale(0.92)";
+            setTimeout(() => { e.currentTarget.style.transform = "scale(1)"; }, 120);
+          }} title="Grid view" aria-pressed={viewMode === "grid"}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               background: viewMode === "grid" ? CL.viewActive : "transparent",
@@ -506,7 +510,11 @@ export default function CountrySearchBar({
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/></svg>
           </button>
-          <button onClick={() => onViewMode?.("list")} title="List view" aria-pressed={viewMode === "list"}
+          <button onClick={(e) => {
+            onViewMode?.("list");
+            e.currentTarget.style.transform = "scale(0.92)";
+            setTimeout(() => { e.currentTarget.style.transform = "scale(1)"; }, 120);
+          }} title="List view" aria-pressed={viewMode === "list"}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               background: viewMode === "list" ? CL.viewActive : "transparent",

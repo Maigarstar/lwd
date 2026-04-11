@@ -112,6 +112,7 @@ export default function RegionCategoryPage({
   const [auraCrossNav,        setAuraCrossNav]        = useState(null);
   const [auraRecommendedIds,  setAuraRecommendedIds]  = useState(null);
   const [sparseZoneAlert,     setSparseZoneAlert]     = useState(null);
+  const [isFilteringTransition, setIsFilteringTransition] = useState(false);
 
   // ── Phase 1: shared directory state (replaces viewMode/mapOn/isMobile/activeListingId) ──
   const {
@@ -347,6 +348,14 @@ export default function RegionCategoryPage({
   }, [filteredListings, filters.sort, userCountryCode]);
 
   const listingCount = sortedFilteredListings.length;
+
+  // ── Filter transition feedback — smooth fade when results change ──────────
+  // Trigger a brief opacity transition to signal that filtering just happened
+  useEffect(() => {
+    setIsFilteringTransition(true);
+    const timer = setTimeout(() => setIsFilteringTransition(false), 100);
+    return () => clearTimeout(timer);
+  }, [sortedFilteredListings]);
 
   // ── Related categories (sibling categories in same region) ────────────────
   const siblingCategories = useMemo(
@@ -1136,8 +1145,8 @@ export default function RegionCategoryPage({
                   flex:       "0 1 900px",
                   overflowY:  "auto",
                   padding:    "40px 20px 40px 85px",
-                  opacity:    mapTransitioning ? 0.55 : 1,
-                  transition: "opacity 0.2s ease",
+                  opacity:    isFilteringTransition ? 0.7 : (mapTransitioning ? 0.55 : 1),
+                  transition: "opacity 0.15s ease",
                 }}>
                   {listingCount <= 3 ? (
                     <EmptyResultState
@@ -1283,6 +1292,8 @@ export default function RegionCategoryPage({
                         display:             "grid",
                         gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
                         gap:                 isMobile ? 12 : 16,
+                        opacity:             isFilteringTransition ? 0.7 : 1,
+                        transition:          "opacity 0.15s ease",
                       }}
                       aria-label="Venue grid"
                     >
@@ -1343,7 +1354,13 @@ export default function RegionCategoryPage({
                           </button>
                         </div>
                       )}
-                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <div style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 16,
+                        opacity: isFilteringTransition ? 0.7 : 1,
+                        transition: "opacity 0.15s ease",
+                      }}>
                         {sortedFilteredListings.map((v) => (
                           <div
                             key={v.id}
