@@ -1481,12 +1481,13 @@ export default function RegionCategoryPage({
                     <div style={{
                       display: "grid",
                       gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-                      gap: isMobile ? 12 : 20,
+                      gap: isMobile ? 0 : 20,
+                      margin: isMobile ? "0 -16px" : undefined,
                       opacity: isFilteringTransition ? 0.7 : 1,
                       transition: "opacity 0.15s ease",
                     }}>
                       {finalListings.map((p) => (
-                        <div key={p.id} style={{ height: 560, overflow: "hidden", borderRadius: "var(--lwd-radius-card, 8px)" }}>
+                        <div key={p.id} style={{ height: isMobile ? undefined : 560, overflow: "hidden", borderRadius: isMobile ? 0 : "var(--lwd-radius-card, 8px)" }}>
                           <PlannerCard v={p} mode="grid" onView={() => onViewPlanner(p)} isMobile={isMobile} />
                         </div>
                       ))}
