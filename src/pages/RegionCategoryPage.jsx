@@ -1480,7 +1480,7 @@ export default function RegionCategoryPage({
                   {isPlanner && viewMode === "grid" && (
                     <div style={{
                       display: "grid",
-                      gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(416px, 1fr))",
+                      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
                       gap: isMobile ? 12 : 20,
                       opacity: isFilteringTransition ? 0.7 : 1,
                       transition: "opacity 0.15s ease",
