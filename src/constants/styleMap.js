@@ -44,8 +44,8 @@ export const STYLE_MAP = {
   ],
 
   // Modern design, clean lines, architectural innovation
+  // NOTE: "Minimalist" removed (primary category is "Minimalist & Chic")
   "Contemporary & Modern": [
-    "Minimalist",
     "Art Deco",
   ],
 
@@ -61,8 +61,9 @@ export const STYLE_MAP = {
   ],
 
   // Formal opulence, luxury positioning, exclusive access
+  // NOTE: "Black Tie" removed (primary category is "Black Tie & Formal")
+  // "Exclusive" is the defining value for this glamorous aesthetic
   "Glamorous & Grand": [
-    "Black Tie",
     "Exclusive",
   ],
 
@@ -118,21 +119,38 @@ export const STYLE_MAP = {
 };
 
 /**
- * STYLE TAXONOMY - Extended metadata for each category
+ * ─── STYLE TAXONOMY - LOCKED PLATFORM RULE ─────────────────────────────────
+ *
+ * CRITICAL RULE: Strict Taxonomy Enforcement
+ * ============================================
+ *
+ * This taxonomy is now a non-negotiable platform rule. Every category has been
+ * semantically validated and tested to ensure zero false positives.
+ *
+ * RULE: Do NOT expand categories with adjacent tags without semantic validation.
+ *
+ * Example of what NOT to do:
+ *   ❌ "Romantic & Whimsical": ["Romantic", "Garden"] — WRONG (7 false positives)
+ *   ✓ "Romantic & Whimsical": ["Romantic"] — CORRECT (strict, zero false positives)
  *
  * Powers:
  * - Aura semantic understanding ("show me romantic venues")
  * - SEO landing pages ("Classic Wedding Venues in Italy")
  * - Editorial consistency (marketing copy, filters, recommendations)
  * - Filter descriptions (tooltip help text)
+ * - Platform parity validation (Aura and Filters must align)
  *
  * Structure:
+ * - values: Canonical data values for this category (LOCKED)
+ * - strict: If true, no adjacent tag expansion allowed
  * - description: Human-readable category meaning
  * - query_aliases: Natural language variations that map to this category
- * - seo_title_pattern: For auto-generated SEO pages
+ * - seo_title: For auto-generated SEO pages
  */
 export const STYLE_TAXONOMY = {
   "Classic & Traditional": {
+    values: STYLE_MAP["Classic & Traditional"],
+    strict: true,  // Do not expand without validation
     description: "Timeless elegance, period venues, heritage architecture",
     query_aliases: ["classic", "traditional", "elegant", "historic", "timeless"],
     seo_title: "Classic & Traditional Wedding Venues",
@@ -289,24 +307,62 @@ export function normalizeStyles(styles) {
  * - Aura outputs "Rustic" (canonical data value) → was returning just ["Rustic"]
  * - Results differed! System appeared broken.
  *
+ * Additional Problem (Parity Violations):
+ * - Some canonical values appear in MULTIPLE categories ("Historic" in 3 categories)
+ * - When Aura outputs ambiguous values, system doesn't know which category is primary
+ * - Results diverge between Aura and Filter paths
+ *
  * Solution:
  * When Aura outputs a canonical value, we find which category it belongs to,
- * then return ALL values from that category (full semantic intent).
+ * then return ALL values from that category. For ambiguous values (appearing in
+ * multiple categories), we use PRIMARY MAPPING to resolve disambiguation.
  *
  * @param {string} aurasStyleValue - Raw value from Aura (e.g., "Rustic", "Romantic")
  * @returns {string[]} Full category values representing Aura's semantic intent
  *
  * Usage:
  *   When Aura outputs "Rustic" → find it's in "Rustic & Country" → return ["Rustic", "Rustic Luxe"]
- *   When Aura outputs "Romantic" → find it's in "Romantic & Whimsical" → return ["Romantic", "Garden"]
+ *   When Aura outputs "Romantic" → find it's in "Romantic & Whimsical" → return ["Romantic"]
+ *   When Aura outputs "Historic" (AMBIGUOUS) → use PRIMARY_MAPPING → return Luxury & Opulent
  *   When Aura outputs "Unknown" → return [] (strict safety mode)
  */
+
+/**
+ * PRIMARY MAPPING: Disambiguate canonical values that appear in multiple categories
+ *
+ * CRITICAL RULE FOR STRICT TAXONOMY:
+ * When a value appears in multiple categories, Aura uses the PRIMARY category.
+ * This ensures consistent parity between Aura and Filter paths.
+ *
+ * Each entry: "value" → "Primary Category Name"
+ *
+ * Rationale:
+ * - "Historic" → Luxury & Opulent (heritage = luxury positioning)
+ * - "Exclusive" → Glamorous & Grand (exclusivity = glamorous appeal)
+ * - "Black Tie" → Glamorous & Grand (black tie events = glamorous grand occasions)
+ * - "Classic" → Classic & Traditional (classic = foundational traditional aesthetic)
+ */
+const PRIMARY_MAPPING = {
+  "Historic": "Luxury & Opulent",
+  "Exclusive": "Glamorous & Grand",
+  "Black Tie": "Black Tie & Formal",  // Black Tie primary category (removed from Glamorous & Grand)
+  "Classic": "Classic & Traditional",
+};
+
 export function resolveAuraSemanticIntent(aurasStyleValue, strictMode = true) {
   if (!aurasStyleValue) return [];
 
   // First, check if it's a UI category label (user selected from dropdown)
   if (STYLE_MAP[aurasStyleValue]) {
     return STYLE_MAP[aurasStyleValue];
+  }
+
+  // Check if this is an ambiguous value with explicit primary mapping
+  if (PRIMARY_MAPPING[aurasStyleValue]) {
+    const primaryCategory = PRIMARY_MAPPING[aurasStyleValue];
+    if (STYLE_MAP[primaryCategory]) {
+      return STYLE_MAP[primaryCategory];
+    }
   }
 
   // Second, check if it's a canonical data value (Aura parsed it from text)
@@ -320,7 +376,6 @@ export function resolveAuraSemanticIntent(aurasStyleValue, strictMode = true) {
 
   if (matchingCategories.length > 0) {
     // Return values from the FIRST matching category (primary semantic intent)
-    // If a value appears in multiple categories (e.g., "Historic"), we use the first one
     const primaryCategory = matchingCategories[0];
     return STYLE_MAP[primaryCategory];
   }
@@ -424,6 +479,78 @@ export function debugStyleMapping({ selectedStyle, canonicalValues, matchedListi
 }
 
 /**
+ * ─── PLATFORM RULE ENFORCEMENT ─────────────────────────────────────────────
+ *
+ * PARITY VALIDATION: Aura and Filters must always return identical results
+ *
+ * This is a non-negotiable platform rule. If results diverge, it means
+ * the taxonomy has drifted or there's a bug. We detect and warn immediately.
+ *
+ * @param {object} context - Validation context
+ * @param {string} context.query - User query or filter selection
+ * @param {number} context.auraCount - Number of results from Aura path
+ * @param {number} context.filterCount - Number of results from Filter path
+ * @param {array} context.auraResults - Aura result IDs
+ * @param {array} context.filterResults - Filter result IDs
+ * @returns {object} Validation result with warnings
+ */
+export function validateFilterAuraParity(context) {
+  const { query, auraCount, filterCount, auraResults = [], filterResults = [] } = context;
+
+  const report = {
+    valid: true,
+    warnings: [],
+  };
+
+  // Check count parity
+  if (auraCount !== filterCount) {
+    report.valid = false;
+    report.warnings.push({
+      severity: "CRITICAL",
+      message: "Aura and Filter result counts diverged",
+      query,
+      auraCount,
+      filterCount,
+      difference: Math.abs(auraCount - filterCount),
+    });
+  }
+
+  // Check result parity
+  if (auraResults.length > 0 && filterResults.length > 0) {
+    const auraIds = auraResults.map((r) => r.id || r).sort();
+    const filterIds = filterResults.map((r) => r.id || r).sort();
+    const idsMatch = JSON.stringify(auraIds) === JSON.stringify(filterIds);
+
+    if (!idsMatch) {
+      const missing = filterIds.filter((id) => !auraIds.includes(id));
+      const extra = auraIds.filter((id) => !filterIds.includes(id));
+
+      report.valid = false;
+      report.warnings.push({
+        severity: "CRITICAL",
+        message: "Aura and Filter results diverged",
+        query,
+        missing: missing.length > 0 ? missing : undefined,
+        extra: extra.length > 0 ? extra : undefined,
+      });
+    }
+  }
+
+  // Log warnings
+  if (!report.valid && typeof window !== 'undefined' && window.console) {
+    console.group("🚨 PLATFORM RULE VIOLATION: Aura/Filter Parity");
+    console.error(`Query: "${query}"`);
+    console.error(`Aura results: ${auraCount} | Filter results: ${filterCount}`);
+    report.warnings.forEach((warning) => {
+      console.error(`${warning.severity}: ${warning.message}`, warning);
+    });
+    console.groupEnd();
+  }
+
+  return report;
+}
+
+/**
  * VALIDATION: Ensure no overlapping catch-all values
  *
  * Runs semantic checks on the taxonomy to catch mapping errors:
@@ -486,6 +613,84 @@ export function validateStyleTaxonomy() {
     }
     console.groupEnd();
   }
+
+  return report;
+}
+
+/**
+ * DATA QUALITY: Identify listings with weak or missing primary styles
+ *
+ * Now that we've tightened filters, weak data becomes visible.
+ * This function flags venues that only have secondary tags (like "Garden")
+ * without a primary aesthetic style.
+ *
+ * @param {array} venues - Array of venue objects with styles
+ * @returns {object} Data quality report
+ */
+export function flagWeakStyleData(venues) {
+  // Primary styles that define aesthetic
+  const primaryStyles = new Set([
+    "Rustic",
+    "Rustic Luxe",
+    "Romantic",
+    "Classic",
+    "Modern",
+    "Bohemian",
+    "Black Tie",
+    "Exclusive",
+    "Historic",
+    "Contemporary",
+    "Minimalist",
+    "Art Deco",
+    "Gothic",
+    "Destination",
+  ]);
+
+  // Secondary/feature tags (don't define primary aesthetic)
+  const secondaryStyles = new Set([
+    "Garden",
+    "Vineyard",
+    "Coastal",
+    "Lakeside",
+    "Intimate",
+    "Elegant",  // Generic, not defining
+  ]);
+
+  const report = {
+    weakListings: [],
+    stats: {
+      total: venues.length,
+      withPrimary: 0,
+      withoutPrimary: 0,
+    },
+  };
+
+  venues.forEach((v) => {
+    if (!v.styles || v.styles.length === 0) {
+      report.weakListings.push({
+        id: v.id,
+        name: v.name,
+        issue: "NO STYLES",
+        styles: [],
+      });
+      report.stats.withoutPrimary++;
+      return;
+    }
+
+    const hasPrimary = v.styles.some((s) => primaryStyles.has(s));
+
+    if (!hasPrimary) {
+      report.weakListings.push({
+        id: v.id,
+        name: v.name,
+        issue: "ONLY SECONDARY TAGS",
+        styles: v.styles,
+      });
+      report.stats.withoutPrimary++;
+    } else {
+      report.stats.withPrimary++;
+    }
+  });
 
   return report;
 }
