@@ -56,6 +56,10 @@ export default function EmptyResultState({
 
   if (resultCount > 0 && resultCount <= 3) {
     // Low result state (1-3 results) — show positive framing
+    const positioningText = resultCount === 1
+      ? "A rare find, one standout venue that matches your criteria"
+      : `${resultCount} exceptional venues selected for this aesthetic`;
+
     return (
       <div style={{
         background: C.accentLight,
@@ -73,7 +77,7 @@ export default function EmptyResultState({
           color: C.accent,
           marginBottom: 12,
         }}>
-          ✦ Exclusively Curated
+          ✦ Selectively Curated
         </h3>
         <p style={{
           fontFamily: NU,
@@ -83,8 +87,7 @@ export default function EmptyResultState({
           marginBottom: 20,
           lineHeight: 1.6,
         }}>
-          We found {resultCount} exceptional {resultCount === 1 ? "venue" : "venues"} that matches your criteria.
-          This ultra-premium category is highly curated—our standards are exacting.
+          {positioningText}
         </p>
 
         {alternatives.length > 0 && (
@@ -159,7 +162,7 @@ export default function EmptyResultState({
         color: C.text,
         marginBottom: 8,
       }}>
-        Refine Your Search
+        This aesthetic isn't available now
       </h3>
 
       <p style={{
@@ -170,8 +173,8 @@ export default function EmptyResultState({
         marginBottom: 28,
         lineHeight: 1.6,
       }}>
-        No venues currently match "{categoryLabel}"
-        {categoryDescription && ` with your criteria`}.
+        {categoryLabel} venues matching your exact criteria aren't currently available.
+        This reflects our curatorial standards—we'd rather have none than compromise.
       </p>
 
       <div style={{

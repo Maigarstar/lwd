@@ -7,6 +7,7 @@ import { useTheme } from "../../theme/ThemeContext";
 import { useShortlist } from "../../shortlist/ShortlistContext";
 import Stars from "../ui/Stars";
 import { GoldBadge, VerifiedBadge } from "../ui/Badges";
+import MatchReasoning from "../badges/MatchReasoning";
 import LuxeEnquiryModal from "../enquiry/LuxeEnquiryModal";
 import ShortlistButton from "../buttons/ShortlistButton";
 import CompareCheckbox from "../buttons/CompareCheckbox";
@@ -33,7 +34,7 @@ const GOLD = "#C9A84C";
 const GD   = "var(--font-heading-primary)";
 const NU   = "var(--font-body)";
 
-function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem }) {
+function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem, matchedStyles = [], otherFilters = {} }) {
   const C = useTheme();
   const { isShortlisted, toggleItem } = useShortlist();
   const [hov, setHov]               = useState(false);
@@ -521,7 +522,7 @@ function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem })
           {v.city}, {v.region}
         </div>
 
-        {/* Style tier + Stars + Phase 4 Editorial Tier Badge */}
+        {/* Style tier + Match Reasoning + Stars + Phase 4 Editorial Tier Badge */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
           {v.styles?.[0] && (
             <span
@@ -534,6 +535,14 @@ function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem })
             >
               {v.styles[0]}
             </span>
+          )}
+          {(matchedStyles && matchedStyles.length > 0) && (
+            <MatchReasoning
+              listing={v}
+              matchedStyles={matchedStyles}
+              otherFilters={otherFilters}
+              darkMode={true}
+            />
           )}
           {v.rating && (
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>

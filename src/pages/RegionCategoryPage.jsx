@@ -1173,6 +1173,8 @@ export default function RegionCategoryPage({
                             onView={() => onViewVenue(v.id || v.slug)}
                             quickViewItem={qvItem}
                             setQuickViewItem={setQvItem}
+                            matchedStyles={filters.styles || []}
+                            otherFilters={{ region: filters.region, capacity: filters.capacity }}
                           />
                         </div>
                       ))}
@@ -1280,6 +1282,8 @@ export default function RegionCategoryPage({
                             onView={() => onViewVenue(v.id || v.slug)}
                             quickViewItem={qvItem}
                             setQuickViewItem={setQvItem}
+                            matchedStyles={filters.styles || []}
+                            otherFilters={{ region: filters.region, capacity: filters.capacity }}
                           />
                         </div>
                       ))}
