@@ -39,8 +39,6 @@ export const STYLE_MAP = {
   "Rustic & Country": [
     "Rustic",
     "Rustic Luxe",
-    "Garden",
-    "Vineyard",
   ],
 
   // Grouping: Intimate & Personal
