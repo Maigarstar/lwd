@@ -8,6 +8,18 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useDirectoryState } from "../hooks/useDirectoryState";
 import { transformListings, mergeListings } from "../utils/transformListing";
 
+// ── Phase B: Dynamic filter system ──────────────────────────────────────────
+import {
+  getFilterConfig,
+  buildInitialFilters,
+  hasActiveFilters as checkActiveFilters,
+} from "../filters";
+import {
+  applyVendorFilters,
+  applyVendorSort,
+  extractFilterOptions,
+} from "../filters";
+
 import { useTheme }        from "../theme/ThemeContext";
 import { DARK_C }          from "../theme/tokens";
 
@@ -34,6 +46,7 @@ import HCard           from "../components/cards/HCard";
 import QuickViewModal  from "../components/modals/QuickViewModal";
 import LuxuryVenueCard  from "../components/cards/LuxuryVenueCard";
 import LuxuryVendorCard  from "../components/cards/LuxuryVendorCard";
+import PlannerCard       from "../components/cards/PlannerCard";
 import VenueListItemCard from "../components/cards/VenueListItemCard";
 import SliderNav       from "../components/ui/SliderNav";
 import FeaturedSlider  from "../components/sections/FeaturedSlider";
@@ -189,8 +202,16 @@ export default function LocationPage({
   // Phase 2 will replace CountrySearchBar with MasterFilterBar and unify this
   const [filters, setFilters] = useState({ region: "all", capacity: "Any Capacity", style: "All Styles", price: "All Budgets" });
   const [sortMode, setSortMode] = useState("recommended");
-  const [listingMode, setListingMode] = useState("venues"); // "venues" | "vendors"
+  const [listingMode, setListingMode] = useState("venues"); // "venues" | "vendors" | "vendor-dynamic"
   const [vendorSearch, setVendorSearch] = useState({ location: "all", category: "All Categories", budget: "All Budgets", availability: "Any Date" });
+
+  // ── Phase B: Dynamic vendor filter state for LocationPage ──────────────────
+  const [activeVendorGeoSlug, setActiveVendorGeoSlug] = useState(null); // e.g. "wedding-planners"
+  const vendorFilterConfig = useMemo(() => {
+    if (!activeVendorGeoSlug) return null;
+    return getFilterConfig(activeVendorGeoSlug);
+  }, [activeVendorGeoSlug]);
+  const [vendorFilters, setVendorFilters] = useState({ sort: "recommended" });
 
   // ── Reset filters + mode whenever the page location changes ─────────────────
   useEffect(() => {
@@ -198,6 +219,8 @@ export default function LocationPage({
     setSortMode("recommended");
     setListingMode("venues");
     setVendorSearch({ location: "all", category: "All Categories", budget: "All Budgets", availability: "Any Date" });
+    setActiveVendorGeoSlug(null);
+    setVendorFilters({ sort: "recommended" });
   }, [locationSlug]);
 
   // ── Phase 1: shared view + map + pin state only ───────────────────────────────
@@ -726,6 +749,20 @@ export default function LocationPage({
     "Luxury Transport": "transport",
   };
 
+  // ── Reverse mapping: vendor category → geo slug for filter config ──────────
+  const VENDOR_TO_GEO_SLUG = {
+    "planner": "wedding-planners",
+    "photographer": "photographers",
+    "videographer": "videographers",
+    "florist": "florists",
+    "caterer": "caterers",
+    "hair-makeup": "hair-makeup",
+    "entertainment": "entertainment",
+    "cakes": "wedding-cakes",
+    "musician": "entertainment",
+    "celebrant": "entertainment",
+  };
+
   // ── Filtered vendors (applies vendor search filters) ────────────────────────
   const filteredVendors = useMemo(() => {
     let list = [...locationVendors];
@@ -740,6 +777,62 @@ export default function LocationPage({
     }
     return list;
   }, [locationVendors, vendorSearch]);
+
+  // ── Phase B: Dynamic vendor filtering for LocationPage ──────────────────────
+  // When a specific category is selected via onVendorSearch, switch to dynamic mode
+  const dynamicVendorListings = useMemo(() => {
+    if (!activeVendorGeoSlug || !vendorFilterConfig) return [];
+    // Get vendors for this category from locationVendors
+    const catId = VENDOR_CAT_MAP[vendorSearch.category];
+    let list = catId
+      ? locationVendors.filter(v => v.category === catId)
+      : locationVendors;
+    // Apply dynamic filters
+    const filtered = applyVendorFilters(list, vendorFilters, vendorFilterConfig.filters);
+    return applyVendorSort(filtered, vendorFilters.sort || "recommended");
+  }, [activeVendorGeoSlug, vendorFilterConfig, locationVendors, vendorSearch.category, vendorFilters]);
+
+  // ── Phase B: Auto-populate vendor filter options ────────────────────────────
+  const vendorFilterOptions = useMemo(() => {
+    if (!activeVendorGeoSlug || !vendorFilterConfig) return {};
+    const catId = VENDOR_CAT_MAP[vendorSearch.category];
+    const catListings = catId
+      ? locationVendors.filter(v => v.category === catId)
+      : locationVendors;
+    const countryRegions = _regions
+      .filter(r => r.countrySlug === currentLocation?.slug)
+      .map(r => r.name);
+    const opts = extractFilterOptions(catListings, vendorFilterConfig.filters, countryRegions);
+    // Sort specialties by frequency, cap at 12
+    for (const dim of vendorFilterConfig.filters) {
+      if (dim.dataField?.endsWith("[]") && opts[dim.key]) {
+        const freq = {};
+        for (const v of catListings) {
+          const field = dim.dataField.replace("[]", "");
+          const arr = v[field];
+          if (Array.isArray(arr)) {
+            for (const s of arr) {
+              const trimmed = String(s).trim();
+              freq[trimmed] = (freq[trimmed] || 0) + 1;
+            }
+          }
+        }
+        opts[dim.key] = opts[dim.key]
+          .sort((a, b) => (freq[b] || 0) - (freq[a] || 0))
+          .slice(0, 12);
+      }
+    }
+    return opts;
+  }, [activeVendorGeoSlug, vendorFilterConfig, locationVendors, vendorSearch.category, _regions, currentLocation]);
+
+  const vendorCategoryLabel = useMemo(() => {
+    if (!activeVendorGeoSlug) return null;
+    const vc = VENDOR_CATEGORIES.find(c => c.slug === activeVendorGeoSlug);
+    return vc?.label || activeVendorGeoSlug;
+  }, [activeVendorGeoSlug]);
+
+  // Effective vendor listings: use dynamic when active, else basic filtered
+  const effectiveVendorListings = listingMode === "vendor-dynamic" ? dynamicVendorListings : filteredVendors;
 
   // ── Compute Latest Vendors strip vendors ─────────────────────────────────────
   const latestVendorsVenues = useMemo(() => {
@@ -1100,15 +1193,42 @@ export default function LocationPage({
             onViewMode={setViewMode}
             sortMode={sortMode}
             onSortChange={setSortMode}
-            total={listingMode === "vendors" ? filteredVendors.length : filteredVenues.length}
+            total={listingMode === "vendor-dynamic" ? dynamicVendorListings.length : listingMode === "vendors" ? filteredVendors.length : filteredVenues.length}
             regions={_regions.filter(r => r.countrySlug === currentLocation.slug).map(r => ({ slug: r.slug, name: r.name }))}
             countryFilter={countryName}
             mapOn={mapOn}
             onToggleMap={toggleMap}
             mode={listingMode}
-            onModeChange={setListingMode}
-            onVendorSearch={(s) => { setVendorSearch(s); setListingMode("vendors"); }}
+            onModeChange={(m) => {
+              setListingMode(m);
+              if (m === "venues") {
+                setActiveVendorGeoSlug(null);
+                setVendorFilters({ sort: "recommended" });
+              }
+            }}
+            onVendorSearch={(s) => {
+              setVendorSearch(s);
+              // Check if a specific category was selected → activate dynamic mode
+              const catId = VENDOR_CAT_MAP[s.category];
+              const geoSlug = catId ? VENDOR_TO_GEO_SLUG[catId] : null;
+              if (geoSlug && getFilterConfig(geoSlug)) {
+                setActiveVendorGeoSlug(geoSlug);
+                const config = getFilterConfig(geoSlug);
+                setVendorFilters(buildInitialFilters(config, "All"));
+                setListingMode("vendor-dynamic");
+              } else {
+                setActiveVendorGeoSlug(null);
+                setVendorFilters({ sort: "recommended" });
+                setListingMode("vendors");
+              }
+            }}
             hideListView
+            // Phase B: Dynamic vendor filter props
+            vendorFilters={vendorFilters}
+            onVendorFiltersChange={setVendorFilters}
+            vendorFilterConfig={vendorFilterConfig}
+            vendorFilterOptions={vendorFilterOptions}
+            vendorCategoryLabel={vendorCategoryLabel}
           />
           {!mapOn && (
             <InfoStrip
@@ -1124,7 +1244,7 @@ export default function LocationPage({
 
         {/* ── EXPLORE LAYOUT — map on · desktop ─────────────────────────────── */}
         {mapOn && !isMobile && (() => {
-          const exploreItems = listingMode === "vendors" ? filteredVendors : filteredVenues;
+          const exploreItems = (listingMode === "vendors" || listingMode === "vendor-dynamic") ? effectiveVendorListings : filteredVenues;
           return (
           <div
             aria-label={`Explore ${listingMode} in ${currentLocation.name}`}
@@ -1166,8 +1286,10 @@ export default function LocationPage({
                         overflow:     "hidden",
                       }}
                     >
-                      {listingMode === "vendors"
-                        ? <LuxuryVendorCard v={v} onView={() => onViewVenue(v.slug || v.id)} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
+                      {(listingMode === "vendors" || listingMode === "vendor-dynamic")
+                        ? (vendorFilterConfig?.card === "PlannerCard"
+                          ? <PlannerCard v={v} mode="grid" onView={() => onViewVenue(v.slug || v.id)} isMobile={isMobile} />
+                          : <LuxuryVendorCard v={v} onView={() => onViewVenue(v.slug || v.id)} quickViewItem={qvItem} setQuickViewItem={setQvItem} />)
                         : <LuxuryVenueCard  v={v} onView={() => onViewVenue(v.slug || v.id)} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
                       }
                     </div>
@@ -1286,7 +1408,7 @@ export default function LocationPage({
         </section>
 
         {/* ═══ DIRECTORY LISTINGS — unified viewMode-aware grid / list ═══════ */}
-        {(listingMode === "vendors" ? filteredVendors.length : filteredVenues.length) > 0 && (
+        {((listingMode === "vendors" || listingMode === "vendor-dynamic") ? effectiveVendorListings.length : filteredVenues.length) > 0 && (
           <section
             aria-label={`Wedding professionals in ${currentLocation.name}`}
             className="lwd-region-section"
@@ -1306,7 +1428,7 @@ export default function LocationPage({
                   gap: isMobile ? 16 : 20,
                 }}
               >
-                {(listingMode === "vendors" ? filteredVendors : filteredVenues).slice(0, visibleCount).map((v, i) => (
+                {((listingMode === "vendors" || listingMode === "vendor-dynamic") ? effectiveVendorListings : filteredVenues).slice(0, visibleCount).map((v, i) => (
                   <div
                     key={v.id}
                     data-listing-id={v.id}
@@ -1315,8 +1437,10 @@ export default function LocationPage({
                       ...revealStyle(grid1In, i < 8 ? i : 0),
                     }}
                   >
-                    {listingMode === "vendors"
-                      ? <LuxuryVendorCard v={v} onView={() => onViewVenue(v.slug || v.id)} isMobile={isMobile} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
+                    {(listingMode === "vendors" || listingMode === "vendor-dynamic")
+                      ? (vendorFilterConfig?.card === "PlannerCard"
+                        ? <PlannerCard v={v} mode="grid" onView={() => onViewVenue(v.slug || v.id)} isMobile={isMobile} />
+                        : <LuxuryVendorCard v={v} onView={() => onViewVenue(v.slug || v.id)} isMobile={isMobile} quickViewItem={qvItem} setQuickViewItem={setQvItem} />)
                       : <LuxuryVenueCard  v={v} onView={() => onViewVenue(v.slug || v.id)} isMobile={isMobile} quickViewItem={qvItem} setQuickViewItem={setQvItem} />
                     }
                   </div>
@@ -1324,7 +1448,7 @@ export default function LocationPage({
               </div>
             </div>
 
-            {visibleCount < (listingMode === "vendors" ? filteredVendors : filteredVenues).length && (
+            {visibleCount < ((listingMode === "vendors" || listingMode === "vendor-dynamic") ? effectiveVendorListings : filteredVenues).length && (
               <div style={{ textAlign: "center", marginTop: 30 }}>
                 <button
                   onClick={() => setVisibleCount(v => v + 12)}

@@ -215,11 +215,12 @@ export default function CountrySearchBar({
   mode: modeProp, onModeChange,
   // Vendor region navigation → URL change (e.g. /england/wedding-planners-in/kent)
   onRegionNavigate,
-  // Planner-specific props
+  // Phase B: Dynamic vendor filter props (replaces per-category props)
+  vendorFilters, onVendorFiltersChange, vendorFilterConfig, vendorFilterOptions,
+  vendorCategoryLabel, hideVendorFilterBar,
+  // Legacy per-category props (kept for backward compat, unused by dynamic mode)
   plannerFilters, onPlannerFiltersChange, plannerRegions,
-  // Photographer-specific props
   photoFilters, onPhotoFiltersChange, photoRegions,
-  // Videographer-specific props
   videoFilters, onVideoFiltersChange, videoRegions,
 }) {
   const C = useTheme();
@@ -458,8 +459,8 @@ export default function CountrySearchBar({
         display: "flex", alignItems: "center", gap: 12, height: 60,
         overflowX: "auto", WebkitOverflowScrolling: "touch",
       }}>
-        {/* Mode toggle — hidden for planners (single-category page) */}
-        {(mode === "planners" || mode === "photographers" || mode === "videographers") ? (
+        {/* Mode toggle — hidden for single-category vendor pages */}
+        {(mode === "vendor-dynamic" || mode === "planners" || mode === "photographers" || mode === "videographers") ? (
           <div style={{
             display: "flex", background: CL.activeTab, borderRadius: 3,
             border: "1px solid rgba(160,148,125,0.28)", overflow: "hidden", flexShrink: 0,
@@ -468,7 +469,7 @@ export default function CountrySearchBar({
               color: "#fff", fontSize: 9, fontWeight: 700,
               letterSpacing: "1.5px", textTransform: "uppercase", padding: "6px 14px",
               fontFamily: NU,
-            }}>{mode === "planners" ? "Planners" : mode === "photographers" ? "Photographers" : "Videographers"}</span>
+            }}>{mode === "vendor-dynamic" && vendorCategoryLabel ? vendorCategoryLabel : mode === "planners" ? "Planners" : mode === "photographers" ? "Photographers" : "Videographers"}</span>
           </div>
         ) : (
           <div role="tablist" aria-label="Search mode" style={{
@@ -550,94 +551,75 @@ export default function CountrySearchBar({
           </>
         )}
 
-        {/* ═══ PLANNER TRIGGERS ══════════════════════════════════════════ */}
-        {mode === "planners" && plannerFilters && (
+        {/* ═══ DYNAMIC VENDOR TRIGGERS (Phase B) ═════════════════════════ */}
+        {mode === "vendor-dynamic" && vendorFilters && vendorFilterConfig && !hideVendorFilterBar && (
           <>
-            <TriggerBtn menuKey="p-tier" label={plannerFilters.tier === "All" ? "All Tiers" : plannerFilters.tier} active={plannerFilters.tier !== "All"} />
-            {plannerRegions && plannerRegions.length > 1 && (
-              <TriggerBtn menuKey="p-region" label={plannerFilters.region === "All" ? "All Regions" : plannerFilters.region} active={plannerFilters.region !== "All"} />
-            )}
-            <TriggerBtn menuKey="p-sort" label={
-              plannerFilters.sort === "recommended" ? "Recommended"
-              : plannerFilters.sort === "rating" ? "Highest Rated"
-              : plannerFilters.sort === "price-low" ? "Price: Low \u2192 High"
-              : plannerFilters.sort === "price-high" ? "Price: High \u2192 Low"
-              : plannerFilters.sort === "reviews" ? "Most Reviews"
-              : "Recommended"
-            } active={plannerFilters.sort !== "recommended"} />
-            <TriggerBtn menuKey="p-specialty" label={plannerFilters.specialty === "All" || !plannerFilters.specialty ? "All Specialties" : plannerFilters.specialty} active={plannerFilters.specialty && plannerFilters.specialty !== "All"} />
+            {vendorFilterConfig.filters
+              .filter(dim => {
+                // Skip region (navigates via URL) — show it as a trigger for sub-region selection
+                if (dim.navigates) return true;
+                // Hide dimension when only 1 unique option
+                const opts = vendorFilterOptions?.[dim.key];
+                if (opts && opts.length <= 1) return false;
+                return true;
+              })
+              .map(dim => {
+                const val = vendorFilters[dim.key];
+                const isActive = val && val !== "All";
+                let displayLabel;
+                if (dim.navigates) {
+                  // Region: show region name or "All Regions"
+                  displayLabel = isActive ? val : "All Regions";
+                } else {
+                  displayLabel = isActive ? val : `All ${dim.label}s`;
+                }
+                return (
+                  <TriggerBtn
+                    key={`dyn-${dim.key}`}
+                    menuKey={`dyn-${dim.key}`}
+                    label={displayLabel}
+                    active={isActive}
+                  />
+                );
+              })}
 
-            {(plannerFilters.tier !== "All" || plannerFilters.region !== "All" || plannerFilters.sort !== "recommended" || (plannerFilters.specialty && plannerFilters.specialty !== "All")) && (
-              <button onClick={() => onPlannerFiltersChange?.({ tier: "All", region: "All", sort: "recommended", specialty: "All" })} aria-label="Clear all filters"
-                style={{
-                  background: "none", border: "none", color: CL.goldDim, fontSize: 9,
-                  cursor: "pointer", fontFamily: NU, letterSpacing: "1px", textTransform: "uppercase",
-                  padding: "4px 6px", transition: "color 0.2s", whiteSpace: "nowrap", flexShrink: 0,
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = CL.gold; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = CL.goldDim; }}
-              >✕ Clear</button>
-            )}
-          </>
-        )}
+            {/* Sort trigger */}
+            <TriggerBtn
+              menuKey="dyn-sort"
+              label={(() => {
+                const s = SORT_OPTIONS.find(o => o.slug === (vendorFilters.sort || "recommended"));
+                return s ? s.name : "Recommended";
+              })()}
+              active={vendorFilters.sort && vendorFilters.sort !== "recommended"}
+            />
 
-        {/* ═══ PHOTOGRAPHER TRIGGERS ═══════════════════════════════════ */}
-        {mode === "photographers" && photoFilters && (
-          <>
-            <TriggerBtn menuKey="ph-style" label={photoFilters.style === "All" || !photoFilters.style ? "All Styles" : photoFilters.style} active={photoFilters.style && photoFilters.style !== "All"} />
-            {photoRegions && photoRegions.length > 1 && (
-              <TriggerBtn menuKey="ph-region" label={photoFilters.region === "All" ? "All Regions" : photoFilters.region} active={photoFilters.region !== "All"} />
-            )}
-            <TriggerBtn menuKey="ph-sort" label={
-              photoFilters.sort === "recommended" ? "Recommended"
-              : photoFilters.sort === "rating" ? "Highest Rated"
-              : photoFilters.sort === "price-low" ? "Price: Low \u2192 High"
-              : photoFilters.sort === "price-high" ? "Price: High \u2192 Low"
-              : photoFilters.sort === "reviews" ? "Most Reviews"
-              : "Recommended"
-            } active={photoFilters.sort !== "recommended"} />
-
-            {(photoFilters.style !== "All" || photoFilters.region !== "All" || photoFilters.sort !== "recommended") && (
-              <button onClick={() => onPhotoFiltersChange?.({ style: "All", region: "All", sort: "recommended" })} aria-label="Clear all filters"
-                style={{
-                  background: "none", border: "none", color: CL.goldDim, fontSize: 9,
-                  cursor: "pointer", fontFamily: NU, letterSpacing: "1px", textTransform: "uppercase",
-                  padding: "4px 6px", transition: "color 0.2s", whiteSpace: "nowrap", flexShrink: 0,
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = CL.gold; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = CL.goldDim; }}
-              >✕ Clear</button>
-            )}
-          </>
-        )}
-
-        {/* ═══ VIDEOGRAPHER TRIGGERS ══════════════════════════════════ */}
-        {mode === "videographers" && videoFilters && (
-          <>
-            <TriggerBtn menuKey="vid-style" label={videoFilters.style === "All" || !videoFilters.style ? "All Styles" : videoFilters.style} active={videoFilters.style && videoFilters.style !== "All"} />
-            {videoRegions && videoRegions.length > 1 && (
-              <TriggerBtn menuKey="vid-region" label={videoFilters.region === "All" ? "All Regions" : videoFilters.region} active={videoFilters.region !== "All"} />
-            )}
-            <TriggerBtn menuKey="vid-sort" label={
-              videoFilters.sort === "recommended" ? "Recommended"
-              : videoFilters.sort === "rating" ? "Highest Rated"
-              : videoFilters.sort === "price-low" ? "Price: Low \u2192 High"
-              : videoFilters.sort === "price-high" ? "Price: High \u2192 Low"
-              : videoFilters.sort === "reviews" ? "Most Reviews"
-              : "Recommended"
-            } active={videoFilters.sort !== "recommended"} />
-
-            {(videoFilters.style !== "All" || videoFilters.region !== "All" || videoFilters.sort !== "recommended") && (
-              <button onClick={() => onVideoFiltersChange?.({ style: "All", region: "All", sort: "recommended" })} aria-label="Clear all filters"
-                style={{
-                  background: "none", border: "none", color: CL.goldDim, fontSize: 9,
-                  cursor: "pointer", fontFamily: NU, letterSpacing: "1px", textTransform: "uppercase",
-                  padding: "4px 6px", transition: "color 0.2s", whiteSpace: "nowrap", flexShrink: 0,
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = CL.gold; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = CL.goldDim; }}
-              >✕ Clear</button>
-            )}
+            {/* Clear button — show when any filter is active */}
+            {(() => {
+              const anyActive = vendorFilterConfig.filters.some(dim => {
+                const val = vendorFilters[dim.key];
+                return val && val !== "All";
+              }) || (vendorFilters.sort && vendorFilters.sort !== "recommended");
+              if (!anyActive) return null;
+              return (
+                <button
+                  onClick={() => {
+                    const reset = { sort: "recommended" };
+                    vendorFilterConfig.filters.forEach(dim => {
+                      reset[dim.key] = "All";
+                    });
+                    onVendorFiltersChange?.(reset);
+                  }}
+                  aria-label="Clear all filters"
+                  style={{
+                    background: "none", border: "none", color: CL.goldDim, fontSize: 9,
+                    cursor: "pointer", fontFamily: NU, letterSpacing: "1px", textTransform: "uppercase",
+                    padding: "4px 6px", transition: "color 0.2s", whiteSpace: "nowrap", flexShrink: 0,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = CL.gold; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = CL.goldDim; }}
+                >✕ Clear</button>
+              );
+            })()}
           </>
         )}
 
@@ -645,7 +627,7 @@ export default function CountrySearchBar({
         <div style={{ flex: 1 }} />
 
         <span style={{ fontSize: 10, color: CL.count, whiteSpace: "nowrap", fontFamily: NU }}>
-          <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "planners" ? "planners" : mode === "photographers" ? "photographers" : mode === "videographers" ? "videographers" : mode === "vendors" ? "vendors" : "venues"}
+          <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "vendor-dynamic" && vendorCategoryLabel ? vendorCategoryLabel.toLowerCase() : mode === "planners" ? "planners" : mode === "photographers" ? "photographers" : mode === "videographers" ? "videographers" : mode === "vendors" ? "vendors" : "venues"}
         </span>
 
         {/* Grid / List / Map view switcher */}
@@ -741,7 +723,39 @@ export default function CountrySearchBar({
             {openMenu === "v-category" && renderVendorCategoryPanel()}
             {openMenu === "v-budget"   && renderOptionsPanel("Budget", BUDGETS, vendorBudget, (v) => { setVendorBudget(v); setOpenMenu(null); onVendorSearch?.({ location: vendorLocation, category: vendorCategory, budget: v }); })}
 
-            {/* ── Planner mega menus ── */}
+            {/* ── Dynamic vendor mega menus (Phase B) ── */}
+            {mode === "vendor-dynamic" && vendorFilterConfig && vendorFilters && (
+              <>
+                {vendorFilterConfig.filters.map(dim => {
+                  const menuKey = `dyn-${dim.key}`;
+                  if (openMenu !== menuKey) return null;
+                  const currentVal = vendorFilters[dim.key] || "All";
+                  const options = vendorFilterOptions?.[dim.key] || [];
+
+                  if (dim.navigates) {
+                    // Region → navigates via URL
+                    return renderOptionsPanel(dim.label, ["All", ...options], currentVal, (v) => {
+                      onRegionNavigate ? onRegionNavigate(v) : onVendorFiltersChange?.({ ...vendorFilters, [dim.key]: v });
+                      setOpenMenu(null);
+                    });
+                  }
+                  // Normal select filter
+                  return renderOptionsPanel(dim.label, ["All", ...options], currentVal, (v) => {
+                    onVendorFiltersChange?.({ ...vendorFilters, [dim.key]: v });
+                    setOpenMenu(null);
+                  });
+                })}
+                {openMenu === "dyn-sort" && renderOptionsPanel("Sort By", [
+                  { slug: "recommended", name: "Recommended" },
+                  { slug: "rating",      name: "Highest Rated" },
+                  { slug: "price-low",   name: "Price: Low → High" },
+                  { slug: "price-high",  name: "Price: High → Low" },
+                  { slug: "reviews",     name: "Most Reviews" },
+                ], vendorFilters?.sort || "recommended", (v) => { onVendorFiltersChange?.({ ...vendorFilters, sort: v }); setOpenMenu(null); })}
+              </>
+            )}
+
+            {/* ── Legacy planner/photographer/videographer mega menus (kept for backward compat) ── */}
             {openMenu === "p-tier" && renderOptionsPanel("Service Tier", ["All", ...PLANNER_SERVICE_TIERS], plannerFilters?.tier || "All", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, tier: v }); setOpenMenu(null); })}
             {openMenu === "p-region" && renderOptionsPanel("Region", ["All", ...(plannerRegions || [])], plannerFilters?.region || "All", (v) => { onRegionNavigate ? onRegionNavigate(v) : onPlannerFiltersChange?.({ ...plannerFilters, region: v }); setOpenMenu(null); })}
             {openMenu === "p-sort" && renderOptionsPanel("Sort By", [
@@ -752,12 +766,8 @@ export default function CountrySearchBar({
               { slug: "reviews",     name: "Most Reviews" },
             ], plannerFilters?.sort || "recommended", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, sort: v }); setOpenMenu(null); })}
             {openMenu === "p-specialty" && renderOptionsPanel("Specialty", PLANNER_SPECIALTIES, plannerFilters?.specialty || "All", (v) => { onPlannerFiltersChange?.({ ...plannerFilters, specialty: v }); setOpenMenu(null); })}
-
-            {/* ── Photographer mega menus ── */}
             {openMenu === "ph-style" && renderOptionsPanel("Style", PHOTOGRAPHER_STYLES, photoFilters?.style || "All", (v) => { onPhotoFiltersChange?.({ ...photoFilters, style: v }); setOpenMenu(null); })}
             {openMenu === "ph-region" && renderOptionsPanel("Region", ["All", ...(photoRegions || [])], photoFilters?.region || "All", (v) => { onRegionNavigate ? onRegionNavigate(v) : onPhotoFiltersChange?.({ ...photoFilters, region: v }); setOpenMenu(null); })}
-
-            {/* ── Videographer mega menus ── */}
             {openMenu === "vid-style" && renderOptionsPanel("Style", VIDEOGRAPHER_STYLES, videoFilters?.style || "All", (v) => { onVideoFiltersChange?.({ ...videoFilters, style: v }); setOpenMenu(null); })}
             {openMenu === "vid-region" && renderOptionsPanel("Region", ["All", ...(videoRegions || [])], videoFilters?.region || "All", (v) => { onRegionNavigate ? onRegionNavigate(v) : onVideoFiltersChange?.({ ...videoFilters, region: v }); setOpenMenu(null); })}
             {openMenu === "vid-sort" && renderOptionsPanel("Sort By", [
@@ -767,7 +777,6 @@ export default function CountrySearchBar({
               { slug: "price-high",  name: "Price: High \u2192 Low" },
               { slug: "reviews",     name: "Most Reviews" },
             ], videoFilters?.sort || "recommended", (v) => { onVideoFiltersChange?.({ ...videoFilters, sort: v }); setOpenMenu(null); })}
-
             {openMenu === "ph-sort" && renderOptionsPanel("Sort By", [
               { slug: "recommended", name: "Recommended" },
               { slug: "rating",      name: "Highest Rated" },

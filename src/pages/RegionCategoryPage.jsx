@@ -24,6 +24,19 @@ import { VENDORS } from "../data/vendors.js";
 import { getUserCountryFromIP, sortByCountryPriority } from "../services/geoLocationService";
 import { fetchListings } from "../services/listings";
 
+// ── Phase B: Dynamic filter system ──────────────────────────────────────────
+import {
+  getFilterConfig,
+  buildInitialFilters,
+  hasActiveFilters as checkActiveFilters,
+  SORT_OPTIONS as FILTER_SORT_OPTIONS,
+} from "../filters";
+import {
+  applyVendorFilters,
+  applyVendorSort,
+  extractFilterOptions,
+} from "../filters";
+
 // ── Phase 1: shared directory state + transform ───────────────────────────────
 import { useDirectoryState, applyDirectoryFilters, applyDirectorySort } from "../hooks/useDirectoryState";
 import { transformListing, transformListings, mergeListings } from "../utils/transformListing";
@@ -119,26 +132,46 @@ export default function RegionCategoryPage({
   const [isFilteringTransition, setIsFilteringTransition] = useState(false);
 
   // ── Category flags ──────────────────────────────────────────────────────────
-  const isPlanner = categorySlug === "wedding-planners";
-  const isPhotographer = categorySlug === "photographers";
-  const isVideographer = categorySlug === "videographers";
   const isVenue = categorySlug === "wedding-venues";
+  const isVendor = !isVenue && !!geoSlugToVendorCategory(categorySlug);
+
   // Initialize region filter from URL regionSlug (resolve slug → name for display)
   const initialRegionName = useMemo(() => {
     if (!regionSlug) return "All";
     const r = getRegionBySlug(regionSlug);
     return r?.name || "All";
   }, [regionSlug]);
-  const [plannerFilters, setPlannerFilters] = useState({ tier: "All", region: initialRegionName, sort: "recommended", specialty: "All" });
-  const [photoFilters, setPhotoFilters] = useState({ style: "All", region: initialRegionName, sort: "recommended" });
-  const [videoFilters, setVideoFilters] = useState({ style: "All", region: initialRegionName, sort: "recommended" });
+
+  // ── Phase B: Dynamic vendor filter state (one state for ALL vendor categories) ──
+  const vendorFilterConfig = useMemo(() => {
+    if (!isVendor) return null;
+    return getFilterConfig(categorySlug);
+  }, [isVendor, categorySlug]);
+
+  const [vendorFilters, setVendorFilters_raw] = useState(() => {
+    if (!vendorFilterConfig) return { sort: "recommended" };
+    return buildInitialFilters(vendorFilterConfig, initialRegionName);
+  });
+
+  // Re-initialize vendor filters when category changes
+  useEffect(() => {
+    if (vendorFilterConfig) {
+      setVendorFilters_raw(buildInitialFilters(vendorFilterConfig, initialRegionName));
+    }
+  }, [categorySlug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync vendor region filter state when URL regionSlug changes (navigation)
   useEffect(() => {
-    setPlannerFilters(f => ({ ...f, region: initialRegionName }));
-    setPhotoFilters(f => ({ ...f, region: initialRegionName }));
-    setVideoFilters(f => ({ ...f, region: initialRegionName }));
+    setVendorFilters_raw(f => ({ ...f, region: initialRegionName }));
   }, [initialRegionName]);
+
+  const setVendorFilters = useCallback((update) => {
+    if (typeof update === "function") {
+      setVendorFilters_raw(update);
+    } else {
+      setVendorFilters_raw(update);
+    }
+  }, []);
 
   // ── Phase 1: shared directory state (replaces viewMode/mapOn/isMobile/activeListingId) ──
   const {
@@ -377,108 +410,54 @@ export default function RegionCategoryPage({
     return sortByCountryPriority(sorted, userCountryCode, "countrySlug");
   }, [filteredListings, filters.sort, userCountryCode]);
 
-  // ── Planner-specific filtering + sorting (one final array for all views) ──
-  const plannerFinalListings = useMemo(() => {
-    if (!isPlanner) return sortedFilteredListings;
-    let list = [...listings]; // geo-filtered planners from the listings useMemo
-    // Apply tier filter
-    if (plannerFilters.tier && plannerFilters.tier !== "All") {
-      list = list.filter(p => p.serviceTier === plannerFilters.tier);
-    }
-    // Apply region filter (sub-region within geo results)
-    if (plannerFilters.region && plannerFilters.region !== "All") {
-      list = list.filter(p => p.region === plannerFilters.region);
-    }
-    // Apply specialty filter
-    if (plannerFilters.specialty && plannerFilters.specialty !== "All") {
-      const kw = plannerFilters.specialty.toLowerCase();
-      list = list.filter(p => p.specialties?.some(s => s.toLowerCase().includes(kw)));
-    }
-    // Sort
-    const parsePrice = (v) => { const m = String(v?.priceFrom || v?.priceLabel || "").match(/[\d,]+/); return m ? parseInt(m[0].replace(/,/g, ""), 10) : 0; };
-    switch (plannerFilters.sort) {
-      case "rating":     list.sort((a, b) => (b.rating || 0) - (a.rating || 0)); break;
-      case "price-low":  list.sort((a, b) => parsePrice(a) - parsePrice(b)); break;
-      case "price-high": list.sort((a, b) => parsePrice(b) - parsePrice(a)); break;
-      case "reviews":    list.sort((a, b) => (b.reviews || 0) - (a.reviews || 0)); break;
-      default:           list.sort((a, b) => (b.lwdScore || 0) - (a.lwdScore || 0)); break;
-    }
-    return list;
-  }, [isPlanner, listings, sortedFilteredListings, plannerFilters]);
-
-  // ── Photographer-specific filtering + sorting ───────────────────────────────
-  const photoFinalListings = useMemo(() => {
-    if (!isPhotographer) return sortedFilteredListings;
-    let list = [...listings];
-    if (photoFilters.style && photoFilters.style !== "All") {
-      const kw = photoFilters.style.toLowerCase();
-      list = list.filter(p => p.specialties?.some(s => s.toLowerCase().includes(kw)));
-    }
-    if (photoFilters.region && photoFilters.region !== "All") {
-      list = list.filter(p => p.region === photoFilters.region);
-    }
-    switch (photoFilters.sort) {
-      case "rating":     list.sort((a, b) => (b.rating || 0) - (a.rating || 0)); break;
-      case "price-low":  { const pp = (v) => { const m = String(v?.priceFrom || "").match(/[\d,]+/); return m ? parseInt(m[0].replace(/,/g, ""), 10) : 0; }; list.sort((a, b) => pp(a) - pp(b)); break; }
-      case "price-high": { const pp = (v) => { const m = String(v?.priceFrom || "").match(/[\d,]+/); return m ? parseInt(m[0].replace(/,/g, ""), 10) : 0; }; list.sort((a, b) => pp(b) - pp(a)); break; }
-      case "reviews":    list.sort((a, b) => (b.reviews || 0) - (a.reviews || 0)); break;
-      default:           list.sort((a, b) => (b.lwdScore || 0) - (a.lwdScore || 0)); break;
-    }
-    return list;
-  }, [isPhotographer, listings, sortedFilteredListings, photoFilters]);
-
-  // ── Videographer-specific filtering + sorting ───────────────────────────────
-  const videoFinalListings = useMemo(() => {
-    if (!isVideographer) return sortedFilteredListings;
-    let list = [...listings];
-    if (videoFilters.style && videoFilters.style !== "All") {
-      const kw = videoFilters.style.toLowerCase();
-      list = list.filter(p => p.specialties?.some(s => s.toLowerCase().includes(kw)));
-    }
-    if (videoFilters.region && videoFilters.region !== "All") {
-      list = list.filter(p => p.region === videoFilters.region);
-    }
-    switch (videoFilters.sort) {
-      case "rating":     list.sort((a, b) => (b.rating || 0) - (a.rating || 0)); break;
-      case "price-low":  { const pp = (v) => { const m = String(v?.priceFrom || "").match(/[\d,]+/); return m ? parseInt(m[0].replace(/,/g, ""), 10) : 0; }; list.sort((a, b) => pp(a) - pp(b)); break; }
-      case "price-high": { const pp = (v) => { const m = String(v?.priceFrom || "").match(/[\d,]+/); return m ? parseInt(m[0].replace(/,/g, ""), 10) : 0; }; list.sort((a, b) => pp(b) - pp(a)); break; }
-      case "reviews":    list.sort((a, b) => (b.reviews || 0) - (a.reviews || 0)); break;
-      default:           list.sort((a, b) => (b.lwdScore || 0) - (a.lwdScore || 0)); break;
-    }
-    return list;
-  }, [isVideographer, listings, sortedFilteredListings, videoFilters]);
+  // ── Phase B: Dynamic vendor filtering + sorting (one final array for all vendor categories) ──
+  const vendorFinalListings = useMemo(() => {
+    if (!isVendor || !vendorFilterConfig) return sortedFilteredListings;
+    // Apply config-driven filters from the dynamic engine
+    const filtered = applyVendorFilters(listings, vendorFilters, vendorFilterConfig.filters);
+    // Apply sort
+    return applyVendorSort(filtered, vendorFilters.sort || "recommended");
+  }, [isVendor, vendorFilterConfig, listings, sortedFilteredListings, vendorFilters]);
 
   // ── One final visible array — Grid, List, Map all render from this ─────────
-  const finalListings = isPlanner ? plannerFinalListings : isPhotographer ? photoFinalListings : isVideographer ? videoFinalListings : sortedFilteredListings;
+  const finalListings = isVendor ? vendorFinalListings : sortedFilteredListings;
   const listingCount = finalListings.length;
 
-  // All regions for this country (for vendor region dropdown + URL navigation)
+  // ── Phase B: Auto-populate filter options from data ─────────────────────────
   const allCountryRegions = useMemo(() => {
     if (!countrySlug) return [];
     return getRegionsByCountry(countrySlug).map(r => r.name).sort();
   }, [countrySlug]);
 
-  // Planner regions for filter dropdown
-  const plannerRegions = useMemo(() => {
-    if (!isPlanner) return [];
-    const fromListings = [...new Set(listings.map(p => p.region).filter(Boolean))];
-    // Merge listing regions with all country regions for full coverage
-    return [...new Set([...fromListings, ...allCountryRegions])].sort();
-  }, [isPlanner, listings, allCountryRegions]);
+  const vendorFilterOptions = useMemo(() => {
+    if (!isVendor || !vendorFilterConfig) return {};
+    const opts = extractFilterOptions(listings, vendorFilterConfig.filters, allCountryRegions);
+    // Fallback rules: sort specialties by frequency, cap at 12
+    for (const dim of vendorFilterConfig.filters) {
+      if (dim.dataField?.endsWith("[]") && opts[dim.key]) {
+        // Count frequency for sorting
+        const freq = {};
+        for (const v of listings) {
+          const field = dim.dataField.replace("[]", "");
+          const arr = v[field];
+          if (Array.isArray(arr)) {
+            for (const s of arr) {
+              const trimmed = String(s).trim();
+              freq[trimmed] = (freq[trimmed] || 0) + 1;
+            }
+          }
+        }
+        // Sort by frequency descending, cap at 12
+        opts[dim.key] = opts[dim.key]
+          .sort((a, b) => (freq[b] || 0) - (freq[a] || 0))
+          .slice(0, 12);
+      }
+    }
+    return opts;
+  }, [isVendor, vendorFilterConfig, listings, allCountryRegions]);
 
-  // Photographer regions for filter dropdown
-  const photoRegions = useMemo(() => {
-    if (!isPhotographer) return [];
-    const fromListings = [...new Set(listings.map(p => p.region).filter(Boolean))];
-    return [...new Set([...fromListings, ...allCountryRegions])].sort();
-  }, [isPhotographer, listings, allCountryRegions]);
-
-  // Videographer regions for filter dropdown
-  const videoRegions = useMemo(() => {
-    if (!isVideographer) return [];
-    const fromListings = [...new Set(listings.map(p => p.region).filter(Boolean))];
-    return [...new Set([...fromListings, ...allCountryRegions])].sort();
-  }, [isVideographer, listings, allCountryRegions]);
+  // ── Phase B: Should we hide the vendor filter bar? ──────────────────────────
+  const hideVendorFilterBar = isVendor && listings.length < 3;
 
   // ── Region navigation: selecting a region in vendor filter → URL change ────
   const handleVendorRegionNavigate = useCallback((regionName) => {
@@ -1258,19 +1237,17 @@ export default function RegionCategoryPage({
               countryFilter={countryName}
               mapOn={mapOn}
               onToggleMap={handleToggleMap}
-              mode={isPlanner ? "planners" : isPhotographer ? "photographers" : isVideographer ? "videographers" : undefined}
+              mode={isVendor ? "vendor-dynamic" : undefined}
               onRegionNavigate={handleVendorRegionNavigate}
-              plannerFilters={plannerFilters}
-              onPlannerFiltersChange={setPlannerFilters}
-              plannerRegions={plannerRegions}
-              photoFilters={photoFilters}
-              onPhotoFiltersChange={setPhotoFilters}
-              photoRegions={photoRegions}
-              videoFilters={videoFilters}
-              onVideoFiltersChange={setVideoFilters}
-              videoRegions={videoRegions}
+              // Phase B: Dynamic vendor filter props
+              vendorFilters={vendorFilters}
+              onVendorFiltersChange={setVendorFilters}
+              vendorFilterConfig={vendorFilterConfig}
+              vendorFilterOptions={vendorFilterOptions}
+              vendorCategoryLabel={isVendor ? categoryLabel : undefined}
+              hideVendorFilterBar={hideVendorFilterBar}
             />
-            {!isPlanner && !isPhotographer && !isVideographer && !mapOn && (
+            {!isVendor && !mapOn && (
               <InfoStrip
                 availableRegions={[{ name: regionName, slug: regionSlug }]}
                 filters={venueFilters}
@@ -1322,7 +1299,7 @@ export default function RegionCategoryPage({
                         gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
                         gap:                 20,
                       }}
-                      aria-label={isPlanner ? "Planner grid" : "Venue grid"}
+                      aria-label={isVendor ? `${categoryLabel} grid` : "Venue grid"}
                     >
                       {finalListings.map((v) => (
                         <div
@@ -1338,9 +1315,7 @@ export default function RegionCategoryPage({
                             overflow:     "hidden",
                           }}
                         >
-                          {isPlanner ? (
-                            <PlannerCard v={v} mode="grid" onView={() => onViewPlanner(v)} isMobile={isMobile} />
-                          ) : isVenue ? (
+                          {isVenue ? (
                             <LuxuryVenueCard
                               v={v}
                               onView={() => onViewVenue(v.id || v.slug)}
@@ -1349,6 +1324,8 @@ export default function RegionCategoryPage({
                               matchedStyles={filters.styles || []}
                               otherFilters={{ region: filters.region, capacity: filters.capacity }}
                             />
+                          ) : vendorFilterConfig?.card === "PlannerCard" ? (
+                            <PlannerCard v={v} mode="grid" onView={() => onViewPlanner(v)} isMobile={isMobile} />
                           ) : (
                             <LuxuryVendorCard
                               v={v}
@@ -1371,7 +1348,7 @@ export default function RegionCategoryPage({
                           onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
                           onClick={() => PinSyncBus.emit("card:click", v.id)}
                         >
-                          {isPlanner ? (
+                          {vendorFilterConfig?.card === "PlannerCard" ? (
                             <PlannerCard v={v} mode="list" listMode onView={() => onViewPlanner(v)} isMobile={isMobile} isHighlighted={activeListingId === v.id} />
                           ) : (
                             <VenueListItemCard
@@ -1588,56 +1565,56 @@ export default function RegionCategoryPage({
                     </>
                   )}
 
-                  {/* wedding-planners · grid/list */}
-                  {isPlanner && viewMode === "grid" && (
+                  {/* ── Vendor categories (config-driven card rendering) ── */}
+                  {isVendor && viewMode === "grid" && (
                     <div style={{
                       display: "grid",
-                      gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-                      gap: isMobile ? 0 : 20,
-                      margin: isMobile ? "0 -16px" : undefined,
+                      gridTemplateColumns: isMobile ? "1fr" : vendorFilterConfig?.card === "PlannerCard" ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(340px, 1fr))",
+                      gap: isMobile ? (vendorFilterConfig?.card === "PlannerCard" ? 0 : 16) : 20,
+                      margin: isMobile && vendorFilterConfig?.card === "PlannerCard" ? "0 -16px" : undefined,
                       opacity: isFilteringTransition ? 0.7 : 1,
                       transition: "opacity 0.15s ease",
                     }}>
-                      {finalListings.map((p) => (
-                        <div key={p.id} style={{ height: isMobile ? undefined : 560, overflow: "hidden", borderRadius: isMobile ? 0 : "var(--lwd-radius-card, 8px)" }}>
-                          <PlannerCard v={p} mode="grid" onView={() => onViewPlanner(p)} isMobile={isMobile} />
+                      {finalListings.map((v) => (
+                        <div key={v.id} style={{ height: isMobile && vendorFilterConfig?.card === "PlannerCard" ? undefined : 560, overflow: "hidden", borderRadius: isMobile && vendorFilterConfig?.card === "PlannerCard" ? 0 : "var(--lwd-radius-card, 8px)" }}>
+                          {vendorFilterConfig?.card === "PlannerCard" ? (
+                            <PlannerCard v={v} mode="grid" onView={() => onViewPlanner(v)} isMobile={isMobile} />
+                          ) : (
+                            <LuxuryVendorCard
+                              v={v}
+                              onView={() => onViewVenue(v.slug || v.id)}
+                              isMobile={isMobile}
+                              quickViewItem={qvItem}
+                              setQuickViewItem={setQvItem}
+                            />
+                          )}
                         </div>
                       ))}
                     </div>
                   )}
-                  {isPlanner && viewMode !== "grid" && (
+                  {isVendor && viewMode !== "grid" && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 16, opacity: isFilteringTransition ? 0.7 : 1, transition: "opacity 0.15s ease" }}>
-                      {finalListings.map((p) => (
-                        <PlannerCard
-                          key={p.id}
-                          v={p}
-                          mode="list"
-                          listMode
-                          onView={() => onViewPlanner(p)}
-                          isMobile={isMobile}
-                          isHighlighted={activeListingId === p.id}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* other non-venue, non-planner categories (photographers, videographers, florists, etc.) */}
-                  {!isVenue && !isPlanner && (
-                    <div style={{
-                      display: "grid",
-                      gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(340px, 1fr))",
-                      gap: isMobile ? 16 : 20,
-                    }}>
                       {finalListings.map((v) => (
-                        <div key={v.id} style={{ height: 560, overflow: "hidden", borderRadius: "var(--lwd-radius-card, 8px)" }}>
-                          <LuxuryVendorCard
+                        vendorFilterConfig?.card === "PlannerCard" ? (
+                          <PlannerCard
+                            key={v.id}
+                            v={v}
+                            mode="list"
+                            listMode
+                            onView={() => onViewPlanner(v)}
+                            isMobile={isMobile}
+                            isHighlighted={activeListingId === v.id}
+                          />
+                        ) : (
+                          <VenueListItemCard
+                            key={v.id}
                             v={v}
                             onView={() => onViewVenue(v.slug || v.id)}
-                            isMobile={isMobile}
+                            isHighlighted={activeListingId === v.id}
                             quickViewItem={qvItem}
                             setQuickViewItem={setQvItem}
                           />
-                        </div>
+                        )
                       ))}
                     </div>
                   )}
