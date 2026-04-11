@@ -1204,7 +1204,7 @@ export default function RegionCategoryPage({
                         </div>
                       ))}
                     </div>
-                  ))}
+                  )}
 
                   {/* Near match suggestions (when results are low) */}
                   {listingCount > 0 && listingCount <= 3 && (
