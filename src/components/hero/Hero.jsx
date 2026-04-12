@@ -1,8 +1,6 @@
 // ─── src/components/hero/Hero.jsx ────────────────────────────────────────────
 import { useState, useEffect } from "react";
 
-const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1920&q=80";
-
 export default function Hero({
   count,
   title,
@@ -24,7 +22,7 @@ export default function Hero({
     return () => clearTimeout(t);
   }, []);
 
-  const bg = backgroundImage || DEFAULT_IMAGE;
+  const bg = backgroundImage;  // No fallback — use dark background if not set
 
   // Parse title: if it contains the location name, italicise the last word
   const renderTitle = () => {
@@ -57,8 +55,8 @@ export default function Hero({
         </video>
       )}
 
-      {/* Background image */}
-      {!backgroundVideo && (
+      {/* Background image — only render if image is set */}
+      {!backgroundVideo && bg && (
         <img
           src={bg}
           alt={title || "Luxury wedding venue"}
