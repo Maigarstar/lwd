@@ -678,7 +678,7 @@ export default function RegionPage({
               <p style={{
                 fontFamily: NU,
                 fontSize: 15,
-                color: "rgba(255,255,255,0.6)",
+                color: "#fff",
                 fontWeight: 300,
                 lineHeight: 1.7,
                 maxWidth: 560,
