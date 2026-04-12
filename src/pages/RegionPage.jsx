@@ -1022,7 +1022,7 @@ export default function RegionPage({
                 }}
               >
                 <div style={{ width: 28, height: 1, background: C.gold }} />
-                <span
+                <h2
                   style={{
                     fontFamily: NU,
                     fontSize: 9,
@@ -1030,10 +1030,11 @@ export default function RegionPage({
                     textTransform: "uppercase",
                     color: C.gold,
                     fontWeight: 600,
+                    margin: 0,
                   }}
                 >
                   {pageConfig?.about?.title || `${region.name} Weddings`}
-                </span>
+                </h2>
                 <div style={{ width: 28, height: 1, background: C.gold }} />
               </div>
               {(() => {
