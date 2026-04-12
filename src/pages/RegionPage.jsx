@@ -2384,6 +2384,7 @@ function SEOPanel({ region, C }) {
           onClose={() => setImmersiveOpen(false)}
           onViewCategory={onViewCategory}
           onViewRegionCategory={onViewRegionCategory}
+          onViewRegion={onViewRegion}
         />,
         document.body
       )}
