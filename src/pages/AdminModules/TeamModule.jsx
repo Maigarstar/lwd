@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
 
 const ROLES    = ['admin', 'outreach', 'viewer'];
 const STATUSES = ['active', 'invited', 'removed'];

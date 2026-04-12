@@ -13,10 +13,6 @@ import {
   ICONIC_STRIP_COL, BRAND_COL, BOTTOM_BAR_COL,
 } from "./footerUtils.js";
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
 
 // ── Empty state (nothing selected) ────────────────────────────────────────
 function EmptyState({ C }) {

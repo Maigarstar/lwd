@@ -6,10 +6,6 @@ import NewsletterCapture from './NewsletterCapture';
 import MegaMenuPanel from '../../../components/nav/MegaMenuPanel';
 import { useIsMobile } from '../../../components/profile/ProfileDesignSystem';
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
 
 const FU = "'Nunito', 'Inter', 'Helvetica Neue', sans-serif";
 const FD = "'Gilda Display', 'Playfair Display', Georgia, serif";

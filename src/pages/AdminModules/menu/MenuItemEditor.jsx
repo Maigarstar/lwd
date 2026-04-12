@@ -15,10 +15,6 @@ import {
   blankForm, itemToForm, toSlug, buildLinkUrl,
 } from "./menuUtils.js";
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
 
 // ── Placeholder when nothing is selected ─────────────────────────────────
 function EmptyState({ onAddNew, C }) {

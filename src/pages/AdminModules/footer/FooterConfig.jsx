@@ -7,10 +7,6 @@ import { useState, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { SANS, SERIF, LAYOUT_OPTIONS, DEFAULT_FOOTER_CONFIG } from "./footerUtils.js";
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
 
 // ── Collapsible section wrapper ────────────────────────────────────────────
 function Section({ title, defaultOpen = false, children, C }) {

@@ -11,10 +11,6 @@ import {
   getLiveUrl,
 } from "./menuUtils.js";
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
 
 // ── Panel renderer (shared for desktop + mobile) ──────────────────────────
 function NavPanel({ item, subcatCache, G, SERIF_F = SERIF }) {

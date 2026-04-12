@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useEffect, useRef } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../../lib/supabaseClient";
 
 import { SANS, SERIF, buildTree, DEFAULT_NAV_CONFIG } from "./menu/menuUtils.js";
 import MenuTreePanel   from "./menu/MenuTreePanel.jsx";
@@ -13,10 +13,6 @@ import MenuNavConfig   from "./menu/MenuNavConfig.jsx";
 import MenuCanvas      from "./menu/MenuCanvas.jsx";
 import MenuBranding    from "./menu/MenuBranding.jsx";
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
 
 // ── Toast ──────────────────────────────────────────────────────────────────
 function Toast({ msg, type, onDone }) {
