@@ -4,6 +4,7 @@
 // Data-driven: one template, many region×category combos.
 // Phase 1: adopts useDirectoryState + transformListing (shared platform logic).
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { Helmet } from "react-helmet-async";
 import { ThemeCtx, useTheme } from "../theme/ThemeContext";
 import { getDarkPalette, getLightPalette, DARK_C } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
@@ -526,9 +527,77 @@ export default function RegionCategoryPage({
   // ── Canonical path for SEO panel ──────────────────────────────────────────
   const canonicalPath = getRegionCategoryPath(countrySlug, regionSlug, categorySlug);
 
+  // ── SEO Metadata ───────────────────────────────────────────────────────────
+  const canonicalUrl = `https://luxuryweddingdirectory.com${canonicalPath}`;
+  const pageTitle = `${categoryLabel}${regionName ? ` in ${regionName}` : ""}`;
+  const metaDescription = editorial?.split(".")[0] + "." || `Discover the finest ${categoryLabel.toLowerCase()}${regionName ? ` in ${regionName}` : ""}. Personally verified by our editorial team.`;
+
+  // ── Breadcrumb schema ───────────────────────────────────────────────────────
+  const breadcrumbItems = useMemo(() => {
+    const items = [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://luxuryweddingdirectory.com/"
+      }
+    ];
+    let position = 2;
+
+    // Add country (if present)
+    if (countrySlug && country) {
+      items.push({
+        "@type": "ListItem",
+        "position": position,
+        "name": country.name,
+        "item": `https://luxuryweddingdirectory.com/${countrySlug}`
+      });
+      position++;
+    }
+
+    // Add region (if present and different from country)
+    if (regionSlug && region && regionName !== countryName) {
+      items.push({
+        "@type": "ListItem",
+        "position": position,
+        "name": regionName,
+        "item": `https://luxuryweddingdirectory.com/${countrySlug}/${regionSlug}`
+      });
+      position++;
+    }
+
+    // Add category (current page)
+    items.push({
+      "@type": "ListItem",
+      "position": position,
+      "name": categoryLabel,
+      "item": canonicalUrl
+    });
+
+    return items;
+  }, [countrySlug, regionSlug, country, region, regionName, countryName, categoryLabel, canonicalUrl]);
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <ThemeCtx.Provider value={C}>
+    <>
+      <Helmet>
+        <title>{pageTitle} | Luxury Wedding Directory</title>
+        <meta name="description" content={metaDescription} />
+        <link rel="canonical" href={canonicalUrl} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={metaDescription} />
+        <meta property="og:image" content={heroImg} />
+        <meta property="og:url" content={canonicalUrl} />
+        <meta property="og:type" content="website" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": breadcrumbItems
+          })}
+        </script>
+      </Helmet>
+      <ThemeCtx.Provider value={C}>
       <div style={{ background: C.black, minHeight: "100vh", color: C.white }}>
 
         {/* ════════════════════════════════════════════════════════════════════
@@ -1833,7 +1902,8 @@ export default function RegionCategoryPage({
           onViewRegionCategory={onViewRegionCategory}
         />
       </div>
-    </ThemeCtx.Provider>
+      </ThemeCtx.Provider>
+    </>
   );
 }
 

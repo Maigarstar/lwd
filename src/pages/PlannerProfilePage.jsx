@@ -3,6 +3,7 @@
 // Matches VendorProfileTemplate structure but with modern architecture
 // ──────────────────────────────────────────────────────────────────────────────
 import { useMemo, useState, useEffect } from "react";
+import { Helmet } from "react-helmet-async";
 import ProfileTemplateBase from "../components/profile/ProfileTemplateBase";
 import { useIsMobile } from "../components/profile/ProfileDesignSystem";
 import CatNav from "../components/nav/CatNav";
@@ -141,33 +142,146 @@ export default function PlannerProfilePage({
     return <div style={{ padding: "40px", textAlign: "center" }}>Planner not found</div>;
   }
 
+  // SEO metadata
+  const canonicalUrl = useMemo(() => {
+    if (!planner) return undefined;
+    const slug = planner.slug || planner.id;
+    let url = "https://luxuryweddingdirectory.com";
+    if (countrySlug && regionSlug) {
+      url += `/${countrySlug}/${regionSlug}/wedding-planners/${slug}`;
+    } else if (countrySlug) {
+      url += `/${countrySlug}/wedding-planners/${slug}`;
+    } else {
+      url += `/wedding-planners/${slug}`;
+    }
+    return url;
+  }, [planner, countrySlug, regionSlug]);
+
+  const pageTitle = planner
+    ? `${planner.name} – Wedding Planner${planner.region ? ` in ${planner.region}` : ""}`
+    : "Wedding Planner";
+
+  const metaDescription = planner
+    ? planner.desc || `Discover ${planner.name}, a luxury wedding planner${planner.region ? ` in ${planner.region}` : ""}. Highly rated and personally verified by LWD.`
+    : "Luxury wedding planner verified by Luxury Wedding Directory";
+
+  const ogImage = planner && planner.imgs && planner.imgs[0]
+    ? planner.imgs[0]
+    : "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&h=630&q=80";
+
+  // ── Breadcrumb schema ───────────────────────────────────────────────────────
+  const breadcrumbItems = useMemo(() => {
+    const items = [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://luxuryweddingdirectory.com/"
+      }
+    ];
+    let position = 2;
+
+    // Add country (if present)
+    if (countrySlug) {
+      items.push({
+        "@type": "ListItem",
+        "position": position,
+        "name": countrySlug.charAt(0).toUpperCase() + countrySlug.slice(1),
+        "item": `https://luxuryweddingdirectory.com/${countrySlug}`
+      });
+      position++;
+    }
+
+    // Add region (if present)
+    if (regionSlug && countrySlug && regionSlug !== countrySlug) {
+      const regionName = regionSlug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+      items.push({
+        "@type": "ListItem",
+        "position": position,
+        "name": regionName,
+        "item": `https://luxuryweddingdirectory.com/${countrySlug}/${regionSlug}`
+      });
+      position++;
+    }
+
+    // Add category (wedding-planners)
+    items.push({
+      "@type": "ListItem",
+      "position": position,
+      "name": "Wedding Planners",
+      "item": canonicalUrl
+        ? canonicalUrl.split("/").slice(0, -1).join("/")
+        : "https://luxuryweddingdirectory.com/wedding-planners"
+    });
+    position++;
+
+    // Add current planner (current page)
+    if (planner && planner.name) {
+      items.push({
+        "@type": "ListItem",
+        "position": position,
+        "name": planner.name,
+        "item": canonicalUrl || "https://luxuryweddingdirectory.com/wedding-planners"
+      });
+    }
+
+    return items;
+  }, [countrySlug, regionSlug, planner, canonicalUrl]);
+
   return (
-    <ProfileTemplateBase
-      entity={planner}
-      entityType="planner"
-      hideAtAGlance={true}
-      onEnquire={onOpenChat}
-      header={
-        <CatNav
-          onBack={onBack}
-          scrolled={scrolled}
-          darkMode={false}
-          onToggleDark={() => {}}
-        />
-      }
-      sidebar={
-        <VendorSidebar
-          vendor={planner}
-          vendorType="planner"
-          C={C}
-          onChat={onOpenChat}
-          onSave={onSave}
-          isSaved={isSaved}
-        />
-      }
-      mobileBar={
-        <VendorMobileBar vendor={planner} C={C} />
-      }
-    />
+    <>
+      <Helmet>
+        <title>{pageTitle} | Luxury Wedding Directory</title>
+        <meta name="description" content={metaDescription} />
+        {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={metaDescription} />
+        <meta property="og:image" content={ogImage} />
+        {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+        <meta property="og:type" content="website" />
+        {planner && (
+          <>
+            <meta name="twitter:card" content="summary_large_image" />
+            <meta name="twitter:title" content={pageTitle} />
+            <meta name="twitter:description" content={metaDescription} />
+            <meta name="twitter:image" content={ogImage} />
+          </>
+        )}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": breadcrumbItems
+          })}
+        </script>
+      </Helmet>
+      <ProfileTemplateBase
+        entity={planner}
+        entityType="planner"
+        hideAtAGlance={true}
+        onEnquire={onOpenChat}
+        header={
+          <CatNav
+            onBack={onBack}
+            scrolled={scrolled}
+            darkMode={false}
+            onToggleDark={() => {}}
+          />
+        }
+        sidebar={
+          <VendorSidebar
+            vendor={planner}
+            vendorType="planner"
+            C={C}
+            onChat={onOpenChat}
+            onSave={onSave}
+            isSaved={isSaved}
+          />
+        }
+        mobileBar={
+          <VendorMobileBar vendor={planner} C={C} />
+        }
+      />
+    </>
   );
 }

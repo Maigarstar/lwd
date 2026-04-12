@@ -11,9 +11,32 @@ const SITE_URL = "https://www.luxuryweddingdirectory.co.uk";
 
 // Static public pages - highest priority
 const STATIC_PAGES = [
-  { url: "/",           changefreq: "daily",   priority: "1.0" },
-  { url: "/planners",   changefreq: "weekly",  priority: "0.8" },
-  { url: "/magazine",   changefreq: "weekly",  priority: "0.8" },
+  { url: "/",                                    changefreq: "daily",   priority: "1.0" },
+  { url: "/wedding-planners",                   changefreq: "weekly",  priority: "0.8" },
+  { url: "/magazine",                           changefreq: "weekly",  priority: "0.8" },
+];
+
+// Category pages for each country/region combo (planners + other categories)
+// NOTE: This is a curated list of high-value routes. For a complete list,
+// generate dynamically from your geo.js REGIONS and VENDOR_CATEGORIES data.
+const CATEGORY_PAGES = [
+  // Italy regions × wedding-planners
+  { url: "/italy/wedding-planners",             changefreq: "weekly",  priority: "0.8" },
+  { url: "/italy/tuscany/wedding-planners",     changefreq: "weekly",  priority: "0.8" },
+  { url: "/italy/sicily/wedding-planners",      changefreq: "weekly",  priority: "0.8" },
+  { url: "/italy/veneto/wedding-planners",      changefreq: "weekly",  priority: "0.8" },
+
+  // UK regions × wedding-planners (key regions only)
+  { url: "/england/wedding-planners",           changefreq: "weekly",  priority: "0.8" },
+  { url: "/england/london/wedding-planners",    changefreq: "weekly",  priority: "0.85" },
+
+  // France
+  { url: "/france/wedding-planners",            changefreq: "weekly",  priority: "0.8" },
+
+  // Venues (for completeness)
+  { url: "/wedding-venues",                     changefreq: "weekly",  priority: "0.8" },
+  { url: "/italy/wedding-venues",               changefreq: "weekly",  priority: "0.8" },
+  { url: "/italy/tuscany/wedding-venues",       changefreq: "weekly",  priority: "0.8" },
 ];
 
 function xmlEscape(str: string): string {
@@ -73,6 +96,11 @@ Deno.serve(async () => {
     const today = new Date().toISOString().split("T")[0];
     for (const p of STATIC_PAGES) {
       entries.push(urlEntry(`${SITE_URL}${p.url}`, today, p.changefreq, p.priority));
+    }
+
+    // Category pages (region × category combinations)
+    for (const c of CATEGORY_PAGES) {
+      entries.push(urlEntry(`${SITE_URL}${c.url}`, today, c.changefreq, c.priority));
     }
 
     // Live venue listings

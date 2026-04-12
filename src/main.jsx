@@ -440,6 +440,7 @@ function App() {
   const [activeLocationType, setActiveLocationType] = useState(initial.locationType || null);
   const [activeLocationSlug, setActiveLocationSlug] = useState(initial.locationSlug || null);
   const [magazineLight, setMagazineLight] = useState(true);
+  const [needsRedirect, setNeedsRedirect] = useState(initial.redirectToCanonical ? stateToPath(initial.page, initial) : null);
 
   // Ref: skip pushState when change came from popstate (back/forward)
   const skipPush = useRef(false);
@@ -487,6 +488,13 @@ function App() {
       window.history.pushState(null, "", path);
     }
   }, [page, activeCountrySlug, activeRegionSlug, activeCategorySlug, activePlannerSlug, activeWeddingSlug, activationToken, activeMagazineCategoryId, activeMagazineSlug, activeVenueSlug, activeVendorSlug, activeShowcaseSlug, activeEventSlug, activeLocationType, activeLocationSlug]);
+
+  // ── Redirect to canonical URL if needed ────────────────────────────────────
+  useEffect(() => {
+    if (needsRedirect && window.location.pathname !== needsRedirect) {
+      window.location.replace(needsRedirect);
+    }
+  }, [needsRedirect]);
 
   // ── Popstate: back / forward browser buttons ─────────────────────────────
   useEffect(() => {

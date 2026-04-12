@@ -1201,7 +1201,17 @@ export function getRegionPath(countrySlug, regionSlug) {
 }
 
 export function getRegionCategoryPath(countrySlug, regionSlug, categorySlug) {
-  return `/${countrySlug}/${regionSlug}/${categorySlug}`;
+  // Build path based on which slugs are present
+  // /{categorySlug}
+  // /{countrySlug}/{categorySlug}
+  // /{countrySlug}/{regionSlug}/{categorySlug}
+  if (countrySlug && regionSlug) {
+    return `/${countrySlug}/${regionSlug}/${categorySlug}`;
+  } else if (countrySlug) {
+    return `/${countrySlug}/${categorySlug}`;
+  } else {
+    return `/${categorySlug}`;
+  }
 }
 
 // ---------------------------------------------------------------------------
