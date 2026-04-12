@@ -1481,14 +1481,14 @@ export default function RegionCategoryPage({
                   {isVendor && viewMode === "grid" && (
                     <div style={{
                       display: "grid",
-                      gridTemplateColumns: isMobile ? "1fr" : vendorFilterConfig?.card === "PlannerCard" ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(340px, 1fr))",
-                      gap: isMobile ? (vendorFilterConfig?.card === "PlannerCard" ? 0 : 16) : 20,
-                      margin: isMobile && vendorFilterConfig?.card === "PlannerCard" ? "0 -16px" : undefined,
+                      gridTemplateColumns: isMobile ? "1fr" : vendorFilterConfig?.card === "PlannerCard" ? "repeat(auto-fill, minmax(416px, 1fr))" : "repeat(auto-fill, minmax(340px, 1fr))",
+                      gap: isMobile ? 16 : 20,
+                      margin: undefined,
                       opacity: isFilteringTransition ? 0.7 : 1,
                       transition: "opacity 0.15s ease",
                     }}>
                       {finalListings.map((v) => (
-                        <div key={v.id} style={{ height: isMobile && vendorFilterConfig?.card === "PlannerCard" ? undefined : 560, overflow: "hidden", borderRadius: isMobile && vendorFilterConfig?.card === "PlannerCard" ? 0 : "var(--lwd-radius-card, 8px)" }}>
+                        <div key={v.id} style={{ overflow: "hidden", borderRadius: "var(--lwd-radius-card, 8px)" }}>
                           {vendorFilterConfig?.card === "PlannerCard" ? (
                             <PlannerCard v={v} mode="grid" onView={() => onViewPlanner(v)} isMobile={isMobile} />
                           ) : (

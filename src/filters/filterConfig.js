@@ -39,10 +39,10 @@ export const CATEGORY_FILTERS = {
 
   "wedding-planners": {
     filters: [
-      { key: "region",    label: "Region",       type: "select", dataField: "regionSlug", navigates: true },
-      { key: "tier",      label: "Service Tier",  type: "select", dataField: "serviceTier" },
-      { key: "specialty", label: "Specialty",     type: "select", dataField: "specialties[]" },
-      { key: "budget",    label: "Budget",        type: "select", dataField: "priceLabel" },
+      { key: "region",    label: "Region",        type: "select", dataField: "regionSlug", navigates: true },
+      { key: "tier",      label: "Service Tier",   type: "select", dataField: "serviceTier", staticOptions: ["All", "Full Planning", "Partial Planning", "Day Coordination", "Design and Styling"] },
+      { key: "specialty", label: "Specialty",      type: "select", dataField: "specialties[]" },
+      { key: "budget",    label: "Budget",         type: "select", dataField: "priceLabel" },
     ],
     card: "PlannerCard",
   },
