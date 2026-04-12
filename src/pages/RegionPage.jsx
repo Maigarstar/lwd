@@ -1333,6 +1333,14 @@ export default function RegionPage({
             onViewFull={(v) => { setQvItem(null); onViewVenue(v); }}
           />
         )}
+
+        <ImmersiveSearch
+          isOpen={immersiveOpen}
+          onClose={() => setImmersiveOpen(false)}
+          onViewCategory={onViewCategory}
+          onViewRegionCategory={onViewRegionCategory}
+          onViewRegion={onViewRegion}
+        />
       </div>
   );
 }
@@ -2377,13 +2385,6 @@ function SEOPanel({ region, C }) {
         )}
       </div>
 
-      <ImmersiveSearch
-        isOpen={immersiveOpen}
-        onClose={() => setImmersiveOpen(false)}
-        onViewCategory={onViewCategory}
-        onViewRegionCategory={onViewRegionCategory}
-        onViewRegion={onViewRegion}
-      />
 
     </section>
   );
