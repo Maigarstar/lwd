@@ -196,6 +196,7 @@ export default function ImmersiveSearch({
   onViewRegionCategory,
   onViewRegion,
   onViewCategory,
+  initialLocation = null,  // { label, countrySlug, regionSlug } — pre-fills location + skips to step 1
 }) {
   const [mounted,       setMounted]       = useState(false); // controls CSS opacity
   const [step,          setStep]          = useState(0);     // 0 = location, 1 = category
@@ -234,10 +235,15 @@ export default function ImmersiveSearch({
   // ── Open / close lifecycle ────────────────────────────────────────────────
   useEffect(() => {
     if (isOpen) {
-      setStep(0);
       setStepIn(true);
-      setLocation(null);
       setQuery("");
+      if (initialLocation) {
+        setLocation(initialLocation);
+        setStep(1);
+      } else {
+        setStep(0);
+        setLocation(null);
+      }
       setSuggestions([]);
       setAuraMode(false);
       setAuraQuery("");

@@ -1340,6 +1340,7 @@ export default function RegionPage({
           onViewCategory={onViewCategory}
           onViewRegionCategory={onViewRegionCategory}
           onViewRegion={onViewRegion}
+          initialLocation={region ? { label: region.name, countrySlug: actualCountrySlug, regionSlug: region.slug } : null}
         />
       </div>
   );
