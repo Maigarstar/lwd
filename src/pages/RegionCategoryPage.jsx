@@ -844,7 +844,7 @@ export default function RegionCategoryPage({
 
             {/* AI Search trigger */}
             <button
-              onClick={() => setImmersiveOpen(true)}
+              onClick={() => window.dispatchEvent(new CustomEvent("lwd:openAura"))}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
