@@ -1027,34 +1027,34 @@ export default function RegionPage({
                     <p style={{ fontFamily: NU, fontSize: 15, color: C.grey, lineHeight: 1.9, fontWeight: 300, marginBottom: 0 }}>
                       {paras[0]}
                     </p>
-                    {!aboutExpanded && (
-                      <button
-                        onClick={() => setAboutExpanded(true)}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 8,
-                          marginTop: 18,
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          padding: 0,
-                        }}
-                      >
-                        <span style={{ fontFamily: NU, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: C.gold, fontWeight: 600 }}>
-                          Continue reading
-                        </span>
-                        <span style={{
-                          display: "inline-block",
-                          width: 0,
-                          height: 0,
-                          borderLeft: "4px solid transparent",
-                          borderRight: "4px solid transparent",
-                          borderTop: `5px solid ${C.gold}`,
-                          marginTop: 1,
-                        }} />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => setAboutExpanded(v => !v)}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        marginTop: 18,
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      <span style={{ fontFamily: NU, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: C.gold, fontWeight: 600 }}>
+                        {aboutExpanded ? "Close" : "Continue reading"}
+                      </span>
+                      <span style={{
+                        display: "inline-block",
+                        width: 0,
+                        height: 0,
+                        borderLeft: "4px solid transparent",
+                        borderRight: "4px solid transparent",
+                        ...(aboutExpanded
+                          ? { borderBottom: `5px solid ${C.gold}`, borderTop: "none", marginTop: -2 }
+                          : { borderTop: `5px solid ${C.gold}`, borderBottom: "none", marginTop: 1 }
+                        ),
+                      }} />
+                    </button>
                     {paras.slice(1).map((para, i) => (
                       <p
                         key={i}
