@@ -8,7 +8,7 @@ import { Helmet } from "react-helmet-async";
 import { ThemeCtx, useTheme } from "../theme/ThemeContext";
 import { getDarkPalette, getLightPalette, DARK_C } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
-
+import { getLocationSEOSync } from "../services/ai/aiLocationSEO";
 
 import {
   getRegionBySlug,
@@ -83,6 +83,76 @@ function buildImmersiveSummary(ref, categoryLabel, regionName, countryName) {
   if (parts.length <= 1) return null;
   const s = parts.join(" ");
   return s.charAt(0).toUpperCase() + s.slice(1) + ".";
+}
+
+// ── Generate nearby locations for internal linking clusters ─────────────────
+function generateNearbyLocations(countrySlug, regionSlug, categorySlug) {
+  // Map of countries → regions → nearby locations
+  const nearbyMap = {
+    italy: {
+      "amalfi-coast": [
+        { name: "Ravello", path: "/italy/amalfi-coast/ravello", type: "city" },
+        { name: "Positano", path: "/italy/amalfi-coast/positano", type: "city" },
+        { name: "Lake Como", path: "/italy/lake-como", type: "region" },
+        { name: "Tuscany", path: "/italy/tuscany", type: "region" },
+        { name: "Sicily", path: "/italy/sicily", type: "region" },
+      ],
+      "lake-como": [
+        { name: "Bellagio", path: "/italy/lake-como/bellagio", type: "city" },
+        { name: "Varenna", path: "/italy/lake-como/varenna", type: "city" },
+        { name: "Amalfi Coast", path: "/italy/amalfi-coast", type: "region" },
+        { name: "Tuscany", path: "/italy/tuscany", type: "region" },
+        { name: "Veneto", path: "/italy/veneto", type: "region" },
+      ],
+      "tuscany": [
+        { name: "Florence", path: "/italy/tuscany/florence", type: "city" },
+        { name: "Siena", path: "/italy/tuscany/siena", type: "city" },
+        { name: "Amalfi Coast", path: "/italy/amalfi-coast", type: "region" },
+        { name: "Lake Como", path: "/italy/lake-como", type: "region" },
+        { name: "Sicily", path: "/italy/sicily", type: "region" },
+      ],
+      "sicily": [
+        { name: "Palermo", path: "/italy/sicily/palermo", type: "city" },
+        { name: "Taormina", path: "/italy/sicily/taormina", type: "city" },
+        { name: "Amalfi Coast", path: "/italy/amalfi-coast", type: "region" },
+        { name: "Tuscany", path: "/italy/tuscany", type: "region" },
+        { name: "Lake Como", path: "/italy/lake-como", type: "region" },
+      ],
+      "veneto": [
+        { name: "Venice", path: "/italy/veneto/venice", type: "city" },
+        { name: "Lake Como", path: "/italy/lake-como", type: "region" },
+        { name: "Tuscany", path: "/italy/tuscany", type: "region" },
+      ],
+    },
+    // UK nearby locations
+    uk: {
+      "london": [
+        { name: "Cotswolds", path: "/uk/cotswolds", type: "region" },
+        { name: "Oxfordshire", path: "/uk/oxfordshire", type: "region" },
+      ],
+      "cotswolds": [
+        { name: "London", path: "/uk/london", type: "region" },
+        { name: "Oxfordshire", path: "/uk/oxfordshire", type: "region" },
+      ],
+    },
+    // France nearby locations
+    france: {
+      "paris": [
+        { name: "Loire Valley", path: "/france/loire-valley", type: "region" },
+        { name: "Provence", path: "/france/provence", type: "region" },
+      ],
+      "provence": [
+        { name: "Paris", path: "/france/paris", type: "region" },
+        { name: "Loire Valley", path: "/france/loire-valley", type: "region" },
+      ],
+    },
+  };
+
+  // Fallback: return empty array if no mapping exists
+  if (!countrySlug || !regionSlug) return [];
+  const countryNearby = nearbyMap[countrySlug];
+  if (!countryNearby) return [];
+  return countryNearby[regionSlug] || [];
 }
 
 // ── Font tokens ──────────────────────────────────────────────────────────────
@@ -527,10 +597,23 @@ export default function RegionCategoryPage({
   // ── Canonical path for SEO panel ──────────────────────────────────────────
   const canonicalPath = getRegionCategoryPath(countrySlug, regionSlug, categorySlug);
 
-  // ── SEO Metadata ───────────────────────────────────────────────────────────
+  // ── AI-DRIVEN SEO SYSTEM (synchronous, cached, zero render-blocking) ───────
+  // Generate SEO metadata, internal linking clusters, and varied content
+  const aiSEO = useMemo(() => {
+    return getLocationSEOSync({
+      locationName: regionName || countryName || "Wedding Destinations",
+      countryName: countryName || "Global",
+      regionType: regionSlug ? (regionSlug.includes("-") && countrySlug ? "region" : "city") : "country",
+      venueCount: listingCount,
+      locationDescription: editorial,
+      nearbyLocations: generateNearbyLocations(countrySlug, regionSlug, categorySlug),
+    });
+  }, [regionName, countryName, regionSlug, countrySlug, categorySlug, listingCount, editorial]);
+
+  // ── SEO Metadata (with fallback to AI-generated if needed) ────────────────
   const canonicalUrl = `https://luxuryweddingdirectory.com${canonicalPath}`;
-  const pageTitle = `${categoryLabel}${regionName ? ` in ${regionName}` : ""}`;
-  const metaDescription = editorial?.split(".")[0] + "." || `Discover the finest ${categoryLabel.toLowerCase()}${regionName ? ` in ${regionName}` : ""}. Personally verified by our editorial team.`;
+  const pageTitle = aiSEO?.title || `${categoryLabel}${regionName ? ` in ${regionName}` : ""}`;
+  const metaDescription = aiSEO?.description || (editorial?.split(".")[0] + "." || `Discover the finest ${categoryLabel.toLowerCase()}${regionName ? ` in ${regionName}` : ""}. Personally verified by our editorial team.`);
 
   // ── Breadcrumb schema ───────────────────────────────────────────────────────
   const breadcrumbItems = useMemo(() => {
@@ -589,13 +672,27 @@ export default function RegionCategoryPage({
         <meta property="og:image" content={heroImg} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
-        <script type="application/ld+json">
-          {JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            "itemListElement": breadcrumbItems
-          })}
-        </script>
+
+        {/* BreadcrumbList Schema — from AI SEO system */}
+        {aiSEO?.schemas?.breadcrumbList && (
+          <script type="application/ld+json">
+            {JSON.stringify(aiSEO.schemas.breadcrumbList)}
+          </script>
+        )}
+
+        {/* Place Schema — from AI SEO system */}
+        {aiSEO?.schemas?.place && (
+          <script type="application/ld+json">
+            {JSON.stringify(aiSEO.schemas.place)}
+          </script>
+        )}
+
+        {/* FAQ Schema — from AI SEO system */}
+        {aiSEO?.schemas?.faqPage && (
+          <script type="application/ld+json">
+            {JSON.stringify(aiSEO.schemas.faqPage)}
+          </script>
+        )}
       </Helmet>
       <ThemeCtx.Provider value={C}>
       <div style={{ background: C.black, minHeight: "100vh", color: C.white }}>
@@ -901,6 +998,35 @@ export default function RegionCategoryPage({
 
 
         {/* ════════════════════════════════════════════════════════════════════
+            3. AI-GENERATED EDITORIAL INTRO (from aiSEO system)
+        ════════════════════════════════════════════════════════════════════ */}
+        {aiSEO?.meta?.shouldShowEditorialIntro && aiSEO?.intro && (
+          <section
+            className="lwd-rc-section"
+            aria-label="Location introduction"
+            style={{
+              background: darkMode ? "rgba(201,168,76,0.03)" : "#faf8f4",
+              padding: isMobile ? "40px 16px" : "48px 32px",
+              borderBottom: `1px solid ${C.border}`,
+            }}
+          >
+            <div style={{ maxWidth: 900, margin: "0 auto" }}>
+              <p
+                style={{
+                  fontFamily: NU,
+                  fontSize: isMobile ? 15 : 16,
+                  color: C.grey,
+                  lineHeight: 1.8,
+                  margin: 0,
+                }}
+              >
+                {aiSEO.intro}
+              </p>
+            </div>
+          </section>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
             4. EDITORIAL INTRO — PLANNERS PAGE PATTERN
         ════════════════════════════════════════════════════════════════════ */}
         <section
@@ -1013,6 +1139,206 @@ export default function RegionCategoryPage({
           >
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
               <RegionRealWeddings region={regionSlug} country={countrySlug} />
+            </div>
+          </section>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            5. AI-GENERATED H2 SECTIONS (varied content per location)
+        ════════════════════════════════════════════════════════════════════ */}
+        {aiSEO?.h2Sections && aiSEO.h2Sections.length > 0 && (
+          <section
+            className="lwd-rc-section"
+            style={{
+              background: darkMode ? C.dark : "#f2f0ea",
+              padding: isMobile ? "40px 16px" : "48px 32px",
+              borderTop: `1px solid ${C.border}`,
+            }}
+          >
+            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+              <div style={{ display: "grid", gap: 40 }}>
+                {aiSEO.h2Sections.map((heading, idx) => (
+                  <div key={idx}>
+                    <h2
+                      style={{
+                        fontFamily: GD,
+                        fontSize: isMobile ? 22 : 28,
+                        fontWeight: 400,
+                        color: C.white,
+                        lineHeight: 1.2,
+                        margin: "0 0 20px",
+                        letterSpacing: "-0.5px",
+                      }}
+                    >
+                      {heading}
+                    </h2>
+                    <p
+                      style={{
+                        fontFamily: NU,
+                        fontSize: 14,
+                        color: C.grey,
+                        lineHeight: 1.7,
+                        maxWidth: 800,
+                        margin: 0,
+                      }}
+                    >
+                      {`Content for ${heading} will be dynamically rendered based on section type.`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            5b. TRUST SECTION (AI-generated trust points)
+        ════════════════════════════════════════════════════════════════════ */}
+        {aiSEO?.trustPoints && aiSEO.trustPoints.length > 0 && (
+          <section
+            className="lwd-rc-section"
+            style={{
+              background: darkMode ? "rgba(201,168,76,0.04)" : "rgba(201,168,76,0.05)",
+              padding: isMobile ? "40px 16px" : "48px 32px",
+              borderTop: `1px solid ${C.border}`,
+            }}
+          >
+            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+              <h2
+                style={{
+                  fontFamily: GD,
+                  fontSize: isMobile ? 22 : 28,
+                  fontWeight: 400,
+                  color: C.white,
+                  lineHeight: 1.2,
+                  margin: "0 0 32px",
+                  letterSpacing: "-0.5px",
+                }}
+              >
+                Why Choose Our Collection
+              </h2>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
+                gap: 24,
+              }}>
+                {aiSEO.trustPoints.map((point, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      gap: 16,
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 24,
+                        color: C.gold,
+                        flexShrink: 0,
+                        lineHeight: 1,
+                      }}
+                    >
+                      ✓
+                    </div>
+                    <p
+                      style={{
+                        fontFamily: NU,
+                        fontSize: 14,
+                        color: C.grey,
+                        lineHeight: 1.7,
+                        margin: 0,
+                      }}
+                    >
+                      {point}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            6. INTERNAL LINKING CLUSTER (topical authority building)
+        ════════════════════════════════════════════════════════════════════ */}
+        {aiSEO?.internalLinkingCluster && aiSEO.internalLinkingCluster.length > 0 && (
+          <section
+            className="lwd-rc-section"
+            style={{
+              background: darkMode ? C.dark : "#f2f0ea",
+              padding: isMobile ? "40px 16px" : "48px 32px",
+              borderTop: `1px solid ${C.border}`,
+            }}
+          >
+            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+              <h2
+                style={{
+                  fontFamily: GD,
+                  fontSize: isMobile ? 22 : 28,
+                  fontWeight: 400,
+                  color: C.white,
+                  lineHeight: 1.2,
+                  margin: "0 0 32px",
+                  letterSpacing: "-0.5px",
+                }}
+              >
+                Explore Nearby Destinations
+              </h2>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(auto-fill, minmax(200px, 1fr))",
+                gap: isMobile ? 12 : 16,
+              }}>
+                {aiSEO.internalLinkingCluster.map((link) => (
+                  <a
+                    key={link.path}
+                    href={link.path}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                      padding: 16,
+                      background: C.card,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: "var(--lwd-radius-card)",
+                      textDecoration: "none",
+                      transition: "all 0.2s ease",
+                      cursor: "pointer",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = C.gold;
+                      e.currentTarget.style.background = darkMode ? "rgba(201,168,76,0.05)" : "rgba(201,168,76,0.02)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = C.border;
+                      e.currentTarget.style.background = C.card;
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: GD,
+                        fontSize: 16,
+                        fontWeight: 500,
+                        color: C.white,
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {link.name}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: NU,
+                        fontSize: 12,
+                        color: C.grey,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {link.anchorText}
+                    </div>
+                  </a>
+                ))}
+              </div>
             </div>
           </section>
         )}
@@ -1667,8 +1993,111 @@ export default function RegionCategoryPage({
           </section>
         )}
 
+        {/* ════════════════════════════════════════════════════════════════════
+            8. AI-GENERATED FAQ SECTION
+        ════════════════════════════════════════════════════════════════════ */}
+        {aiSEO?.faqs && aiSEO.faqs.length > 0 && (
+          <section
+            className="lwd-rc-section"
+            aria-label="Frequently asked questions"
+            style={{
+              background: darkMode ? C.dark : "#f2f0ea",
+              padding: isMobile ? "56px 16px" : "64px 32px",
+              borderTop: `1px solid ${C.border}`,
+            }}
+          >
+            <div style={{ maxWidth: 900, margin: "0 auto" }}>
+              <div style={{ textAlign: "center", marginBottom: 48 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
+                  <div style={{ width: 28, height: 1, background: C.gold }} />
+                  <span
+                    style={{
+                      fontFamily: NU,
+                      fontSize: 9,
+                      letterSpacing: "0.3em",
+                      textTransform: "uppercase",
+                      color: C.gold,
+                      fontWeight: 600,
+                    }}
+                  >
+                    Questions Answered
+                  </span>
+                  <div style={{ width: 28, height: 1, background: C.gold }} />
+                </div>
+                <h2
+                  style={{
+                    fontFamily: GD,
+                    fontSize: isMobile ? 24 : 32,
+                    fontWeight: 400,
+                    color: C.white,
+                    lineHeight: 1.2,
+                    margin: 0,
+                    letterSpacing: "-0.5px",
+                  }}
+                >
+                  Planning Your {regionName || "Destination"} Wedding
+                </h2>
+              </div>
 
-
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {aiSEO.faqs.map((faq, idx) => (
+                  <details
+                    key={idx}
+                    style={{
+                      background: C.card,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: "var(--lwd-radius-card)",
+                      padding: "20px",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    <summary
+                      style={{
+                        fontFamily: GD,
+                        fontSize: 16,
+                        fontWeight: 500,
+                        color: C.white,
+                        lineHeight: 1.4,
+                        cursor: "pointer",
+                        listStyle: "none",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 12,
+                      }}
+                    >
+                      <span
+                        style={{
+                          flexShrink: 0,
+                          fontSize: 18,
+                          color: C.gold,
+                          lineHeight: 1,
+                          marginTop: 2,
+                        }}
+                      >
+                        +
+                      </span>
+                      <span>{faq.q}</span>
+                    </summary>
+                    <p
+                      style={{
+                        fontFamily: NU,
+                        fontSize: 14,
+                        color: C.grey,
+                        lineHeight: 1.7,
+                        margin: "16px 0 0 30px",
+                        paddingTop: 16,
+                        borderTop: `1px solid ${C.border}`,
+                      }}
+                    >
+                      {faq.a}
+                    </p>
+                  </details>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
 
 
