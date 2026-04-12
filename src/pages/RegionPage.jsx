@@ -725,6 +725,8 @@ export default function RegionPage({
                 cursor: "pointer",
                 marginBottom: 28,
                 transition: "all 0.2s ease",
+                alignSelf: "flex-start",
+                width: "fit-content",
               }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.2)"; e.currentTarget.style.borderColor = "#C9A84C"; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.12)"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.38)"; }}
