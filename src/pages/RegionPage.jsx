@@ -813,46 +813,41 @@ export default function RegionPage({
         )}
 
         {/* ═══ AI COMMAND BAR + FILTER BAR ════════ */}
-        <div ref={filterBarRef} style={{
-          position:   "relative",
-          zIndex:     800,
-          marginTop:  0,
-        }}>
-          <AICommandBar
-            countrySlug={actualCountrySlug}
-            countryName={countryName}
-            regionSlug={regionSlug}
-            regionName={region?.name}
-            entityType="venue"
-            availableRegions={[]}
+        <AICommandBar
+          countrySlug={actualCountrySlug}
+          countryName={countryName}
+          regionSlug={regionSlug}
+          regionName={region?.name}
+          entityType="venue"
+          availableRegions={[]}
+          filters={filters}
+          onFiltersChange={handleFiltersChange}
+          defaultFilters={DEFAULT_FILTERS}
+        />
+        <CountrySearchBar
+          ref={filterBarRef}
+          filters={filters}
+          onFiltersChange={handleFiltersChange}
+          viewMode={viewMode}
+          onViewMode={setViewMode}
+          sortMode={sortMode}
+          onSortChange={setSortMode}
+          total={filteredRegionVenues.length}
+          regions={[{ name: region.name, slug: region.slug }]}
+          countryFilter={country?.name}
+          mapOn={mapOn}
+          onToggleMap={toggleMap}
+          mode={listingMode}
+          onModeChange={setListingMode}
+        />
+        {!mapOn && (
+          <InfoStrip
+            availableRegions={cities.map((c) => ({ name: c.name, slug: c.slug }))}
             filters={filters}
             onFiltersChange={handleFiltersChange}
             defaultFilters={DEFAULT_FILTERS}
           />
-          <CountrySearchBar
-            filters={filters}
-            onFiltersChange={handleFiltersChange}
-            viewMode={viewMode}
-            onViewMode={setViewMode}
-            sortMode={sortMode}
-            onSortChange={setSortMode}
-            total={filteredRegionVenues.length}
-            regions={[{ name: region.name, slug: region.slug }]}
-            countryFilter={country?.name}
-            mapOn={mapOn}
-            onToggleMap={toggleMap}
-            mode={listingMode}
-            onModeChange={setListingMode}
-          />
-          {!mapOn && (
-            <InfoStrip
-              availableRegions={cities.map((c) => ({ name: c.name, slug: c.slug }))}
-              filters={filters}
-              onFiltersChange={handleFiltersChange}
-              defaultFilters={DEFAULT_FILTERS}
-            />
-          )}
-        </div>
+        )}
 
         {/* ── EXPLORE LAYOUT — map on · desktop ─────────────────────────────── */}
         {mapOn && !isMobile && (() => {

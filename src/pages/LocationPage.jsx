@@ -1181,12 +1181,7 @@ export default function LocationPage({
         />
 
         {/* ═══ STICKY FILTER BAR ════════ */}
-        <div ref={filterBarRef} style={{
-          position:   "relative",
-          zIndex:     690,
-          marginTop:  0,
-        }}>
-          <CountrySearchBar
+        <CountrySearchBar
             filters={filters}
             onFiltersChange={setFilters}
             viewMode={viewMode}
@@ -1548,7 +1543,6 @@ export default function LocationPage({
         />
 
         </>)}
-        </div>
         {/* Quick View Modal */}
         {qvItem && (
           <QuickViewModal
