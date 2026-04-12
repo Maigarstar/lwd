@@ -1171,7 +1171,7 @@ export default function RegionPage({
                     fontWeight: 600,
                   }}
                 >
-                  {pageConfig?.about?.title || `About ${region.name}`}
+                  {pageConfig?.about?.title || `${region.name} Weddings`}
                 </span>
                 <div style={{ width: 28, height: 1, background: C.gold }} />
               </div>
