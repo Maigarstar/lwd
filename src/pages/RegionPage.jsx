@@ -86,6 +86,7 @@ export default function RegionPage({
   const [qvItem, setQvItem] = useState(null);
   const [visibleCities, setVisibleCities] = useState(4);
   const [visibleRelated, setVisibleRelated] = useState(4);
+  const [aboutExpanded, setAboutExpanded] = useState(false);
   const [venueViewMode, setVenueViewMode] = useState("grid"); // grid, list — kept for legacy compat
   const [listingMode, setListingMode] = useState("venues"); // "venues" | "vendors"
   const {
@@ -1019,21 +1020,64 @@ export default function RegionPage({
                 </span>
                 <div style={{ width: 28, height: 1, background: C.gold }} />
               </div>
-              {(pageConfig?.about?.content || introEditorial).split("\n\n").map((para, i) => (
-                <p
-                  key={i}
-                  style={{
-                    fontFamily: NU,
-                    fontSize: 15,
-                    color: C.grey,
-                    lineHeight: 1.9,
-                    fontWeight: 300,
-                    marginBottom: i < (pageConfig?.about?.content || introEditorial).split("\n\n").length - 1 ? 16 : 0,
-                  }}
-                >
-                  {para}
-                </p>
-              ))}
+              {(() => {
+                const paras = (pageConfig?.about?.content || introEditorial).split("\n\n");
+                return (
+                  <>
+                    <p style={{ fontFamily: NU, fontSize: 15, color: C.grey, lineHeight: 1.9, fontWeight: 300, marginBottom: 0 }}>
+                      {paras[0]}
+                    </p>
+                    {!aboutExpanded && (
+                      <button
+                        onClick={() => setAboutExpanded(true)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                          marginTop: 18,
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: 0,
+                        }}
+                      >
+                        <span style={{ fontFamily: NU, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: C.gold, fontWeight: 600 }}>
+                          Continue reading
+                        </span>
+                        <span style={{
+                          display: "inline-block",
+                          width: 0,
+                          height: 0,
+                          borderLeft: "4px solid transparent",
+                          borderRight: "4px solid transparent",
+                          borderTop: `5px solid ${C.gold}`,
+                          marginTop: 1,
+                        }} />
+                      </button>
+                    )}
+                    {paras.slice(1).map((para, i) => (
+                      <p
+                        key={i}
+                        style={{
+                          fontFamily: NU,
+                          fontSize: 15,
+                          color: C.grey,
+                          lineHeight: 1.9,
+                          fontWeight: 300,
+                          marginTop: 16,
+                          marginBottom: 0,
+                          maxHeight: aboutExpanded ? 600 : 0,
+                          overflow: "hidden",
+                          opacity: aboutExpanded ? 1 : 0,
+                          transition: "max-height 0.6s ease, opacity 0.5s ease",
+                        }}
+                      >
+                        {para}
+                      </p>
+                    ))}
+                  </>
+                );
+              })()}
             </div>
           </section>
         )}
