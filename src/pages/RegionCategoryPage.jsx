@@ -447,7 +447,7 @@ export default function RegionCategoryPage({
   }, [isVendor, vendorFilterConfig, listings, allCountryRegions]);
 
   // ── Phase B: Should we hide the vendor filter bar? ──────────────────────────
-  const hideVendorFilterBar = isVendor && listings.length < 3;
+  const hideVendorFilterBar = false; // Always show filter bar
 
   // ── Region navigation: selecting a region in vendor filter → URL change ────
   const handleVendorRegionNavigate = useCallback((regionName) => {
@@ -1013,13 +1013,13 @@ export default function RegionCategoryPage({
               maxWidth: 1200,
               margin: "0 auto",
               display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : "1fr 360px",
+              gridTemplateColumns: "1fr",
               gap: isMobile ? 28 : 48,
               alignItems: "start",
             }}
           >
             {/* LEFT: Editorial Copy */}
-            <div>
+            <div style={{ textAlign: "center" }}>
               <div
                 style={{
                   fontFamily: NU,
@@ -1043,55 +1043,40 @@ export default function RegionCategoryPage({
                   margin: "0 0 20px",
                 }}
               >
-                {categoryLabel}{regionName ? ` in ${regionName}` : ""}
+                {regionName} Weddings
               </h2>
+
+              {/* UNIFIED AURA BRIDGE COPY */}
               <p
                 style={{
                   fontFamily: NU,
-                  fontSize: 14,
-                  color: C.grey,
-                  lineHeight: 1.7,
+                  fontSize: 16,
+                  color: darkMode ? "rgba(255,255,255,0.85)" : "#1a1a1a",
+                  lineHeight: 1.75,
                   margin: "0 0 16px",
                   maxWidth: 600,
+                  marginLeft: "auto",
+                  marginRight: "auto",
                 }}
               >
-                {editorial}
+                {regionName} has long been one of the world's most sought-after settings for destination weddings, where dramatic landscapes, timeless architecture, and unparalleled beauty create an atmosphere unlike anywhere else.
+              </p>
+
+              <p
+                style={{
+                  fontFamily: NU,
+                  fontSize: 16,
+                  color: darkMode ? "rgba(255,255,255,0.85)" : "#1a1a1a",
+                  lineHeight: 1.75,
+                  margin: "0",
+                  maxWidth: 600,
+                  marginLeft: "auto",
+                  marginRight: "auto",
+                }}
+              >
+                Rather than sorting through endless options, begin with your vision. Describe the kind of celebration you imagine, and we'll guide you to the places that match it—from seaside estates to hidden gardens to timeless villas.
               </p>
             </div>
-
-            {/* RIGHT: Trust Cards (for wedding-venues only) */}
-            {categorySlug === "wedding-venues" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {[
-                  { icon: "✦", title: "Personally Verified", desc: "Every venue hand-selected by our editorial team" },
-                  { icon: "◈", title: "No Pay-to-Play", desc: "Ranked by quality and couple reviews" },
-                  { icon: "✓", title: "Authentic Photos", desc: "Real weddings, real venues, no stock images" },
-                ].map((t) => (
-                  <div
-                    key={t.title}
-                    style={{
-                      background: C.card,
-                      border: `1px solid ${C.border}`,
-                      borderRadius: "var(--lwd-radius-card)",
-                      padding: "16px 18px",
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 14,
-                    }}
-                  >
-                    <span style={{ fontSize: 18, color: C.gold, flexShrink: 0, marginTop: 1 }}>{t.icon}</span>
-                    <div>
-                      <div style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, color: C.white, marginBottom: 3 }}>
-                        {t.title}
-                      </div>
-                      <div style={{ fontFamily: NU, fontSize: 12, color: C.grey, lineHeight: 1.5 }}>
-                        {t.desc}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </section>
 
@@ -1355,71 +1340,163 @@ export default function RegionCategoryPage({
             )}
 
             {/* ═══ AI COMMAND BAR + FILTER BAR — same as RegionPage ═══ */}
-            <AICommandBar
-              countrySlug={countrySlug}
-              countryName={countryName}
-              regionSlug={regionSlug}
-              regionName={regionName}
-              categorySlug={categorySlug}
-              entityType={isVenue ? "venue" : "vendor"}
-              availableRegions={(vendorFilterOptions.region || []).map(l => ({ name: l, slug: l.toLowerCase().replace(/\s+/g, "-") }))}
-              filters={vendorFilters}
-              onFiltersChange={handleVenueFiltersChange}
-              defaultFilters={buildInitialFilters(vendorFilterConfig, initialRegionName)}
-              onSummary={(s) => { setAuraSummary(s || null); setSummaryDismissed(false); }}
-              onClearSummary={() => { setAuraSummary(null); setAuraMapFilter(null); setAuraCrossNav(null); }}
-              onCategoryIntent={(cat) => {
-                if (!cat) { setAuraMapFilter(null); setAuraCrossNav(null); return; }
-                if (cat !== categorySlug) {
-                  // Cross-category intent — suggest navigation, don't filter current page
-                  const CAT_LABELS = {
-                    "wedding-venues":   "Wedding Venues",
-                    "photographers":    "Photographers",
-                    "wedding-planners": "Wedding Planners",
-                    "florists":         "Florists",
-                    "videographers":    "Videographers",
-                    "caterers":         "Caterers",
-                    "musicians":        "Musicians",
-                    "hair-beauty":      "Hair & Beauty",
-                  };
-                  const label = CAT_LABELS[cat] || cat;
-                  const url   = getRegionCategoryPath(countrySlug, regionSlug || "all", cat);
-                  setAuraCrossNav({ label, url, region: regionName || countryName });
-                  setAuraMapFilter(null);
-                } else {
-                  // Same-category — treat as filter intent
-                  setAuraMapFilter(cat);
-                  setAuraCrossNav(null);
-                }
+            <section
+              className="lwd-rc-section"
+              style={{
+                background: darkMode ? C.dark : "#f2f0ea",
+                borderBottom: `1px solid ${C.border}`,
               }}
-              onMapIntent={(open) => {
-                if (open && !mapOn && !isMobile) {
-                  setMapOn(true);
-                }
+            >
+              <AICommandBar
+                countrySlug={countrySlug}
+                countryName={countryName}
+                regionSlug={regionSlug}
+                regionName={regionName}
+                categorySlug={categorySlug}
+                entityType={isVenue ? "venue" : "vendor"}
+                availableRegions={(vendorFilterOptions.region || []).map(l => ({ name: l, slug: l.toLowerCase().replace(/\s+/g, "-") }))}
+                filters={vendorFilters}
+                onFiltersChange={handleVenueFiltersChange}
+                defaultFilters={buildInitialFilters(vendorFilterConfig, initialRegionName)}
+                onSummary={(s) => { setAuraSummary(s || null); setSummaryDismissed(false); }}
+                onClearSummary={() => { setAuraSummary(null); setAuraMapFilter(null); setAuraCrossNav(null); }}
+                onCategoryIntent={(cat) => {
+                  if (!cat) { setAuraMapFilter(null); setAuraCrossNav(null); return; }
+                  if (cat !== categorySlug) {
+                    // Cross-category intent — suggest navigation, don't filter current page
+                    const CAT_LABELS = {
+                      "wedding-venues":   "Wedding Venues",
+                      "photographers":    "Photographers",
+                      "wedding-planners": "Wedding Planners",
+                      "florists":         "Florists",
+                      "videographers":    "Videographers",
+                      "caterers":         "Caterers",
+                      "musicians":        "Musicians",
+                      "hair-beauty":      "Hair & Beauty",
+                    };
+                    const label = CAT_LABELS[cat] || cat;
+                    const url   = getRegionCategoryPath(countrySlug, regionSlug || "all", cat);
+                    setAuraCrossNav({ label, url, region: regionName || countryName });
+                    setAuraMapFilter(null);
+                  } else {
+                    // Same-category — treat as filter intent
+                    setAuraMapFilter(cat);
+                    setAuraCrossNav(null);
+                  }
+                }}
+                onMapIntent={(open) => {
+                  if (open && !mapOn && !isMobile) {
+                    setMapOn(true);
+                  }
+                }}
+              />
+              <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "0 20px" : "0 48px" }}>
+                <CountrySearchBar
+                  filters={vendorFilters}
+                  onFiltersChange={handleVenueFiltersChange}
+                  viewMode={viewMode}
+                  onViewMode={handleViewMode}
+                  sortMode={vendorFilters.sort || "recommended"}
+                  onSortChange={(s) => setVendorFilters(prev => ({ ...prev, sort: s }))}
+                  total={listingCount}
+                  regions={[{ name: regionName, slug: regionSlug }]}
+                  countryFilter={countryName}
+                  mapOn={mapOn}
+                  onToggleMap={handleToggleMap}
+                  mode="vendor-dynamic"
+                  onRegionNavigate={handleVendorRegionNavigate}
+                  // Dynamic vendor filter props
+                  vendorFilters={vendorFilters}
+                  onVendorFiltersChange={setVendorFilters}
+                  vendorFilterConfig={vendorFilterConfig}
+                  vendorFilterOptions={vendorFilterOptions}
+                  vendorCategoryLabel={categoryLabel}
+                  hideVendorFilterBar={hideVendorFilterBar}
+                />
+              </div>
+            </section>
+
+            {/* ════════════════════════════════════════════════════════════════════
+                7. EDITORIAL SECTION — After Filter Bar (Unified Aura Bridge)
+            ════════════════════════════════════════════════════════════════════ */}
+            <section
+              className="lwd-rc-section"
+              style={{
+                background: darkMode ? C.black : "#f2f0ea",
+                padding: isMobile ? "40px 16px 48px" : "56px 32px 64px",
               }}
-            />
-            <CountrySearchBar
-              filters={vendorFilters}
-              onFiltersChange={handleVenueFiltersChange}
-              viewMode={viewMode}
-              onViewMode={handleViewMode}
-              sortMode={vendorFilters.sort || "recommended"}
-              onSortChange={(s) => setVendorFilters(prev => ({ ...prev, sort: s }))}
-              total={listingCount}
-              regions={[{ name: regionName, slug: regionSlug }]}
-              countryFilter={countryName}
-              mapOn={mapOn}
-              onToggleMap={handleToggleMap}
-              mode="vendor-dynamic"
-              onRegionNavigate={handleVendorRegionNavigate}
-              // Dynamic vendor filter props
-              vendorFilters={vendorFilters}
-              onVendorFiltersChange={setVendorFilters}
-              vendorFilterConfig={vendorFilterConfig}
-              vendorFilterOptions={vendorFilterOptions}
-              vendorCategoryLabel={categoryLabel}
-              hideVendorFilterBar={hideVendorFilterBar}
-            />
+            >
+              <div
+                style={{
+                  maxWidth: 1200,
+                  margin: "0 auto",
+                  display: "grid",
+                  gridTemplateColumns: "1fr",
+                  gap: isMobile ? 28 : 48,
+                  alignItems: "start",
+                }}
+              >
+                {/* Editorial Copy */}
+                <div style={{ textAlign: "center" }}>
+                  <div
+                    style={{
+                      fontFamily: NU,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      letterSpacing: "2.5px",
+                      textTransform: "uppercase",
+                      color: C.gold,
+                      marginBottom: 12,
+                    }}
+                  >
+                    Editorial {categorySlug === "wedding-venues" ? "Guide" : ""}
+                  </div>
+                  <h2
+                    style={{
+                      fontFamily: GD,
+                      fontSize: 32,
+                      fontWeight: 400,
+                      color: C.white,
+                      lineHeight: 1.2,
+                      margin: "0 0 20px",
+                    }}
+                  >
+                    {regionName} Weddings
+                  </h2>
+
+                  {/* UNIFIED AURA BRIDGE COPY */}
+                  <p
+                    style={{
+                      fontFamily: GD,
+                      fontSize: 16,
+                      color: darkMode ? "rgba(255,255,255,0.85)" : "#1a1a1a",
+                      lineHeight: 1.75,
+                      margin: "0 0 16px",
+                      maxWidth: 600,
+                      marginLeft: "auto",
+                      marginRight: "auto",
+                    }}
+                  >
+                    {regionName} has long been one of the world's most sought-after settings for destination weddings, where dramatic landscapes, timeless architecture, and unparalleled beauty create an atmosphere unlike anywhere else.
+                  </p>
+
+                  <p
+                    style={{
+                      fontFamily: GD,
+                      fontSize: 16,
+                      color: darkMode ? "rgba(255,255,255,0.85)" : "#1a1a1a",
+                      lineHeight: 1.75,
+                      margin: "0",
+                      maxWidth: 600,
+                      marginLeft: "auto",
+                      marginRight: "auto",
+                    }}
+                  >
+                    Rather than sorting through endless options, begin with your vision. Describe the kind of celebration you imagine, and we'll guide you to the places that match it—from seaside estates to hidden gardens to timeless villas.
+                  </p>
+                </div>
+              </div>
+            </section>
 
             {/* ════════════════════════════════════════════════════════════════════
                 8. LISTINGS — EXPLORE LAYOUT (map on · desktop) or NORMAL SECTION
@@ -1456,12 +1533,12 @@ export default function RegionCategoryPage({
                       darkMode={darkMode}
                     />
                   ) : viewMode === "grid" ? (
-                    /* Grid — 2-col (venues/planners) */
+                    /* Grid — 2-col when map on, 3-col when map off */
                     <div
                       className="lwd-venue-grid"
                       style={{
                         display:             "grid",
-                        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                        gridTemplateColumns: mapOn ? "repeat(2, minmax(0, 1fr))" : "repeat(3, minmax(0, 1fr))",
                         gap:                 20,
                       }}
                       aria-label={isVendor ? `${categoryLabel} grid` : "Venue grid"}
@@ -1850,113 +1927,6 @@ export default function RegionCategoryPage({
             </div>
           </section>
         )}
-
-        {/* ════════════════════════════════════════════════════════════════════
-            8. AI-GENERATED FAQ SECTION
-        ════════════════════════════════════════════════════════════════════ */}
-        {aiSEO?.faqs && aiSEO.faqs.length > 0 && (
-          <section
-            className="lwd-rc-section"
-            aria-label="Frequently asked questions"
-            style={{
-              background: darkMode ? C.dark : "#f2f0ea",
-              padding: isMobile ? "56px 16px" : "64px 32px",
-              borderTop: `1px solid ${C.border}`,
-            }}
-          >
-            <div style={{ maxWidth: 900, margin: "0 auto" }}>
-              <div style={{ textAlign: "center", marginBottom: 48 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
-                  <div style={{ width: 28, height: 1, background: C.gold }} />
-                  <span
-                    style={{
-                      fontFamily: NU,
-                      fontSize: 9,
-                      letterSpacing: "0.3em",
-                      textTransform: "uppercase",
-                      color: C.gold,
-                      fontWeight: 600,
-                    }}
-                  >
-                    Questions Answered
-                  </span>
-                  <div style={{ width: 28, height: 1, background: C.gold }} />
-                </div>
-                <h2
-                  style={{
-                    fontFamily: GD,
-                    fontSize: isMobile ? 24 : 32,
-                    fontWeight: 400,
-                    color: C.white,
-                    lineHeight: 1.2,
-                    margin: 0,
-                    letterSpacing: "-0.5px",
-                  }}
-                >
-                  Planning Your {regionName || "Destination"} Wedding
-                </h2>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {aiSEO.faqs.map((faq, idx) => (
-                  <details
-                    key={idx}
-                    style={{
-                      background: C.card,
-                      border: `1px solid ${C.border}`,
-                      borderRadius: "var(--lwd-radius-card)",
-                      padding: "20px",
-                      cursor: "pointer",
-                      transition: "all 0.2s ease",
-                    }}
-                  >
-                    <summary
-                      style={{
-                        fontFamily: GD,
-                        fontSize: 16,
-                        fontWeight: 500,
-                        color: C.white,
-                        lineHeight: 1.4,
-                        cursor: "pointer",
-                        listStyle: "none",
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 12,
-                      }}
-                    >
-                      <span
-                        style={{
-                          flexShrink: 0,
-                          fontSize: 18,
-                          color: C.gold,
-                          lineHeight: 1,
-                          marginTop: 2,
-                        }}
-                      >
-                        +
-                      </span>
-                      <span>{faq.q}</span>
-                    </summary>
-                    <p
-                      style={{
-                        fontFamily: NU,
-                        fontSize: 14,
-                        color: C.grey,
-                        lineHeight: 1.7,
-                        margin: "16px 0 0 30px",
-                        paddingTop: 16,
-                        borderTop: `1px solid ${C.border}`,
-                      }}
-                    >
-                      {faq.a}
-                    </p>
-                  </details>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
 
 
         {/* ════════════════════════════════════════════════════════════════════
