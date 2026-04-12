@@ -1477,7 +1477,22 @@ export default function RegionCategoryPage({
                       marginRight: "auto",
                     }}
                   >
-                    {regionName} has long been one of the world's most sought-after settings for destination weddings, where dramatic landscapes, timeless architecture, and unparalleled beauty create an atmosphere unlike anywhere else.
+                    {regionName} has long been one of the world's most captivating settings for destination weddings, where dramatic clifftop villas rise above turquoise waters and historic towns cascade down terraced hillsides. Here, centuries of Baroque architecture, lemon groves, and Mediterranean light create an atmosphere that feels both timeless and deeply romantic—a place where celebration becomes memory.
+                  </p>
+
+                  <p
+                    style={{
+                      fontFamily: GD,
+                      fontSize: 16,
+                      color: darkMode ? "rgba(255,255,255,0.85)" : "#1a1a1a",
+                      lineHeight: 1.75,
+                      margin: "0 0 16px",
+                      maxWidth: 1000,
+                      marginLeft: "auto",
+                      marginRight: "auto",
+                    }}
+                  >
+                    Unlike more crowded coastal destinations, {regionName} offers an authentic sense of place—where intimate ceremonies happen on private terraces overlooking the sea, receptions flow through candlelit gardens, and local craftsmanship shapes every detail. From legendary clifftop estates in Ravello to secluded villas in Positano and authentic seaside settings in Amalfi town, each venue carries its own character and story.
                   </p>
 
                   <p
@@ -1492,7 +1507,7 @@ export default function RegionCategoryPage({
                       marginRight: "auto",
                     }}
                   >
-                    Rather than sorting through endless options, begin with your vision. Describe the kind of celebration you imagine, and we'll guide you to the places that match it—from seaside estates to hidden gardens to timeless villas.
+                    Rather than sorting through endless options, begin with your vision. Describe the kind of celebration you imagine, and we'll guide you to the places that match it—from clifftop estates with panoramic views to hidden coastal retreats and timeless villas, each one carefully selected for its atmosphere, setting, and the experience it creates.
                   </p>
                 </div>
               </div>
