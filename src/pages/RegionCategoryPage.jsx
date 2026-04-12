@@ -1472,7 +1472,7 @@ export default function RegionCategoryPage({
                       color: darkMode ? "rgba(255,255,255,0.85)" : "#1a1a1a",
                       lineHeight: 1.75,
                       margin: "0 0 16px",
-                      maxWidth: 600,
+                      maxWidth: 850,
                       marginLeft: "auto",
                       marginRight: "auto",
                     }}
@@ -1487,7 +1487,7 @@ export default function RegionCategoryPage({
                       color: darkMode ? "rgba(255,255,255,0.85)" : "#1a1a1a",
                       lineHeight: 1.75,
                       margin: "0",
-                      maxWidth: 600,
+                      maxWidth: 850,
                       marginLeft: "auto",
                       marginRight: "auto",
                     }}
