@@ -8,6 +8,7 @@ import { LOCATIONS as GROUPED_LOCATIONS } from "../../data/globalVendors";
 import { NAV_H } from "../../theme/tokens";
 import { PLANNER_SERVICE_TIERS } from "../../data/vendors";
 import { track } from "../../utils/track";
+import { useBreakpoint } from "../../hooks/useWindowWidth";
 
 const NU = "var(--font-body)";
 const GD = "var(--font-heading-primary)";
@@ -226,6 +227,7 @@ export default function CountrySearchBar({
   const C = useTheme();
   const dark = C.black === "#080808";
   const CL = buildPalette(dark);
+  const { isMobile } = useBreakpoint();
 
   // mode is controlled by parent when modeProp is provided, otherwise local
   const [modeLocal, setModeLocal] = useState("venues");
@@ -455,8 +457,8 @@ export default function CountrySearchBar({
     >
       {/* ── Trigger row ── */}
       <div className="lwd-country-search-row" style={{
-        maxWidth: 1280, margin: "0 auto", padding: "0 48px",
-        display: "flex", alignItems: "center", gap: 12, height: 60,
+        maxWidth: 1280, margin: "0 auto", padding: isMobile ? "0 12px" : "0 48px",
+        display: "flex", alignItems: "center", gap: isMobile ? 8 : 12, height: 60,
         overflowX: "auto", WebkitOverflowScrolling: "touch",
       }}>
         {/* Mode toggle — hidden for single-category vendor pages */}
