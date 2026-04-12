@@ -2,7 +2,6 @@
 // County hub template — renders any region entity as a mini website.
 // Data-driven: one template, many counties.
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { createPortal } from "react-dom";
 import { useTheme } from "../theme/ThemeContext";
 import { DARK_C } from "../theme/tokens";
 import { useChat } from "../chat/ChatContext";
@@ -2378,16 +2377,13 @@ function SEOPanel({ region, C }) {
         )}
       </div>
 
-      {createPortal(
-        <ImmersiveSearch
-          isOpen={immersiveOpen}
-          onClose={() => setImmersiveOpen(false)}
-          onViewCategory={onViewCategory}
-          onViewRegionCategory={onViewRegionCategory}
-          onViewRegion={onViewRegion}
-        />,
-        document.body
-      )}
+      <ImmersiveSearch
+        isOpen={immersiveOpen}
+        onClose={() => setImmersiveOpen(false)}
+        onViewCategory={onViewCategory}
+        onViewRegionCategory={onViewRegionCategory}
+        onViewRegion={onViewRegion}
+      />
 
     </section>
   );
