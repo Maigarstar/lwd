@@ -705,6 +705,35 @@ export default function RegionPage({
               </p>
             )}
 
+            {/* Aura trigger */}
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("lwd:openAura"))}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                background: "rgba(201,168,76,0.12)",
+                border: "1px solid rgba(201,168,76,0.38)",
+                borderRadius: 3,
+                color: "#C9A84C",
+                fontFamily: NU,
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                padding: "9px 20px",
+                cursor: "pointer",
+                marginBottom: 28,
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.2)"; e.currentTarget.style.borderColor = "#C9A84C"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(201,168,76,0.12)"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.38)"; }}
+            >
+              <span style={{ fontSize: 13 }}>✦</span>
+              Explore with Aura
+              <span style={{ fontSize: 13 }}>✦</span>
+            </button>
+
             {/* Stats row */}
             <div
               className="lwd-hero-stats"
