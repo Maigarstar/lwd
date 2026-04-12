@@ -318,6 +318,7 @@ const ITALY_REGIONS_MAPPED = ITALY_REGIONS.filter(r => !r.isLegacy).map(r => ({
   heroSubtitle: r.heroSubtitle || null,
   heroImg: null,
   introEditorial: r.description,
+  seoText: r.seoText || null,
   categoryShortcuts: VENDOR_CATEGORIES.map(vc => ({
     categorySlug: vc.slug,
     label: vc.label,

@@ -533,6 +533,7 @@ export default function RegionPage({
     : `Weddings in ${region.name}`;
   const heroSubtitle   = dbContent?.hero_subtitle|| region.heroSubtitle  || null;
   const introEditorial = dbContent?.metadata?.editorialPara1 || region.introEditorial || null;
+  const seoText = region.seoText || null;
 
   const countryName = country?.name || "United Kingdom";
 
@@ -2326,6 +2327,28 @@ function SEOPanel({ region, C }) {
           </div>
         )}
       </div>
+
+      {/* ═══ SEO TEXT ══════════════════════════════════════════════════════════ */}
+      {seoText && (
+        <section style={{ background: C.dark, padding: isMobile ? "40px 24px" : "56px 48px" }}>
+          <div style={{ maxWidth: 800, margin: "0 auto" }}>
+            <div style={{ width: 24, height: 1, background: C.gold, marginBottom: 20 }} />
+            {seoText.split("\n\n").map((para, i) => (
+              <p key={i} style={{
+                fontFamily: NU,
+                fontSize: 13,
+                color: "rgba(255,255,255,0.35)",
+                lineHeight: 1.85,
+                fontWeight: 300,
+                marginBottom: i < seoText.split("\n\n").length - 1 ? 14 : 0,
+              }}>
+                {para}
+              </p>
+            ))}
+          </div>
+        </section>
+      )}
+
     </section>
   );
 }
