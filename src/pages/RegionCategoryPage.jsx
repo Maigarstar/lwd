@@ -998,35 +998,6 @@ export default function RegionCategoryPage({
 
 
         {/* ════════════════════════════════════════════════════════════════════
-            3. AI-GENERATED EDITORIAL INTRO (from aiSEO system)
-        ════════════════════════════════════════════════════════════════════ */}
-        {aiSEO?.meta?.shouldShowEditorialIntro && aiSEO?.intro && (
-          <section
-            className="lwd-rc-section"
-            aria-label="Location introduction"
-            style={{
-              background: darkMode ? "rgba(201,168,76,0.03)" : "#faf8f4",
-              padding: isMobile ? "40px 16px" : "48px 32px",
-              borderBottom: `1px solid ${C.border}`,
-            }}
-          >
-            <div style={{ maxWidth: 900, margin: "0 auto" }}>
-              <p
-                style={{
-                  fontFamily: NU,
-                  fontSize: isMobile ? 15 : 16,
-                  color: C.grey,
-                  lineHeight: 1.8,
-                  margin: 0,
-                }}
-              >
-                {aiSEO.intro}
-              </p>
-            </div>
-          </section>
-        )}
-
-        {/* ════════════════════════════════════════════════════════════════════
             4. EDITORIAL INTRO — PLANNERS PAGE PATTERN
         ════════════════════════════════════════════════════════════════════ */}
         <section
@@ -1144,200 +1115,87 @@ export default function RegionCategoryPage({
         )}
 
         {/* ════════════════════════════════════════════════════════════════════
-            5. AI-GENERATED H2 SECTIONS (varied content per location)
-        ════════════════════════════════════════════════════════════════════ */}
-        {aiSEO?.h2Sections && aiSEO.h2Sections.length > 0 && (
-          <section
-            className="lwd-rc-section"
-            style={{
-              background: darkMode ? C.dark : "#f2f0ea",
-              padding: isMobile ? "40px 16px" : "48px 32px",
-              borderTop: `1px solid ${C.border}`,
-            }}
-          >
-            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-              <div style={{ display: "grid", gap: 40 }}>
-                {aiSEO.h2Sections.map((heading, idx) => (
-                  <div key={idx}>
-                    <h2
-                      style={{
-                        fontFamily: GD,
-                        fontSize: isMobile ? 22 : 28,
-                        fontWeight: 400,
-                        color: C.white,
-                        lineHeight: 1.2,
-                        margin: "0 0 20px",
-                        letterSpacing: "-0.5px",
-                      }}
-                    >
-                      {heading}
-                    </h2>
-                    <p
-                      style={{
-                        fontFamily: NU,
-                        fontSize: 14,
-                        color: C.grey,
-                        lineHeight: 1.7,
-                        maxWidth: 800,
-                        margin: 0,
-                      }}
-                    >
-                      {`Content for ${heading} will be dynamically rendered based on section type.`}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* ════════════════════════════════════════════════════════════════════
-            5b. TRUST SECTION (AI-generated trust points)
-        ════════════════════════════════════════════════════════════════════ */}
-        {aiSEO?.trustPoints && aiSEO.trustPoints.length > 0 && (
-          <section
-            className="lwd-rc-section"
-            style={{
-              background: darkMode ? "rgba(201,168,76,0.04)" : "rgba(201,168,76,0.05)",
-              padding: isMobile ? "40px 16px" : "48px 32px",
-              borderTop: `1px solid ${C.border}`,
-            }}
-          >
-            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-              <h2
-                style={{
-                  fontFamily: GD,
-                  fontSize: isMobile ? 22 : 28,
-                  fontWeight: 400,
-                  color: C.white,
-                  lineHeight: 1.2,
-                  margin: "0 0 32px",
-                  letterSpacing: "-0.5px",
-                }}
-              >
-                Why Choose Our Collection
-              </h2>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
-                gap: 24,
-              }}>
-                {aiSEO.trustPoints.map((point, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      display: "flex",
-                      gap: 16,
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 24,
-                        color: C.gold,
-                        flexShrink: 0,
-                        lineHeight: 1,
-                      }}
-                    >
-                      ✓
-                    </div>
-                    <p
-                      style={{
-                        fontFamily: NU,
-                        fontSize: 14,
-                        color: C.grey,
-                        lineHeight: 1.7,
-                        margin: 0,
-                      }}
-                    >
-                      {point}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* ════════════════════════════════════════════════════════════════════
-            6. INTERNAL LINKING CLUSTER (topical authority building)
+            6. INTERNAL LINKING CLUSTER (as visual table, like regions table)
         ════════════════════════════════════════════════════════════════════ */}
         {aiSEO?.internalLinkingCluster && aiSEO.internalLinkingCluster.length > 0 && (
           <section
             className="lwd-rc-section"
             style={{
               background: darkMode ? C.dark : "#f2f0ea",
-              padding: isMobile ? "40px 16px" : "48px 32px",
+              padding: isMobile ? "56px 16px" : "64px 32px",
               borderTop: `1px solid ${C.border}`,
             }}
           >
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
               <h2
                 style={{
+                  textAlign: "center",
                   fontFamily: GD,
-                  fontSize: isMobile ? 22 : 28,
+                  fontSize: isMobile ? 24 : 32,
                   fontWeight: 400,
                   color: C.white,
                   lineHeight: 1.2,
-                  margin: "0 0 32px",
+                  margin: "0 0 48px",
                   letterSpacing: "-0.5px",
                 }}
               >
-                Explore Nearby Destinations
+                Explore Other {categoryLabel} Destinations
               </h2>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(auto-fill, minmax(200px, 1fr))",
-                gap: isMobile ? 12 : 16,
-              }}>
-                {aiSEO.internalLinkingCluster.map((link) => (
-                  <a
-                    key={link.path}
-                    href={link.path}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 8,
-                      padding: 16,
-                      background: C.card,
-                      border: `1px solid ${C.border}`,
-                      borderRadius: "var(--lwd-radius-card)",
-                      textDecoration: "none",
-                      transition: "all 0.2s ease",
-                      cursor: "pointer",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = C.gold;
-                      e.currentTarget.style.background = darkMode ? "rgba(201,168,76,0.05)" : "rgba(201,168,76,0.02)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = C.border;
-                      e.currentTarget.style.background = C.card;
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontFamily: GD,
-                        fontSize: 16,
-                        fontWeight: 500,
-                        color: C.white,
-                        lineHeight: 1.3,
-                      }}
-                    >
-                      {link.name}
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: NU,
-                        fontSize: 12,
-                        color: C.grey,
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {link.anchorText}
-                    </div>
-                  </a>
-                ))}
+
+              {/* Visual table of nearby locations */}
+              <div style={{ overflowX: "auto" }}>
+                <table style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontFamily: NU,
+                }}>
+                  <thead>
+                    <tr style={{ borderBottom: `2px solid ${C.border}` }}>
+                      <th style={{ padding: "16px", textAlign: "left", color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" }}>Region</th>
+                      <th style={{ padding: "16px", textAlign: "left", color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" }}>Signature Style</th>
+                      <th style={{ padding: "16px", textAlign: "left", color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" }}>Why Visit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {aiSEO.internalLinkingCluster.map((link, idx) => (
+                      <tr
+                        key={link.path}
+                        style={{
+                          borderBottom: `1px solid ${C.border}`,
+                          transition: "background 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = darkMode ? "rgba(201,168,76,0.04)" : "rgba(201,168,76,0.02)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "transparent";
+                        }}
+                      >
+                        <td style={{ padding: "16px", color: C.white, fontSize: 14, fontWeight: 500 }}>
+                          <a
+                            href={link.path}
+                            style={{
+                              color: C.gold,
+                              textDecoration: "none",
+                              transition: "opacity 0.2s",
+                              cursor: "pointer",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.8"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+                          >
+                            {link.name}
+                          </a>
+                        </td>
+                        <td style={{ padding: "16px", color: C.grey, fontSize: 14 }}>
+                          {link.type === "region" ? "Destination Region" : "Nearby City"}
+                        </td>
+                        <td style={{ padding: "16px", color: C.grey, fontSize: 14 }}>
+                          {link.anchorText}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </section>
