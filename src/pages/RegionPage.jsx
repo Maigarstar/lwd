@@ -34,6 +34,7 @@ import SliderNav from "../components/ui/SliderNav";
 import HomeNav from "../components/nav/HomeNav";
 import CountrySearchBar from "../components/filters/CountrySearchBar";
 import AICommandBar from "../components/filters/AICommandBar";
+import ImmersiveSearch from "../components/search/ImmersiveSearch";
 import InfoStrip from "../components/sections/InfoStrip";
 import MASTERMap from "../components/maps/MASTERMap";
 import { useInView, CountUp, SplitText, revealStyle } from "../components/ui/Animations";
@@ -87,6 +88,7 @@ export default function RegionPage({
   const [visibleCities, setVisibleCities] = useState(4);
   const [visibleRelated, setVisibleRelated] = useState(4);
   const [aboutExpanded, setAboutExpanded] = useState(false);
+  const [immersiveOpen, setImmersiveOpen] = useState(false);
   const [venueViewMode, setVenueViewMode] = useState("grid"); // grid, list — kept for legacy compat
   const [listingMode, setListingMode] = useState("venues"); // "venues" | "vendors"
   const {
@@ -707,7 +709,7 @@ export default function RegionPage({
 
             {/* Aura trigger */}
             <button
-              onClick={() => window.dispatchEvent(new CustomEvent("lwd:openAura"))}
+              onClick={() => setImmersiveOpen(true)}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -2374,6 +2376,13 @@ function SEOPanel({ region, C }) {
           </div>
         )}
       </div>
+
+      <ImmersiveSearch
+        isOpen={immersiveOpen}
+        onClose={() => setImmersiveOpen(false)}
+        onViewCategory={onViewCategory}
+        onViewRegionCategory={onViewRegionCategory}
+      />
 
     </section>
   );
