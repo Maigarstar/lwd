@@ -7419,12 +7419,21 @@ function LocationsModule({ C, darkMode = true, onBuilderModeChange }) {
       const next = [...imgs, publicUrl];
       setForm(prev => ({ ...prev, heroImages: next, heroImage: prev.heroImage || publicUrl }));
       setDirty(true);
+      setToast(`✓ Image uploaded (${next.length}/8)`);
     } catch (e) {
       console.error('[Location Studio] Image upload failed:', e);
       setToast('✗ Upload failed: ' + (e.message || 'Unknown error'));
     } finally {
       setUploadingImage(false);
     }
+  };
+
+  const moveHeroImage = (fromIndex, toIndex) => {
+    const imgs = [...(form.heroImages || [])];
+    const [moved] = imgs.splice(fromIndex, 1);
+    imgs.splice(toIndex, 0, moved);
+    setForm(prev => ({ ...prev, heroImages: imgs }));
+    setDirty(true);
   };
 
   const UNSPLASH_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY || '';
@@ -7831,34 +7840,55 @@ No explanation. Only the JSON.`,
               <div style={{ marginBottom: 12 }}>{lbl('Hero Title')}{inp('heroTitle', locationName || 'e.g. Weddings in Tuscany')}{fieldAi('heroTitle', 'hero title', generateHeroTitle, [buildContentCtx(), contentAiTone])}</div>
               <div style={{ marginBottom: 12 }}>{lbl('Hero Subtitle')}{inp('heroSubtitle', 'A curated guide to luxury wedding celebrations…', true)}{fieldAi('heroSubtitle', 'hero subtitle', generateHeroSubtitle, [buildContentCtx(), contentAiTone])}</div>
 
-              {/* Image upload grid */}
+              {/* Hero Images Gallery — with Upload First */}
               <div style={{ marginBottom: 12 }}>
                 {lbl(`Hero Images (${(form.heroImages || []).length}/8)`)}
+                <div style={{ fontSize: 11, color: LS.muted, marginBottom: 8 }}>Recommended: 1920×1080px or larger. JPG, PNG, WebP. Drag to reorder. Click to set as display image.</div>
+
+                {/* Upload button — PRIMARY */}
                 <input ref={heroUploadRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={async e => { for (const f of Array.from(e.target.files || [])) await uploadHeroImage(f); e.target.value = ''; }} />
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 8 }}>
-                  {(form.heroImages || []).map((url, i) => {
-                    const active = form.heroImage === url;
-                    return (
-                      <div key={i} onClick={() => set('heroImage', url)} style={{ position: 'relative', aspectRatio: '16/9', borderRadius: 4, overflow: 'hidden', border: `2px solid ${active ? LS.gold : LS.border}`, cursor: 'pointer' }}>
-                        <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        {active && <div style={{ position: 'absolute', top: 3, left: 3, background: LS.gold, borderRadius: 2, padding: '1px 5px', fontSize: 8, fontFamily: NU, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active</div>}
-                        <button onClick={e => { e.stopPropagation(); const next = (form.heroImages || []).filter(u => u !== url); const newActive = form.heroImage === url ? (next[0] || '') : form.heroImage; setForm(prev => ({ ...prev, heroImages: next, heroImage: newActive })); setDirty(true); }} style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
-                      </div>
-                    );
-                  })}
-                  {(form.heroImages || []).length < 8 && (
-                    <button onClick={() => heroUploadRef.current?.click()} disabled={uploadingImage || !locationKey} style={{ aspectRatio: '16/9', border: `1px dashed ${LS.border}`, borderRadius: 4, background: 'transparent', color: LS.muted, fontFamily: NU, fontSize: 11, cursor: uploadingImage || !locationKey ? 'not-allowed' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-                      <span style={{ fontSize: 16 }}>{uploadingImage ? '⟳' : '+'}</span>
-                      <span>{uploadingImage ? 'Uploading…' : 'Add Photo'}</span>
-                    </button>
-                  )}
+                <div style={{ marginBottom: 12 }}>
+                  <button onClick={() => heroUploadRef.current?.click()} disabled={uploadingImage || !locationKey || (form.heroImages || []).length >= 8} style={{ width: '100%', padding: '16px', fontFamily: NU, fontSize: 13, fontWeight: 600, background: uploadingImage ? `${LS.gold}33` : `${LS.gold}18`, color: LS.gold, border: `2px solid ${LS.gold}55`, borderRadius: 6, cursor: uploadingImage || !locationKey || (form.heroImages || []).length >= 8 ? 'not-allowed' : 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 16 }}>{uploadingImage ? '⟳' : '↑'}</span>
+                    <span>{uploadingImage ? 'Uploading…' : 'Upload High-Quality Images'}</span>
+                    {(form.heroImages || []).length >= 8 && <span style={{ fontSize: 11, marginLeft: 'auto' }}>Max 8 reached</span>}
+                  </button>
                 </div>
+
+                {/* Image Gallery Grid — Draggable */}
+                {(form.heroImages || []).length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 12, background: `${LS.border}22`, padding: 8, borderRadius: 6 }}>
+                    {(form.heroImages || []).map((url, i) => {
+                      const active = form.heroImage === url;
+                      return (
+                        <div key={i} draggable={!uploadingImage} onDragStart={e => { e.dataTransfer?.setData('fromIndex', String(i)); }} onDragOver={e => e.preventDefault()} onDrop={e => { const from = parseInt(e.dataTransfer?.getData('fromIndex') || ''); if (from !== i && !isNaN(from)) moveHeroImage(from, i); }} style={{ position: 'relative', aspectRatio: '16/9', borderRadius: 4, overflow: 'hidden', border: `2px solid ${active ? LS.gold : LS.border}`, cursor: uploadingImage ? 'default' : 'grab', background: '#111', opacity: uploadingImage ? 0.5 : 1 }}>
+                          <img src={url} alt={`Hero ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+
+                          {/* Index badge */}
+                          <div style={{ position: 'absolute', bottom: 3, left: 3, background: 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 9, padding: '2px 6px', borderRadius: 3, fontFamily: NU, fontWeight: 600 }}>#{i + 1}</div>
+
+                          {/* Active badge */}
+                          {active && <div style={{ position: 'absolute', top: 3, left: 3, background: LS.gold, borderRadius: 2, padding: '1px 5px', fontSize: 8, fontFamily: NU, fontWeight: 700, color: '#000', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Active</div>}
+
+                          {/* Hover overlay with actions */}
+                          <div onClick={() => !uploadingImage && set('heroImage', url)} style={{ position: 'absolute', inset: 0, background: uploadingImage ? 'transparent' : 'rgba(0,0,0,0)', transition: 'background 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'space-around', cursor: uploadingImage ? 'default' : 'pointer' }} className="img-hover-overlay">
+                            <button onClick={e => { e.stopPropagation(); set('heroImage', url); }} title="Set as display image" style={{ background: 'rgba(201,168,76,0.9)', color: '#000', border: 'none', borderRadius: '50%', width: 32, height: 32, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0 }}>✓</button>
+                            <button onClick={e => { e.stopPropagation(); const next = (form.heroImages || []).filter((_, idx) => idx !== i); const newActive = form.heroImage === url ? (next[0] || '') : form.heroImage; setForm(prev => ({ ...prev, heroImages: next, heroImage: newActive })); setDirty(true); }} title="Delete this image" style={{ background: 'rgba(225, 90, 78, 0.9)', color: '#fff', border: 'none', borderRadius: '50%', width: 32, height: 32, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0 }}>✕</button>
+                          </div>
+
+                          <style>{`.img-hover-overlay:hover { background: rgba(0,0,0,0.45) !important; } .img-hover-overlay:hover button { opacity: 1 !important; }`}</style>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
-              {/* Free Image Search */}
+              {/* Free Image Search — Secondary Option */}
               <div style={{ marginBottom: 12 }}>
-                <button onClick={() => setImgSearchOpen(o => !o)} style={{ fontFamily: NU, fontSize: 12, fontWeight: 600, color: LS.gold, background: 'transparent', border: `1px solid ${LS.gold}44`, borderRadius: 6, padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: imgSearchOpen ? 10 : 0 }}>
-                  <span>🔍</span> {imgSearchOpen ? 'Close Image Search' : 'Search Free Images (Unsplash · Pexels · Paste URL)'}
+                <button onClick={() => setImgSearchOpen(o => !o)} style={{ fontFamily: NU, fontSize: 11, fontWeight: 500, color: LS.muted, background: 'transparent', border: `1px solid ${LS.border}`, borderRadius: 6, padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: imgSearchOpen ? 10 : 0, width: '100%', justifyContent: 'space-between' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span>🔍</span> Or search free stock images</span>
+                  <span style={{ fontSize: 10, opacity: 0.7 }}>{imgSearchOpen ? '−' : '+'}</span>
                 </button>
                 {imgSearchOpen && (
                   <div style={{ border: `1px solid ${LS.border}`, borderRadius: 8, padding: 12, background: LS.bg }}>
