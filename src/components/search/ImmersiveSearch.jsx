@@ -190,6 +190,30 @@ function buildSuggestions(q, liveCountries) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// ── Country context chips ─────────────────────────────────────────────────────
+const COUNTRY_CHIPS = {
+  england: [
+    { label: "Country House",   style: "country-house" },
+    { label: "London",          region: "london"       },
+    { label: "Castle",          style: "castle"        },
+    { label: "Barn",            style: "barn"          },
+    { label: "Coastal",         setting: "coastal"     },
+    { label: "Intimate",        guests: "small"        },
+    { label: "Weekend Estate",  style: "estate"        },
+    { label: "Garden",          setting: "garden"      },
+  ],
+  italy: [
+    { label: "Tuscany",         region: "tuscany"      },
+    { label: "Amalfi Coast",    region: "amalfi-coast" },
+    { label: "Lake Como",       region: "lake-como"    },
+    { label: "Rome",            region: "rome"         },
+    { label: "Sicily",          region: "sicily"       },
+    { label: "Villa",           style: "villa"         },
+    { label: "Intimate",        guests: "small"        },
+    { label: "Historic Palace", style: "palace"        },
+  ],
+};
+
 export default function ImmersiveSearch({
   isOpen,
   onClose,
@@ -207,6 +231,8 @@ export default function ImmersiveSearch({
   const [liveCountries, setLiveCountries] = useState(null);
   const [hovTile,       setHovTile]       = useState(null);
   const [hovCat,        setHovCat]        = useState(null);
+  const [hovChip,       setHovChip]       = useState(null);
+  const [contextChip,   setContextChip]   = useState(null); // chip selected in country context mode
   const [suggOpen,      setSuggOpen]      = useState(false);
   const [inputFocused,  setInputFocused]  = useState(false);
   const [exitingCat,    setExitingCat]    = useState(null);
@@ -237,9 +263,12 @@ export default function ImmersiveSearch({
     if (isOpen) {
       setStepIn(true);
       setQuery("");
+      setContextChip(null);
       if (initialLocation) {
         setLocation(initialLocation);
-        setStep(1);
+        // Region known → skip straight to category step
+        // Country only → stay on step 0 (country context mode)
+        setStep(initialLocation.regionSlug ? 1 : 0);
       } else {
         setStep(0);
         setLocation(null);
@@ -377,6 +406,24 @@ export default function ImmersiveSearch({
   const handleTileSelect    = (tile) => goToCategory({ label: tile.name, countrySlug: tile.slug, regionSlug: null });
   const handleSkipLocation  = ()     => goToCategory(null);
   const handleSuggSelect    = (sug)  => { setQuery(""); setSuggOpen(false); goToCategory(sug); };
+
+  const handleChipSelect = useCallback((chip) => {
+    setContextChip(chip.label);
+    // Apply chip refinements
+    if (chip.style)   setRefStyle(chip.style);
+    if (chip.setting) setRefSetting(chip.setting);
+    if (chip.guests)  setRefGuests(chip.guests);
+    // If chip specifies a region, narrow the location
+    const updatedLocation = chip.region
+      ? { ...initialLocation, label: chip.label, regionSlug: chip.region }
+      : initialLocation;
+    setStepIn(false);
+    setTimeout(() => {
+      setLocation(updatedLocation);
+      setStep(1);
+      setStepIn(true);
+    }, 280);
+  }, [initialLocation]);
 
   const handleIconCatSelect = useCallback((vc) => {
     const countrySlug = location?.countrySlug || null;
@@ -666,84 +713,119 @@ export default function ImmersiveSearch({
       {/* ═══════════════════════════════════════════════════════════════════
           STEP 0 — LOCATION
       ═══════════════════════════════════════════════════════════════════ */}
-      {step === 0 && !auraMode && (
+      {step === 0 && !auraMode && (() => {
+        const countryCtx = !!(initialLocation?.countrySlug && !initialLocation?.regionSlug);
+        const chips = countryCtx ? (COUNTRY_CHIPS[initialLocation.countrySlug] || []) : [];
+        const auraPlaceholder = countryCtx
+          ? `e.g. "A country house in ${initialLocation.label} for 120 guests with a garden ceremony"`
+          : "Type a country or city…";
+
+        return (
         <div style={stepTransition}>
 
           {/* Heading */}
-          <div style={{ marginBottom: 52 }}>
+          <div style={{ marginBottom: countryCtx ? 40 : 52 }}>
             <p style={{ fontFamily: NU, fontSize: 10, letterSpacing: "0.22em", color: GOLD, textTransform: "uppercase", margin: "0 0 18px" }}>
-              Step 1 of 3
+              {countryCtx ? "Step 1 of 2" : "Step 1 of 3"}
             </p>
             <h1 style={{
               fontFamily: GD, fontWeight: 400, margin: 0, color: WHITE,
               fontSize: "clamp(40px, 6.5vw, 82px)",
               lineHeight: 1.04, letterSpacing: "-0.025em",
             }}>
-              Where are you<br />dreaming of?
+              {countryCtx
+                ? <>What kind of wedding are<br />you imagining in <span style={{ color: GOLD, fontStyle: "italic" }}>{initialLocation.label}</span>?</>
+                : <>Where are you<br />dreaming of?</>
+              }
             </h1>
-            <p style={{ fontFamily: NU, fontSize: 15, color: MUTED, margin: "18px 0 0" }}>
-              Choose a destination or type below
-            </p>
+            {!countryCtx && (
+              <p style={{ fontFamily: NU, fontSize: 15, color: MUTED, margin: "18px 0 0" }}>
+                Choose a destination or type below
+              </p>
+            )}
           </div>
 
-          {/* Featured destination tiles */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 44 }}>
-            {featuredTiles.map((tile) => {
-              const hov = hovTile === tile.slug;
-              const img = TILE_IMAGES[tile.slug];
-              return (
-                <button
-                  key={tile.slug}
-                  onClick={() => handleTileSelect(tile)}
-                  onMouseEnter={() => setHovTile(tile.slug)}
-                  onMouseLeave={() => setHovTile(null)}
-                  style={{
-                    position:     "relative",
-                    overflow:     "hidden",
-                    background:   CARD,
-                    border:       `1px solid ${hov ? "rgba(201,168,76,0.45)" : "rgba(255,255,255,0.06)"}`,
-                    borderRadius: 2,
-                    padding:      "16px 26px",
-                    cursor:       "pointer",
-                    transition:   "border-color 0.35s ease, transform 0.4s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s ease",
-                    transform:    hov ? "translateY(-4px) scale(1.02)" : "translateY(0) scale(1)",
-                    boxShadow:    hov ? "0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.12)" : "none",
-                    display:      "flex",
-                    alignItems:   "center",
-                    gap:          10,
-                  }}
-                >
-                  {/* Image layer */}
-                  {img && (
+          {/* ── COUNTRY CONTEXT: intent chips ──────────────────────────────── */}
+          {countryCtx && chips.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 40 }}>
+              {chips.map((chip) => {
+                const hov = hovChip === chip.label;
+                return (
+                  <button
+                    key={chip.label}
+                    onClick={() => handleChipSelect(chip)}
+                    onMouseEnter={() => setHovChip(chip.label)}
+                    onMouseLeave={() => setHovChip(null)}
+                    style={{
+                      background:   hov ? "rgba(201,168,76,0.14)" : "rgba(201,168,76,0.06)",
+                      border:       `1px solid ${hov ? "rgba(201,168,76,0.6)" : "rgba(201,168,76,0.22)"}`,
+                      borderRadius: 2,
+                      padding:      "11px 22px",
+                      cursor:       "pointer",
+                      color:        hov ? WHITE : "rgba(245,240,232,0.75)",
+                      fontFamily:   NU,
+                      fontSize:     13,
+                      fontWeight:   500,
+                      letterSpacing:"0.04em",
+                      transition:   "all 0.25s ease",
+                      transform:    hov ? "translateY(-2px)" : "none",
+                    }}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── NORMAL MODE: featured destination tiles ────────────────────── */}
+          {!countryCtx && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 44 }}>
+              {featuredTiles.map((tile) => {
+                const hov = hovTile === tile.slug;
+                const img = TILE_IMAGES[tile.slug];
+                return (
+                  <button
+                    key={tile.slug}
+                    onClick={() => handleTileSelect(tile)}
+                    onMouseEnter={() => setHovTile(tile.slug)}
+                    onMouseLeave={() => setHovTile(null)}
+                    style={{
+                      position:     "relative",
+                      overflow:     "hidden",
+                      background:   CARD,
+                      border:       `1px solid ${hov ? "rgba(201,168,76,0.45)" : "rgba(255,255,255,0.06)"}`,
+                      borderRadius: 2,
+                      padding:      "16px 26px",
+                      cursor:       "pointer",
+                      transition:   "border-color 0.35s ease, transform 0.4s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s ease",
+                      transform:    hov ? "translateY(-4px) scale(1.02)" : "translateY(0) scale(1)",
+                      boxShadow:    hov ? "0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.12)" : "none",
+                      display:      "flex",
+                      alignItems:   "center",
+                      gap:          10,
+                    }}
+                  >
+                    {img && (
+                      <div style={{
+                        position: "absolute", inset: 0,
+                        backgroundImage: `url(${img})`, backgroundSize: "cover", backgroundPosition: "center",
+                        opacity: hov ? 1 : 0, transform: hov ? "scale(1)" : "scale(1.08)",
+                        transition: "opacity 0.5s cubic-bezier(0.16,1,0.3,1), transform 0.5s cubic-bezier(0.16,1,0.3,1)",
+                      }} />
+                    )}
                     <div style={{
-                      position:           "absolute",
-                      inset:              0,
-                      backgroundImage:    `url(${img})`,
-                      backgroundSize:     "cover",
-                      backgroundPosition: "center",
-                      opacity:            hov ? 1 : 0,
-                      transform:          hov ? "scale(1)" : "scale(1.08)",
-                      transition:         "opacity 0.5s cubic-bezier(0.16,1,0.3,1), transform 0.5s cubic-bezier(0.16,1,0.3,1)",
+                      position: "absolute", inset: 0,
+                      background: hov ? "linear-gradient(135deg,rgba(0,0,0,0.68) 0%,rgba(0,0,0,0.52) 100%)" : "linear-gradient(135deg,rgba(10,9,6,0.95) 0%,rgba(10,9,6,0.88) 100%)",
+                      transition: "background 0.4s ease",
                     }} />
-                  )}
-                  {/* Overlay */}
-                  <div style={{
-                    position:   "absolute",
-                    inset:      0,
-                    background: hov
-                      ? "linear-gradient(135deg, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.52) 100%)"
-                      : "linear-gradient(135deg, rgba(10,9,6,0.95) 0%, rgba(10,9,6,0.88) 100%)",
-                    transition: "background 0.4s ease",
-                  }} />
-                  {/* Content */}
-                  <span style={{ position: "relative", zIndex: 1, fontFamily: GD, fontSize: 20, color: WHITE, fontWeight: 400, letterSpacing: "0.01em" }}>
-                    {tile.name}
-                  </span>
-                  <span style={{ position: "relative", zIndex: 1, color: hov ? GOLD : "rgba(201,168,76,0.3)", fontSize: 14, transition: "color 0.25s ease, transform 0.4s cubic-bezier(0.16,1,0.3,1)", transform: hov ? "translateX(3px)" : "none", display: "inline-block" }}>→</span>
-                </button>
-              );
-            })}
-          </div>
+                    <span style={{ position: "relative", zIndex: 1, fontFamily: GD, fontSize: 20, color: WHITE, fontWeight: 400, letterSpacing: "0.01em" }}>{tile.name}</span>
+                    <span style={{ position: "relative", zIndex: 1, color: hov ? GOLD : "rgba(201,168,76,0.3)", fontSize: 14, transition: "color 0.25s ease, transform 0.4s cubic-bezier(0.16,1,0.3,1)", transform: hov ? "translateX(3px)" : "none", display: "inline-block" }}>→</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* Search input + suggestions */}
           <div style={{ position: "relative", maxWidth: 520, marginBottom: 28 }}>
@@ -766,7 +848,7 @@ export default function ImmersiveSearch({
                 onChange={(e) => setQuery(e.target.value)}
                 onFocus={() => setInputFocused(true)}
                 onBlur={() => setInputFocused(false)}
-                placeholder="Type a country or city…"
+                placeholder={auraPlaceholder}
                 style={{
                   flex:          1,
                   background:    "none",
@@ -896,7 +978,8 @@ export default function ImmersiveSearch({
             <span style={{ color: "rgba(201,168,76,0.4)", fontSize: 14 }}>→</span>
           </button>
         </div>
-      )}
+        );
+      })()}
 
       {/* ═══════════════════════════════════════════════════════════════════
           STEP 1 — CATEGORY
@@ -907,7 +990,7 @@ export default function ImmersiveSearch({
           {/* Heading */}
           <div style={{ marginBottom: 24 }}>
             <p style={{ fontFamily: NU, fontSize: 10, letterSpacing: "0.22em", color: GOLD, textTransform: "uppercase", margin: "0 0 18px" }}>
-              Step 2 of 3
+              {initialLocation?.countrySlug && !initialLocation?.regionSlug ? "Step 2 of 2" : "Step 2 of 3"}
             </p>
             <h1 style={{
               fontFamily: GD, fontWeight: 400, margin: 0, color: WHITE,
@@ -918,11 +1001,11 @@ export default function ImmersiveSearch({
             </h1>
           </div>
 
-          {/* Grid header row — location label right-aligned */}
+          {/* Grid header row — location + chip label */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", maxWidth: 920, marginBottom: 10 }}>
             {location ? (
               <p style={{ fontFamily: NU, fontSize: 11, color: GOLD, margin: 0, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-                ✦ {location.label}
+                ✦ {location.label}{contextChip ? ` · ${contextChip}` : ""}
               </p>
             ) : (
               <p style={{ fontFamily: NU, fontSize: 11, color: MUTED, margin: 0, letterSpacing: "0.1em", textTransform: "uppercase" }}>

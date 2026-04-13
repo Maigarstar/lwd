@@ -1571,6 +1571,13 @@ export default function LocationPage({
             setImmersiveOpen(false);
             onViewRegion && onViewRegion(countrySlug, regionSlug);
           }}
+          initialLocation={currentLocation ? {
+            label:       currentLocation.name,
+            countrySlug: locationType === "country" ? currentLocation.slug : currentLocation.countrySlug,
+            regionSlug:  locationType === "region" ? currentLocation.slug
+                       : locationType === "city"   ? currentLocation.regionSlug
+                       : null,
+          } : null}
         />
       </div>
   );
