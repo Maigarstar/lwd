@@ -14,6 +14,7 @@ export default function Hero({
   regionCount,
   C,
   onBack,
+  onAura,
 }) {
   const [loaded, setLoaded] = useState(false);
 
@@ -175,6 +176,38 @@ export default function Hero({
         >
           {subtitle || `Discover extraordinary venues, planners, photographers and wedding professionals — each one editorially curated.`}
         </p>
+
+        {/* Explore with Aura */}
+        {onAura && (
+          <button
+            onClick={onAura}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              background: "rgba(201,168,76,0.12)",
+              border: "1px solid rgba(201,168,76,0.38)",
+              borderRadius: 3,
+              color: "#C9A84C",
+              fontFamily: "var(--font-body)",
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              padding: "9px 20px",
+              cursor: "pointer",
+              marginBottom: 24,
+              width: "fit-content",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(201,168,76,0.2)"; e.currentTarget.style.borderColor = "#C9A84C"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "rgba(201,168,76,0.12)"; e.currentTarget.style.borderColor = "rgba(201,168,76,0.38)"; }}
+          >
+            <span style={{ fontSize: 13 }}>✦</span>
+            Explore with Aura
+            <span style={{ fontSize: 13 }}>✦</span>
+          </button>
+        )}
 
         {/* Trust line */}
         <p

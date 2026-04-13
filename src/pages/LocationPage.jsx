@@ -58,6 +58,7 @@ import { COUNTRIES, REGIONS, CITIES, getCountryBySlug, VENDOR_CATEGORIES } from 
 import { VENUES as STATIC_VENUES } from "../data/italyVenues";
 import { VENDORS as STATIC_VENDORS } from "../data/vendors";
 import { fetchListings } from "../services/listings";
+import ImmersiveSearch from "../components/search/ImmersiveSearch";
 import { fetchLocationContent, buildLocationKey, fetchLocationMetadata } from "../services/locationContentService";
 import { DEFAULT_FILTERS } from "../data/venues";
 
@@ -197,6 +198,7 @@ export default function LocationPage({
   // ── State ──────────────────────────────────────────────────────────────────
   const themeCtx = useTheme();
   const darkMode = themeCtx.darkMode;
+  const [immersiveOpen, setImmersiveOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   // Keep local filter state — CountrySearchBar uses old shape { region, style, capacity, price }
   // Phase 2 will replace CountrySearchBar with MasterFilterBar and unify this
@@ -1071,6 +1073,7 @@ export default function LocationPage({
               eyebrow={heroData.eyebrow}
               C={C}
               onBack={onBack}
+              onAura={() => setImmersiveOpen(true)}
             />
           )}
 
@@ -1555,6 +1558,20 @@ export default function LocationPage({
             C={C}
           />
         )}
+
+        <ImmersiveSearch
+          isOpen={immersiveOpen}
+          onClose={() => setImmersiveOpen(false)}
+          onViewCategory={onViewCategory}
+          onViewRegionCategory={(countrySlug, regionSlug, catSlug) => {
+            setImmersiveOpen(false);
+            onViewCategory && onViewCategory(countrySlug, regionSlug, catSlug);
+          }}
+          onViewRegion={(countrySlug, regionSlug) => {
+            setImmersiveOpen(false);
+            onViewRegion && onViewRegion(countrySlug, regionSlug);
+          }}
+        />
       </div>
   );
 }
