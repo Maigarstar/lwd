@@ -10,6 +10,7 @@ import { useState, useRef, useCallback } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import { parseVenueQuery, clientParse } from "../../services/aiSearchService";
 import { normalizeStyles, resolveAuraSemanticIntent } from "../../constants/styleMap";
+import { useBreakpoint } from "../../hooks/useWindowWidth";
 
 const NU = "var(--font-body)";
 const GD = "var(--font-heading-primary)";
@@ -193,6 +194,7 @@ export default function AICommandBar({
   onSearchChange,
 }) {
   const C = useTheme();
+  const { isMobile } = useBreakpoint();
   const inputRef = useRef(null);
 
   // Use searchQuery prop if provided, otherwise maintain local state
@@ -359,7 +361,7 @@ export default function AICommandBar({
     >
       <style>{placeholderCss}</style>
 
-      <div className="lwd-ai-bar-outer" style={{ maxWidth: 1280, margin: "0 auto", padding: "16px 48px 12px" }}>
+      <div className="lwd-ai-bar-outer" style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "14px 16px 10px" : "16px 48px 12px" }}>
 
         {/* ── Eyebrow ─────────────────────────────────────────────────────── */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
@@ -514,7 +516,7 @@ export default function AICommandBar({
               </span>
             </div>
 
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <div className="lwd-ai-chips-row" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {interpretedChips.map(chip => (
                 <ParsedChip
                   key={chip.key}
@@ -576,7 +578,7 @@ export default function AICommandBar({
 
         {/* ── Suggestion pills — idle state only ──────────────────────────── */}
         {!aiActive && !loading && (
-          <div style={{ marginTop: 12, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <div className="lwd-ai-pills-row" style={{ marginTop: 12, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <span style={{
               fontFamily:    NU,
               fontSize:      10,
@@ -590,6 +592,7 @@ export default function AICommandBar({
               <button
                 key={i}
                 type="button"
+                className="lwd-ai-suggest-pill"
                 onClick={() => { setQuery(s); handleSubmit(s); }}
                 style={{
                   background:    pillBg,

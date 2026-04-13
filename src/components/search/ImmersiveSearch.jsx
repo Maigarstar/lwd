@@ -190,38 +190,199 @@ function buildSuggestions(q, liveCountries) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// ── Country context chips ─────────────────────────────────────────────────────
-const COUNTRY_CHIPS = {
-  england: {
-    displayLabel: "the UK",
-    chips: [
-      { label: "Country House",   style: "country-house" },
-      { label: "London",          region: "london"       },
-      { label: "Scotland",        region: "scotland"     },
-      { label: "Wales",           region: "wales"        },
-      { label: "Ireland",         region: "ireland"      },
-      { label: "Castle",          style: "castle"        },
-      { label: "Barn",            style: "barn"          },
-      { label: "Coastal",         setting: "coastal"     },
-      { label: "Intimate",        guests: "small"        },
-      { label: "Weekend Estate",  style: "estate"        },
-      { label: "Garden",          setting: "garden"      },
-    ],
-  },
-  italy: {
-    displayLabel: "Italy",
-    chips: [
-      { label: "Tuscany",         region: "tuscany"      },
-      { label: "Amalfi Coast",    region: "amalfi-coast" },
-      { label: "Lake Como",       region: "lake-como"    },
-      { label: "Rome",            region: "rome"         },
-      { label: "Sicily",          region: "sicily"       },
-      { label: "Villa",           style: "villa"         },
-      { label: "Intimate",        guests: "small"        },
-      { label: "Historic Palace", style: "palace"        },
-    ],
-  },
+// ── Country context chip system ───────────────────────────────────────────────
+//
+// ARCHITECTURE
+// ─────────────────────────────────────────────────────────────────────────────
+// Every country page shows three rows:
+//   Row 0  "Region"           — country-specific regions (defined per country below)
+//   Row 1  "Type of wedding"  — shared across all countries
+//   Row 2  "Venue style"      — shared across all countries (tuned per country later)
+//
+// To add a new country: add one entry to COUNTRY_REGISTRY with:
+//   slug         — matches the countrySlug passed in from the page
+//   displayLabel — used in the heading ("Plan your luxury weddings in…")
+//   regions      — array of { label, region } chips for row 0
+//   venueStyle   — optional override of SHARED_VENUE_STYLE_ROW.chips (future pass)
+//
+// buildCountryConfig(slug) returns a fully resolved { displayLabel, rows } object
+// ready for the renderer. Falls back to null if the country isn't registered.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Shared rows (rows 1 and 2 — identical across all countries) ───────────────
+const SHARED_WEDDING_TYPE_ROW = {
+  rowLabel:      "Type of wedding",
+  summaryFormat: "sentence",
+  chips: [
+    { label: "Country Wedding",  style: "country"     },
+    { label: "City Wedding",     style: "city"        },
+    { label: "Garden Wedding",   setting: "garden"    },
+    { label: "Destination",      style: "destination" },
+    { label: "Elopement",        guests: "elopement"  },
+    { label: "Weekend Retreat",  style: "estate"      },
+  ],
 };
+
+const SHARED_VENUE_STYLE_ROW = {
+  rowLabel:      "Venue style",
+  summaryFormat: "title-setting",
+  chips: [
+    { label: "Castle",        style: "castle"        },
+    { label: "Barn",          style: "barn"          },
+    { label: "Coastal",       setting: "coastal"     },
+    { label: "Country House", style: "country-house" },
+    { label: "Manor House",   style: "manor"         },
+    { label: "Vineyard",      style: "vineyard"      },
+  ],
+};
+
+// ── Per-country registry ───────────────────────────────────────────────────────
+// Add one entry per country. Only `slug`, `displayLabel`, and `regions` required.
+const COUNTRY_REGISTRY = [
+  {
+    slug:         "england",
+    displayLabel: "the UK",
+    regions: [
+      { label: "London",        region: "london"        },
+      { label: "Cotswolds",     region: "cotswolds"     },
+      { label: "Cornwall",      region: "cornwall"      },
+      { label: "Yorkshire",     region: "yorkshire"     },
+      { label: "Lake District", region: "lake-district" },
+      { label: "Devon",         region: "devon"         },
+      { label: "Kent",          region: "kent"          },
+    ],
+  },
+  {
+    slug:         "italy",
+    displayLabel: "Italy",
+    regions: [
+      { label: "Tuscany",      region: "tuscany"      },
+      { label: "Amalfi Coast", region: "amalfi-coast" },
+      { label: "Lake Como",    region: "lake-como"    },
+      { label: "Sicily",       region: "sicily"       },
+      { label: "Venice",       region: "venice"       },
+      { label: "Rome",         region: "rome"         },
+      { label: "Puglia",       region: "puglia"       },
+    ],
+  },
+  {
+    slug:         "france",
+    displayLabel: "France",
+    regions: [
+      { label: "Paris",         region: "paris"        },
+      { label: "Provence",      region: "provence"     },
+      { label: "Dordogne",      region: "dordogne"     },
+      { label: "Loire Valley",  region: "loire-valley" },
+      { label: "Côte d'Azur",   region: "cote-d-azur"  },
+      { label: "Bordeaux",      region: "bordeaux"     },
+    ],
+  },
+  {
+    slug:         "greece",
+    displayLabel: "Greece",
+    regions: [
+      { label: "Santorini", region: "santorini" },
+      { label: "Mykonos",   region: "mykonos"   },
+      { label: "Athens",    region: "athens"    },
+      { label: "Crete",     region: "crete"     },
+      { label: "Corfu",     region: "corfu"     },
+      { label: "Rhodes",    region: "rhodes"    },
+    ],
+  },
+  {
+    slug:         "spain",
+    displayLabel: "Spain",
+    regions: [
+      { label: "Barcelona",  region: "barcelona"  },
+      { label: "Andalusia",  region: "andalusia"  },
+      { label: "Ibiza",      region: "ibiza"      },
+      { label: "Madrid",     region: "madrid"     },
+      { label: "Valencia",   region: "valencia"   },
+      { label: "Mallorca",   region: "mallorca"   },
+    ],
+  },
+  {
+    slug:         "portugal",
+    displayLabel: "Portugal",
+    regions: [
+      { label: "Lisbon",       region: "lisbon"       },
+      { label: "Algarve",      region: "algarve"      },
+      { label: "Douro Valley", region: "douro-valley" },
+      { label: "Porto",        region: "porto"        },
+      { label: "Alentejo",     region: "alentejo"     },
+    ],
+  },
+  {
+    slug:         "croatia",
+    displayLabel: "Croatia",
+    regions: [
+      { label: "Dubrovnik", region: "dubrovnik" },
+      { label: "Split",     region: "split"     },
+      { label: "Hvar",      region: "hvar"      },
+      { label: "Istria",    region: "istria"    },
+      { label: "Brač",      region: "brac"      },
+    ],
+  },
+  {
+    slug:         "scotland",
+    displayLabel: "Scotland",
+    regions: [
+      { label: "Edinburgh",    region: "edinburgh"    },
+      { label: "Highlands",    region: "highlands"    },
+      { label: "Loch Lomond",  region: "loch-lomond"  },
+      { label: "Isle of Skye", region: "isle-of-skye" },
+      { label: "Perthshire",   region: "perthshire"   },
+      { label: "St Andrews",   region: "st-andrews"   },
+    ],
+  },
+  {
+    slug:         "usa",
+    displayLabel: "the USA",
+    regions: [
+      { label: "New York",     region: "new-york"     },
+      { label: "California",   region: "california"   },
+      { label: "New England",  region: "new-england"  },
+      { label: "Hawaii",       region: "hawaii"       },
+      { label: "Colorado",     region: "colorado"     },
+      { label: "Nashville",    region: "nashville"    },
+    ],
+  },
+];
+
+// ── Config builder ─────────────────────────────────────────────────────────────
+// Merges a country's region row with the two shared rows.
+// Returns null if the country slug isn't in the registry (graceful fallback).
+function buildCountryConfig(slug) {
+  const entry = COUNTRY_REGISTRY.find(c => c.slug === slug);
+  if (!entry) return null;
+  return {
+    displayLabel: entry.displayLabel,
+    rows: [
+      {
+        rowLabel:      "Region",
+        summaryFormat: "title",
+        chips:         entry.regions,
+      },
+      SHARED_WEDDING_TYPE_ROW,
+      entry.venueStyle
+        ? { ...SHARED_VENUE_STYLE_ROW, chips: entry.venueStyle }
+        : SHARED_VENUE_STYLE_ROW,
+    ],
+  };
+}
+
+// ── Summary format helper ──────────────────────────────────────────────────────
+// "title"         → label as-is          e.g. "Cotswolds"
+// "sentence"      → first-cap only       e.g. "Country wedding"
+// "title-setting" → label + " setting"   e.g. "Castle setting"
+function applySummaryFormat(label, format) {
+  if (format === "sentence") {
+    const s = label.toLowerCase();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  if (format === "title-setting") return `${label} setting`;
+  return label;
+}
 
 export default function ImmersiveSearch({
   isOpen,
@@ -241,7 +402,8 @@ export default function ImmersiveSearch({
   const [hovTile,       setHovTile]       = useState(null);
   const [hovCat,        setHovCat]        = useState(null);
   const [hovChip,       setHovChip]       = useState(null);
-  const [contextChip,   setContextChip]   = useState(null); // chip selected in country context mode
+  const [rowSelections, setRowSelections] = useState({}); // { rowIndex: chip } — multi-select rows
+  const [contextChip,   setContextChip]   = useState(null); // flat chip mode (Italy etc.)
   const [suggOpen,      setSuggOpen]      = useState(false);
   const [inputFocused,  setInputFocused]  = useState(false);
   const [exitingCat,    setExitingCat]    = useState(null);
@@ -273,6 +435,7 @@ export default function ImmersiveSearch({
       setStepIn(true);
       setQuery("");
       setContextChip(null);
+      setRowSelections({});
       if (initialLocation) {
         setLocation(initialLocation);
         // Region known → skip straight to category step
@@ -416,24 +579,59 @@ export default function ImmersiveSearch({
   const handleSkipLocation  = ()     => goToCategory(null);
   const handleSuggSelect    = (sug)  => { setQuery(""); setSuggOpen(false); goToCategory(sug); };
 
-  const handleChipSelect = useCallback((chip) => {
-    setContextChip(chip.label);
-    // Apply chip refinements
-    if (chip.style)   setRefStyle(chip.style);
-    if (chip.setting) setRefSetting(chip.setting);
-    if (chip.guests)  setRefGuests(chip.guests);
-    // If chip specifies a region, narrow the location
-    const updatedLocation = chip.region
-      ? { ...initialLocation, label: chip.label, regionSlug: chip.region }
+  // ── Row-based multi-select (England / grouped rows config) ──────────────────
+  // Toggles selection within a row — one chip active per row, click again to deselect.
+  // Does NOT auto-advance. User commits via handleContinueFromChips.
+  const handleRowChipToggle = useCallback((chip, rowIndex) => {
+    setRowSelections(prev => {
+      if (prev[rowIndex]?.label === chip.label) {
+        const next = { ...prev };
+        delete next[rowIndex];
+        return next;
+      }
+      return { ...prev, [rowIndex]: chip };
+    });
+  }, []);
+
+  // Applies all row selections and advances to category step.
+  // Uses buildCountryConfig to recover the row schema so applySummaryFormat
+  // produces the same natural-language label as the selection summary strip.
+  const handleContinueFromChips = useCallback(() => {
+    const config = buildCountryConfig(initialLocation?.countrySlug);
+    const rows   = config?.rows || [];
+    const selected = Object.values(rowSelections);
+
+    selected.forEach(chip => {
+      if (chip.style)   setRefStyle(chip.style);
+      if (chip.setting) setRefSetting(chip.setting);
+      if (chip.guests)  setRefGuests(chip.guests);
+    });
+
+    const regionChip      = selected.find(c => c.region);
+    const updatedLocation = regionChip
+      ? { ...initialLocation, label: regionChip.label, regionSlug: regionChip.region }
       : initialLocation;
+
+    // Build formatted summary — row-ordered, same format as the selection strip
+    const summary = rows
+      .map((row, i) => rowSelections[i]
+        ? applySummaryFormat(rowSelections[i].label, row.summaryFormat)
+        : null)
+      .filter(Boolean)
+      .join("  ·  ");
+
+    setContextChip(summary || null);
     setStepIn(false);
     setTimeout(() => {
       setLocation(updatedLocation);
       setStep(1);
       setStepIn(true);
     }, 280);
-  }, [initialLocation]);
+  }, [rowSelections, initialLocation]);
 
+  // handleIconCatSelect — used by the icon-grid category picker in step 1.
+  // Falls back to onViewCategory with a countrySlug object when no region is set
+  // so we never call onViewRegionCategory with a null region.
   const handleIconCatSelect = useCallback((vc) => {
     const countrySlug = location?.countrySlug || null;
     const regionSlug  = location?.regionSlug  || null;
@@ -442,7 +640,7 @@ export default function ImmersiveSearch({
       if (countrySlug && regionSlug) {
         onViewRegionCategory?.(countrySlug, regionSlug, vc.slug);
       } else if (countrySlug) {
-        onViewRegionCategory?.(countrySlug, null, vc.slug);
+        onViewCategory?.({ category: vc.slug, countrySlug });
       } else {
         onViewCategory?.({ category: vc.slug });
       }
@@ -492,12 +690,14 @@ export default function ImmersiveSearch({
         setQuery("");
         setPendingCat(null);
         setRefStyle(null); setRefGuests(null); setRefSetting(null); setRefBudget(null);
+        // Never pass null as regionSlug to onViewRegionCategory.
+        // Country-only intent routes through onViewCategory with countrySlug in the object.
         if (countrySlug && regionSlug && catSlug) {
           onViewRegionCategory?.(countrySlug, regionSlug, catSlug);
         } else if (countrySlug && catSlug) {
-          onViewRegionCategory?.(countrySlug, null, catSlug);
+          onViewCategory?.({ category: catSlug, countrySlug });
         } else {
-          onViewCategory?.();
+          onViewCategory?.({ category: catSlug });
         }
       }, 500); // wait for the 0.45s fade to finish
     }, 6000);
@@ -724,28 +924,74 @@ export default function ImmersiveSearch({
       ═══════════════════════════════════════════════════════════════════ */}
       {step === 0 && !auraMode && (() => {
         const countryCtx    = !!(initialLocation?.countrySlug && !initialLocation?.regionSlug);
-        const countryConfig = countryCtx ? (COUNTRY_CHIPS[initialLocation.countrySlug] || null) : null;
-        const chips         = countryConfig?.chips || [];
+        const countryConfig = countryCtx ? buildCountryConfig(initialLocation.countrySlug) : null;
+        const groupedRows   = countryConfig?.rows || [];
+        const hasRows       = groupedRows.length > 0;
         const displayLabel  = countryConfig?.displayLabel || initialLocation?.label || "";
         const auraPlaceholder = countryCtx
-          ? `e.g. "A country house in ${displayLabel} for 120 guests with a garden ceremony"`
+          ? `e.g. "A ${groupedRows[2]?.chips[0]?.label.toLowerCase() || "manor house"} in ${displayLabel} for 80 guests"`
           : "Type a country or city…";
+
+        // Row chip renderer (multi-select — toggles, does NOT auto-advance)
+        const renderRowChip = (chip, rowIndex) => {
+          const selected = rowSelections[rowIndex]?.label === chip.label;
+          const hov      = !selected && hovChip === chip.label;
+          return (
+            <button
+              key={chip.label}
+              onClick={() => handleRowChipToggle(chip, rowIndex)}
+              onMouseEnter={() => setHovChip(chip.label)}
+              onMouseLeave={() => setHovChip(null)}
+              style={{
+                background:    selected ? "rgba(201,168,76,0.18)" : hov ? "rgba(201,168,76,0.09)" : "rgba(201,168,76,0.04)",
+                border:        `1px solid ${selected ? GOLD : hov ? "rgba(201,168,76,0.5)" : "rgba(201,168,76,0.18)"}`,
+                borderRadius:  2,
+                padding:       "10px 20px",
+                cursor:        "pointer",
+                color:         selected ? GOLD : hov ? "rgba(245,240,232,0.9)" : "rgba(245,240,232,0.65)",
+                fontFamily:    NU,
+                fontSize:      13,
+                fontWeight:    selected ? 600 : 500,
+                letterSpacing: "0.04em",
+                transition:    "all 0.2s ease",
+                transform:     selected ? "translateY(-1px)" : hov ? "translateY(-1px)" : "none",
+                whiteSpace:    "nowrap",
+                boxShadow:     selected ? "0 0 0 1px rgba(201,168,76,0.15), 0 4px 16px rgba(201,168,76,0.08)" : "none",
+                display:       "inline-flex",
+                alignItems:    "center",
+                gap:           selected ? 7 : 0,
+              }}
+            >
+              {selected && <span style={{ fontSize: 10, lineHeight: 1 }}>✦</span>}
+              {chip.label}
+            </button>
+          );
+        };
+
+        // Derive selection summary — preserves row order and applies natural formatting
+        const selectionCount   = Object.keys(rowSelections).length;
+        const selectionSummary = groupedRows
+          .map((row, i) => rowSelections[i]
+            ? applySummaryFormat(rowSelections[i].label, row.summaryFormat)
+            : null)
+          .filter(Boolean)
+          .join("  ·  ");
 
         return (
         <div style={stepTransition}>
 
           {/* Heading */}
-          <div style={{ marginBottom: countryCtx ? 40 : 52 }}>
+          <div style={{ marginBottom: countryCtx ? 36 : 52 }}>
             <p style={{ fontFamily: NU, fontSize: 10, letterSpacing: "0.22em", color: GOLD, textTransform: "uppercase", margin: "0 0 18px" }}>
               {countryCtx ? "Step 1 of 2" : "Step 1 of 3"}
             </p>
             <h1 style={{
               fontFamily: GD, fontWeight: 400, margin: 0, color: WHITE,
-              fontSize: "clamp(40px, 6.5vw, 82px)",
+              fontSize: "clamp(38px, 6vw, 76px)",
               lineHeight: 1.04, letterSpacing: "-0.025em",
             }}>
               {countryCtx
-                ? <>What kind of wedding<br />are you imagining in <span style={{ color: GOLD, fontStyle: "italic" }}>{displayLabel}</span>?</>
+                ? <>Plan your luxury<br />weddings in <span style={{ color: GOLD, fontStyle: "italic" }}>{displayLabel}</span></>
                 : <>Where are you<br />dreaming of?</>
               }
             </h1>
@@ -756,38 +1002,91 @@ export default function ImmersiveSearch({
             )}
           </div>
 
-          {/* ── COUNTRY CONTEXT: intent chips ──────────────────────────────── */}
-          {countryCtx && chips.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 40 }}>
-              {chips.map((chip) => {
-                const hov = hovChip === chip.label;
-                return (
-                  <button
-                    key={chip.label}
-                    onClick={() => handleChipSelect(chip)}
-                    onMouseEnter={() => setHovChip(chip.label)}
-                    onMouseLeave={() => setHovChip(null)}
-                    style={{
-                      background:   hov ? "rgba(201,168,76,0.14)" : "rgba(201,168,76,0.06)",
-                      border:       `1px solid ${hov ? "rgba(201,168,76,0.6)" : "rgba(201,168,76,0.22)"}`,
-                      borderRadius: 2,
-                      padding:      "11px 22px",
-                      cursor:       "pointer",
-                      color:        hov ? WHITE : "rgba(245,240,232,0.75)",
-                      fontFamily:   NU,
-                      fontSize:     13,
-                      fontWeight:   500,
-                      letterSpacing:"0.04em",
-                      transition:   "all 0.25s ease",
-                      transform:    hov ? "translateY(-2px)" : "none",
-                    }}
-                  >
-                    {chip.label}
-                  </button>
-                );
-              })}
-            </div>
+          {/* ── COUNTRY CONTEXT: grouped rows (multi-select) ───────────────── */}
+          {countryCtx && hasRows && (
+            <>
+              <div style={{ display: "flex", flexDirection: "column", gap: 28, marginBottom: 36 }}>
+                {groupedRows.map((row, rowIndex) => (
+                  <div key={row.rowLabel}>
+                    <p style={{
+                      fontFamily: NU, fontSize: 9, letterSpacing: "0.24em",
+                      textTransform: "uppercase", color: "rgba(201,168,76,0.5)",
+                      margin: "0 0 12px",
+                    }}>
+                      {row.rowLabel}
+                    </p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {row.chips.map(chip => renderRowChip(chip, rowIndex))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Selection summary + Continue */}
+              <div style={{ display: "flex", alignItems: "center", gap: 24, marginBottom: 40 }}>
+                {/* Summary strip */}
+                <div style={{ flex: 1, minHeight: 38 }}>
+                  <p style={{
+                    fontFamily: NU, fontSize: 9, letterSpacing: "0.22em",
+                    textTransform: "uppercase", color: "rgba(201,168,76,0.38)",
+                    margin: "0 0 6px",
+                  }}>
+                    Building your selection
+                  </p>
+                  <p style={{
+                    fontFamily:    NU,
+                    fontSize:      12,
+                    color:         selectionCount > 0 ? "rgba(201,168,76,0.85)" : "rgba(201,168,76,0.2)",
+                    margin:        0,
+                    letterSpacing: "0.06em",
+                    transition:    "color 0.3s ease",
+                    minHeight:     16,
+                  }}>
+                    {selectionCount > 0 ? `✦  ${selectionSummary}` : "—"}
+                  </p>
+                </div>
+
+                {/* Continue button */}
+                <button
+                  onClick={handleContinueFromChips}
+                  style={{
+                    display:       "inline-flex",
+                    alignItems:    "center",
+                    gap:           10,
+                    background:    selectionCount > 0 ? "rgba(201,168,76,0.14)" : "rgba(201,168,76,0.05)",
+                    border:        `1px solid ${selectionCount > 0 ? "rgba(201,168,76,0.7)" : "rgba(201,168,76,0.2)"}`,
+                    borderRadius:  2,
+                    padding:       "13px 28px",
+                    cursor:        "pointer",
+                    color:         selectionCount > 0 ? GOLD : "rgba(201,168,76,0.35)",
+                    fontFamily:    NU,
+                    fontSize:      12,
+                    fontWeight:    600,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    transition:    "all 0.25s ease",
+                    whiteSpace:    "nowrap",
+                  }}
+                  onMouseEnter={e => {
+                    if (selectionCount > 0) {
+                      e.currentTarget.style.background   = "rgba(201,168,76,0.22)";
+                      e.currentTarget.style.borderColor  = GOLD;
+                      e.currentTarget.style.color        = WHITE;
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background  = selectionCount > 0 ? "rgba(201,168,76,0.14)" : "rgba(201,168,76,0.05)";
+                    e.currentTarget.style.borderColor = selectionCount > 0 ? "rgba(201,168,76,0.7)"  : "rgba(201,168,76,0.2)";
+                    e.currentTarget.style.color       = selectionCount > 0 ? GOLD : "rgba(201,168,76,0.35)";
+                  }}
+                >
+                  {selectionCount > 0 ? "Refine your selection" : "Skip"}
+                  <span style={{ fontSize: 14, lineHeight: 1 }}>→</span>
+                </button>
+              </div>
+            </>
           )}
+
 
           {/* ── NORMAL MODE: featured destination tiles ────────────────────── */}
           {!countryCtx && (

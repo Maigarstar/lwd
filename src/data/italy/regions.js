@@ -33,6 +33,7 @@ export const ITALY_REGIONS = [
     id: "tuscany", countrySlug: "italy", slug: "tuscany", name: "Tuscany",
     priorityLevel: "primary", urlEnabledManual: null, urlEverActivated: true, listingCount: 8,
     canonicalRoute: "/italy/tuscany",
+    heroSubtitle: "Villa estates, vineyard receptions, hilltop ceremonies. Tuscany remains the world's most sought-after destination for a luxury Italian wedding.",
     description: "Rolling vineyards, medieval hilltop towns and Renaissance villas. The quintessential Italian wedding destination.",
     focusKeywords: ["tuscany wedding", "tuscan villa wedding", "wedding venues tuscany"],
     aiSummary: "Highest listing density in Italy. Villa weddings dominate. Strong year-round demand with Q2/Q3 peak.",

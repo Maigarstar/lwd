@@ -449,8 +449,8 @@ export default function CountrySearchBar({
       style={{
         background:   CL.barBg,
         borderBottom: `1px solid ${CL.divider}`,
-        position:     "sticky",
-        top:          NAV_H,
+        position:     isMobile ? "relative" : "sticky",
+        top:          isMobile ? undefined : NAV_H,
         zIndex:       690,
         boxShadow:    "none",
       }}
@@ -560,9 +560,9 @@ export default function CountrySearchBar({
               .filter(dim => {
                 // Skip region (navigates via URL) — show it as a trigger for sub-region selection
                 if (dim.navigates) return true;
-                // Hide dimension when only 1 unique option
+                // Hide dimension only when there are no options at all
                 const opts = vendorFilterOptions?.[dim.key];
-                if (opts && opts.length <= 1) return false;
+                if (opts && opts.length === 0) return false;
                 return true;
               })
               .map(dim => {
@@ -626,14 +626,16 @@ export default function CountrySearchBar({
         )}
 
         {/* ═══ SHARED: count + view mode controls (always visible) ═══════ */}
-        <div style={{ flex: 1 }} />
+        {!isMobile && <div style={{ flex: 1 }} />}
 
-        <span style={{ fontSize: 10, color: CL.count, whiteSpace: "nowrap", fontFamily: NU }}>
-          <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "vendor-dynamic" && vendorCategoryLabel ? vendorCategoryLabel.toLowerCase() : mode === "planners" ? "planners" : mode === "photographers" ? "photographers" : mode === "videographers" ? "videographers" : mode === "vendors" ? "vendors" : "venues"}
-        </span>
+        {!isMobile && (
+          <span style={{ fontSize: 10, color: CL.count, whiteSpace: "nowrap", fontFamily: NU }}>
+            <span style={{ color: CL.goldDim, fontWeight: 600 }}>{total}</span> {mode === "vendor-dynamic" && vendorCategoryLabel ? vendorCategoryLabel.toLowerCase() : mode === "planners" ? "planners" : mode === "photographers" ? "photographers" : mode === "videographers" ? "videographers" : mode === "vendors" ? "vendors" : "venues"}
+          </span>
+        )}
 
-        {/* Grid / List / Map view switcher */}
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        {/* Grid / List / Map view switcher — hidden on mobile (grid-only) */}
+        {!isMobile && <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
           <button onClick={() => {
             setPressedButton("grid");
             onViewMode?.("grid");
@@ -643,7 +645,7 @@ export default function CountrySearchBar({
               background: viewMode === "grid" ? CL.viewActive : "transparent",
               borderRadius: hideListView ? "3px" : "3px 0 0 3px",
               color: viewMode === "grid" ? "#fff" : CL.text,
-              cursor: "pointer", width: 30, height: 30, padding: 0,
+              cursor: "pointer", width: isMobile ? 44 : 30, height: isMobile ? 44 : 30, padding: 0,
               transition: "all 0.25s",
               transform: pressedButton === "grid" ? "scale(0.92)" : "scale(1)",
               border: "1px solid rgba(160,148,125,0.28)",
@@ -651,7 +653,7 @@ export default function CountrySearchBar({
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5"/></svg>
           </button>
-          {!hideListView && (
+          {!hideListView && !isMobile && (
           <button onClick={() => {
             setPressedButton("list");
             onViewMode?.("list");
@@ -661,7 +663,7 @@ export default function CountrySearchBar({
               background: viewMode === "list" ? CL.viewActive : "transparent",
               borderRadius: "0 3px 3px 0",
               color: viewMode === "list" ? "#fff" : CL.text,
-              cursor: "pointer", width: 30, height: 30, padding: 0,
+              cursor: "pointer", width: isMobile ? 44 : 30, height: isMobile ? 44 : 30, padding: 0,
               transition: "all 0.25s",
               transform: pressedButton === "list" ? "scale(0.92)" : "scale(1)",
               border: "1px solid rgba(160,148,125,0.28)",
@@ -671,7 +673,7 @@ export default function CountrySearchBar({
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="6.75" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="11.5" width="14" height="2.5" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>
           </button>
           )}
-          {onToggleMap && (
+          {onToggleMap && !isMobile && (
             <button
               onClick={viewMode !== "list" ? onToggleMap : undefined}
               title={mapOn ? "Hide explore view" : "Explore on map"}
@@ -683,7 +685,7 @@ export default function CountrySearchBar({
                 border: `1px solid ${mapOn ? "rgba(201,168,76,0.75)" : "rgba(201,168,76,0.30)"}`,
                 borderLeft: "none", borderRadius: "0 3px 3px 0",
                 color: viewMode === "list" ? "rgba(201,168,76,0.40)" : mapOn ? "rgba(201,168,76,1)" : "rgba(201,168,76,0.60)",
-                cursor: viewMode === "list" ? "default" : "pointer", height: 30, padding: "0 9px",
+                cursor: viewMode === "list" ? "default" : "pointer", height: isMobile ? 44 : 30, padding: isMobile ? "0 14px" : "0 9px",
                 transition: "all 0.25s", fontFamily: NU, fontSize: 9,
                 fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase",
                 whiteSpace: "nowrap",
@@ -698,7 +700,7 @@ export default function CountrySearchBar({
               Explore
             </button>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* ═══ MEGA MENU PANEL — warm stone refinement ══════════════════════ */}

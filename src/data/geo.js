@@ -1273,17 +1273,50 @@ const REGION_CATEGORY_EDITORIALS = {
 
   "veneto--wedding-planners":
     "Venice and the Veneto region's wedding planners specialise in creating enchanting celebrations across one of Italy's most romantic and architecturally extraordinary landscapes. From Venetian planners orchestrating gondola processions and private palace ceremonies to Veneto-based specialists in Villa d'Este celebrations and Prosecco region vineyard weddings, these planners excel at translating dream visions into reality across water, countryside and historic towns. The region's planners possess insider access to Venice's most prestigious palaces, the Veneto's most exclusive private estates, and relationships with artisans creating everything from hand-blown Murano glass favours to custom Burano lace details. Many are bilingual or trilingual and navigate Venice's unique logistical requirements with practised ease, coordinating water-based transport, managing strict venue curfews, and producing flawless ceremonies in one of the world's most challenging but rewarding locations. LWD's curated Venetian and Veneto planners are selected for their creative excellence, logistical mastery, and deep cultural knowledge.",
+
+  // ── Amalfi Coast ──
+  "amalfi-coast--wedding-venues":
+    "Few places on earth carry the weight of romance that the Amalfi Coast does. Cliffside villages tumbling toward turquoise water, lemon groves scenting the morning air, and a quality of light that photographers have chased for centuries. To marry here is to choose a setting that needs no decoration; the landscape does the work. Venues perch on terraces hundreds of metres above the sea in Ravello, cascade through walled gardens in Positano, and open onto private beaches in Praiano, each one carrying a sense of place entirely its own. Celebrations here tend to feel unhurried and deeply personal. Intimate ceremonies where the only backdrop is the Mediterranean horizon, receptions that flow from candlelit terraces into the warm evening air. Our editorial team selects only the venues that genuinely earn their place on the coast. Properties with history, character, and the kind of atmosphere that stays with you long after the day is over.",
 };
+
+// ---------------------------------------------------------------------------
+// REGION × CATEGORY HERO SUBTITLES — unique, max 160 chars, distinct from editorial
+// ---------------------------------------------------------------------------
+const REGION_CATEGORY_SUBTITLES = {
+  "amalfi-coast--wedding-venues":   "Clifftop estates, walled gardens, private terraces above the sea. The Amalfi Coast is one of the world's great settings for a destination wedding.",
+  "london--wedding-venues":         "From Mayfair townhouses to Thames-side terraces and historic livery halls. London delivers every style of luxury wedding imaginable.",
+  "london--wedding-planners":       "The UK's finest wedding planners, with unrivalled vendor networks and the creative vision to bring any celebration to life.",
+  "london--photographers":          "London's wedding photographers draw from fashion, editorial and documentary traditions. The result is imagery that lasts a lifetime.",
+  "tuscany--wedding-planners":      "Tuscany's planning studios blend Italian craftsmanship with deep regional knowledge, turning rolling vineyard landscapes into unforgettable celebrations.",
+  "sicily--wedding-planners":       "Sicily's planners weave Mediterranean warmth with baroque grandeur, creating celebrations shaped by one of Europe's most extraordinary islands.",
+  "veneto--wedding-planners":       "From Venetian palaces to Prosecco-region estates, the Veneto's planners navigate one of Italy's most romantic and logistically complex landscapes.",
+};
+
+export function getRegionCategorySubtitle(regionSlug, categorySlug) {
+  const key = `${regionSlug}--${categorySlug}`;
+  if (REGION_CATEGORY_SUBTITLES[key]) return REGION_CATEGORY_SUBTITLES[key];
+
+  const region = REGIONS.find(r => r.slug === regionSlug);
+  const vc = VENDOR_CATEGORIES.find(c => c.slug === categorySlug);
+  const regionName = region ? region.name : regionSlug
+    ? regionSlug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+    : null;
+  const label = vc ? vc.label.toLowerCase() : categorySlug.replace(/-/g, " ");
+  const place = regionName || "this destination";
+  return `Personally curated ${label} in ${place}. Every recommendation is editorially verified, chosen for atmosphere, character, and the experience they create.`;
+}
 
 export function getRegionCategoryEditorial(regionSlug, categorySlug) {
   const key = `${regionSlug}--${categorySlug}`;
   if (REGION_CATEGORY_EDITORIALS[key]) return REGION_CATEGORY_EDITORIALS[key];
 
-  // Template fallback, never implies listings exist when count is 0
+  // Inspirational fallback — reads as editorial, never as a placeholder
   const region = REGIONS.find(r => r.slug === regionSlug);
   const vc = VENDOR_CATEGORIES.find(c => c.slug === categorySlug);
-  const regionName = region ? region.name : regionSlug || null;
-  const label = vc ? vc.label : categorySlug;
-  const inRegion = regionName ? ` in ${regionName}` : "";
-  return `Discover the finest ${label}${inRegion}. Our editorial team is personally vetting every recommendation, we never accept pay-to-play listings. Premium ${label.toLowerCase()}${inRegion} are arriving soon.`;
+  const regionName = region ? region.name : regionSlug
+    ? regionSlug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+    : null;
+  const label = vc ? vc.label.toLowerCase() : categorySlug.replace(/-/g, " ");
+  const place = regionName || "This destination";
+  return `${place} is one of those rare settings where the landscape does half the work. A place couples return to in their memories long after the celebration is over. The ${label} here carry a sense of place that is entirely their own, shaped by local character, history, and a quality of light that belongs nowhere else. We seek out only the venues and vendors that genuinely earn their place. Properties with atmosphere, integrity, and the kind of hospitality that makes guests feel the day was created specifically for them. Every recommendation in our ${place} collection is personally vetted by our editorial team, chosen on merit, never on spend.`;
 }

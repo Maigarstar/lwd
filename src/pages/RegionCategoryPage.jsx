@@ -17,6 +17,7 @@ import {
   VENDOR_CATEGORIES,
   getRegionCategoryPath,
   getRegionCategoryEditorial,
+  getRegionCategorySubtitle,
   geoSlugToVendorCategory,
   getVendorCategoryByGeoSlug,
 } from "../data/geo.js";
@@ -187,6 +188,7 @@ export default function RegionCategoryPage({
   const [immersiveOpen, setImmersiveOpen] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [seoExpanded, setSeoExpanded] = useState(false);
+  const [editorialExpanded, setEditorialExpanded] = useState(false);
   const [savedIds, setSavedIds] = useState([]);
   const [qvItem, setQvItem] = useState(null);
   const [mapOpen, setMapOpen] = useState(false);
@@ -263,6 +265,8 @@ export default function RegionCategoryPage({
       country:  countrySlug  || null,
       category: categorySlug || null,
     },
+    storageKey: `lwd_map_${countrySlug || "global"}_${regionSlug || "all"}_${categorySlug || "all"}`,
+    defaultMapOn: false,
   });
 
   // ── Legacy venue filter shim removed — all categories now use vendorFilters ──
@@ -276,17 +280,28 @@ export default function RegionCategoryPage({
       if (!raw) return;
       sessionStorage.removeItem("lwd:immersive-refinement");
       const ref = JSON.parse(raw);
-      // Map refinement → vendorFilters (unified system)
+      // ── Canonical mapping layer ───────────────────────────────────────────
+      // Single source of truth for immersive → filter value translation.
+      // Covers both Step 2 refinement labels and chip shorthand values so
+      // nothing is silently dropped regardless of where the value originates.
       const capacityMap = {
-        "Just us": "Up to 50", "Up to 50": "Up to 50",
-        "50–100": "50–100", "100–200": "100–200", "200+": "200+",
+        // Step 2 refinement options
+        "Just us":   "Up to 50",
+        "Up to 50":  "Up to 50",
+        "50–100":    "50–100",
+        "100–200":   "100–200",
+        "200+":      "200+",
+        // Chip shorthand values
+        "elopement": "Up to 50",
+        "small":     "Up to 50",
       };
       const priceMap = { "Mid-range £££": "£££", "Luxury ££££": "££££" };
       setVendorFilters(prev => {
         const next = { ...prev };
-        if (ref.style)  next.style    = ref.style;
-        if (ref.guests && capacityMap[ref.guests]) next.capacity = capacityMap[ref.guests];
-        if (ref.budget && priceMap[ref.budget])     next.budget   = priceMap[ref.budget];
+        if (ref.style)                               next.style    = ref.style;
+        if (ref.setting)                             next.setting  = ref.setting;
+        if (ref.guests && capacityMap[ref.guests])   next.capacity = capacityMap[ref.guests];
+        if (ref.budget && priceMap[ref.budget])      next.budget   = priceMap[ref.budget];
         return next;
       });
       // Build concierge summary banner text
@@ -297,11 +312,17 @@ export default function RegionCategoryPage({
   }, []);
 
   // ── View mode handler (wraps shared setViewMode) ─────────────────────────
-  // List view always opens with the map (split layout)
+  // List view always opens with the map (split layout). Blocked on mobile.
   const handleViewMode = useCallback((mode) => {
+    if (mode === "list" && isMobile) return; // list view disabled on mobile
     setViewMode(mode);
     if (mode === "list" && !mapOn) setMapOn(true);
-  }, [setViewMode, mapOn, setMapOn]);
+  }, [setViewMode, mapOn, setMapOn, isMobile]);
+
+  // If user arrives on mobile with list view saved in storage, reset to grid
+  useEffect(() => {
+    if (isMobile && viewMode === "list") setViewMode("grid");
+  }, [isMobile, viewMode, setViewMode]);
 
   // ── Fetch live Supabase listings for this region/country ──────────────────
   useEffect(() => {
@@ -350,6 +371,10 @@ export default function RegionCategoryPage({
     () => getRegionCategoryEditorial(regionSlug, categorySlug),
     [regionSlug, categorySlug],
   );
+  const heroSubtitle = useMemo(
+    () => getRegionCategorySubtitle(regionSlug, categorySlug),
+    [regionSlug, categorySlug],
+  );
 
   // ── Listings — wedding-venues → VENUES (+ DB), else → VENDORS ───────────
   const listings = useMemo(() => {
@@ -361,7 +386,10 @@ export default function RegionCategoryPage({
       let staticVenues;
       if (regionSlug) {
         staticVenues = VENUES.filter(
-          (v) => v.region === regionName || (region && v.region === region.name),
+          (v) =>
+            v.regionSlug === regionSlug ||
+            v.region === regionName ||
+            (region && v.region === region.name),
         );
       } else if (countrySlug) {
         staticVenues = VENUES.filter((v) => v.countrySlug === countrySlug);
@@ -695,7 +723,7 @@ export default function RegionCategoryPage({
         )}
       </Helmet>
       <ThemeCtx.Provider value={C}>
-      <div style={{ background: C.black, minHeight: "100vh", color: C.white }}>
+      <div style={{ background: C.black, minHeight: isMobile ? "auto" : "100vh", color: C.white }}>
 
         {/* ════════════════════════════════════════════════════════════════════
             1. NAV — main site navigation
@@ -827,7 +855,7 @@ export default function RegionCategoryPage({
               </h1>
             </div>
 
-            {/* Subtitle — first sentence of editorial */}
+            {/* Subtitle — unique, max 160 chars, distinct from editorial body */}
             <p
               style={{
                 fontSize: 16,
@@ -839,7 +867,7 @@ export default function RegionCategoryPage({
                 marginBottom: 32,
               }}
             >
-              {editorial.split(". ")[0]}.
+              {heroSubtitle}
             </p>
 
             {/* AI Search trigger */}
@@ -1002,112 +1030,13 @@ export default function RegionCategoryPage({
         {/* ════════════════════════════════════════════════════════════════════
             6. REAL WEDDINGS SECTION (Wedding Venues Only)
         ════════════════════════════════════════════════════════════════════ */}
-        {listingCount > 0 && categorySlug === "wedding-venues" && (
-          <section
-            className="lwd-rc-section"
-            style={{
-              background: darkMode ? C.black : "#f2f0ea",
-              padding: isMobile ? "40px 16px 48px" : "56px 32px 64px",
-            }}
-          >
-            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-              <RegionRealWeddings region={regionSlug} country={countrySlug} />
-            </div>
-          </section>
-        )}
+        {/* Real Weddings — section only renders if component has content */}
+
 
         {/* ════════════════════════════════════════════════════════════════════
-            6. INTERNAL LINKING CLUSTER (as visual table, like regions table)
+            7. AI SEARCH + FILTER — always shown regardless of listing count
         ════════════════════════════════════════════════════════════════════ */}
-        {aiSEO?.internalLinkingCluster && aiSEO.internalLinkingCluster.length > 0 && (
-          <section
-            className="lwd-rc-section"
-            style={{
-              background: darkMode ? C.dark : "#f2f0ea",
-              padding: isMobile ? "56px 16px" : "64px 32px",
-              borderTop: `1px solid ${C.border}`,
-            }}
-          >
-            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-              <h2
-                style={{
-                  textAlign: "center",
-                  fontFamily: GD,
-                  fontSize: isMobile ? 24 : 32,
-                  fontWeight: 400,
-                  color: C.white,
-                  lineHeight: 1.2,
-                  margin: "0 0 48px",
-                  letterSpacing: "-0.5px",
-                }}
-              >
-                Explore Other {categoryLabel} Destinations
-              </h2>
-
-              {/* Visual table of nearby locations */}
-              <div style={{ overflowX: "auto" }}>
-                <table style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontFamily: NU,
-                }}>
-                  <thead>
-                    <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-                      <th style={{ padding: "16px", textAlign: "left", color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" }}>Region</th>
-                      <th style={{ padding: "16px", textAlign: "left", color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" }}>Signature Style</th>
-                      <th style={{ padding: "16px", textAlign: "left", color: C.gold, fontSize: 10, fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase" }}>Why Visit</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {aiSEO.internalLinkingCluster.map((link, idx) => (
-                      <tr
-                        key={link.path}
-                        style={{
-                          borderBottom: `1px solid ${C.border}`,
-                          transition: "background 0.2s ease",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = darkMode ? "rgba(201,168,76,0.04)" : "rgba(201,168,76,0.02)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = "transparent";
-                        }}
-                      >
-                        <td style={{ padding: "16px", color: C.white, fontSize: 14, fontWeight: 500 }}>
-                          <a
-                            href={link.path}
-                            style={{
-                              color: C.gold,
-                              textDecoration: "none",
-                              transition: "opacity 0.2s",
-                              cursor: "pointer",
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.8"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
-                          >
-                            {link.name}
-                          </a>
-                        </td>
-                        <td style={{ padding: "16px", color: C.grey, fontSize: 14 }}>
-                          {link.type === "region" ? "Destination Region" : "Nearby City"}
-                        </td>
-                        <td style={{ padding: "16px", color: C.grey, fontSize: 14 }}>
-                          {link.anchorText}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* ════════════════════════════════════════════════════════════════════
-            7. FILTER & SEARCH SECTION
-        ════════════════════════════════════════════════════════════════════ */}
-        {listingCount > 0 ? (
-          <>
+        <div style={{ background: darkMode ? C.dark : "#f2f0ea" }}>
             {/* ═══ AURA CONCIERGE BANNER ═══ */}
             {auraSummary && !summaryDismissed && (
               <div style={{
@@ -1257,6 +1186,7 @@ export default function RegionCategoryPage({
             )}
 
             {/* ═══ AI COMMAND BAR + FILTER BAR — same as RegionPage ═══ */}
+            {!isMobile && (
             <section
               className="lwd-rc-section"
               style={{
@@ -1302,39 +1232,46 @@ export default function RegionCategoryPage({
                   }
                 }}
                 onMapIntent={(open) => {
-                  if (open && !mapOn && !isMobile) {
-                    setMapOn(true);
+                  if (open && isMobile) {
+                    setMapOpen(true);          // mobile → bottom sheet
+                  } else if (open && !mapOn) {
+                    setMapOn(true);            // desktop → split layout
                   }
                 }}
               />
-              <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "0 20px" : "0 48px" }}>
-                <CountrySearchBar
-                  filters={vendorFilters}
-                  onFiltersChange={handleVenueFiltersChange}
-                  viewMode={viewMode}
-                  onViewMode={handleViewMode}
-                  sortMode={vendorFilters.sort || "recommended"}
-                  onSortChange={(s) => setVendorFilters(prev => ({ ...prev, sort: s }))}
-                  total={listingCount}
-                  regions={[{ name: regionName, slug: regionSlug }]}
-                  countryFilter={countryName}
-                  mapOn={mapOn}
-                  onToggleMap={handleToggleMap}
-                  mode="vendor-dynamic"
-                  onRegionNavigate={handleVendorRegionNavigate}
-                  // Dynamic vendor filter props
-                  vendorFilters={vendorFilters}
-                  onVendorFiltersChange={setVendorFilters}
-                  vendorFilterConfig={vendorFilterConfig}
-                  vendorFilterOptions={vendorFilterOptions}
-                  vendorCategoryLabel={categoryLabel}
-                  hideVendorFilterBar={hideVendorFilterBar}
-                />
-              </div>
             </section>
+            )}
+            <CountrySearchBar
+              filters={vendorFilters}
+              onFiltersChange={handleVenueFiltersChange}
+              viewMode={viewMode}
+              onViewMode={handleViewMode}
+              sortMode={vendorFilters.sort || "recommended"}
+              onSortChange={(s) => setVendorFilters(prev => ({ ...prev, sort: s }))}
+              total={listingCount}
+              regions={[{ name: regionName, slug: regionSlug }]}
+              countryFilter={countryName}
+              mapOn={mapOn}
+              onToggleMap={handleToggleMap}
+              mode="vendor-dynamic"
+              onRegionNavigate={handleVendorRegionNavigate}
+              vendorFilters={vendorFilters}
+              onVendorFiltersChange={setVendorFilters}
+              vendorFilterConfig={vendorFilterConfig}
+              vendorFilterOptions={vendorFilterOptions}
+              vendorCategoryLabel={categoryLabel}
+              hideVendorFilterBar={hideVendorFilterBar}
+            />
+        </div>{/* end section-7 background wrapper */}
 
+        {/* ════════════════════════════════════════════════════════════════════
+            8. LISTINGS OR COMING SOON
+            Filter/search above always renders. Only the results are gated.
+        ════════════════════════════════════════════════════════════════════ */}
+        {listingCount > 0 ? (
+          <>
             {/* ════════════════════════════════════════════════════════════════════
-                8. LISTINGS — EXPLORE LAYOUT (map on · desktop) or NORMAL SECTION
+                LISTINGS — EXPLORE LAYOUT (map on · desktop) or NORMAL SECTION
                 Explore layout: any category, map on, desktop only.
                 Normal section: map off, mobile, or non-venue categories.
             ════════════════════════════════════════════════════════════════════ */}
@@ -1359,9 +1296,9 @@ export default function RegionCategoryPage({
                   opacity:    isFilteringTransition ? 0.7 : (mapTransitioning ? 0.55 : 1),
                   transition: "opacity 0.15s ease",
                 }}>
-                  {listingCount <= 3 ? (
+                  {listingCount === 0 ? (
                     <EmptyResultState
-                      resultCount={listingCount}
+                      resultCount={0}
                       categoryLabel={categoryLabel}
                       alternatives={alternativeCategories}
                       onSelectAlternative={handleSelectAlternative}
@@ -1492,94 +1429,115 @@ export default function RegionCategoryPage({
                 className="lwd-rc-section"
                 aria-label={`${categoryLabel} listings`}
                 style={{
-                  background:   darkMode ? C.dark : "#f2f0ea",
-                  padding:      isMobile ? "40px 0 72px" : "40px 48px 72px",
-                  borderBottom: `1px solid ${C.border}`,
+                  background:   isMobile ? "transparent" : (darkMode ? C.dark : "#f2f0ea"),
+                  padding:      isMobile ? "20px 0 0" : "40px 48px 72px",
+                  borderBottom: isMobile ? "none" : `1px solid ${C.border}`,
                 }}
               >
-                <div style={{ maxWidth: 1280, margin: "0 auto", overflow: "hidden" }}>
-
-                  {/* Empty/low result state */}
-                  {listingCount <= 3 && categorySlug === "wedding-venues" && (
-                    <EmptyResultState
-                      resultCount={listingCount}
-                      categoryLabel={categoryLabel}
-                      alternatives={alternativeCategories}
-                      onSelectAlternative={handleSelectAlternative}
-                      darkMode={darkMode}
-                    />
-                  )}
-
-                  {/* wedding-venues · grid view — mobile: 1-col, desktop: 3-col */}
-                  {categorySlug === "wedding-venues" && viewMode === "grid" && listingCount > 3 && (
-                    <div
-                      className="lwd-venue-grid"
-                      style={{
-                        display:             "grid",
-                        gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-                        gap:                 isMobile ? 12 : 16,
-                        opacity:             isFilteringTransition ? 0.7 : 1,
-                        transition:          "opacity 0.15s ease",
-                      }}
-                      aria-label="Venue grid"
-                    >
-                      {finalListings.map((v) => (
-                        <div
-                          key={v.id}
-                          data-listing-id={v.id}
-                          onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
-                          onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
-                        >
-                          <LuxuryVenueCard
-                            v={v}
-                            onView={() => onViewVenue(v.id || v.slug)}
-                            quickViewItem={qvItem}
-                            setQuickViewItem={setQvItem}
-                            matchedStyles={vendorFilters.style ? [vendorFilters.style] : []}
-                            otherFilters={{ region: vendorFilters.region, capacity: vendorFilters.capacity }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* wedding-venues · list view — single col, mobile map modal */}
-                  {categorySlug === "wedding-venues" && viewMode !== "grid" && listingCount > 3 && (
-                    <>
-                      {isMobile && (
-                        <div style={{ marginBottom: 24 }}>
-                          <button
-                            onClick={() => setMapOpen(true)}
+                {isMobile ? (
+                  /* Mobile: responsive grid layout */
+                  <>
+                    {/* wedding-venues · grid view — mobile: responsive grid */}
+                    {categorySlug === "wedding-venues" && viewMode === "grid" && listingCount > 0 && (
+                      <div
+                        className="lwd-venue-grid-mobile"
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+                          gap: 16,
+                          padding: "0 12px",
+                          opacity: isFilteringTransition ? 0.7 : 1,
+                          transition: "opacity 0.15s ease",
+                        }}
+                        aria-label="Venue grid"
+                      >
+                        {finalListings.map((v) => (
+                          <div
+                            key={v.id}
+                            data-listing-id={v.id}
                             style={{
-                              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                              width: "100%",
-                              background: "rgba(201,168,76,0.12)",
-                              border: "1px solid rgba(201,168,76,0.35)",
-                              borderRadius: "var(--lwd-radius-input)",
-                              padding: "14px 18px",
-                              minHeight: "48px",
-                              fontFamily: NU, fontSize: 13, fontWeight: 600,
-                              letterSpacing: "0.5px", color: "#C9A84C", cursor: "pointer",
-                              transition: "all 0.2s ease",
+                              height: 400,
+                              overflow: "hidden",
+                              borderRadius: "var(--lwd-radius-card, 8px)",
+                              outline: activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
+                              transition: "outline 0.2s",
                             }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "rgba(201,168,76,0.18)";
-                              e.currentTarget.style.borderColor = "rgba(201,168,76,0.45)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "rgba(201,168,76,0.12)";
-                              e.currentTarget.style.borderColor = "rgba(201,168,76,0.35)";
-                            }}
+                            onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
+                            onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
                           >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
-                              <line x1="9" y1="3" x2="9" y2="18" />
-                              <line x1="15" y1="6" x2="15" y2="21" />
-                            </svg>
-                            Show Map
-                          </button>
-                        </div>
-                      )}
+                            <LuxuryVenueCard
+                              v={v}
+                              onView={() => onViewVenue(v.id || v.slug)}
+                              quickViewItem={qvItem}
+                              setQuickViewItem={setQvItem}
+                              matchedStyles={vendorFilters.style ? [vendorFilters.style] : []}
+                              otherFilters={{ region: vendorFilters.region, capacity: vendorFilters.capacity }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  /* Desktop: constrained grid inside maxWidth wrapper */
+                  <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+
+                    {/* Zero result state — blocks grid */}
+                    {listingCount === 0 && categorySlug === "wedding-venues" && (
+                      <EmptyResultState
+                        resultCount={0}
+                        categoryLabel={categoryLabel}
+                        alternatives={alternativeCategories}
+                        onSelectAlternative={handleSelectAlternative}
+                        darkMode={darkMode}
+                      />
+                    )}
+
+                    {/* wedding-venues · grid view — desktop: 1-col, 2-col ~1100px, 3-col large */}
+                    {categorySlug === "wedding-venues" && viewMode === "grid" && listingCount > 0 && (
+                      <div
+                        className="lwd-venue-grid"
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+                          gap: 20,
+                          opacity: isFilteringTransition ? 0.7 : 1,
+                          transition: "opacity 0.15s ease",
+                        }}
+                        aria-label="Venue grid"
+                      >
+                        {finalListings.map((v) => (
+                          <div
+                            key={v.id}
+                            data-listing-id={v.id}
+                            style={{
+                              height: 560,
+                              overflow: "hidden",
+                              borderRadius: "var(--lwd-radius-card, 8px)",
+                              outline: activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
+                              transition: "outline 0.2s",
+                            }}
+                            onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
+                            onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
+                          >
+                            <LuxuryVenueCard
+                              v={v}
+                              onView={() => onViewVenue(v.id || v.slug)}
+                              quickViewItem={qvItem}
+                              setQuickViewItem={setQvItem}
+                              matchedStyles={vendorFilters.style ? [vendorFilters.style] : []}
+                              otherFilters={{ region: vendorFilters.region, capacity: vendorFilters.capacity }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                  {/* wedding-venues · list view — single col */}
+                  {categorySlug === "wedding-venues" && viewMode !== "grid" && listingCount > 0 && (
+                    <>
                       <div style={{
                         display: "flex",
                         flexDirection: "column",
@@ -1606,70 +1564,65 @@ export default function RegionCategoryPage({
                         ))}
                       </div>
 
-                      {/* Mobile map modal — full intelligence props, parity with desktop */}
-                      {isMobile && mapOpen && (
-                        <div
-                          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", zIndex: 1000 }}
-                          onClick={() => setMapOpen(false)}
-                        >
-                          <div
-                            style={{ width: "100%", height: "80vh", background: darkMode ? C.dark : "#f2f0ea", borderRadius: "16px 16px 0 0", overflow: "hidden", display: "flex", flexDirection: "column" }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <span style={{ fontFamily: NU, fontSize: 13, fontWeight: 600, color: C.white }}>Map</span>
-                              <button onClick={() => setMapOpen(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.grey }}>×</button>
-                            </div>
-                            <div style={{ flex: 1, overflow: "hidden" }}>
-                              <MASTERMap
-                                venues={finalListings}
-                                label={`${categoryLabel} · ${regionName || countryName || "Italy"}`}
-                                viewMode={viewMode}
-                                onToggleView={() => setMapOpen(false)}
-                                countrySlug={countrySlug || "italy"}
-                                pageBg={darkMode ? C.dark : "#f2f0ea"}
-                                auraSummary={auraSummary && !summaryDismissed ? auraSummary : null}
-                                activeFilter={auraMapFilter}
-                                onFilterChange={(cat) => setAuraMapFilter(cat)}
-                                auraRecommendedIds={auraRecommendedIds}
-                                onSparsePins={handleSparsePins}
-                                activeListingId={activeListingId}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </>
                   )}
 
                   {/* ── Vendor categories (config-driven card rendering) ── */}
-                  {isVendor && viewMode === "grid" && (
-                    <div style={{
-                      display: "grid",
-                      gridTemplateColumns: isMobile ? "1fr" : vendorFilterConfig?.card === "PlannerCard" ? "repeat(auto-fill, minmax(416px, 1fr))" : "repeat(auto-fill, minmax(340px, 1fr))",
-                      gap: isMobile ? 16 : 20,
-                      margin: undefined,
-                      opacity: isFilteringTransition ? 0.7 : 1,
-                      transition: "opacity 0.15s ease",
-                    }}>
-                      {finalListings.map((v) => (
-                        <div key={v.id} style={{ overflow: "hidden", borderRadius: "var(--lwd-radius-card, 8px)" }}>
-                          {vendorFilterConfig?.card === "PlannerCard" ? (
-                            <PlannerCard v={v} mode="grid" onView={() => onViewPlanner(v)} isMobile={isMobile} />
-                          ) : (
-                            <LuxuryVendorCard
-                              v={v}
-                              onView={() => onViewVenue(v.slug || v.id)}
-                              isMobile={isMobile}
-                              quickViewItem={qvItem}
-                              setQuickViewItem={setQvItem}
-                            />
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                  {isVendor && !isVenue && viewMode === "grid" && (
+                    isMobile ? (
+                      /* Mobile: responsive grid */
+                      <div style={{
+                        display: "grid",
+                        gridTemplateColumns: vendorFilterConfig?.card === "PlannerCard" ? "repeat(auto-fill, minmax(280px, 1fr))" : "repeat(auto-fill, minmax(300px, 1fr))",
+                        gap: 16,
+                        padding: "0 12px",
+                        opacity: isFilteringTransition ? 0.7 : 1,
+                        transition: "opacity 0.15s ease",
+                      }}>
+                        {finalListings.map((v) => (
+                          <div key={v.id} style={{ overflow: "hidden", borderRadius: "var(--lwd-radius-card, 8px)" }}>
+                            {vendorFilterConfig?.card === "PlannerCard" ? (
+                              <PlannerCard v={v} mode="grid" onView={() => onViewPlanner(v)} isMobile={isMobile} />
+                            ) : (
+                              <LuxuryVendorCard
+                                v={v}
+                                onView={() => onViewVenue(v.slug || v.id)}
+                                isMobile={isMobile}
+                                quickViewItem={qvItem}
+                                setQuickViewItem={setQvItem}
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      /* Desktop: grid */
+                      <div style={{
+                        display: "grid",
+                        gridTemplateColumns: vendorFilterConfig?.card === "PlannerCard" ? "repeat(auto-fill, minmax(416px, 1fr))" : "repeat(auto-fill, minmax(340px, 1fr))",
+                        gap: 20,
+                        opacity: isFilteringTransition ? 0.7 : 1,
+                        transition: "opacity 0.15s ease",
+                      }}>
+                        {finalListings.map((v) => (
+                          <div key={v.id} style={{ overflow: "hidden", borderRadius: "var(--lwd-radius-card, 8px)" }}>
+                            {vendorFilterConfig?.card === "PlannerCard" ? (
+                              <PlannerCard v={v} mode="grid" onView={() => onViewPlanner(v)} isMobile={isMobile} />
+                            ) : (
+                              <LuxuryVendorCard
+                                v={v}
+                                onView={() => onViewVenue(v.slug || v.id)}
+                                isMobile={isMobile}
+                                quickViewItem={qvItem}
+                                setQuickViewItem={setQvItem}
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )
                   )}
-                  {isVendor && viewMode !== "grid" && (
+                  {isVendor && !isVenue && viewMode !== "grid" && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 16, opacity: isFilteringTransition ? 0.7 : 1, transition: "opacity 0.15s ease" }}>
                       {finalListings.map((v) => (
                         vendorFilterConfig?.card === "PlannerCard" ? (
@@ -1696,18 +1649,18 @@ export default function RegionCategoryPage({
                     </div>
                   )}
 
-                </div>
               </section>
             )}
           </>
-        ) : (
-          /* ── Premium "Coming Soon" editorial state ── */
+        ) : listingsLoaded ? (
+          /* ── Premium "Coming Soon" editorial state — only after fetch completes ── */
           <section
             className="lwd-rc-section"
             aria-label="Coming soon"
             style={{
               background: darkMode ? C.dark : "#f2f0ea",
-              padding: "96px 48px",
+              padding: isMobile ? "48px 20px 56px" : "96px 48px",
+              minHeight: isMobile ? "auto" : undefined,
             }}
           >
             <div style={{ maxWidth: 600, margin: "0 auto", textAlign: "center" }}>
@@ -1761,58 +1714,125 @@ export default function RegionCategoryPage({
               />
             </div>
           </section>
-        )}
+        ) : null}
 
 
         {/* ════════════════════════════════════════════════════════════════════
-            7. WEDDING VENDORS — carousel (same as RegionPage)
+            EDITORIAL GUIDE — below listings
         ════════════════════════════════════════════════════════════════════ */}
-        <section
-          className="lwd-rc-section"
-          aria-label="Wedding vendors"
-          style={{
-            background: "#000000",
-            padding: isMobile ? "56px 20px" : "96px 120px",
-          }}
-        >
-          <div style={{ maxWidth: 1280, margin: "0 auto" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-              <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
-              <span
-                style={{
-                  fontFamily: NU,
-                  fontSize: 9,
-                  letterSpacing: "0.3em",
-                  textTransform: "uppercase",
-                  color: "#C9A84C",
-                  fontWeight: 600,
-                }}
-              >
-                Find Your Team
-              </span>
-              <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
-            </div>
-            <h2
-              style={{
+        {editorial && (
+          <section
+            className="lwd-rc-section"
+            aria-label="Editorial introduction"
+            style={{
+              background: darkMode ? C.dark : "#f2f0ea",
+              padding: isMobile ? "48px 20px" : "64px 32px",
+              borderBottom: `1px solid ${darkMode ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)"}`,
+            }}
+          >
+            <div style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
+              <div style={{
+                fontFamily: NU,
+                fontSize: 9,
+                fontWeight: 600,
+                letterSpacing: "2.5px",
+                textTransform: "uppercase",
+                color: C.gold,
+                marginBottom: 24,
+              }}>
+                Editorial Guide
+              </div>
+
+              <p style={{
                 fontFamily: GD,
-                fontSize: isMobile ? "clamp(22px, 6vw, 30px)" : "clamp(26px, 3vw, 36px)",
+                fontSize: isMobile ? 17 : 19,
+                fontStyle: "italic",
                 fontWeight: 400,
-                color: "#f5f0e8",
-                lineHeight: 1.2,
-                margin: "0 0 32px",
+                color: darkMode ? "rgba(255,255,255,0.82)" : "#1a1a1a",
+                lineHeight: 1.85,
+                margin: 0,
+              }}>
+                {editorialExpanded
+                  ? editorial
+                  : editorial.split(". ").slice(0, 2).join(". ") + "."}
+              </p>
+
+              {editorial.split(". ").length > 2 && (
+                <button
+                  onClick={() => setEditorialExpanded(e => !e)}
+                  style={{
+                    marginTop: 20,
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: NU,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: "1.5px",
+                    textTransform: "uppercase",
+                    color: C.gold,
+                    padding: 0,
+                    opacity: 0.75,
+                    transition: "opacity 0.2s",
+                  }}
+                  onMouseEnter={e => e.target.style.opacity = "1"}
+                  onMouseLeave={e => e.target.style.opacity = "0.75"}
+                >
+                  {editorialExpanded ? "Read less" : "Read more"}
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════
+            7. WEDDING VENDORS — carousel (same as RegionPage)
+            Guard: only render once data is loaded AND ≥2 active categories exist.
+            Single-category regions (venues only) skip this section entirely.
+        ════════════════════════════════════════════════════════════════════ */}
+        {listingsLoaded && (() => {
+          const activeCatSet = new Set();
+          dbListings.forEach(l => {
+            const cat = l.categorySlug || l.category_slug || "";
+            if (cat) activeCatSet.add(cat);
+            const lt = l.listingType || l.listing_type || "";
+            if (!cat && (lt === "venue" || !lt)) activeCatSet.add("wedding-venues");
+          });
+          if (finalListings.length > 0) activeCatSet.add(categorySlug);
+          const activeVendorCats = VENDOR_CATEGORIES.filter(vc => activeCatSet.has(vc.slug));
+          if (activeVendorCats.length < 2) return null;
+          if (isMobile && activeVendorCats.length < 3) return null; // Don't render on mobile if only 2 categories
+          return (
+            <section
+              className="lwd-rc-section"
+              aria-label="Wedding vendors"
+              style={{
+                background: "#000000",
+                padding: isMobile ? "40px 16px" : "96px 120px",
               }}
             >
-              {regionName ? <><span style={{ color: "rgba(245,240,232,0.85)" }}>{regionName}</span>{" "}</> : null}
-              <span style={{ fontStyle: "italic", color: "#C9A84C" }}>Wedding Vendors</span>
-            </h2>
-            <VendorCategoryCarousel
-              categories={VENDOR_CATEGORIES}
-              C={DARK_C}
-              onSelect={(slug) => onViewRegionCategory(countrySlug, regionSlug, slug)}
-              activeCategorySlugs={listingsLoaded ? (() => { const s = new Set(); dbListings.forEach(l => { const cat = l.categorySlug || l.category_slug || ""; if (cat) s.add(cat); const lt = l.listingType || l.listing_type || ""; if (!cat && (lt === "venue" || !lt)) s.add("wedding-venues"); }); return s; })() : null}
-            />
-          </div>
-        </section>
+              <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                  <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
+                  <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: "#C9A84C", fontWeight: 600 }}>
+                    Find Your Team
+                  </span>
+                  <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
+                </div>
+                <h2 style={{ fontFamily: GD, fontSize: isMobile ? "clamp(22px, 6vw, 30px)" : "clamp(26px, 3vw, 36px)", fontWeight: 400, color: "#f5f0e8", lineHeight: 1.2, margin: "0 0 32px" }}>
+                  {regionName ? <><span style={{ color: "rgba(245,240,232,0.85)" }}>{regionName}</span>{" "}</> : null}
+                  <span style={{ fontStyle: "italic", color: "#C9A84C" }}>Wedding Vendors</span>
+                </h2>
+                <VendorCategoryCarousel
+                  categories={activeVendorCats}
+                  C={DARK_C}
+                  onSelect={(slug) => onViewRegionCategory(countrySlug, regionSlug, slug)}
+                  activeCategorySlugs={activeCatSet}
+                />
+              </div>
+            </section>
+          );
+        })()}
 
 
         {/* Related Regions — removed per user request */}
@@ -1977,6 +1997,101 @@ export default function RegionCategoryPage({
         ════════════════════════════════════════════════════════════════════ */}
         <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={countrySlug === "england"} showItaly={countrySlug === "italy"} showUSA={countrySlug === "usa"} liveRegions={regionSlug && countrySlug ? [{ slug: regionSlug, name: regionName, countrySlug }] : []} darkMode={darkMode} />
 
+
+        {/* ══════════════════════════════════════════════════════════════════
+            MOBILE MAP — floating pill + bottom sheet
+            Visible on mobile whenever there are listings, any view mode
+        ═══════════════════════════════════════════════════════════════════ */}
+        {isMobile && listingCount > 0 && (
+          <>
+            {/* Floating pill — fixed bottom-centre, above Aura/compare bars */}
+            {!mapOpen && (
+              <div style={{
+                position: "fixed",
+                bottom: 28,
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 900,
+              }}>
+                <button
+                  className="lwd-map-pill"
+                  onClick={() => setMapOpen(true)}
+                  aria-label="Show map"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                    <circle cx="12" cy="9" r="2.5" fill="currentColor" stroke="none"/>
+                  </svg>
+                  Map
+                  <span className="lwd-map-pill-count">{listingCount}</span>
+                </button>
+              </div>
+            )}
+
+            {/* Bottom sheet */}
+            {mapOpen && (
+              <div
+                className="lwd-map-sheet-backdrop"
+                onClick={() => setMapOpen(false)}
+              >
+                <div
+                  className="lwd-map-sheet"
+                  style={{ background: darkMode ? C.dark : "#f2f0ea" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Drag handle */}
+                  <div className="lwd-map-sheet-handle">
+                    <div className="lwd-map-sheet-handle-bar" />
+                  </div>
+
+                  {/* Header */}
+                  <div
+                    className="lwd-map-sheet-header"
+                    style={{ borderBottom: `1px solid ${C.border}` }}
+                  >
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      <span style={{
+                        fontFamily: NU, fontSize: 11, fontWeight: 700,
+                        letterSpacing: "1.5px", textTransform: "uppercase", color: C.gold,
+                      }}>
+                        {categoryLabel}
+                      </span>
+                      <span style={{ fontFamily: NU, fontSize: 11, color: C.grey }}>
+                        {listingCount} {listingCount === 1 ? "listing" : "listings"}{regionName ? ` · ${regionName}` : ""}
+                      </span>
+                    </div>
+                    <button
+                      className="lwd-map-sheet-close"
+                      style={{ color: C.grey }}
+                      onClick={() => setMapOpen(false)}
+                      aria-label="Close map"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {/* Map — fills remaining height */}
+                  <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
+                    <MASTERMap
+                      venues={finalListings}
+                      label={`${categoryLabel} · ${regionName || countryName || "Italy"}`}
+                      viewMode={viewMode}
+                      onToggleView={() => setMapOpen(false)}
+                      countrySlug={countrySlug || "italy"}
+                      pageBg={darkMode ? C.dark : "#f2f0ea"}
+                      auraSummary={auraSummary && !summaryDismissed ? auraSummary : null}
+                      activeFilter={auraMapFilter}
+                      onFilterChange={(cat) => setAuraMapFilter(cat)}
+                      auraRecommendedIds={auraRecommendedIds}
+                      onSparsePins={handleSparsePins}
+                      activeListingId={activeListingId}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         {/* ── Quick View modal (page-level) ── */}
         {qvItem && (

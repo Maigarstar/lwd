@@ -117,11 +117,15 @@ export function applyDirectorySort(listings, sort) {
 export function useDirectoryState({
   initialFilters = {},   // page-level defaults (e.g. { region: "tuscany", category: "wedding-venues" })
   storageKey = null,     // optional: custom localStorage key for this page's view state
+  defaultMapOn = false,  // page-level default — used when no saved pref exists for this key
 } = {}) {
 
   // ── View state — persisted to localStorage ──────────────────────────────────
   const [viewMode, setViewMode] = useState(() => getInitialViewState(storageKey).viewMode);
-  const [mapOn,    setMapOn]    = useState(() => getInitialViewState(storageKey).mapOn);
+  const [mapOn,    setMapOn]    = useState(() => {
+    const hasSaved = storageKey && typeof localStorage !== "undefined" && localStorage.getItem(storageKey);
+    return hasSaved ? getInitialViewState(storageKey).mapOn : defaultMapOn;
+  });
   const [mapTransitioning, setMapTransitioning] = useState(false);
 
   // ── Filter state ────────────────────────────────────────────────────────────

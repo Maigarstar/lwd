@@ -425,9 +425,10 @@ function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem, m
         <button
           onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
           aria-label={muted ? "Unmute" : "Mute"}
+          className="lwd-card-media-btn"
           style={{
             position: "absolute", top: isMobile ? 56 : 48, right: 12, zIndex: 5,
-            width: 34, height: 34, borderRadius: "50%", background: "rgba(0,0,0,0.5)",
+            width: isMobile ? 44 : 34, height: isMobile ? 44 : 34, borderRadius: "50%", background: "rgba(0,0,0,0.5)",
             backdropFilter: "blur(4px)", border: "1px solid rgba(255,255,255,0.2)",
             color: muted ? "rgba(255,255,255,0.5)" : "#fff", cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s",
@@ -628,15 +629,16 @@ function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem, m
             {v.priceFrom}
           </div>
 
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+          <div className="lwd-venue-card-ctas" style={{ display: "flex", gap: isMobile ? 8 : 6, alignItems: "center", flexShrink: 0 }}>
             <button
               onClick={(e) => { e.stopPropagation(); setQuickViewItem(v); }}
               style={{
                 fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
                 textTransform: "uppercase", color: GOLD,
                 background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
-                borderRadius: "var(--lwd-radius-input)", padding: "8px 10px",
+                borderRadius: "var(--lwd-radius-input)", padding: isMobile ? "12px 14px" : "8px 10px",
                 cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap",
+                minHeight: isMobile ? 44 : "auto",
               }}
             >
               QV
@@ -648,7 +650,9 @@ function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem, m
                 textTransform: "uppercase", color: "#0f0d0a",
                 background: `linear-gradient(135deg, ${GOLD}, #e8c97a)`,
                 border: "1px solid transparent", borderRadius: "var(--lwd-radius-input)",
-                padding: "8px 12px", cursor: "pointer", transition: "opacity 0.25s", whiteSpace: "nowrap",
+                padding: isMobile ? "12px 16px" : "8px 12px",
+                cursor: "pointer", transition: "opacity 0.25s", whiteSpace: "nowrap",
+                minHeight: isMobile ? 44 : "auto",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
               onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
@@ -661,8 +665,9 @@ function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem, m
                   fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: "1.2px",
                   textTransform: "uppercase", color: GOLD,
                   background: "rgba(201,168,76,0.12)", border: "1px solid rgba(201,168,76,0.3)",
-                  borderRadius: "var(--lwd-radius-input)", padding: "8px 10px",
+                  borderRadius: "var(--lwd-radius-input)", padding: isMobile ? "12px 14px" : "8px 10px",
                   cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap",
+                  minHeight: isMobile ? 44 : "auto",
                 }}
               >
                 Profile ›

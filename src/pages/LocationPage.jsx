@@ -1565,7 +1565,10 @@ export default function LocationPage({
           onViewCategory={onViewCategory}
           onViewRegionCategory={(countrySlug, regionSlug, catSlug) => {
             setImmersiveOpen(false);
-            onViewCategory && onViewCategory(countrySlug, regionSlug, catSlug);
+            // Route through onViewCategory with the correct object shape.
+            // goCategory({ category, countrySlug, regionSlug }) handles all
+            // three URL patterns — region-level, country-level, and global.
+            onViewCategory?.({ category: catSlug, countrySlug, regionSlug: regionSlug || null });
           }}
           onViewRegion={(countrySlug, regionSlug) => {
             setImmersiveOpen(false);

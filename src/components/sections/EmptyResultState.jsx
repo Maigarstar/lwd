@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 /**
  * ─── EmptyResultState.jsx ───────────────────────────────────────────────
@@ -14,6 +14,86 @@ import { useState } from "react";
 
 const GD = "var(--font-heading-primary)"; // Garamond/serif
 const NU = "var(--font-body)"; // Neutral
+
+function SelectivelyCuratedOverlay({ resultCount }) {
+  const [phase, setPhase] = useState("in"); // "in" → "hold" → "out" → "gone"
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setPhase("hold"), 50);   // let paint settle, then full opacity
+    const t2 = setTimeout(() => setPhase("out"), 2600);  // start melt
+    const t3 = setTimeout(() => setPhase("gone"), 4000); // remove from DOM
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+
+  if (phase === "gone") return null;
+
+  const text = resultCount === 1
+    ? "A rare find — one exceptional venue matches your search"
+    : `${resultCount} exceptional venues, selectively curated`;
+
+  const opacity = phase === "in" ? 0 : phase === "out" ? 0 : 1;
+  const translateY = phase === "in" ? -6 : phase === "out" ? 10 : 0;
+  const blur = phase === "out" ? 4 : 0;
+
+  return (
+    <div style={{ position: "relative", height: 72, margin: "40px 0 0" }}>
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: "50%",
+        transform: `translateX(-50%) translateY(${translateY}px)`,
+        zIndex: 120,
+        pointerEvents: "none",
+        opacity,
+        filter: `blur(${blur}px)`,
+        transition: phase === "in"
+          ? "opacity 0.6s ease, transform 0.6s ease"
+          : "opacity 1.4s ease, transform 1.4s ease, filter 1.4s ease",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {/* pill */}
+      <div style={{
+        background: "rgba(10,8,6,0.88)",
+        border: "1px solid rgba(201,168,76,0.4)",
+        borderRadius: 40,
+        padding: "10px 24px",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      }}>
+        <span style={{
+          fontFamily: GD,
+          fontSize: 13,
+          fontWeight: 500,
+          fontStyle: "italic",
+          color: "#C9A84C",
+          letterSpacing: "0.02em",
+        }}>
+          ✦ Selectively Curated
+        </span>
+        <span style={{
+          width: 1,
+          height: 12,
+          background: "rgba(201,168,76,0.3)",
+          display: "inline-block",
+        }} />
+        <span style={{
+          fontFamily: NU,
+          fontSize: 12,
+          color: "rgba(255,255,255,0.5)",
+          letterSpacing: "0.01em",
+        }}>
+          {text}
+        </span>
+      </div>
+    </div>
+    </div>
+  );
+}
 
 export default function EmptyResultState({
   resultCount = 0,
@@ -55,93 +135,7 @@ export default function EmptyResultState({
   };
 
   if (resultCount > 0 && resultCount <= 3) {
-    // Low result state (1-3 results) — show positive framing
-    const positioningText = resultCount === 1
-      ? "A rare find, one standout venue that matches your criteria"
-      : `${resultCount} exceptional venues selected for this aesthetic`;
-
-    return (
-      <div style={{
-        background: C.accentLight,
-        border: `1px solid ${C.border}`,
-        borderRadius: "var(--lwd-radius-card, 8px)",
-        padding: "48px 40px",
-        textAlign: "center",
-        maxWidth: 720,
-        margin: "40px auto",
-      }}>
-        <h3 style={{
-          fontFamily: GD,
-          fontSize: 20,
-          fontWeight: 500,
-          color: C.accent,
-          marginBottom: 12,
-        }}>
-          ✦ Selectively Curated
-        </h3>
-        <p style={{
-          fontFamily: NU,
-          fontSize: 14,
-          color: C.text,
-          opacity: 0.85,
-          marginBottom: 20,
-          lineHeight: 1.6,
-        }}>
-          {positioningText}
-        </p>
-
-        {alternatives.length > 0 && (
-          <div style={{ marginTop: 32 }}>
-            <p style={{
-              fontFamily: NU,
-              fontSize: 12,
-              color: C.text,
-              opacity: 0.6,
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-              marginBottom: 16,
-            }}>
-              Or explore similar categories
-            </p>
-            <div style={{
-              display: "flex",
-              gap: 12,
-              flexWrap: "wrap",
-              justifyContent: "center",
-            }}>
-              {alternatives.slice(0, 3).map((alt) => (
-                <button
-                  key={alt.slug}
-                  onClick={() => onSelectAlternative(alt.slug)}
-                  style={{
-                    fontFamily: NU,
-                    fontSize: 13,
-                    fontWeight: 500,
-                    background: C.accentLight,
-                    border: `1px solid ${C.accent}`,
-                    borderRadius: "var(--lwd-radius-input)",
-                    padding: "8px 18px",
-                    color: C.accent,
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = C.accent;
-                    e.target.style.color = C.bg;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = C.accentLight;
-                    e.target.style.color = C.accent;
-                  }}
-                >
-                  {alt.category} ({alt.count})
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
+    return <SelectivelyCuratedOverlay resultCount={resultCount} />;
   }
 
   // Zero result state

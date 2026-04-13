@@ -1034,104 +1034,6 @@ export default function RegionPage({
           </div>
         )}
 
-        {/* ═══ ABOUT SECTION (Configurable) ═══════════════════════════════════ */}
-        {(pageConfig?.about?.content || introEditorial) && (
-          <section
-            aria-label={`About weddings in ${region.name}`}
-            className="lwd-region-intro"
-            style={{
-              background: C.dark,
-              padding: "72px 48px",
-            }}
-          >
-            <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 12,
-                  marginBottom: 20,
-                }}
-              >
-                <div style={{ width: 28, height: 1, background: C.gold }} />
-                <h2
-                  style={{
-                    fontFamily: NU,
-                    fontSize: 9,
-                    letterSpacing: "0.3em",
-                    textTransform: "uppercase",
-                    color: C.gold,
-                    fontWeight: 600,
-                    margin: 0,
-                  }}
-                >
-                  {pageConfig?.about?.title || `${region.name} Weddings`}
-                </h2>
-                <div style={{ width: 28, height: 1, background: C.gold }} />
-              </div>
-              {(() => {
-                const paras = (pageConfig?.about?.content || introEditorial).split("\n\n");
-                return (
-                  <>
-                    <p style={{ fontFamily: NU, fontSize: 15, color: C.grey, lineHeight: 1.9, fontWeight: 300, marginBottom: 0 }}>
-                      {paras[0]}
-                    </p>
-                    <button
-                      onClick={() => setAboutExpanded(v => !v)}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 8,
-                        marginTop: 18,
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: 0,
-                      }}
-                    >
-                      <span style={{ fontFamily: NU, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: C.gold, fontWeight: 600 }}>
-                        {aboutExpanded ? "Close" : "Continue reading"}
-                      </span>
-                      <span style={{
-                        display: "inline-block",
-                        width: 0,
-                        height: 0,
-                        borderLeft: "4px solid transparent",
-                        borderRight: "4px solid transparent",
-                        ...(aboutExpanded
-                          ? { borderBottom: `5px solid ${C.gold}`, borderTop: "none", marginTop: -2 }
-                          : { borderTop: `5px solid ${C.gold}`, borderBottom: "none", marginTop: 1 }
-                        ),
-                      }} />
-                    </button>
-                    {paras.slice(1).map((para, i) => (
-                      <p
-                        key={i}
-                        style={{
-                          fontFamily: NU,
-                          fontSize: 15,
-                          color: C.grey,
-                          lineHeight: 1.9,
-                          fontWeight: 300,
-                          marginTop: 16,
-                          marginBottom: 0,
-                          maxHeight: aboutExpanded ? 600 : 0,
-                          overflow: "hidden",
-                          opacity: aboutExpanded ? 1 : 0,
-                          transition: "max-height 0.6s ease, opacity 0.5s ease",
-                        }}
-                      >
-                        {para}
-                      </p>
-                    ))}
-                  </>
-                );
-              })()}
-            </div>
-          </section>
-        )}
-
         {/* ═══ DIRECTORY LISTINGS — viewMode-aware grid / list ═══════════════ */}
         {filteredRegionVenues.length > 0 ? (
           <>
@@ -1289,36 +1191,139 @@ export default function RegionPage({
 
         {/* SEO & AI Panel — hidden per user request */}
 
-        {/* ═══ FIND YOUR TEAM — Category Shortcuts ══════════════════════ */}
-        <section
-          aria-label="Browse by category"
-          className="lwd-region-categories"
-          style={{
-            background: "#000000",
-            padding: isMobile ? "56px 20px" : "72px 48px",
-          }}
-        >
-          <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-            <div style={{ textAlign: "center", marginBottom: 48 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
-                <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
-                <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: "#C9A84C", fontWeight: 600 }}>Find Your Team</span>
-                <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
+        {/* ═══ ABOUT SECTION — moved above category block ═══════════════════ */}
+        {(pageConfig?.about?.content || introEditorial) && (
+          <section
+            aria-label={`About weddings in ${region.name}`}
+            className="lwd-region-intro"
+            style={{
+              background: C.dark,
+              padding: "72px 48px",
+            }}
+          >
+            <div style={{ maxWidth: 800, margin: "0 auto", textAlign: "center" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 12,
+                  marginBottom: 20,
+                }}
+              >
+                <div style={{ width: 28, height: 1, background: C.gold }} />
+                <h2
+                  style={{
+                    fontFamily: NU,
+                    fontSize: 9,
+                    letterSpacing: "0.3em",
+                    textTransform: "uppercase",
+                    color: C.gold,
+                    fontWeight: 600,
+                    margin: 0,
+                  }}
+                >
+                  {pageConfig?.about?.title || `${region.name} Weddings`}
+                </h2>
+                <div style={{ width: 28, height: 1, background: C.gold }} />
               </div>
-              <h2 style={{ fontFamily: GD, fontSize: isMobile ? "clamp(22px, 6vw, 30px)" : "clamp(26px, 3vw, 36px)", fontWeight: 400, color: "#f5f0e8", lineHeight: 1.2, margin: 0 }}>
-                <span style={{ color: "rgba(245,240,232,0.85)" }}>{region.name}</span>{" "}
-                <span style={{ fontStyle: "italic", color: "#C9A84C" }}>Wedding Vendors</span>
-              </h2>
+              {(() => {
+                const paras = (pageConfig?.about?.content || introEditorial).split("\n\n");
+                return (
+                  <>
+                    <p style={{ fontFamily: NU, fontSize: 15, color: C.grey, lineHeight: 1.9, fontWeight: 300, marginBottom: 0 }}>
+                      {paras[0]}
+                    </p>
+                    <button
+                      onClick={() => setAboutExpanded(v => !v)}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        marginTop: 18,
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                    >
+                      <span style={{ fontFamily: NU, fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: C.gold, fontWeight: 600 }}>
+                        {aboutExpanded ? "Close" : "Continue reading"}
+                      </span>
+                      <span style={{
+                        display: "inline-block",
+                        width: 0,
+                        height: 0,
+                        borderLeft: "4px solid transparent",
+                        borderRight: "4px solid transparent",
+                        ...(aboutExpanded
+                          ? { borderBottom: `5px solid ${C.gold}`, borderTop: "none", marginTop: -2 }
+                          : { borderTop: `5px solid ${C.gold}`, borderBottom: "none", marginTop: 1 }
+                        ),
+                      }} />
+                    </button>
+                    {paras.slice(1).map((para, i) => (
+                      <p
+                        key={i}
+                        style={{
+                          fontFamily: NU,
+                          fontSize: 15,
+                          color: C.grey,
+                          lineHeight: 1.9,
+                          fontWeight: 300,
+                          marginTop: 16,
+                          marginBottom: 0,
+                          maxHeight: aboutExpanded ? 600 : 0,
+                          overflow: "hidden",
+                          opacity: aboutExpanded ? 1 : 0,
+                          transition: "max-height 0.6s ease, opacity 0.5s ease",
+                        }}
+                      >
+                        {para}
+                      </p>
+                    ))}
+                  </>
+                );
+              })()}
             </div>
-            <CategoryCarousel
-              categories={VENDOR_CATEGORIES}
-              C={DARK_C}
-              onSelect={(slug) => onViewRegionCategory(countrySlug, regionSlug, slug)}
-              activeCategorySlugs={activeCategorySlugs}
-              isMobile={isMobile}
-            />
-          </div>
-        </section>
+          </section>
+        )}
+
+        {/* ═══ FIND YOUR TEAM — Category Shortcuts ══════════════════════
+            Guard: only render if at least 2 active categories exist
+            (venues alone → section hidden; page already shows venue grid above)
+        ═══════════════════════════════════════════════════════════════ */}
+        {activeCategorySlugs.size >= 2 && (
+          <section
+            aria-label="Browse by category"
+            className="lwd-region-categories"
+            style={{
+              background: "#000000",
+              padding: isMobile ? "56px 20px" : "72px 48px",
+            }}
+          >
+            <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+              <div style={{ textAlign: "center", marginBottom: 48 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 16 }}>
+                  <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
+                  <span style={{ fontFamily: NU, fontSize: 9, letterSpacing: "0.3em", textTransform: "uppercase", color: "#C9A84C", fontWeight: 600 }}>Find Your Team</span>
+                  <div style={{ width: 28, height: 1, background: "#C9A84C" }} />
+                </div>
+                <h2 style={{ fontFamily: GD, fontSize: isMobile ? "clamp(22px, 6vw, 30px)" : "clamp(26px, 3vw, 36px)", fontWeight: 400, color: "#f5f0e8", lineHeight: 1.2, margin: 0 }}>
+                  <span style={{ color: "rgba(245,240,232,0.85)" }}>{region.name}</span>{" "}
+                  <span style={{ fontStyle: "italic", color: "#C9A84C" }}>Wedding Vendors</span>
+                </h2>
+              </div>
+              <CategoryCarousel
+                categories={VENDOR_CATEGORIES.filter(vc => activeCategorySlugs.has(vc.slug))}
+                C={DARK_C}
+                onSelect={(slug) => onViewRegionCategory(countrySlug, regionSlug, slug)}
+                activeCategorySlugs={activeCategorySlugs}
+                isMobile={isMobile}
+              />
+            </div>
+          </section>
+        )}
 
         {/* ═══ BROWSE BY REGION ══════════════════════════════════════════ */}
         <DirectoryBrands onViewRegion={onViewRegion} onViewCategory={onViewCategory} showInternational={false} showUK={actualCountrySlug === "england"} showItaly={actualCountrySlug === "italy"} showUSA={actualCountrySlug === "usa"} darkMode={darkMode} />

@@ -2,12 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "dev",
-      "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": ["/tmp/start-dev.sh"],
-      "port": 5176,
-      "autoPort": false,
-      "cwd": "/Users/taiwoadedayo/LDW-01/.claude/worktrees/peaceful-dhawan"
+      "name": "dev-peaceful",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "5176"],
+      "port": 5176
     }
   ]
 }

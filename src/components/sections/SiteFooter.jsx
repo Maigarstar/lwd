@@ -5,6 +5,7 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import { supabase } from "../../lib/supabaseClient";
+import { useBreakpoint } from "../../hooks/useWindowWidth";
 
 const GD = "var(--font-heading-primary)";
 const NU = "var(--font-body)";
@@ -110,6 +111,7 @@ export default function SiteFooter({
   onNavigatePartnerEnquiry,
 }) {
   const C = useTheme();
+  const { isMobile } = useBreakpoint();
   const [cfg,      setCfg]      = useState(null);
   const [items,    setItems]    = useState(null); // null = still loading
   const [branding, setBranding] = useState(null);
@@ -138,7 +140,7 @@ export default function SiteFooter({
   const bgColor   = cfg?.bg_color      || "#0a0a08";
   const bbBg      = cfg?.bottom_bar_bg || "#080604";
   const bbText    = cfg?.bottom_bar_text || "rgba(255,255,255,0.3)";
-  const padX      = cfg?.pad_x ?? 64;
+  const padX      = isMobile ? 20 : (cfg?.pad_x ?? 64);
 
   // Group visible items by column_id, sorted by position
   const grouped = {};
@@ -258,7 +260,7 @@ export default function SiteFooter({
       </div>
 
       {/* ── Separator before strip ──────────────────────────────────────── */}
-      <div aria-hidden="true" style={{
+      <div aria-hidden="true" className="site-footer-separator" style={{
         height: 1,
         background: `linear-gradient(90deg, transparent, ${gold}, rgba(116,129,114,0.6), transparent)`,
         margin: `0 ${padX}px 0`,

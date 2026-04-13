@@ -526,6 +526,131 @@ div[role="listbox"]::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3);
   /* usa card sizes now handled by unified rule above */
   .usa-seo-grid      { grid-template-columns: 1fr !important; gap: 48px !important; }
 
+  /* ═══════════════════════════════════════════════════════════════════════════
+     GLOBAL MOBILE TOUCH QUALITY
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* Remove ghost tap flash on iOS */
+  * { -webkit-tap-highlight-color: transparent !important; }
+
+  /* Remove 300ms click delay on buttons/links */
+  button, a, [role="button"], input, select, textarea {
+    touch-action: manipulation !important;
+  }
+
+  /* Contain scroll bounce on panels */
+  .lwd-region-mega,
+  div[role="listbox"] {
+    overscroll-behavior: contain !important;
+  }
+
+  /* ── Hero heading — readable but not overwhelming ── */
+  .lwd-rc-hero-content h1,
+  .lwd-hero-content h1 {
+    font-size: clamp(30px, 8vw, 44px) !important;
+    line-height: 1.12 !important;
+    letter-spacing: -0.3px !important;
+  }
+
+  /* Hero subtitle copy */
+  .lwd-rc-hero-content p,
+  .lwd-hero-content p {
+    font-size: 14px !important;
+    line-height: 1.65 !important;
+    max-width: 100% !important;
+  }
+
+  /* ── AI Search suggestion pills — 44px tap target ── */
+  .lwd-ai-suggest-pill {
+    min-height: 44px !important;
+    padding: 10px 16px !important;
+    font-size: 12px !important;
+    white-space: normal !important;
+  }
+
+  /* Pills row: allow wrapping, no overflow */
+  .lwd-ai-pills-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    overflow-x: visible !important;
+  }
+
+  /* AI parsed chips row: wrappable */
+  .lwd-ai-chips-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    row-gap: 6px !important;
+  }
+
+  /* Chip remove button — easier to tap */
+  .lwd-ai-chips-row button {
+    min-width: 36px !important;
+    min-height: 36px !important;
+    padding: 8px 12px !important;
+  }
+
+  /* ── Card CTA buttons — 44px min tap target ── */
+  .lwd-venue-card-ctas button,
+  .lwd-venue-card-ctas a {
+    min-height: 44px !important;
+    padding: 10px 14px !important;
+    font-size: 10px !important;
+  }
+
+  .lwd-venue-card-ctas {
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+  }
+
+  /* Mute / media overlay buttons */
+  .lwd-card-media-btn {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  /* ── Horizontal scroll — partial next-card hint ── */
+  .lwd-region-cat-grid {
+    padding-right: 48px !important; /* bleeds ~⅓ of the next card into view */
+  }
+
+  .lwd-venue-grid,
+  .lwd-vendor-slider,
+  .home-venue-grid,
+  .home-vendor-grid {
+    scroll-snap-type: x mandatory !important;
+    padding-right: 40px !important;
+  }
+
+  .lwd-venue-grid > div,
+  .lwd-vendor-slider > div,
+  .home-venue-grid > div,
+  .home-vendor-grid > div {
+    scroll-snap-align: start !important;
+    flex: 0 0 calc(100vw - 52px) !important;   /* one card, edge-to-edge minus breathing room */
+    min-width: calc(100vw - 52px) !important;
+  }
+
+  /* ── Footer tagline — smaller on mobile ── */
+  .site-footer-tagline p {
+    font-size: 15px !important;
+    line-height: 1.55 !important;
+    padding: 0 20px !important;
+  }
+
+  .site-footer-tagline {
+    padding: 36px 0 28px !important;
+  }
+
+  /* Footer separator — respect mobile margins */
+  .site-footer-separator {
+    margin: 0 20px !important;
+  }
+
+  /* Footer body padding */
+  .site-footer-body {
+    padding: 0 20px !important;
+  }
+
   /* ── LWD Standard Page ── */
   .lwd-standard-section { padding: 60px 20px !important; }
   .lwd-standard-hero { padding: 120px 20px 60px !important; }
@@ -856,6 +981,95 @@ body.lwd-scroll-locked {
   overflow: hidden !important;
   touch-action: none;
 }
+
+/* ── Mobile Map Pill — floating sticky button ────────────────────────────── */
+.lwd-map-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0f0d0a;
+  border: 1px solid rgba(201,168,76,0.45);
+  border-radius: 100px;
+  padding: 13px 22px;
+  color: #C9A84C;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 6px 28px rgba(0,0,0,0.55), 0 0 0 1px rgba(201,168,76,0.12);
+  white-space: nowrap;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  animation: fadeIn 0.3s ease;
+}
+.lwd-map-pill:active {
+  transform: scale(0.96);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+.lwd-map-pill-count {
+  background: rgba(201,168,76,0.18);
+  border-radius: 100px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ── Mobile Map Sheet — bottom sheet modal ───────────────────────────────── */
+.lwd-map-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: fadeIn 0.22s ease;
+}
+.lwd-map-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 90vh;
+  border-radius: 20px 20px 0 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: sheetSlideUp 0.36s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.lwd-map-sheet-handle {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 8px;
+  flex-shrink: 0;
+}
+.lwd-map-sheet-handle-bar {
+  width: 40px;
+  height: 4px;
+  border-radius: 100px;
+  background: rgba(255,255,255,0.18);
+}
+.lwd-map-sheet-header {
+  padding: 6px 20px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.lwd-map-sheet-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  transition: background 0.15s;
+}
+.lwd-map-sheet-close:active { background: rgba(255,255,255,0.16); }
 
 /* ══════════════════════════════════════════════════════════════════════════════
    Vendor Profile Template — responsive rules

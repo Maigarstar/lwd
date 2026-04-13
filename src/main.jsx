@@ -96,6 +96,8 @@ import VenueReviewsPage         from "./pages/VenueReviewsPage.jsx";
 import EventDetailPage          from "./pages/EventDetailPage.jsx";
 import EventReviewPage          from "./pages/EventReviewPage.jsx";
 import AuraDiscoveryDemoPage    from "./pages/AuraDiscoveryDemoPage.jsx";
+import LuxuryRegionPageTest     from "./pages/LuxuryRegionPageTest.jsx";
+import GridResponsiveTest       from "./pages/GridResponsiveTest.jsx";
 import NotFoundPage         from "./pages/NotFoundPage.jsx";
 import UnsubscribePage      from "./pages/UnsubscribePage.jsx";
 import { VENDORS }            from "./data/vendors.js";
@@ -235,6 +237,7 @@ function stateToPath(pg, opts = {}) {
     case "sskrabey-showcase": return "/showcase/six-senses-krabey-island";
     case "showcase":         return `/showcase/${opts.showcaseSlug || ''}`;
     case "aura-discovery":   return "/discovery/aura";
+    case "luxury-region-test": return "/test/luxury-region/amalfi-coast";
     default:                 return "/";
   }
 }
@@ -284,6 +287,12 @@ function pathToState(pathname) {
   if (parts[0] === "real-weddings" && parts.length === 2) return { page: "real-wedding-detail", weddingSlug: parts[1] };
   // Handle Aura Discovery
   if (parts[0] === "discovery" && parts[1] === "aura" && parts.length === 2) return { page: "aura-discovery" };
+  // Handle Luxury Region Test page
+  if (parts[0] === "test" && parts[1] === "luxury-region" && parts.length === 3) return { page: "luxury-region-test", testRegion: parts[2] };
+  // Handle Grid Responsive Test page
+  if (parts[0] === "test" && parts[1] === "grid" && parts.length === 2) return { page: "grid-responsive-test" };
+  // Handle Amalfi Coast v2 unified SEO test
+  if (parts[0] === "test" && parts[1] === "amalfi-coast-v2" && parts.length === 2) return { page: "amalfi-coast-v2" };
   // Handle Puglia premium page (Phase 3.1 demo)
   if (parts[0] === "italy" && parts[1] === "puglia" && parts.length === 2) return { page: "puglia" };
   // Magazine routes
@@ -908,6 +917,28 @@ function App() {
         )}
         {page === "aura-discovery" && (
           <AuraDiscoveryDemoPage onViewVenue={goVenue} />
+        )}
+        {page === "luxury-region-test" && (
+          <LuxuryRegionPageTest countrySlug="italy" regionSlug="amalfi-coast" />
+        )}
+        {page === "grid-responsive-test" && (
+          <GridResponsiveTest />
+        )}
+        {page === "amalfi-coast-v2" && (
+          <RegionCategoryPage
+            onBack={() => goHome()}
+            onBackHome={goHome}
+            onViewVenue={goVenue}
+            onViewCategory={goCategory}
+            onViewRegion={goRegion}
+            onViewRegionCategory={goRegionCategory}
+            onViewVendor={goVendor}
+            onViewPlanner={goPlannerProfile}
+            onViewWedding={goWedding}
+            countrySlug="italy"
+            regionSlug="amalfi-coast"
+            isTestMode={true}
+          />
         )}
         {page === "region-category" && (
           <RegionCategoryPage
