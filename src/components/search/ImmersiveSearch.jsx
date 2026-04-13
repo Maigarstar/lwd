@@ -192,26 +192,35 @@ function buildSuggestions(q, liveCountries) {
 // ═════════════════════════════════════════════════════════════════════════════
 // ── Country context chips ─────────────────────────────────────────────────────
 const COUNTRY_CHIPS = {
-  england: [
-    { label: "Country House",   style: "country-house" },
-    { label: "London",          region: "london"       },
-    { label: "Castle",          style: "castle"        },
-    { label: "Barn",            style: "barn"          },
-    { label: "Coastal",         setting: "coastal"     },
-    { label: "Intimate",        guests: "small"        },
-    { label: "Weekend Estate",  style: "estate"        },
-    { label: "Garden",          setting: "garden"      },
-  ],
-  italy: [
-    { label: "Tuscany",         region: "tuscany"      },
-    { label: "Amalfi Coast",    region: "amalfi-coast" },
-    { label: "Lake Como",       region: "lake-como"    },
-    { label: "Rome",            region: "rome"         },
-    { label: "Sicily",          region: "sicily"       },
-    { label: "Villa",           style: "villa"         },
-    { label: "Intimate",        guests: "small"        },
-    { label: "Historic Palace", style: "palace"        },
-  ],
+  england: {
+    displayLabel: "the UK",
+    chips: [
+      { label: "Country House",   style: "country-house" },
+      { label: "London",          region: "london"       },
+      { label: "Scotland",        region: "scotland"     },
+      { label: "Wales",           region: "wales"        },
+      { label: "Ireland",         region: "ireland"      },
+      { label: "Castle",          style: "castle"        },
+      { label: "Barn",            style: "barn"          },
+      { label: "Coastal",         setting: "coastal"     },
+      { label: "Intimate",        guests: "small"        },
+      { label: "Weekend Estate",  style: "estate"        },
+      { label: "Garden",          setting: "garden"      },
+    ],
+  },
+  italy: {
+    displayLabel: "Italy",
+    chips: [
+      { label: "Tuscany",         region: "tuscany"      },
+      { label: "Amalfi Coast",    region: "amalfi-coast" },
+      { label: "Lake Como",       region: "lake-como"    },
+      { label: "Rome",            region: "rome"         },
+      { label: "Sicily",          region: "sicily"       },
+      { label: "Villa",           style: "villa"         },
+      { label: "Intimate",        guests: "small"        },
+      { label: "Historic Palace", style: "palace"        },
+    ],
+  },
 };
 
 export default function ImmersiveSearch({
@@ -714,10 +723,12 @@ export default function ImmersiveSearch({
           STEP 0 — LOCATION
       ═══════════════════════════════════════════════════════════════════ */}
       {step === 0 && !auraMode && (() => {
-        const countryCtx = !!(initialLocation?.countrySlug && !initialLocation?.regionSlug);
-        const chips = countryCtx ? (COUNTRY_CHIPS[initialLocation.countrySlug] || []) : [];
+        const countryCtx    = !!(initialLocation?.countrySlug && !initialLocation?.regionSlug);
+        const countryConfig = countryCtx ? (COUNTRY_CHIPS[initialLocation.countrySlug] || null) : null;
+        const chips         = countryConfig?.chips || [];
+        const displayLabel  = countryConfig?.displayLabel || initialLocation?.label || "";
         const auraPlaceholder = countryCtx
-          ? `e.g. "A country house in ${initialLocation.label} for 120 guests with a garden ceremony"`
+          ? `e.g. "A country house in ${displayLabel} for 120 guests with a garden ceremony"`
           : "Type a country or city…";
 
         return (
@@ -734,7 +745,7 @@ export default function ImmersiveSearch({
               lineHeight: 1.04, letterSpacing: "-0.025em",
             }}>
               {countryCtx
-                ? <>What kind of wedding are<br />you imagining in <span style={{ color: GOLD, fontStyle: "italic" }}>{initialLocation.label}</span>?</>
+                ? <>What kind of wedding<br />are you imagining in <span style={{ color: GOLD, fontStyle: "italic" }}>{displayLabel}</span>?</>
                 : <>Where are you<br />dreaming of?</>
               }
             </h1>
