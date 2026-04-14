@@ -59,6 +59,14 @@ const VIEWPORT_OPTIONS = [
   { key: 'mobile',  label: 'Mobile' },
 ];
 
+// ── New category form default state ────────────────────────────────────────────
+const INITIAL_NEW_CAT = {
+  slug: '', label: '', description: '', accentColor: '#c9a96e', cardStyle: 'standard', parentSlug: '',
+  aiDiscoveryEnabled: true, aiCuratorPrompt: '', editorialVoice: '', discoveryKeywords: [], targetAudience: '', auraPriority: 50,
+  featuredOnHomepage: false, homepageSortOrder: 0, isActive: true, icon: '',
+  contentGuidelines: { tone: '', formality: '', topics: [], rules: [], avoid: [] }, featuredUntil: null,
+};
+
 // ── Colour picker ──────────────────────────────────────────────────────────────
 function AccentPicker({ value, onChange }) {
   const [showCustom, setShowCustom] = useState(false);
@@ -547,20 +555,14 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
+  const [saveError, setSaveError] = useState(null);
   const [creatingNew, setCreatingNew] = useState(false);
-  const [newCatData, setNewCatData] = useState({
-    slug: '', label: '', description: '', accentColor: '#c9a96e', cardStyle: 'standard', parentSlug: '',
-    // New AI/Aura fields
-    aiDiscoveryEnabled: true, aiCuratorPrompt: '', editorialVoice: '', discoveryKeywords: [], targetAudience: '', auraPriority: 50,
-    // Homepage promotion
-    featuredOnHomepage: false, homepageSortOrder: 0, isActive: true, icon: '',
-    // Content guidelines
-    contentGuidelines: { tone: '', formality: '', topics: [], rules: [], avoid: [] }, featuredUntil: null,
-  });
+  const [newCatData, setNewCatData] = useState(INITIAL_NEW_CAT);
   const [newCatError, setNewCatError] = useState(null);
   const [newCatSuccess, setNewCatSuccess] = useState(null);
   const [dbCategories, setDbCategories] = useState([]);  // Track DB categories for validation
   const autosaveRef = useRef(null);
+  const saveGuardRef = useRef(null);  // Guard against concurrent saves
 
   // Load DB category configs on mount, merge with static CATEGORIES
   useEffect(() => {
@@ -609,12 +611,39 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
   }, [selectedId]);
 
   const save = useCallback(async () => {
-    setSaving(true);
-    const catData = { ...baseCategory, ...(overrides[selectedId] || {}), slug: selectedId };
-    await saveCategory(catData);
-    setSaving(false);
-    setDirty(false);
-    setLastSaved(new Date());
+    // Guard against concurrent saves with ref-based flag
+    if (saveGuardRef.current) return;
+    saveGuardRef.current = true;
+
+    setSaveError(null);
+
+    try {
+      setSaving(true);
+
+      const { id: rawId, ...rest } = { ...baseCategory, ...(overrides[selectedId] || {}) };
+      const catData = { ...rest, slug: selectedId };
+
+      // Prevent invalid string IDs from being sent (uses slug for upsert)
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (rawId && UUID_RE.test(rawId)) {
+        catData.id = rawId;
+      }
+
+      const result = await saveCategory(catData);
+
+      if (result.error) {
+        setSaveError(result.error.message || 'Failed to save category');
+        return;
+      }
+
+      setDirty(false);
+      setLastSaved(new Date());
+    } catch (err) {
+      setSaveError(err.message || 'Unexpected error during save');
+    } finally {
+      setSaving(false);
+      saveGuardRef.current = false;
+    }
   }, [baseCategory, overrides, selectedId]);
 
   // Check if current category is DB-only (not a static hardcoded category)
@@ -785,6 +814,12 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
           <GoldBtn small onClick={save} disabled={!dirty || saving}>
             {saving ? 'Saving…' : 'Save Changes'}
           </GoldBtn>
+
+          {saveError && (
+            <span style={{ fontFamily: FU, fontSize: 9, color: S.error, letterSpacing: '0.08em' }}>
+              ⚠ {saveError}
+            </span>
+          )}
 
           <div style={{ width: 1, height: 20, background: S.border }} />
 
@@ -1262,7 +1297,7 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
                 // Reset form and close modal after brief delay
                 setTimeout(() => {
                   setCreatingNew(false);
-                  setNewCatData({ slug: '', label: '', description: '', accentColor: '#c9a96e', cardStyle: 'standard', parentSlug: '' });
+                  setNewCatData(INITIAL_NEW_CAT);
                   setNewCatError(null);
                   setNewCatSuccess(null);
                   setSelectedId(finalSlug);
@@ -1274,7 +1309,7 @@ export default function CategoryEditor({ categoryId: initialId, onBack, isLight 
                 setCreatingNew(false);
                 setNewCatError(null);
                 setNewCatSuccess(null);
-                setNewCatData({ slug: '', label: '', description: '', accentColor: '#c9a96e', cardStyle: 'standard', parentSlug: '' });
+                setNewCatData(INITIAL_NEW_CAT);
               }}>Cancel</GhostBtn>
             </div>
           </div>
