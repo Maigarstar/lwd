@@ -745,7 +745,7 @@ export default function RegionCategoryPage({
           style={{
             position: "relative",
             height: "50vh",
-            minHeight: 750,
+            minHeight: 700,
             overflow: "hidden",
             background: "#0a0806",
           }}
