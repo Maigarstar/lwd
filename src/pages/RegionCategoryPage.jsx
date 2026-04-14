@@ -1429,7 +1429,7 @@ export default function RegionCategoryPage({
                 aria-label={`${categoryLabel} listings`}
                 style={{
                   background:   isMobile ? "transparent" : (darkMode ? C.dark : "#f2f0ea"),
-                  padding:      isMobile ? "0" : "40px 48px 72px",
+                  padding:      isMobile ? "0 0 72px" : "40px 48px 72px",
                   borderBottom: isMobile ? "none" : `1px solid ${C.border}`,
                 }}
               >
