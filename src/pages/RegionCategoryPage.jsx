@@ -1429,7 +1429,7 @@ export default function RegionCategoryPage({
                 aria-label={`${categoryLabel} listings`}
                 style={{
                   background:   isMobile ? "transparent" : (darkMode ? C.dark : "#f2f0ea"),
-                  padding:      isMobile ? "20px 0 0" : "0 0 72px",
+                  padding:      "0",
                   borderBottom: isMobile ? "none" : `1px solid ${C.border}`,
                 }}
               >
@@ -1443,8 +1443,8 @@ export default function RegionCategoryPage({
                         style={{
                           display: "grid",
                           gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-                          gap: 16,
-                          padding: "20px 12px 0",
+                          gap: 0,
+                          padding: "0",
                           opacity: isFilteringTransition ? 0.7 : 1,
                           transition: "opacity 0.15s ease",
                         }}
@@ -1498,8 +1498,8 @@ export default function RegionCategoryPage({
                         style={{
                           display: "grid",
                           gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
-                          gap: 20,
-                          padding: "40px 20px 0",
+                          gap: 0,
+                          padding: "0",
                           opacity: isFilteringTransition ? 0.7 : 1,
                           transition: "opacity 0.15s ease",
                         }}
