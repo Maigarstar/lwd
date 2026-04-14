@@ -6,6 +6,7 @@ import { useTheme } from "../theme/ThemeContext";
 import { getCityBySlug, getCountryBySlug, getRegionBySlug, CITIES } from "../data/geo.js";
 import { VENUES } from "../data/italyVenues";
 import { fetchLocationContent } from "../services/locationContentService";
+import { getGridStyles, getCardWrapperStyles } from "../config/gridStyles";
 import GCard from "../components/cards/GCard";
 import GCardMobile from "../components/cards/GCardMobile";
 import MASTERMap from "../components/maps/MASTERMap";
@@ -276,9 +277,7 @@ export default function CityPage({
             </h2>
           </div>
           <div style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
-            gap: isMobile ? 16 : 24,
+            ...getGridStyles(isMobile),
           }}>
             {cityVenues.map(v =>
               isMobile ? (
@@ -383,9 +382,7 @@ export default function CityPage({
             </h2>
           </div>
           <div style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
-            gap: 16,
+            ...getGridStyles(isMobile),
           }}>
             {alsoCities.map(c => (
               <button
