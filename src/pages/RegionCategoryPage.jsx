@@ -1455,8 +1455,7 @@ export default function RegionCategoryPage({
                             key={v.id}
                             data-listing-id={v.id}
                             style={{
-                              height: 400,
-                              overflow: "hidden",
+                              height: "auto",
                               borderRadius: "var(--lwd-radius-card, 8px)",
                               outline: activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
                               transition: "outline 0.2s",
@@ -1510,8 +1509,7 @@ export default function RegionCategoryPage({
                             key={v.id}
                             data-listing-id={v.id}
                             style={{
-                              height: 560,
-                              overflow: "hidden",
+                              height: "auto",
                               borderRadius: "var(--lwd-radius-card, 8px)",
                               outline: activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
                               transition: "outline 0.2s",
