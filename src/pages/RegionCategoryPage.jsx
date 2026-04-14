@@ -1429,7 +1429,7 @@ export default function RegionCategoryPage({
                 aria-label={`${categoryLabel} listings`}
                 style={{
                   background:   isMobile ? "transparent" : (darkMode ? C.dark : "#f2f0ea"),
-                  padding:      isMobile ? "20px 0 0" : "40px 48px 72px",
+                  padding:      isMobile ? "0" : "40px 48px 72px",
                   borderBottom: isMobile ? "none" : `1px solid ${C.border}`,
                 }}
               >
@@ -1443,7 +1443,7 @@ export default function RegionCategoryPage({
                         style={{
                           display: "grid",
                           gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-                          gap: 16,
+                          gap: 0,
                           padding: "0",
                           opacity: isFilteringTransition ? 0.7 : 1,
                           transition: "opacity 0.15s ease",
