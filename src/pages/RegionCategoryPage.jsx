@@ -1429,7 +1429,7 @@ export default function RegionCategoryPage({
                 aria-label={`${categoryLabel} listings`}
                 style={{
                   background:   isMobile ? "transparent" : (darkMode ? C.dark : "#f2f0ea"),
-                  padding:      "0",
+                  padding:      isMobile ? "20px 0 0" : "40px 48px 72px",
                   borderBottom: isMobile ? "none" : `1px solid ${C.border}`,
                 }}
               >
@@ -1477,8 +1477,8 @@ export default function RegionCategoryPage({
                     )}
                   </>
                 ) : (
-                  /* Desktop: full-width grid */
-                  <div style={{ width: "100%" }}>
+                  /* Desktop: constrained grid inside maxWidth wrapper */
+                  <div style={{ maxWidth: 1280, margin: "0 auto" }}>
 
                     {/* Zero result state — blocks grid */}
                     {listingCount === 0 && categorySlug === "wedding-venues" && (
