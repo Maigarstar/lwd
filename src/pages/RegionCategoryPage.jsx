@@ -1322,7 +1322,7 @@ export default function RegionCategoryPage({
                           onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
                           onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
                           style={{
-                            height:       560,
+                            height:       "auto",
                             outline:      activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
                             borderRadius: "var(--lwd-radius-card, 8px)",
                             transition:   "outline 0.2s",
