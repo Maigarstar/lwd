@@ -1443,7 +1443,7 @@ export default function RegionCategoryPage({
                         style={{
                           display: "grid",
                           gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-                          gap: 0,
+                          gap: 16,
                           padding: "0",
                           opacity: isFilteringTransition ? 0.7 : 1,
                           transition: "opacity 0.15s ease",
@@ -1498,7 +1498,7 @@ export default function RegionCategoryPage({
                         style={{
                           display: "grid",
                           gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
-                          gap: 0,
+                          gap: 20,
                           padding: "0",
                           opacity: isFilteringTransition ? 0.7 : 1,
                           transition: "opacity 0.15s ease",
