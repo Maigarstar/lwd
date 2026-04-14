@@ -1429,7 +1429,7 @@ export default function RegionCategoryPage({
                 aria-label={`${categoryLabel} listings`}
                 style={{
                   background:   isMobile ? "transparent" : (darkMode ? C.dark : "#f2f0ea"),
-                  padding:      isMobile ? "20px 0 0" : "40px 48px 72px",
+                  padding:      isMobile ? "20px 0 0" : "0 0 72px",
                   borderBottom: isMobile ? "none" : `1px solid ${C.border}`,
                 }}
               >
@@ -1444,7 +1444,7 @@ export default function RegionCategoryPage({
                           display: "grid",
                           gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
                           gap: 16,
-                          padding: "0 12px",
+                          padding: "20px 12px 0",
                           opacity: isFilteringTransition ? 0.7 : 1,
                           transition: "opacity 0.15s ease",
                         }}
@@ -1477,8 +1477,8 @@ export default function RegionCategoryPage({
                     )}
                   </>
                 ) : (
-                  /* Desktop: constrained grid inside maxWidth wrapper */
-                  <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+                  /* Desktop: full-width grid */
+                  <div style={{ width: "100%" }}>
 
                     {/* Zero result state — blocks grid */}
                     {listingCount === 0 && categorySlug === "wedding-venues" && (
@@ -1499,6 +1499,7 @@ export default function RegionCategoryPage({
                           display: "grid",
                           gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
                           gap: 20,
+                          padding: "40px 20px 0",
                           opacity: isFilteringTransition ? 0.7 : 1,
                           transition: "opacity 0.15s ease",
                         }}
