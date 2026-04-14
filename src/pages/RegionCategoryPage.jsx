@@ -42,6 +42,7 @@ import {
 // ── Phase 1: shared directory state (view mode, map, mobile detection) ────────
 import { useDirectoryState } from "../hooks/useDirectoryState";
 import { transformListings, mergeListings } from "../utils/transformListing";
+import { getGridStyles, getCardWrapperStyles } from "../config/gridStyles";
 
 import SiteFooter from "../components/sections/SiteFooter";
 import DirectoryBrands from "../components/sections/DirectoryBrands";
@@ -1441,10 +1442,7 @@ export default function RegionCategoryPage({
                       <div
                         className="lwd-venue-grid-mobile"
                         style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-                          gap: 0,
-                          padding: "0",
+                          ...getGridStyles(true),
                           opacity: isFilteringTransition ? 0.7 : 1,
                           transition: "opacity 0.15s ease",
                         }}
@@ -1455,8 +1453,7 @@ export default function RegionCategoryPage({
                             key={v.id}
                             data-listing-id={v.id}
                             style={{
-                              height: "auto",
-                              borderRadius: "var(--lwd-radius-card, 8px)",
+                              ...getCardWrapperStyles(true),
                               outline: activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
                               transition: "outline 0.2s",
                             }}
@@ -1496,10 +1493,7 @@ export default function RegionCategoryPage({
                       <div
                         className="lwd-venue-grid"
                         style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
-                          gap: 20,
-                          padding: "0",
+                          ...getGridStyles(false),
                           opacity: isFilteringTransition ? 0.7 : 1,
                           transition: "opacity 0.15s ease",
                         }}
@@ -1510,8 +1504,7 @@ export default function RegionCategoryPage({
                             key={v.id}
                             data-listing-id={v.id}
                             style={{
-                              height: "auto",
-                              borderRadius: "var(--lwd-radius-card, 8px)",
+                              ...getCardWrapperStyles(false),
                               outline: activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
                               transition: "outline 0.2s",
                             }}
