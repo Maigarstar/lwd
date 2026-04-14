@@ -15,7 +15,7 @@ export const GRID_STYLES = {
   },
   desktop: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+    gridTemplateColumns: "repeat(3, 1fr)",
     gap: 20,
     padding: "0",
   },

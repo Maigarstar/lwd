@@ -1320,9 +1320,7 @@ export default function RegionCategoryPage({
                     <div
                       className="lwd-venue-grid"
                       style={{
-                        display:             "grid",
-                        gridTemplateColumns: mapOn ? "repeat(2, minmax(0, 1fr))" : "repeat(3, minmax(0, 1fr))",
-                        gap:                 20,
+                        ...getGridStyles(false),
                       }}
                       aria-label={isVendor ? `${categoryLabel} grid` : "Venue grid"}
                     >
@@ -1333,9 +1331,8 @@ export default function RegionCategoryPage({
                           onMouseEnter={() => { setActiveListingId(v.id); PinSyncBus.emit("card:hover", v.id); }}
                           onMouseLeave={() => { setActiveListingId(null); PinSyncBus.emit("card:leave", v.id); }}
                           style={{
-                            height:       "auto",
+                            ...getCardWrapperStyles(false),
                             outline:      activeListingId === v.id ? "2px solid rgba(201,168,76,0.5)" : "none",
-                            borderRadius: "var(--lwd-radius-card, 8px)",
                             transition:   "outline 0.2s",
                           }}
                         >
@@ -1439,9 +1436,11 @@ export default function RegionCategoryPage({
                 className="lwd-rc-section"
                 aria-label={`${categoryLabel} listings`}
                 style={{
-                  background:   isMobile ? "transparent" : (darkMode ? C.dark : "#f2f0ea"),
+                  background:   "transparent",
                   padding:      isMobile ? "0 0 72px" : "40px 48px 72px",
-                  borderBottom: isMobile ? "none" : `1px solid ${C.border}`,
+                  borderBottom: "none",
+                  maxWidth:     1280,
+                  margin:       "0 auto",
                 }}
               >
                 {isMobile ? (
@@ -1573,15 +1572,12 @@ export default function RegionCategoryPage({
                     isMobile ? (
                       /* Mobile: responsive grid */
                       <div style={{
-                        display: "grid",
-                        gridTemplateColumns: vendorFilterConfig?.card === "PlannerCard" ? "repeat(auto-fill, minmax(280px, 1fr))" : "repeat(auto-fill, minmax(300px, 1fr))",
-                        gap: 16,
-                        padding: "0 12px",
+                        ...getGridStyles(true),
                         opacity: isFilteringTransition ? 0.7 : 1,
                         transition: "opacity 0.15s ease",
                       }}>
                         {finalListings.map((v) => (
-                          <div key={v.id} style={{ overflow: "hidden", borderRadius: "var(--lwd-radius-card, 8px)" }}>
+                          <div key={v.id} style={{ ...getCardWrapperStyles(true) }}>
                             {vendorFilterConfig?.card === "PlannerCard" ? (
                               <PlannerCard v={v} mode="grid" onView={() => onViewPlanner(v)} isMobile={isMobile} />
                             ) : (
@@ -1599,14 +1595,12 @@ export default function RegionCategoryPage({
                     ) : (
                       /* Desktop: grid */
                       <div style={{
-                        display: "grid",
-                        gridTemplateColumns: vendorFilterConfig?.card === "PlannerCard" ? "repeat(auto-fill, minmax(416px, 1fr))" : "repeat(auto-fill, minmax(340px, 1fr))",
-                        gap: 20,
+                        ...getGridStyles(false),
                         opacity: isFilteringTransition ? 0.7 : 1,
                         transition: "opacity 0.15s ease",
                       }}>
                         {finalListings.map((v) => (
-                          <div key={v.id} style={{ overflow: "hidden", borderRadius: "var(--lwd-radius-card, 8px)" }}>
+                          <div key={v.id} style={{ ...getCardWrapperStyles(false) }}>
                             {vendorFilterConfig?.card === "PlannerCard" ? (
                               <PlannerCard v={v} mode="grid" onView={() => onViewPlanner(v)} isMobile={isMobile} />
                             ) : (
@@ -1787,11 +1781,9 @@ export default function RegionCategoryPage({
         )}
 
         {/* ════════════════════════════════════════════════════════════════════
-            7. WEDDING VENDORS — carousel (same as RegionPage)
-            Guard: only render once data is loaded AND ≥2 active categories exist.
-            Single-category regions (venues only) skip this section entirely.
+            7. WEDDING VENDORS — carousel (standard section)
         ════════════════════════════════════════════════════════════════════ */}
-        {listingsLoaded && (() => {
+        {useMemo(() => {
           const activeCatSet = new Set();
           dbListings.forEach(l => {
             const cat = l.categorySlug || l.category_slug || "";
@@ -1800,9 +1792,6 @@ export default function RegionCategoryPage({
             if (!cat && (lt === "venue" || !lt)) activeCatSet.add("wedding-venues");
           });
           if (finalListings.length > 0) activeCatSet.add(categorySlug);
-          const activeVendorCats = VENDOR_CATEGORIES.filter(vc => activeCatSet.has(vc.slug));
-          if (activeVendorCats.length < 2) return null;
-          if (isMobile && activeVendorCats.length < 3) return null; // Don't render on mobile if only 2 categories
           return (
             <section
               className="lwd-rc-section"
@@ -1825,7 +1814,7 @@ export default function RegionCategoryPage({
                   <span style={{ fontStyle: "italic", color: "#C9A84C" }}>Wedding Vendors</span>
                 </h2>
                 <VendorCategoryCarousel
-                  categories={activeVendorCats}
+                  categories={VENDOR_CATEGORIES}
                   C={DARK_C}
                   onSelect={(slug) => onViewRegionCategory(countrySlug, regionSlug, slug)}
                   activeCategorySlugs={activeCatSet}
@@ -1833,7 +1822,7 @@ export default function RegionCategoryPage({
               </div>
             </section>
           );
-        })()}
+        }, [isVenue, categorySlug, regionName, isMobile])}
 
 
         {/* Related Regions — removed per user request */}

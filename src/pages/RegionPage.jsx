@@ -18,6 +18,7 @@ import { getVenuesByRegion, getVenuesByCity } from "../services/venueService";
 import { fetchListings } from "../services/listings";
 import { getRegionPageConfig } from "../services/regionPageConfig";
 import { fetchLocationContent } from "../services/locationContentService";
+import { getGridStyles, getCardWrapperStyles } from "../config/gridStyles";
 
 import LuxuryVenueCard  from "../components/cards/LuxuryVenueCard";
 import LuxuryVendorCard from "../components/cards/LuxuryVendorCard";
