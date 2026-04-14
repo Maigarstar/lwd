@@ -1242,27 +1242,37 @@ export default function RegionCategoryPage({
               />
             </section>
             )}
-            <CountrySearchBar
-              filters={vendorFilters}
-              onFiltersChange={handleVenueFiltersChange}
-              viewMode={viewMode}
-              onViewMode={handleViewMode}
-              sortMode={vendorFilters.sort || "recommended"}
-              onSortChange={(s) => setVendorFilters(prev => ({ ...prev, sort: s }))}
-              total={listingCount}
-              regions={[{ name: regionName, slug: regionSlug }]}
-              countryFilter={countryName}
-              mapOn={mapOn}
-              onToggleMap={handleToggleMap}
-              mode="vendor-dynamic"
-              onRegionNavigate={handleVendorRegionNavigate}
-              vendorFilters={vendorFilters}
-              onVendorFiltersChange={setVendorFilters}
-              vendorFilterConfig={vendorFilterConfig}
-              vendorFilterOptions={vendorFilterOptions}
-              vendorCategoryLabel={categoryLabel}
-              hideVendorFilterBar={hideVendorFilterBar}
-            />
+            <div
+              style={{
+                position: "sticky",
+                top: 0,
+                zIndex: 100,
+                background: darkMode ? C.dark : "#fff",
+                borderBottom: `1px solid ${C.border}`,
+              }}
+            >
+              <CountrySearchBar
+                filters={vendorFilters}
+                onFiltersChange={handleVenueFiltersChange}
+                viewMode={viewMode}
+                onViewMode={handleViewMode}
+                sortMode={vendorFilters.sort || "recommended"}
+                onSortChange={(s) => setVendorFilters(prev => ({ ...prev, sort: s }))}
+                total={listingCount}
+                regions={[{ name: regionName, slug: regionSlug }]}
+                countryFilter={countryName}
+                mapOn={mapOn}
+                onToggleMap={handleToggleMap}
+                mode="vendor-dynamic"
+                onRegionNavigate={handleVendorRegionNavigate}
+                vendorFilters={vendorFilters}
+                onVendorFiltersChange={setVendorFilters}
+                vendorFilterConfig={vendorFilterConfig}
+                vendorFilterOptions={vendorFilterOptions}
+                vendorCategoryLabel={categoryLabel}
+                hideVendorFilterBar={hideVendorFilterBar}
+              />
+            </div>
         </div>{/* end section-7 background wrapper */}
 
         {/* ════════════════════════════════════════════════════════════════════
