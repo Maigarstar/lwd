@@ -1586,9 +1586,7 @@ function CategoryCarousel({ categories, C, onSelect, activeCategorySlugs = null,
       <div
         className="lwd-region-cat-grid"
         style={{
-          display: "grid",
-          gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(6, 200px)",
-          gap: isMobile ? 12 : 16,
+          ...getGridStyles(isMobile),
           justifyContent: "center",
         }}
       >
