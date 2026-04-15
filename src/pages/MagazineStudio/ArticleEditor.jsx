@@ -184,8 +184,22 @@ function useAIGenerate(formData, tone) {
       let data = null;
       try {
         const { callAiGenerate } = await import('../../lib/aiGenerate');
-        data = await callAiGenerate({ prompt, model: 'auto', maxTokens: 300 });
-      } catch { data = null; }
+        // The ai-generate edge function requires { feature, systemPrompt, userPrompt }.
+        // Sending { prompt, model } deterministically returns 400 "Missing required
+        // fields" → "Edge Function returned a non-2xx status code" in the UI.
+        data = await callAiGenerate({
+          feature: action,
+          systemPrompt: 'You are a luxury magazine editorial assistant. Generate high-quality content for wedding magazines.',
+          userPrompt: prompt,
+          maxTokens: 300,
+        });
+      } catch (e) {
+        // Don't swallow silently — log so the real reason (missing fields,
+        // no provider, network) is visible in the console instead of being
+        // hidden behind the generic "AI not configured" toast below.
+        console.error('[useAIGenerate]', action, e);
+        data = null;
+      }
 
       if (!data?.text) {
         setError('AI provider not configured. Go to Admin → AI Settings to connect OpenAI or Anthropic.');
@@ -2198,8 +2212,19 @@ function InlineAIBar({ block, onUpdate, tone }) {
       let data = null;
       try {
         const { callAiGenerate } = await import('../../lib/aiGenerate');
-        data = await callAiGenerate({ prompt: prompts[action], model: 'auto', maxTokens: 200 });
-      } catch { data = null; }
+        // ai-generate requires { feature, systemPrompt, userPrompt } — see
+        // useAIGenerate above for the full rationale on why the legacy
+        // { prompt, model, maxTokens } shape 400s at the function.
+        data = await callAiGenerate({
+          feature: `block_${action}`,
+          systemPrompt: `You are a luxury magazine editorial assistant. Generate high-quality content for wedding magazines in a ${tone} tone.`,
+          userPrompt: prompts[action],
+          maxTokens: 200,
+        });
+      } catch (e) {
+        console.error('[InlineAIBar]', action, e);
+        data = null;
+      }
       if (!data?.text) { setErr('AI not configured'); setLoading(null); return; }
       const result = data.text.trim();
       if (action === 'gen-heading') onUpdate({ ...block, text: result });
@@ -6963,8 +6988,21 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
       let data = null;
       try {
         const { callAiGenerate } = await import('../../lib/aiGenerate');
-        data = await callAiGenerate({ prompt, model: 'auto', maxTokens: 300 });
-      } catch { data = null; }
+        // Canvas AI covers paragraph/intro/expand/rewrite/h2/h3/quote/takeaway/
+        // conclusion + auto image-alt. All must send the edge function's
+        // required shape or they silently 400. This is exactly the path the
+        // CanvasBlock auto alt-gen effect calls into — a wrong shape here
+        // neutralises the alt-generation fix from Bug #7.
+        data = await callAiGenerate({
+          feature: action,
+          systemPrompt: `You are a luxury magazine editorial assistant. Generate high-quality content for wedding magazines in a ${ctx.tone} tone.`,
+          userPrompt: prompt,
+          maxTokens: 300,
+        });
+      } catch (e) {
+        console.error('[canvasAI]', action, e);
+        data = null;
+      }
       return data?.text?.trim() || null;
     } catch { return null; }
   }, [formData, tone]);
@@ -7270,8 +7308,19 @@ Section heading: "${headingText}". Category: ${formData.categoryLabel || formDat
 Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY the paragraph text, no headings.`;
       let data = null;
       try {
-        data = await callAiGenerate({ prompt, model: 'auto', maxTokens: 600 });
-      } catch { data = null; }
+        // ai-generate requires the full { feature, systemPrompt, userPrompt }
+        // shape; the previous { prompt, model, maxTokens } shape returned 400
+        // "Missing required fields" for every regenerate click.
+        data = await callAiGenerate({
+          feature: 'regenerate_section',
+          systemPrompt: `You are a luxury magazine editorial assistant. Generate high-quality content for wedding magazines in a ${tone} tone.`,
+          userPrompt: prompt,
+          maxTokens: 600,
+        });
+      } catch (e) {
+        console.error('[handleRegenerateSection]', e);
+        data = null;
+      }
       if (data?.text) {
         // Replace the section's paragraph blocks with new content
         setAiDraft(prev => {
