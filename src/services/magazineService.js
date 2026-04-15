@@ -357,10 +357,16 @@ export async function savePost(formData) {
     const content = formData.content || [];
     if (content.length > 0) {
       const blockRows = content.map((block, i) => {
-        const { type, ...blockContent } = block;
+        // Rename to `blockType` so a future block schema that legitimately
+        // uses a nested `type` field (e.g. an image block with
+        // `{ type: 'image', variant: 'hero', type: 'overlay' }`) doesn't
+        // silently lose the nested key to the outer destructure. The outer
+        // discriminator is intentionally separated from block_content so the
+        // DB schema and the block payload can never collide on key names.
+        const { type: blockType, ...blockContent } = block;
         return {
           post_id:       savedPost.id,
-          block_type:    type,
+          block_type:    blockType,
           block_order:   i * 10,
           block_content: blockContent,
         };
@@ -513,8 +519,10 @@ export async function replaceBlocks(postId, contentArray) {
     await supabase.from('magazine_blocks').delete().eq('post_id', postId);
     if (contentArray.length > 0) {
       const rows = contentArray.map((block, i) => {
-        const { type, ...blockContent } = block;
-        return { post_id: postId, block_type: type, block_order: i * 10, block_content: blockContent };
+        // See savePost's block map — rename the outer destructure so a
+        // nested `type` inside block content can never be stripped.
+        const { type: blockType, ...blockContent } = block;
+        return { post_id: postId, block_type: blockType, block_order: i * 10, block_content: blockContent };
       });
       const { error } = await supabase.from('magazine_blocks').insert(rows);
       if (error) throw error;
