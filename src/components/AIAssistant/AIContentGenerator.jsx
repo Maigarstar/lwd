@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { callAiGenerate } from '../../lib/aiGenerate';
 
 /**
  * AIContentGenerator Component
@@ -38,21 +38,17 @@ export default function AIContentGenerator({
     setSuggestion(null);
 
     try {
-      // Call Supabase Edge Function (ai-generate)
-      // Uses same pattern as vendorAccountsService.js and emailService.js
-      // Pass body as object (NOT JSON.stringify), Supabase client auto-serializes
-      const { data, error: invokeError } = await supabase.functions.invoke('ai-generate', {
-        body: {
-          feature,
-          systemPrompt,
-          userPrompt,
-          venue_id: venueId,
-        },
+      // Call ai-generate via direct fetch + anon key (bypasses the Supabase
+      // gateway auth path that swallows real errors behind a generic
+      // "Edge Function returned a non-2xx status code" message when the
+      // admin's session JWT is stale). Same escape-hatch pattern used in
+      // ArticleEditor.jsx and AISettingsPage.jsx.
+      const data = await callAiGenerate({
+        feature,
+        systemPrompt,
+        userPrompt,
+        venue_id: venueId,
       });
-
-      if (invokeError) {
-        throw new Error(invokeError.message || 'Failed to generate content');
-      }
 
       if (!data) {
         throw new Error('No response from AI service');
@@ -67,7 +63,7 @@ export default function AIContentGenerator({
         cost: data.estimated_cost,
       });
     } catch (err) {
-      console.error('AI generation error:', err);
+      console.error('[AIContentGenerator]', feature, err);
       setError(err.message || 'Generation failed');
     } finally {
       setLoading(false);

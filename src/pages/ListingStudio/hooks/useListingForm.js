@@ -390,10 +390,19 @@ export const useListingForm = (listingId = null) => {
   }, []);
 
   // Generate slug from venue name
+  //
+  // Accent handling: NFD-normalise first so combining diacritics split off
+  // their base letter, then strip the diacritics. Without this step, `\w`
+  // removes accented characters entirely (e.g. "Caïds" → "Cads"), which
+  // diverges from the transliterated slug users and prior saves produce
+  // (e.g. "kasbah-des-caids"). Normalising keeps accent-bearing names round-
+  // trip stable with their saved slugs.
   const generateSlug = useCallback((venueName) => {
     return venueName
       .toLowerCase()
       .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // strip combining diacritics
       .replace(/[^\w\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-');
