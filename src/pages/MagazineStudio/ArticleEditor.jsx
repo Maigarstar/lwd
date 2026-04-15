@@ -6709,7 +6709,17 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   // ── Reference system handlers ──
   // Sync formData when switching articles (initialPost changes)
   useEffect(() => {
-    setFormData(JSON.parse(JSON.stringify(initialPost)));
+    const nextForm = JSON.parse(JSON.stringify(initialPost));
+    // CRITICAL: sync formDataRef SYNCHRONOUSLY before scheduling the setState.
+    // The ref-mirror useEffect only fires after render, so there's a window
+    // between setFormData(nextForm) and the next commit where formDataRef
+    // still points at the PREVIOUS article's data. Any microtask or timer
+    // that reads formDataRef in that window (draft-backup debounce, pending
+    // drain save, beforeunload flush) would back up the old article's form
+    // under the NEW article's draft key — corrupting the recovery store.
+    // Writing the ref first closes that window entirely.
+    formDataRef.current = nextForm;
+    setFormData(nextForm);
     setDirty(false);
     setTone(initialPost.tone || 'Luxury Editorial');
     setFocusKeyword('');
