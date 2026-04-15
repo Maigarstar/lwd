@@ -53,6 +53,20 @@ Rules:
 - Numeric coordinates may be returned as strings or numbers; the consumer accepts both.
 - If you cannot find the business with confidence, return the JSON object with empty strings for every field.`;
 
+// Pricing lookup is also structured data extraction. Same strict JSON-only
+// contract — no copywriting, no caveats, no markdown.
+export const PRICING_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches public wedding-venue pricing information. You are NOT a copywriter or sales agent.
+
+Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no disclaimers about pricing accuracy, no leading or trailing characters.
+
+Rules:
+- Return ONLY the JSON object literal, starting with { and ending with }.
+- Use empty string "" or 0 for any field you are not certain about. Never invent or guess prices.
+- Numeric fields (price_from, capacity) must be plain integers without currency symbols, commas, or units.
+- price_currency is a single character: £, $, €, etc.
+- price_range is the symbolic price-band ("€", "€€", "€€€", "€€€€") that best matches the absolute price_from.
+- If the venue cannot be confidently identified or has no public pricing, return the JSON object with empty/zero values for every field.`;
+
 export const ALT_TEXT_SYSTEM = `You are an accessibility expert and SEO copywriter.
 
 Write concise, descriptive alt text that:
@@ -387,6 +401,32 @@ Return ONLY a valid JSON object in this exact format:
 
 IMPORTANT: Only include information you are certain about. Use empty string "" for any field you are unsure about. For coordinates, provide decimal format only. Never invent or guess an address.
 RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation.`;
+};
+
+/**
+ * Build prompt for Pricing Lookup from business name + URL + optional location.
+ * Returns: price_from (integer), price_currency (1 char), price_range (€-bands),
+ * capacity (integer guest count).
+ */
+export const buildPricingLookupPrompt = (venueName, websiteUrl, locationHint) => {
+  return `Look up public wedding-venue pricing and guest capacity for the business "${venueName}"${websiteUrl ? ` (website: ${websiteUrl})` : ''}${locationHint ? ` located in ${locationHint}` : ''}.
+
+Return ONLY a valid JSON object in this exact format:
+{
+  "price_from": 12000,
+  "price_currency": "£",
+  "price_range": "€€€",
+  "capacity": 150
+}
+
+Field rules:
+- price_from: lowest published wedding-package or venue-hire price as a plain integer (no commas, no currency symbol). Use 0 if not publicly available.
+- price_currency: single symbol matching the venue's home currency — "£" for UK, "€" for EU, "$" for US, etc. Empty string if unknown.
+- price_range: symbolic band that best matches price_from. Use "€" (under 5,000), "€€" (5,000–15,000), "€€€" (15,000–40,000), or "€€€€" (40,000+). Empty string if unknown.
+- capacity: maximum seated guest capacity as a plain integer. Use 0 if not published.
+
+IMPORTANT: Use 0 or "" for any field you cannot confirm from public sources. NEVER invent or estimate pricing — wedding venues sue over inaccurate price quotes. If you cannot find published pricing for this venue, return zeros and empty strings.
+RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation, no disclaimers.`;
 };
 
 /**
@@ -1155,6 +1195,7 @@ export default {
   LUXURY_TONE_SYSTEM,
   SEO_SYSTEM,
   ADDRESS_LOOKUP_SYSTEM,
+  PRICING_LOOKUP_SYSTEM,
   ALT_TEXT_SYSTEM,
   FAQ_SYSTEM,
   buildAboutPrompt,
@@ -1171,6 +1212,7 @@ export default {
   buildAmenitiesPrompt,
   buildExclusiveUsePrompt,
   buildAddressLookupPrompt,
+  buildPricingLookupPrompt,
   buildSectionIntroPrompt,
   buildListingNamePrompt,
   buildHeroTaglinePrompt,
