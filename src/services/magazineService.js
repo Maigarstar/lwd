@@ -111,9 +111,16 @@ const POST_FIELD_MAP = {
   contentScoreUpdatedAt:   'content_score_updated_at',
 };
 
-// Keys NOT written to magazine_posts (stored elsewhere or derived)
-// `galleryImages` lives inside ai_metadata.galleryImages, not as a top-level
-// column — see mapPostToDb/mapPostFromDb below.
+// Keys NOT written to magazine_posts as top-level columns. These fields are
+// either stored elsewhere (blocks table, ai_metadata jsonb) or are pure UI
+// state not meant to persist.
+//
+// Two piggyback fields live inside ai_metadata jsonb and are explicitly lifted
+// back out in mapPostFromDb:
+//   • galleryImages   — array of gallery image urls for the hero slider
+//   • coverImageFocal — focal point object { x, y } for cover image cropping
+// Keeping them out of POST_FIELD_MAP avoids a schema migration; lifting them
+// on read means the editor consumes them as plain top-level formData fields.
 const POST_EXCLUDED_KEYS = new Set(['content', '_lastEdited', 'date', 'category',
   'coverImageFocal', 'relatedPosts', 'heroTextAlign', 'galleryImages']);
 
@@ -129,14 +136,20 @@ function mapPostToDb(formData) {
   if (formData.author && !row.author_data) {
     row.author_data = formData.author;
   }
-  // Piggyback galleryImages onto ai_metadata jsonb so the slider persists without
-  // a schema migration. When the caller explicitly sets formData.galleryImages we
-  // merge it into whatever ai_metadata we were already about to write, preserving
-  // other keys (aiOutline etc). An empty array is still written so the user can
-  // clear a gallery.
-  if (Array.isArray(formData.galleryImages)) {
+  // Piggyback galleryImages + coverImageFocal onto ai_metadata jsonb so these
+  // persist without a schema migration. When the caller sets formData.galleryImages
+  // or formData.coverImageFocal, we merge them into whatever ai_metadata is
+  // already being written, preserving other keys (aiOutline, aiTopic, etc.).
+  // Both branches share the same base object so writes to one don't clobber
+  // the other.
+  const hasGallery = Array.isArray(formData.galleryImages);
+  const hasFocal   = formData.coverImageFocal !== undefined;
+  if (hasGallery || hasFocal) {
     const base = (row.ai_metadata && typeof row.ai_metadata === 'object') ? row.ai_metadata : {};
-    row.ai_metadata = { ...base, galleryImages: formData.galleryImages };
+    const merged = { ...base };
+    if (hasGallery) merged.galleryImages   = formData.galleryImages;
+    if (hasFocal)   merged.coverImageFocal = formData.coverImageFocal;
+    row.ai_metadata = merged;
   }
   // Ensure published_at is set when publishing
   if (row.published && !row.published_at) {
@@ -152,13 +165,12 @@ function mapPostFromDb(row) {
   c.content     = [];    // blocks fetched separately, merged by fetchPostBySlug
   c.readingTime = c.readingTime ?? 5;
   c.tags        = c.tags ?? [];
-  // Lift ai_metadata.galleryImages → formData.galleryImages so the editor's
-  // slider can read it directly without knowing about the piggyback.
-  if (c.aiMetadata && typeof c.aiMetadata === 'object' && Array.isArray(c.aiMetadata.galleryImages)) {
-    c.galleryImages = c.aiMetadata.galleryImages;
-  } else {
-    c.galleryImages = [];
-  }
+  // Lift ai_metadata.galleryImages + ai_metadata.coverImageFocal back into
+  // their top-level formData slots so the editor's slider and focal-point
+  // UI can read them directly without knowing about the piggyback.
+  const meta = (c.aiMetadata && typeof c.aiMetadata === 'object') ? c.aiMetadata : null;
+  c.galleryImages   = meta && Array.isArray(meta.galleryImages) ? meta.galleryImages : [];
+  c.coverImageFocal = meta && meta.coverImageFocal ? meta.coverImageFocal : null;
   return c;
 }
 
