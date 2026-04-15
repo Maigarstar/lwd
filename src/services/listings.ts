@@ -441,6 +441,8 @@ function mapFormToDatabaseFields(data: any): any {
     'exclusiveUseDescription': 'exclusive_use_description',
     'exclusiveUseCtaText':     'exclusive_use_cta_text',
     'exclusiveUseIncludes':    'exclusive_use_includes',
+    // Multi-pin venues — secondary locations (max 3) stored as JSONB array
+    'additionalLocations':     'additional_locations',
     // Catering cards (max 3, stored as JSONB array)
     'cateringEnabled':         'catering_enabled',
     'cateringCards':           'catering_cards',

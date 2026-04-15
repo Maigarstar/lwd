@@ -67,6 +67,19 @@ Rules:
 - price_range is the symbolic price-band ("€", "€€", "€€€", "€€€€") that best matches the absolute price_from.
 - If the venue cannot be confidently identified or has no public pricing, return the JSON object with empty/zero values for every field.`;
 
+export const ROOMS_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available accommodation information for wedding venues. You are NOT a copywriter or sales agent.
+
+Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
+
+Rules:
+- Return ONLY the JSON object literal, starting with { and ending with }.
+- Use empty string "" or 0 for any field you are not certain about. Never invent or guess room counts.
+- Numeric fields must be plain integers (no commas, no units, no words).
+- accommodation_type must be one of the allowed values from the user prompt — empty string if unknown.
+- exclusive_use must be a boolean true or false. Default to false unless the venue explicitly markets exclusive-use weddings.
+- showcase_intro must be a single short editorial sentence (under 300 characters) suitable for a luxury magazine page intro. If the venue has no public accommodation, return "" — do not invent.
+- If the venue cannot be confidently identified or has no public accommodation information, return the JSON object with empty/zero/false values for every field.`;
+
 export const ALT_TEXT_SYSTEM = `You are an accessibility expert and SEO copywriter.
 
 Write concise, descriptive alt text that:
@@ -426,6 +439,39 @@ Field rules:
 - capacity: maximum seated guest capacity as a plain integer. Use 0 if not published.
 
 IMPORTANT: Use 0 or "" for any field you cannot confirm from public sources. NEVER invent or estimate pricing — wedding venues sue over inaccurate price quotes. If you cannot find published pricing for this venue, return zeros and empty strings.
+RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation, no disclaimers.`;
+};
+
+/**
+ * Build prompt for Rooms / Accommodation Lookup from business name + URL + optional location.
+ * Returns: accommodation_type (one of the allowed strings), rooms_total, rooms_suites,
+ * rooms_max_guests, rooms_min_stay (integers), exclusive_use (boolean), showcase_intro
+ * (short editorial sentence for the showcase page rooms intro).
+ */
+export const buildRoomsLookupPrompt = (venueName, websiteUrl, locationHint) => {
+  return `Look up public accommodation information for the wedding venue "${venueName}"${websiteUrl ? ` (website: ${websiteUrl})` : ''}${locationHint ? ` located in ${locationHint}` : ''}.
+
+Return ONLY a valid JSON object in this exact format:
+{
+  "accommodation_type": "Historic Villa",
+  "rooms_total": 18,
+  "rooms_suites": 6,
+  "rooms_max_guests": 40,
+  "rooms_min_stay": 2,
+  "exclusive_use": true,
+  "showcase_intro": "Eighteen restored rooms and six suites set within centuries-old walls — the entire estate yours for a single weekend."
+}
+
+Field rules:
+- accommodation_type: MUST be one of exactly these values (or "" if unknown): "Historic Villa", "Boutique Hotel", "Castle", "Resort", "Manor House", "Country Estate".
+- rooms_total: total number of guest rooms (suites included) as a plain integer. Use 0 if not published.
+- rooms_suites: number of suites as a plain integer. Use 0 if not published.
+- rooms_max_guests: maximum overnight guest capacity as a plain integer. Use 0 if not published.
+- rooms_min_stay: minimum night stay required for wedding bookings as a plain integer. Use 0 if not published.
+- exclusive_use: boolean true if the venue offers full exclusive-use buyouts for weddings, false otherwise.
+- showcase_intro: ONE short editorial sentence (under 300 characters) describing the accommodation experience in luxury-magazine tone, suitable for the rooms section intro on the showcase page. Use "" if there is no public accommodation information.
+
+IMPORTANT: Use 0, "" or false for any field you cannot confirm from public sources. NEVER invent room counts or capacity numbers — venues complain about inaccurate listings. If you cannot find published accommodation information for this venue, return zeros and empty strings.
 RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation, no disclaimers.`;
 };
 
@@ -1196,6 +1242,7 @@ export default {
   SEO_SYSTEM,
   ADDRESS_LOOKUP_SYSTEM,
   PRICING_LOOKUP_SYSTEM,
+  ROOMS_LOOKUP_SYSTEM,
   ALT_TEXT_SYSTEM,
   FAQ_SYSTEM,
   buildAboutPrompt,
@@ -1213,6 +1260,7 @@ export default {
   buildExclusiveUsePrompt,
   buildAddressLookupPrompt,
   buildPricingLookupPrompt,
+  buildRoomsLookupPrompt,
   buildSectionIntroPrompt,
   buildListingNamePrompt,
   buildHeroTaglinePrompt,

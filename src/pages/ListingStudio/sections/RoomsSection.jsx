@@ -14,9 +14,38 @@
 import { useState, useEffect } from 'react';
 import RichTextEditor from '../components/RichTextEditor';
 import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
-import { LUXURY_TONE_SYSTEM, buildRoomsDescriptionPrompt } from '../../../lib/aiPrompts';
+import {
+  LUXURY_TONE_SYSTEM,
+  buildRoomsDescriptionPrompt,
+  ROOMS_LOOKUP_SYSTEM,
+  buildRoomsLookupPrompt,
+} from '../../../lib/aiPrompts';
 
 const MAX_ROOM_IMAGES = 6;
+const SHOWCASE_INTRO_MAX = 300;
+
+const ACCOMMODATION_TYPES = [
+  'Historic Villa',
+  'Boutique Hotel',
+  'Castle',
+  'Resort',
+  'Manor House',
+  'Country Estate',
+];
+
+// Tolerant JSON extractor — strips markdown fences and falls back to first {...}
+// block. Mirrors the helpers in CommercialDetailsSection / LocationSection so silent
+// JSON.parse failures can't hide a malformed AI response.
+function extractJsonObject(text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  let cleaned = text.trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
+  try { return JSON.parse(cleaned); } catch { /* fall through */ }
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try { return JSON.parse(match[0]); } catch { return null; }
+}
 
 // ── Shared primitives ────────────────────────────────────────────────────────
 const labelStyle = {
@@ -42,6 +71,36 @@ const inputStyle = {
 };
 
 const hintStyle = { fontSize: 10, color: '#aaa', margin: '4px 0 0' };
+
+// ── Accommodation Type selector ────────────────────────────────────────────────
+const AccommodationTypeSelector = ({ value, onChange, label }) => (
+  <div>
+    <label style={labelStyle}>{label}</label>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      {ACCOMMODATION_TYPES.map(type => (
+        <button
+          key={type}
+          type="button"
+          onClick={() => onChange(type)}
+          style={{
+            padding: '8px 16px',
+            fontSize: 12,
+            fontWeight: 600,
+            border: `1px solid ${value === type ? '#C9A84C' : '#ddd4c8'}`,
+            backgroundColor: value === type ? '#C9A84C' : '#faf9f7',
+            color: value === type ? '#fff' : '#555',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            transition: 'all 0.15s',
+            borderRadius: 3,
+          }}
+        >
+          {type}
+        </button>
+      ))}
+    </div>
+  </div>
+);
 
 // ── Yes/No toggle ─────────────────────────────────────────────────────────────
 const YesNoToggle = ({ value, onChange, label }) => (
@@ -188,29 +247,132 @@ const aiLinkStyle = {
 const RoomsSection = ({ formData, onChange }) => {
   const rooms_images = formData?.rooms_images || [];
   const [showRoomsAI, setShowRoomsAI] = useState(false);
+  const [showRoomsLookupAI, setShowRoomsLookupAI] = useState(false);
+
+  // Build a location hint from whatever the form already has — gives the model
+  // context to disambiguate same-named venues across countries.
+  const locationHint = [
+    formData?.city,
+    formData?.region,
+    formData?.country,
+  ].filter(Boolean).join(', ');
 
   return (
     <section style={{ marginBottom: 16, padding: 20 }}>
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1a1a1a', margin: '0 0 4px' }}>
-          Rooms & Accommodation
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1a1a1a', margin: 0 }}>
+            Rooms & Accommodation
+          </h3>
+          <button
+            type="button"
+            onClick={() => setShowRoomsLookupAI(v => !v)}
+            style={aiLinkStyle}
+          >
+            {showRoomsLookupAI ? '✦ Hide AI lookup' : '✦ Find rooms with AI'}
+          </button>
+        </div>
         <p style={{ fontSize: 12, color: '#999', margin: 0 }}>
           Couples look for overnight accommodation first. Fill in what's available, empty sections are hidden on the listing.
         </p>
       </div>
 
+      {showRoomsLookupAI && (
+        <div style={{ marginBottom: 20 }}>
+          <AIContentGenerator
+            feature="rooms_lookup"
+            systemPrompt={ROOMS_LOOKUP_SYSTEM}
+            userPrompt={buildRoomsLookupPrompt(
+              formData?.venue_name || formData?.name || '',
+              formData?.website || formData?.website_url || formData?.url || '',
+              locationHint
+            )}
+            venueId={formData?.id}
+            onInsert={(text) => {
+              const data = extractJsonObject(text);
+              if (!data) {
+                // eslint-disable-next-line no-alert
+                alert(
+                  'Could not parse rooms data from AI response. The model returned ' +
+                  'something that is not valid JSON. Try clicking Generate again ' +
+                  'or fill the rooms manually.\n\nResponse was:\n\n' +
+                  String(text).slice(0, 400)
+                );
+                return;
+              }
+              const fieldsApplied = [];
+
+              // accommodation_type — must match one of the allowed buttons
+              if (
+                data.accommodation_type &&
+                typeof data.accommodation_type === 'string' &&
+                ACCOMMODATION_TYPES.includes(data.accommodation_type.trim())
+              ) {
+                onChange('rooms_accommodation_type', data.accommodation_type.trim());
+                fieldsApplied.push('accommodation_type');
+              }
+
+              // Numeric fields — normalise to integer strings (the inputs are
+              // type="number" but the form stores strings).
+              const numericFields = [
+                ['rooms_total',      'rooms_total'],
+                ['rooms_suites',     'rooms_suites'],
+                ['rooms_max_guests', 'rooms_max_guests'],
+                ['rooms_min_stay',   'rooms_min_stay'],
+              ];
+              numericFields.forEach(([jsonKey, formKey]) => {
+                const raw = data[jsonKey];
+                if (raw !== undefined && raw !== null && raw !== '' && Number(raw) > 0) {
+                  onChange(formKey, String(Math.round(Number(raw))));
+                  fieldsApplied.push(jsonKey);
+                }
+              });
+
+              // exclusive_use — only flip to true if the model is confident; we
+              // don't overwrite an existing true with a missing/false answer.
+              if (data.exclusive_use === true) {
+                onChange('rooms_exclusive_use', true);
+                fieldsApplied.push('exclusive_use');
+              }
+
+              // showcase_intro — feeds the Editorial Content > Accommodation
+              // section intro on the showcase page. Stored in section_intros.rooms.
+              if (
+                data.showcase_intro &&
+                typeof data.showcase_intro === 'string' &&
+                data.showcase_intro.trim()
+              ) {
+                const intro = data.showcase_intro.trim().slice(0, SHOWCASE_INTRO_MAX);
+                const existingIntros = formData?.section_intros || {};
+                onChange('section_intros', { ...existingIntros, rooms: intro });
+                fieldsApplied.push('showcase_intro');
+              }
+
+              if (fieldsApplied.length === 0) {
+                // eslint-disable-next-line no-alert
+                alert(
+                  'AI returned a JSON response but every field was empty — the ' +
+                  'model could not confidently identify accommodation for this venue. ' +
+                  'Many wedding venues do not publish room counts, so this is common. ' +
+                  'Try giving it a website URL, or fill the rooms manually.'
+                );
+                return;
+              }
+              setShowRoomsLookupAI(false);
+            }}
+            label="Find Rooms"
+          />
+        </div>
+      )}
+
       {/* Accommodation Type */}
       <div style={{ marginBottom: 20 }}>
-        <label style={labelStyle}>Accommodation Type</label>
-        <input
-          type="text"
+        <AccommodationTypeSelector
+          label="Accommodation Type"
           value={formData?.rooms_accommodation_type || ''}
-          onChange={e => onChange('rooms_accommodation_type', e.target.value)}
-          placeholder="e.g. Historic Villa, Boutique Hotel, Castle, Resort"
-          style={inputStyle}
+          onChange={v => onChange('rooms_accommodation_type', v)}
         />
       </div>
 

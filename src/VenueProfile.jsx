@@ -2951,7 +2951,7 @@ function AboutSection({ venue, isDbVenue = false }) {
 
   return (
     <section id="overview" style={{ marginBottom: 56 }}>
-      <SectionHeading title={`About ${venue.name}`} />
+      <SectionHeading title={`About ${venue.name}`} subtitle={venue?.sectionIntros?.overview || undefined} />
 
       {/* Single-column editorial layout */}
       <div>
@@ -4146,7 +4146,7 @@ function CateringSection({ venue }) {
 
   return (
     <section style={{ marginBottom: 56 }}>
-      <SectionHeading title="Catering & Dining" subtitle="Professional catering services and dining options" />
+      <SectionHeading title="Catering & Dining" subtitle={venue?.sectionIntros?.dining || "Professional catering services and dining options"} />
       <div
         className="vp-catering-grid"
         style={{
@@ -4256,7 +4256,7 @@ function SpacesSection({ spaces, venue }) {
     <section id="capacity" style={{ marginBottom: 56 }}>
       <SectionHeading
         title="Venue Spaces"
-        subtitle={`${spaces.length} distinct event space${spaces.length !== 1 ? 's' : ''}, each with unique character and atmosphere`}
+        subtitle={venue?.sectionIntros?.spaces || `${spaces.length} distinct event space${spaces.length !== 1 ? 's' : ''}, each with unique character and atmosphere`}
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 48 : 64 }}>
@@ -4435,7 +4435,7 @@ function RoomsSection({ venue }) {
 
   return (
     <section id="rooms" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Rooms & Accommodation" subtitle={acc.totalRooms ? `${acc.totalRooms} rooms${acc.totalSuites ? ` & ${acc.totalSuites} suites` : ''} for your guests` : "Accommodation for your guests"} />
+      <SectionHeading title="Rooms & Accommodation" subtitle={venue?.sectionIntros?.rooms || (acc.totalRooms ? `${acc.totalRooms} rooms${acc.totalSuites ? ` & ${acc.totalSuites} suites` : ''} for your guests` : "Accommodation for your guests")} />
       <>
         {/* Stats bar */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
@@ -4622,7 +4622,7 @@ function DiningSection({ venue }) {
 
   return (
     <section id="dining" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Dining" subtitle="World-class culinary experiences and menu options" />
+      <SectionHeading title="Dining" subtitle={venue?.sectionIntros?.dining || "World-class culinary experiences and menu options"} />
       <SectionLayout sideImg={sideImg} isMobile={isMobile}>
 
         {/* Style + chef */}
@@ -4844,7 +4844,7 @@ function WeddingWeekend({ venue }) {
 
   return (
     <section id="things-to-do" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Your Wedding Weekend" subtitle={ww.subtitle || ''} />
+      <SectionHeading title="Your Wedding Weekend" subtitle={venue?.sectionIntros?.weddings || ww.subtitle || ''} />
       {/* Days */}
       {isMobile ? (
         <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginBottom: 36, scrollbarWidth: "none", msOverflowStyle: "none" }} className="vp-weekend-slider">
@@ -7748,7 +7748,9 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
             ? {
                 enabled: true,
                 hours:   listing.openingHours || {},
-                note:    listing.openingHoursNote || null,
+                // `note` removed: no editor surface writes opening_hours_note,
+                // so this read was permanently null. Re-add when/if the editor
+                // gains a Notes field for opening hours.
               }
             : null,
           responseTime: listing.contactProfile?.responseTime || null,
@@ -7845,6 +7847,50 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
                 categories:    listing.faqCategories,
               }
             : null,
+          // Editorial Content Layer — section intros + hero summary saved from
+          // the Listing Studio's Editorial Content section. Each section header
+          // below prefers `sectionIntros[key]` over its hardcoded fallback.
+          sectionIntros: (listing.sectionIntros && typeof listing.sectionIntros === 'object')
+            ? listing.sectionIntros
+            : {},
+          heroSummary: listing.heroSummary || null,
+          // Wedding Weekend — `weddingWeekendDays` from the editor maps onto the
+          // existing `weddingWeekend.days` shape consumed by the WeddingWeekend
+          // component. Without this block the entire section silently rendered
+          // hardcoded GT_VENUE demo data instead of the saved listing data.
+          weddingWeekend: (listing.weddingWeekendEnabled || (Array.isArray(listing.weddingWeekendDays) && listing.weddingWeekendDays.length > 0))
+            ? {
+                enabled:  listing.weddingWeekendEnabled !== false,
+                subtitle: listing.weddingWeekendSubtitle || null,
+                days:     Array.isArray(listing.weddingWeekendDays) ? listing.weddingWeekendDays : [],
+              }
+            : null,
+          // Estate + Nearby experiences — saved as two separate arrays in the
+          // editor (`estate_items`, `nearby_items`), but the front-end component
+          // expects a single `experiences` array tagged with `category`. We map
+          // editor item shape `{id, icon, title, status, note}` → component
+          // shape `{id, kind, label, isIncluded, isPrivate, season}`. `status`
+          // values "included" / "private" become the boolean flags.
+          experiences: (() => {
+            const mapItem = (it, category) => ({
+              id:         it.id,
+              category,
+              kind:       it.icon || 'nature',
+              label:      it.title || '',
+              isIncluded: (it.status || '').toLowerCase() === 'included',
+              isPrivate:  (it.status || '').toLowerCase() === 'private',
+              season:     it.note || undefined,
+            });
+            const estate = Array.isArray(listing.estateItems)
+              ? listing.estateItems.filter(i => i?.title).map(it => mapItem(it, 'estate'))
+              : [];
+            const nearby = Array.isArray(listing.nearbyItems)
+              ? listing.nearbyItems.filter(i => i?.title).map(it => mapItem(it, 'nearby'))
+              : [];
+            return [...estate, ...nearby];
+          })(),
+          estateEnabled: listing.estateEnabled !== false,
+          nearbyEnabled: listing.nearbyEnabled !== false,
         };
         // ── Fetch approved reviews and map to testimonials format ─────────────
         let testimonials = [];

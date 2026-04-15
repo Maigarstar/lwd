@@ -287,6 +287,7 @@ export const useListingForm = (listingId = null) => {
             address_line2: '',
             lat: listing.lat != null ? String(listing.lat) : '',
             lng: listing.lng != null ? String(listing.lng) : '',
+            additional_locations: Array.isArray(listing.additionalLocations) ? listing.additionalLocations : [],
             // price_range: prefer priceLabel (legacy), fall back to priceRange / price_range (new schema)
             price_range: listing.priceLabel || listing.priceRange || '',
             price_from: listing.priceFrom != null ? String(listing.priceFrom) : '',
@@ -551,6 +552,22 @@ export const useListingForm = (listingId = null) => {
         address: [formData.address, formData.address_line2].filter(Boolean).join('\n'),
         lat: formData.lat,
         lng: formData.lng,
+        // Additional locations — multi-pin venues. Editor allows up to 3
+        // secondary locations in LocationSection.jsx; this is the only place
+        // that persists them. Strip empty rows so we don't ship blank pins.
+        additionalLocations: Array.isArray(formData.additional_locations)
+          ? formData.additional_locations
+              .filter(loc => loc && (loc.name || loc.address || loc.city || loc.lat || loc.lng))
+              .map(loc => ({
+                id:       loc.id || null,
+                name:     loc.name     || '',
+                address:  loc.address  || '',
+                city:     loc.city     || '',
+                postcode: loc.postcode || '',
+                lat:      loc.lat      || '',
+                lng:      loc.lng      || '',
+              }))
+          : [],
         priceLabel: formData.price_range,
         priceFrom: formData.price_from ? (parseFloat(formData.price_from) || null) : null,
         priceCurrency: formData.price_currency || null,
