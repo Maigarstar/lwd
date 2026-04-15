@@ -331,7 +331,9 @@ function buildListingUrl(v) {
 // ─── RECENTLY VIEWED, localStorage helpers ────────────────────────────────────
 // v2: bumped to invalidate stale entries stored before canonical-path sanitization
 const RV_KEY = 'ldw_recently_viewed_v2';
-const MAX_RV_STORED = 6;
+// Display cap is 3. Store 4 so that filtering out the current venue still
+// leaves 3 cards to display (current venue is always the freshest entry).
+const MAX_RV_STORED = 4;
 
 // A valid canonical listing URL is /<country>/<region>/<category>/<slug>
 // — 4 lowercase segments. Anything shorter routes through stateToPath which
