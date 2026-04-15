@@ -36,6 +36,7 @@ import CategoryEditor from './CategoryEditor';
 import StudioContextBar from '../../components/editor/StudioContextBar';
 import {
   fetchPosts,
+  fetchPostBySlug,
   fetchCategories,
   savePost,
   deletePost,
@@ -823,6 +824,18 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome, slu
     POSTS.map(p => ({ ...p, _lastEdited: p.date }))
   );
   const [dbLoaded, setDbLoaded] = useState(false);
+  // Ids that have had their block content hydrated from magazine_blocks. A DB
+  // post loaded via fetchPosts() has `content: []` because fetchPosts only
+  // reads the summary row, not the blocks. Entering the editor with empty
+  // content used to cause catastrophic data loss: the editor would render an
+  // empty canvas, any subsequent save would delete+replace the blocks with
+  // whatever was in formData.content (also empty), and the user's previously
+  // saved text would vanish from the DB. We now lazy-hydrate each article's
+  // blocks on first edit via fetchPostBySlug, gate ArticleEditor mount on
+  // hydration completing, and track the ids we've already processed here so
+  // the hydration effect doesn't loop.
+  const hydratedArticleIdsRef = useRef(new Set());
+  const [hydratingArticleId, setHydratingArticleId] = useState(null);
   const [deleteConfirmShell, setDeleteConfirmShell] = useState(null); // { id, title }
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
@@ -1215,6 +1228,67 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome, slu
 
   const editingPost = localPosts.find(p => p.id === editingId) || null;
 
+  // ── Lazy-hydrate blocks on entering edit mode ───────────────────────────────
+  // fetchPosts() reads magazine_posts only — blocks live in a separate table
+  // (magazine_blocks) and are fetched on demand. Without this effect, opening
+  // a DB article would show an empty editor and the next save would overwrite
+  // the real blocks with an empty array, silently destroying the article.
+  //
+  // This effect runs when editingPost changes to a DB-backed article whose
+  // content hasn't been hydrated yet, fetches the blocks, merges them into
+  // localPosts, and flips hydratingArticleId. ArticleEditor's mount is gated
+  // on hydratingArticleId !== editingPost.id so the editor never sees the
+  // unhydrated (empty) content state.
+  useEffect(() => {
+    if (!dbLoaded || mode !== 'article-edit' || !editingPost) return;
+    // Static fallbacks already carry their content from the POSTS seed array.
+    if (editingPost._isStaticFallback) return;
+    // Only DB-persisted articles (UUID id) need hydration — brand new drafts
+    // created via handleNewArticle use uid() which is not UUID-shaped, and
+    // they legitimately have no blocks yet.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!editingPost.id || !UUID_RE.test(editingPost.id)) return;
+    // Already hydrated in this session — skip. This guards against the
+    // re-entry that happens when setLocalPosts changes localPosts and
+    // editingPost is re-derived from it (same id, new content array).
+    if (hydratedArticleIdsRef.current.has(editingPost.id)) return;
+    // Already in flight — don't re-trigger.
+    if (hydratingArticleId === editingPost.id) return;
+
+    let cancelled = false;
+    setHydratingArticleId(editingPost.id);
+    fetchPostBySlug(editingPost.slug).then(({ data, error }) => {
+      if (cancelled) return;
+      if (!error && data && Array.isArray(data.content)) {
+        setLocalPosts(prev => prev.map(p => p.id === editingPost.id
+          ? { ...p, content: data.content, updatedAt: data.updatedAt || p.updatedAt }
+          : p));
+      } else if (error) {
+        console.error('[MagazineStudio] Block hydration failed:', error);
+        showToast('Could not load article content. Edits may overwrite existing blocks — please reload before saving.', 'error');
+      }
+      // Mark hydrated even on error so we don't loop; the toast warns the user.
+      hydratedArticleIdsRef.current.add(editingPost.id);
+      setHydratingArticleId(null);
+    }).catch((err) => {
+      if (cancelled) return;
+      console.error('[MagazineStudio] Block hydration threw:', err);
+      showToast('Could not load article content. Please reload before editing.', 'error');
+      hydratedArticleIdsRef.current.add(editingPost.id);
+      setHydratingArticleId(null);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, editingPost?.id, editingPost?._isStaticFallback, dbLoaded]);
+
+  // Clear hydration memo when leaving edit mode so a later re-open always
+  // refetches fresh blocks (the DB may have changed in another tab).
+  useEffect(() => {
+    if (mode !== 'article-edit') {
+      hydratedArticleIdsRef.current = new Set();
+    }
+  }, [mode]);
+
   // ── Deep-link: open specific article by slug (from "Edit" on article page) ──
   useEffect(() => {
     if (!dbLoaded) return;
@@ -1482,7 +1556,25 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome, slu
           />
         )}
 
-        {mode === 'article-edit' && editingPost && (
+        {mode === 'article-edit' && editingPost && hydratingArticleId === editingPost.id && (
+          <div style={{
+            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: S.bg, color: S.muted,
+            fontFamily: FU, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 18, height: 18, borderRadius: '50%',
+                border: `2px solid ${S.border}`, borderTopColor: S.gold,
+                animation: 'spin 0.8s linear infinite',
+              }} />
+              <div>Loading article…</div>
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            </div>
+          </div>
+        )}
+
+        {mode === 'article-edit' && editingPost && hydratingArticleId !== editingPost.id && (
           <>
             {effectiveReturnPath && (
               <StudioContextBar
