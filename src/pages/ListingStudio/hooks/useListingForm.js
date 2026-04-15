@@ -424,20 +424,18 @@ export const useListingForm = (listingId = null) => {
       // Generate slug if not provided
       const slug = formData.slug || generateSlug(formData.venue_name);
 
-      // Validate the slug is at least related to the venue name. We allow
-      // either an exact match of the auto-generated slug OR an extension of
-      // it (e.g. "orchardleigh-house-uk" for disambiguating listings of the
-      // same name across countries). What we still want to catch is the
-      // wholly-unrelated case (e.g. "totally-different-name").
-      const expectedSlug = generateSlug(formData.venue_name);
+      // Format-only validation. We no longer compare against the auto-generated
+      // slug — historic listings, geographic disambiguators, SEO tweaks and
+      // multi-region same-name venues all need the freedom to diverge from a
+      // strict transliteration of the current venue name. We still reject
+      // structurally-broken slugs (uppercase, spaces, leading/trailing dashes,
+      // illegal chars) because those will break the canonical URL.
       const slugLc = slug.toLowerCase();
-      const expectedLc = expectedSlug.toLowerCase();
-      const isExtension = slugLc === expectedLc || slugLc.startsWith(expectedLc + '-');
-      if (!isExtension) {
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slugLc)) {
         setError(
-          `Slug must match the venue name pattern. ` +
-          `Expected: "${expectedSlug}" (or "${expectedSlug}-<suffix>") but got "${slug}". ` +
-          `The slug is auto-generated from your venue name; suffixes are allowed for disambiguation.`
+          `Slug "${slug}" is not a valid URL slug. ` +
+          `Use lowercase letters, numbers and single hyphens only ` +
+          `(e.g. "orchardleigh-house" or "orchardleigh-house-uk").`
         );
         setLoading(false);
         return false;
