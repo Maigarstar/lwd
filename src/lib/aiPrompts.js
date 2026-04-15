@@ -80,6 +80,19 @@ Rules:
 - chef_name must be the actual chef's full name only — no titles, no awards, no restaurant prefix. Empty string if not publicly known.
 - If the venue cannot be confidently identified or has no public dining information, return the JSON object with empty/false values for every field.`;
 
+export const CATERING_CARDS_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available catering and dining-service information for wedding venues. You are NOT a copywriter or sales agent.
+
+Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
+
+Rules:
+- Return ONLY the JSON object literal, starting with { and ending with }.
+- The object must have a single top-level key "cards" whose value is an array of at most 3 catering-feature card objects.
+- Each card's "icon" MUST be one of the exact allowed values listed in the user prompt — drop the entry if you cannot match.
+- title is short (under 60 characters), description is 1–2 sentences (under 300 characters), subtext is optional and under 100 characters.
+- Use empty string "" for any field you cannot confirm from public sources.
+- Never invent chef credentials, supplier names, corkage fees or service claims.
+- If the venue has no public catering / dining-service information, return { "cards": [] }.`;
+
 export const SPACES_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available event-space information for wedding venues. You are NOT a copywriter or sales agent.
 
 Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
@@ -466,6 +479,43 @@ Field rules:
 - capacity: maximum seated guest capacity as a plain integer. Use 0 if not published.
 
 IMPORTANT: Use 0 or "" for any field you cannot confirm from public sources. NEVER invent or estimate pricing — wedding venues sue over inaccurate price quotes. If you cannot find published pricing for this venue, return zeros and empty strings.
+RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation, no disclaimers.`;
+};
+
+/**
+ * Build prompt for Catering Cards Lookup from business name + URL + optional location.
+ * Returns: cards[] array (each with icon from fixed list, title, description, subtext).
+ * Used to pre-fill the "Catering & Dining cards" block in the listing editor.
+ */
+export const buildCateringCardsLookupPrompt = (venueName, websiteUrl, locationHint) => {
+  return `Look up the public catering and dining-service offering for the wedding venue "${venueName}"${websiteUrl ? ` (website: ${websiteUrl})` : ''}${locationHint ? ` located in ${locationHint}` : ''}.
+
+Return ONLY a valid JSON object in this exact format:
+{
+  "cards": [
+    {
+      "icon": "dining",
+      "title": "In-house catering",
+      "description": "Our resident kitchen brigade builds bespoke menus around estate-grown produce and seasonal market finds.",
+      "subtext": ""
+    },
+    {
+      "icon": "wine",
+      "title": "Sommelier-led wine pairings",
+      "description": "A curated cellar of more than 400 bins, with optional pairings designed alongside our head sommelier.",
+      "subtext": "Corkage fee £25 per bottle"
+    }
+  ]
+}
+
+Field rules:
+- cards: array of at most 3 catering / dining service highlights for this venue. Empty array if no public information.
+- icon: MUST be one of exactly these values: "dining", "cooking", "wine", "truffle", "spa", "nature", "tour", "check". Pick the closest match. Default to "dining" if unsure.
+- title: short label for the service (under 60 characters). Empty string if unknown.
+- description: 1–2 sentences (under 300 characters) describing what the venue offers — only facts you can confirm from public sources.
+- subtext: optional small note such as a corkage fee, supplier name or restriction (under 100 characters). Empty string if not publicly stated.
+
+IMPORTANT: Use "" or [] for any field you cannot confirm from public sources. NEVER invent chef credentials, supplier partnerships, corkage fees or service claims — venues complain about inaccurate listings. If you cannot find published catering information for this venue, return { "cards": [] }.
 RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation, no disclaimers.`;
 };
 
@@ -1362,6 +1412,7 @@ export default {
   ROOMS_LOOKUP_SYSTEM,
   DINING_LOOKUP_SYSTEM,
   SPACES_LOOKUP_SYSTEM,
+  CATERING_CARDS_LOOKUP_SYSTEM,
   ALT_TEXT_SYSTEM,
   FAQ_SYSTEM,
   buildAboutPrompt,
@@ -1382,6 +1433,7 @@ export default {
   buildRoomsLookupPrompt,
   buildDiningLookupPrompt,
   buildSpacesLookupPrompt,
+  buildCateringCardsLookupPrompt,
   buildSectionIntroPrompt,
   buildListingNamePrompt,
   buildHeroTaglinePrompt,
