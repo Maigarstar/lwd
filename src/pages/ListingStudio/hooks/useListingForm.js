@@ -424,13 +424,20 @@ export const useListingForm = (listingId = null) => {
       // Generate slug if not provided
       const slug = formData.slug || generateSlug(formData.venue_name);
 
-      // Validate slug matches name pattern (prevent data consistency issues)
+      // Validate the slug is at least related to the venue name. We allow
+      // either an exact match of the auto-generated slug OR an extension of
+      // it (e.g. "orchardleigh-house-uk" for disambiguating listings of the
+      // same name across countries). What we still want to catch is the
+      // wholly-unrelated case (e.g. "totally-different-name").
       const expectedSlug = generateSlug(formData.venue_name);
-      if (slug.toLowerCase() !== expectedSlug.toLowerCase()) {
+      const slugLc = slug.toLowerCase();
+      const expectedLc = expectedSlug.toLowerCase();
+      const isExtension = slugLc === expectedLc || slugLc.startsWith(expectedLc + '-');
+      if (!isExtension) {
         setError(
           `Slug must match the venue name pattern. ` +
-          `Expected: "${expectedSlug}" but got "${slug}". ` +
-          `The slug is auto-generated from your venue name.`
+          `Expected: "${expectedSlug}" (or "${expectedSlug}-<suffix>") but got "${slug}". ` +
+          `The slug is auto-generated from your venue name; suffixes are allowed for disambiguation.`
         );
         setLoading(false);
         return false;
