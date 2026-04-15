@@ -305,6 +305,11 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
             padding: 8px 10px !important;
           }
         }
+        @keyframes ls-live-pulse {
+          0%   { box-shadow: 0 0 0 0 rgba(26,168,74,0.55); }
+          70%  { box-shadow: 0 0 0 6px rgba(26,168,74,0); }
+          100% { box-shadow: 0 0 0 0 rgba(26,168,74,0); }
+        }
       `}</style>
 
       {/* ═══════════════════════════════════════════════════════
@@ -357,7 +362,39 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
         </div>
 
         {/* Save actions, order:2 so they stay on row 1 next to AI tools on mobile */}
-        <div className="ls-toolbar-save" style={{ display: 'flex', gap: 8, order: 2, marginLeft: 'auto' }}>
+        <div className="ls-toolbar-save" style={{ display: 'flex', gap: 8, order: 2, marginLeft: 'auto', alignItems: 'center' }}>
+          {/* Live indicator — only shown when the listing is currently published */}
+          {formData.status === 'published' && (
+            <span
+              title="This listing is live on the public site"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '5px 10px',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: '#0a7a2f',
+                backgroundColor: '#e8f7ed',
+                border: '1px solid #b6e3c4',
+                borderRadius: 999,
+              }}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: '#1aa84a',
+                  boxShadow: '0 0 0 0 rgba(26,168,74,0.6)',
+                  animation: 'ls-live-pulse 1.8s ease-out infinite',
+                }}
+              />
+              Live
+            </span>
+          )}
           <button
             type="button"
             onClick={handleDiscardClick}
@@ -407,14 +444,20 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
             disabled={loading}
             style={{
               fontSize: 13, fontWeight: 600, padding: '7px 14px',
-              backgroundColor: darkMode ? '#ffffff' : '#1a1a1a',
-              color: darkMode ? '#0a0a0a' : '#ffffff',
+              backgroundColor: formData.status === 'published'
+                ? '#1aa84a'
+                : (darkMode ? '#ffffff' : '#1a1a1a'),
+              color: formData.status === 'published'
+                ? '#ffffff'
+                : (darkMode ? '#0a0a0a' : '#ffffff'),
               border: 'none',
               borderRadius: 6, cursor: loading ? 'not-allowed' : 'pointer',
               opacity: loading ? 0.6 : 1,
             }}
           >
-            {saveStatus === 'publishing' ? 'Publishing…' : 'Publish'}
+            {saveStatus === 'publishing'
+              ? 'Publishing…'
+              : (formData.status === 'published' ? 'Update Live' : 'Publish')}
           </button>
         </div>
 
