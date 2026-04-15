@@ -355,14 +355,15 @@ function getRVList() {
   } catch { return []; }
 }
 
-function recordVenueView(v, slug, canonicalPathArg) {
+function recordVenueView(v, slug, canonicalPathArg, locationFallback) {
   try {
-    // canonicalPathArg is the authoritative canonical URL computed from the DB
-    // row by the caller. We do NOT fall back to window.location.pathname here —
-    // the record effect can fire before the URL has been canonicalized, and a
-    // non-canonical path stored here will route the user back to `/` on click
-    // (stateToPath in main.jsx returns '/' when country/region are missing).
-    const canonicalPath = sanitizeCanonicalPath(canonicalPathArg);
+    // Try the caller-computed canonical path first (built from rawListing). If
+    // that's missing or not yet computable, fall back to window.location.pathname
+    // — but ONLY when the URL bar is itself already canonical, since stateToPath
+    // returns '/' for non-canonical paths and would dump the user on home.
+    const canonicalPath =
+      sanitizeCanonicalPath(canonicalPathArg) ||
+      sanitizeCanonicalPath(typeof window !== 'undefined' ? window.location.pathname : null);
     if (!canonicalPath) return;
 
     // Extract gallery photo or first image
@@ -378,10 +379,15 @@ function recordVenueView(v, slug, canonicalPathArg) {
       }
     }
 
+    // Location is cosmetic but the RecentlyViewed filter has historically
+    // required it. Provide a sensible URL-slug fallback so entries are never
+    // silently dropped just because the DB row lacks city/region.
+    const location = v.location || locationFallback || '';
+
     const entry = {
       id: v.id,
       name: v.name,
-      location: v.location,
+      location,
       rating: v.rating,
       price: v.priceFrom,
       currency: v.priceCurrency || '£',
@@ -5609,7 +5615,7 @@ function SimilarVenues({ venue }) {
 }
 
 // ─── RECENTLY VIEWED ──────────────────────────────────────────────────────────
-// Reads from localStorage (ldw_recently_viewed). Excludes current venue.
+// Reads from localStorage (ldw_recently_viewed_v2). Excludes current venue.
 // Max 3 cards shown. Section hidden if empty or admin-disabled.
 function RecentlyViewed({ venue }) {
   const C = useT();
@@ -5617,9 +5623,12 @@ function RecentlyViewed({ venue }) {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    // Read stored visits, exclude current venue, filter out invalid entries, cap at 3
+    // Read stored visits, exclude current venue, cap at 3.
+    // Only `name` is structurally required — getRVList already enforces a
+    // valid canonicalPath, and `location` is cosmetic (entries with empty
+    // location used to be silently dropped, hiding the whole widget).
     const stored = getRVList()
-      .filter(v => v.id !== venue.id && v.name && v.location)
+      .filter(v => v.id !== venue.id && v.name)
       .slice(0, 3);
     setItems(stored);
   }, [venue.id]);
@@ -7597,16 +7606,18 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
       // logic in the replaceState effect below so the stored path is always a
       // valid /<country>/<region>/<category>/<slug>.
       let canonicalPath = null;
-      if (rawListing) {
-        const cs = rawListing.country_slug || rawListing.countrySlug || countrySlug;
-        let rs  = rawListing.region_slug  || rawListing.regionSlug  || regionSlug;
-        const cat = rawListing.category_slug || rawListing.categorySlug || categorySlug || 'wedding-venues';
-        if (!rs && rawListing.region) rs = rawListing.region.toLowerCase().replace(/\s+/g, '-');
-        if (cs && rs && cat) {
-          canonicalPath = `/${cs.toLowerCase()}/${rs.toLowerCase()}/${cat.toLowerCase()}/${slug.toLowerCase()}`;
-        }
+      const cs = rawListing?.country_slug || rawListing?.countrySlug || countrySlug;
+      let   rs = rawListing?.region_slug  || rawListing?.regionSlug  || regionSlug;
+      const cat = rawListing?.category_slug || rawListing?.categorySlug || categorySlug || 'wedding-venues';
+      if (!rs && rawListing?.region) rs = rawListing.region.toLowerCase().replace(/\s+/g, '-');
+      if (cs && rs && cat) {
+        canonicalPath = `/${cs.toLowerCase()}/${rs.toLowerCase()}/${cat.toLowerCase()}/${slug.toLowerCase()}`;
       }
-      recordVenueView(VV, slug, canonicalPath);
+      // Build a location fallback from URL-derived slugs so the entry is never
+      // dropped by a downstream filter just because the DB lacks city/region.
+      const titlecase = (s) => (s ? s.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '');
+      const locationFallback = [titlecase(rs), titlecase(cs)].filter(Boolean).join(', ');
+      recordVenueView(VV, slug, canonicalPath, locationFallback);
       // Track profile_view in unified event system (once per real data load)
       trackProfileView({
         entityType:    'venue',
