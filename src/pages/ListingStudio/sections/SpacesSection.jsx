@@ -103,7 +103,7 @@ const TriToggle = ({ label, value, onChange, options = [{ v: true, l: 'Yes' }, {
 const genId = () => Math.random().toString(36).slice(2, 9);
 
 // ── Image/file upload pair (single image or floor plan) ───────────────────────
-const FileUploadField = ({ label, value, onChange, hint, accept = 'image/jpeg,image/png,image/webp,image/avif', emoji = '📷' }) => {
+const FileUploadField = ({ label, value, onChange, hint, accept = 'image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,image/heif', emoji = '📷' }) => {
   const [objUrl, setObjUrl] = useState(null);
 
   useEffect(() => {
@@ -328,7 +328,7 @@ function SpaceCard({ space, index, total, onUpdate, onRemove, onMove, venueId, v
               value={space.floorPlanFile ? { file: space.floorPlanFile } : (space.floorPlanUrl ? { url: space.floorPlanUrl } : null)}
               onChange={v => set('floorPlanFile', v?.file || null)}
               hint="PDF or image. Opens in a lightbox popup. Separate from main gallery."
-              accept="image/jpeg,image/png,image/webp,application/pdf"
+              accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,image/heif,application/pdf"
               emoji="📐"
             />
           </div>

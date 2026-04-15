@@ -961,7 +961,7 @@ const MediaSection = ({ formData, onChange }) => {
               {heroImages.length === 0 ? 'Upload Hero Image(s)' : `+ Add More (${MAX_HERO - heroImages.length} remaining)`}
             </span>
             <span style={{ display: 'block', fontSize: 11, color: '#bbb', marginTop: 3 }}>Click to browse</span>
-            <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handleHeroUpload} style={{ display: 'none' }} />
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,image/heif" multiple onChange={handleHeroUpload} style={{ display: 'none' }} />
           </label>
         )}
         {heroImages.length >= MAX_HERO && (
@@ -1077,7 +1077,7 @@ const MediaSection = ({ formData, onChange }) => {
               >
                 <span>🖼</span>
                 <span>+ Add Gallery Images ({imgCnt} / {IMAGE_STORAGE_MAX})</span>
-                <input type="file" accept="image/jpeg,image/png,image/webp" multiple
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,image/heif" multiple
                   onChange={e => { addImages(e.target.files); e.target.value = ''; }}
                   style={{ display: 'none' }}
                 />

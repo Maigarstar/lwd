@@ -187,7 +187,7 @@ const MenuImageManager = ({ images = [], onChange }) => {
         }}>
           🍽 {images.length === 0 ? 'Upload Menu Images' : `+ Add More (${MAX_MENU_IMAGES - images.length} remaining)`}
           <input
-            type="file" multiple accept="image/jpeg,image/png,image/webp"
+            type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,image/heif"
             onChange={handleFiles} style={{ display: 'none' }}
           />
         </label>

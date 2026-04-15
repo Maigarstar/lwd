@@ -218,7 +218,7 @@ function ContactProfileEditor({ profile = {}, onChange }) {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,image/heif"
             style={{ display: 'none' }}
             onChange={handlePhotoFile}
           />
