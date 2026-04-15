@@ -6511,8 +6511,33 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
     }
   }, []);
 
+  // ── Unified form updater with title → slug auto-sync ──
+  // Any caller (DocSidebar, inline canvas hero, AI actions, etc.) that passes
+  // a new title through updateForm gets the slug re-derived for free — as
+  // long as the current slug is still a placeholder relative to the OLD title.
+  // This is the single source of truth for the auto-slug rule: DocSidebar's
+  // updateTitle/updateSlug helpers still work, and inline canvas contentEditable
+  // edits (which call onChange directly) are now covered without passing a
+  // new prop through every render layer.
   const updateForm = useCallback(data => {
-    setFormData(data);
+    setFormData(prev => {
+      let next = data;
+      if (data && data.title !== prev.title) {
+        // Title is changing. Only touch slug if:
+        //   (a) the incoming data didn't already set a different slug (so
+        //       DocSidebar's updateTitle can still pass its own precomputed
+        //       slug without getting clobbered), AND
+        //   (b) the PREVIOUS slug was still a placeholder / auto-derived.
+        const slugUnchanged = data.slug === prev.slug;
+        const canRegen = isPlaceholderSlug(prev.slug, prev.title);
+        if (slugUnchanged && canRegen) {
+          const derived = slugifyTitle(data.title || '');
+          if (derived) next = { ...data, slug: derived };
+        }
+      }
+      formDataRef.current = next;
+      return next;
+    });
     markDirty();
   }, [markDirty]);
 
@@ -6766,10 +6791,18 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
     // reapplies the default ("Editorial") if empty, matching WordPress's
     // default-category behaviour. Draft save must never fail because category
     // is missing — publish validation (below, in `publish`) stays stricter.
+    // Belt-and-braces slug recovery: if the slug somehow slipped through empty
+    // (inline canvas title edit, legacy draft, manual deletion) we auto-derive
+    // one from the title before failing hard. Without this, the Retry button
+    // in the "Slug is required" failed state just re-hits the same validation
+    // and appears broken to the user — there's no way for the user to recover
+    // without opening the Title & URL accordion. Auto-fix, surface the value
+    // via setFormData so the UI mirrors reality, and continue saving.
     if (!data.slug) {
-      setSaveStatus('failed');
-      setSaveError('Slug is required');
-      return;
+      const autoSlug = slugifyTitle(data.title || '') || `article-${Date.now()}`;
+      data = { ...data, slug: autoSlug };
+      setFormData(fd => ({ ...fd, slug: autoSlug }));
+      formDataRef.current = { ...formDataRef.current, slug: autoSlug };
     }
 
     // Capture the session at save start. Any post-await UI update must verify
