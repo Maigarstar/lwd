@@ -123,6 +123,20 @@ Rules:
 - showcase_intro must be a single short editorial sentence (under 300 characters) suitable for a luxury magazine page intro. If the venue has no public spaces information, return "" — do not invent.
 - If the venue cannot be confidently identified or has no public event-space information, return { "spaces": [], "showcase_intro": "" }.`;
 
+export const LISTING_INFO_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available business information for wedding venues. You are NOT a copywriter or sales agent.
+
+Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
+
+Rules:
+- Return ONLY the JSON object literal, starting with { and ending with }.
+- The object must contain the top-level keys: "contact_profile", "opening_hours", "press_features", "awards".
+- contact_profile fields (name, title, bio, email, phone, whatsapp, website, social.{instagram,facebook,linkedin,tiktok,twitter,pinterest,youtube}) — use empty string "" for any field you cannot confirm. NEVER invent contact people, phone numbers, email addresses or social handles.
+- opening_hours: an object with keys mon, tue, wed, thu, fri, sat, sun. Each day is { "type": "open"|"closed"|"by_appointment", "from": "HH:MM" (24h, half-hour increments), "to": "HH:MM" }. Times must be drawn from this fixed set: "06:00","06:30","07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30","19:00","19:30","20:00","20:30","21:00","21:30","22:00","22:30","23:00","23:30". If hours are unknown for a day, use { "type": "by_appointment", "from": "09:00", "to": "17:00" }. If a day is clearly closed, use { "type": "closed", "from": "09:00", "to": "17:00" }.
+- press_features: an array of at most 6 objects, each with { "outlet": "", "year": 0, "title": "", "url": "" }. Only include features you can confirm from public sources. Empty array if unknown. NEVER invent press coverage.
+- awards: an array of at most 8 objects, each with { "award": "", "year": 0, "issuer": "" }. Only include awards confirmed by public sources. Empty array if unknown. NEVER invent awards.
+- All year fields must be plain integers (e.g., 2024). Use 0 if unknown.
+- If the venue cannot be confidently identified or has no public listing information, return the JSON object with empty/closed/zero values throughout.`;
+
 export const ROOMS_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available accommodation information for wedding venues. You are NOT a copywriter or sales agent.
 
 Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
@@ -717,6 +731,63 @@ Field rules:
 - showcase_intro: ONE short editorial sentence (under 300 characters) describing the accommodation experience in luxury-magazine tone, suitable for the rooms section intro on the showcase page. Use "" if there is no public accommodation information.
 
 IMPORTANT: Use 0, "" or false for any field you cannot confirm from public sources. NEVER invent room counts or capacity numbers — venues complain about inaccurate listings. If you cannot find published accommodation information for this venue, return zeros and empty strings.
+RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation, no disclaimers.`;
+};
+
+/**
+ * Build prompt for Listing Info Lookup from business name + URL + optional location.
+ * Returns: contact_profile, opening_hours (mon-sun), press_features (max 6), awards (max 8).
+ */
+export const buildListingInfoLookupPrompt = (venueName, websiteUrl, locationHint) => {
+  return `Look up public listing information for the wedding venue "${venueName}"${websiteUrl ? ` (website: ${websiteUrl})` : ''}${locationHint ? ` located in ${locationHint}` : ''}.
+
+Return ONLY a valid JSON object in this exact format:
+{
+  "contact_profile": {
+    "name": "",
+    "title": "",
+    "bio": "",
+    "email": "",
+    "phone": "",
+    "whatsapp": "",
+    "website": "https://example.com",
+    "social": {
+      "instagram": "",
+      "facebook": "",
+      "linkedin": "",
+      "tiktok": "",
+      "twitter": "",
+      "pinterest": "",
+      "youtube": ""
+    }
+  },
+  "opening_hours": {
+    "mon": { "type": "open", "from": "09:00", "to": "17:00" },
+    "tue": { "type": "open", "from": "09:00", "to": "17:00" },
+    "wed": { "type": "open", "from": "09:00", "to": "17:00" },
+    "thu": { "type": "open", "from": "09:00", "to": "17:00" },
+    "fri": { "type": "open", "from": "09:00", "to": "17:00" },
+    "sat": { "type": "by_appointment", "from": "10:00", "to": "16:00" },
+    "sun": { "type": "closed", "from": "09:00", "to": "17:00" }
+  },
+  "press_features": [
+    { "outlet": "Vogue", "year": 2024, "title": "Italy's Most Romantic Wedding Venues", "url": "https://example.com/article" }
+  ],
+  "awards": [
+    { "award": "Best Destination Wedding Venue", "year": 2023, "issuer": "Condé Nast Traveller" }
+  ]
+}
+
+Field rules:
+- contact_profile.name / title / bio: ONLY include if a public-facing wedding contact, manager or sales lead is published on the venue website. Use "" if no named contact is published. NEVER invent a person.
+- contact_profile.email / phone / whatsapp: ONLY include if explicitly published on the venue's public website or official directory listing. Use "" otherwise. NEVER invent contact details.
+- contact_profile.website: the venue's official website URL if known, "" otherwise.
+- contact_profile.social: object with seven keys (instagram, facebook, linkedin, tiktok, twitter, pinterest, youtube). Each value is the FULL public profile URL (e.g. "https://instagram.com/venue") or "" if unknown. NEVER invent handles.
+- opening_hours: object with keys mon, tue, wed, thu, fri, sat, sun. Each day must be { "type": "open"|"closed"|"by_appointment", "from": "HH:MM", "to": "HH:MM" }. Times must be on the half hour from "06:00" to "23:30". If the venue does not publish opening hours for a day, use { "type": "by_appointment", "from": "09:00", "to": "17:00" }. If a day is clearly closed (e.g. weekends for an office), use { "type": "closed", ... }.
+- press_features: array of at most 6 confirmed public press features. Each: { "outlet", "year" (integer), "title", "url" }. Empty array if no public press coverage exists. NEVER invent magazine names, article titles or URLs.
+- awards: array of at most 8 confirmed public awards. Each: { "award", "year" (integer), "issuer" }. Empty array if no public awards exist. NEVER invent awards or industry recognition.
+
+IMPORTANT: Use "", 0, [] or { "type": "by_appointment", "from": "09:00", "to": "17:00" } for any field you cannot confirm from public sources. NEVER invent contact people, phone numbers, email addresses, social handles, press features or awards — venues take this seriously and inaccurate listings cause complaints. If you cannot find published listing information for this venue, return empty values throughout.
 RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation, no disclaimers.`;
 };
 
@@ -1488,6 +1559,7 @@ export default {
   ADDRESS_LOOKUP_SYSTEM,
   PRICING_LOOKUP_SYSTEM,
   ROOMS_LOOKUP_SYSTEM,
+  LISTING_INFO_LOOKUP_SYSTEM,
   DINING_LOOKUP_SYSTEM,
   SPACES_LOOKUP_SYSTEM,
   CATERING_CARDS_LOOKUP_SYSTEM,
@@ -1510,6 +1582,7 @@ export default {
   buildAddressLookupPrompt,
   buildPricingLookupPrompt,
   buildRoomsLookupPrompt,
+  buildListingInfoLookupPrompt,
   buildDiningLookupPrompt,
   buildSpacesLookupPrompt,
   buildCateringCardsLookupPrompt,
