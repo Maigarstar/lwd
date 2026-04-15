@@ -80,6 +80,22 @@ Rules:
 - chef_name must be the actual chef's full name only — no titles, no awards, no restaurant prefix. Empty string if not publicly known.
 - If the venue cannot be confidently identified or has no public dining information, return the JSON object with empty/false values for every field.`;
 
+export const WEDDING_PACKAGES_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available wedding-package offerings for venues. You are NOT a copywriter or sales agent.
+
+Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
+
+Rules:
+- Return ONLY the JSON object literal, starting with { and ending with }.
+- The object must have a single top-level key "packages" whose value is an array of at most 5 wedding-package objects.
+- All numeric fields (duration_days, price_from, min_guests, max_guests, dining_capacity, accommodation_capacity) must be plain integers — no commas, currency symbols, units or words. Use 0 for any number you cannot confirm.
+- price_currency is a single character: £, $, €, etc. Empty string if unknown.
+- season MUST be one of "winter", "summer", "year-round", or "" (empty when unknown / not seasonal).
+- exclusive_use is a boolean — true only if the venue clearly markets the package as exclusive-use / whole-venue buyout.
+- inclusions is an array of short string labels (e.g. "Golf", "Shooting", "Hot Tubs", "Dance til Dawn"). Empty array if no public list. Do NOT invent activities.
+- description is one short sentence (under 240 characters) summarising the package. Empty string if no public summary.
+- NEVER invent prices, durations, guest counts, accommodation capacity or inclusion lists — venues take inaccurate package quotes very seriously.
+- If the venue cannot be confidently identified or has no public package information, return { "packages": [] }.`;
+
 export const CATERING_CARDS_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available catering and dining-service information for wedding venues. You are NOT a copywriter or sales agent.
 
 Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
@@ -479,6 +495,68 @@ Field rules:
 - capacity: maximum seated guest capacity as a plain integer. Use 0 if not published.
 
 IMPORTANT: Use 0 or "" for any field you cannot confirm from public sources. NEVER invent or estimate pricing — wedding venues sue over inaccurate price quotes. If you cannot find published pricing for this venue, return zeros and empty strings.
+RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation, no disclaimers.`;
+};
+
+/**
+ * Build prompt for Wedding Packages Lookup from business name + URL + optional location.
+ * Returns: packages[] array (each with name, duration_days, price_from, currency,
+ * exclusive_use bool, season enum, min/max guests, dining + accommodation
+ * capacity integers, description sentence, inclusions[] of short labels).
+ */
+export const buildWeddingPackagesLookupPrompt = (venueName, websiteUrl, locationHint) => {
+  return `Look up the public wedding-package offerings for the venue "${venueName}"${websiteUrl ? ` (website: ${websiteUrl})` : ''}${locationHint ? ` located in ${locationHint}` : ''}.
+
+Return ONLY a valid JSON object in this exact format:
+{
+  "packages": [
+    {
+      "name": "House Weddings",
+      "duration_days": 4,
+      "exclusive_use": true,
+      "price_from": 8889,
+      "price_currency": "£",
+      "season": "winter",
+      "min_guests": 60,
+      "max_guests": 144,
+      "dining_capacity": 144,
+      "accommodation_capacity": 95,
+      "description": "1, 2, 3 or 4 day weddings with exclusive use of the main house.",
+      "inclusions": ["Golf", "Shooting", "Fishing", "Hot Tubs", "Dance til Dawn"]
+    },
+    {
+      "name": "Estate Weddings",
+      "duration_days": 4,
+      "exclusive_use": true,
+      "price_from": 0,
+      "price_currency": "£",
+      "season": "year-round",
+      "min_guests": 120,
+      "max_guests": 250,
+      "dining_capacity": 250,
+      "accommodation_capacity": 165,
+      "description": "Bespoke multi-day weddings across the entire 500-acre parkland estate.",
+      "inclusions": ["Golf", "Shooting", "Fishing", "Hot Tubs", "Dance til Dawn"]
+    }
+  ]
+}
+
+Field rules:
+- packages: array of at most 5 of the venue's most prominent wedding packages. Empty array if no public information.
+- name: the venue's actual marketing name for the package (e.g. "House Weddings", "Estate Buyout", "Winter Elopement"). Empty string if generic / unnamed.
+- duration_days: number of days the package covers as a plain integer (1, 2, 3, 4 etc.). Use 0 if not stated.
+- exclusive_use: true ONLY if the venue clearly markets the package as exclusive-use / whole-venue buyout, otherwise false.
+- price_from: lowest published price for this package as a plain integer (no currency symbol, no commas, no thousands separator). Use 0 if not publicly available.
+- price_currency: single symbol — "£" for UK, "€" for EU, "$" for US, etc. Empty string if unknown.
+- season: MUST be one of "winter", "summer", "year-round" or "" (empty if not seasonal or unknown).
+- min_guests: minimum guest count required as a plain integer. Use 0 if no minimum stated.
+- max_guests: maximum guest count permitted as a plain integer. Use 0 if not stated.
+- dining_capacity: maximum seated dining capacity for this package as a plain integer. Use 0 if not stated.
+- accommodation_capacity: maximum overnight guest capacity for this package as a plain integer. Use 0 if not stated.
+- description: ONE short factual sentence (under 240 characters) summarising what the package covers. Empty string if no public summary.
+- inclusions: array of short string labels of activities or facilities included in the package (e.g. ["Golf", "Shooting", "Fishing", "Hot Tubs", "Dance til Dawn"]). Empty array if no public list.
+
+IMPORTANT: Use 0, "", false or [] for any field you cannot confirm from public sources. NEVER invent prices, durations, guest counts, accommodation capacity or inclusion lists — venues complain about inaccurate package quotes. If you cannot find published wedding-package information for this venue, return { "packages": [] }.
 RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation, no disclaimers.`;
 };
 
@@ -1413,6 +1491,7 @@ export default {
   DINING_LOOKUP_SYSTEM,
   SPACES_LOOKUP_SYSTEM,
   CATERING_CARDS_LOOKUP_SYSTEM,
+  WEDDING_PACKAGES_LOOKUP_SYSTEM,
   ALT_TEXT_SYSTEM,
   FAQ_SYSTEM,
   buildAboutPrompt,
@@ -1434,6 +1513,7 @@ export default {
   buildDiningLookupPrompt,
   buildSpacesLookupPrompt,
   buildCateringCardsLookupPrompt,
+  buildWeddingPackagesLookupPrompt,
   buildSectionIntroPrompt,
   buildListingNamePrompt,
   buildHeroTaglinePrompt,

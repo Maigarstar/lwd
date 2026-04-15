@@ -15,6 +15,7 @@ import ExclusiveUseSection from './sections/ExclusiveUseSection';
 import CateringCardsSection from './sections/CateringCardsSection';
 import RoomsSection from './sections/RoomsSection';
 import DiningSection from './sections/DiningSection';
+import PackagesSection from './sections/PackagesSection';
 import WeddingWeekendSection from './sections/WeddingWeekendSection';
 import ExperiencesSection from './sections/ExperiencesSection';
 import FAQSectionEditor from './sections/FAQSectionEditor';
@@ -51,6 +52,7 @@ const LISTING_SECTIONS = [
   { id: 'quality',     label: 'Content Quality',      icon: '⭐', Component: ContentQualityStatusSection, locked: false, condition: null },
   { id: 'features',    label: 'Features & Amenities', icon: '✦',  Component: FeaturesSection,          locked: false, condition: 'showFeatures' },
   { id: 'commercial',  label: 'Commercial Details',   icon: '£',  Component: CommercialDetailsSection, locked: false, condition: 'showCommercial' },
+  { id: 'packages',    label: 'Wedding Packages',     icon: '🎁', Component: PackagesSection,          locked: false, condition: 'showCommercial' },
   { id: 'media',       label: 'Media',                icon: '🖼',  Component: MediaSection,             locked: false, condition: null },
   { id: 'spaces',      label: 'Spaces',               icon: '⊞',  Component: SpacesSection,            locked: false, condition: 'showFeatures' },
   { id: 'rooms',       label: 'Rooms',                icon: '🛏',  Component: RoomsSection,             locked: false, condition: 'showFeatures' },

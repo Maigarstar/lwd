@@ -464,6 +464,8 @@ function mapFormToDatabaseFields(data: any): any {
     'faqCtaSubtext':           'faq_cta_subtext',
     'faqCtaButtonText':        'faq_cta_button_text',
     'faqCategories':           'faq_categories',
+    // Wedding Packages — structured offerings (max 5) stored as JSONB array
+    'weddingPackages':         'wedding_packages',
     // Venue spaces (max 5, stored as JSONB array)
     'spaces': 'spaces',
     // Rooms & accommodation

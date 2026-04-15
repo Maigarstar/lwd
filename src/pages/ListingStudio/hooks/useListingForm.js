@@ -122,6 +122,12 @@ export const useListingForm = (listingId = null) => {
     // ── Catering cards (max 3, icon + title + description + subtext) ────────
     catering_enabled: false,
     catering_cards: [],  // [{ id, icon, title, description, subtext, sortOrder }]
+    // ── Wedding Packages (max 5, structured offerings like "House Weddings") ─
+    // Each package: { id, name, duration_days, exclusive_use, price_from,
+    //                 price_currency, season, min_guests, max_guests,
+    //                 dining_capacity, accommodation_capacity, description,
+    //                 inclusions[], sort_order }
+    wedding_packages: [],
     // ── Wedding Weekend day cards (max 4) ─────────────────────────────────────
     wedding_weekend_enabled: false,
     wedding_weekend_subtitle: '',
@@ -332,6 +338,7 @@ export const useListingForm = (listingId = null) => {
             exclusive_use_includes: Array.isArray(listing.exclusiveUseIncludes) ? listing.exclusiveUseIncludes : [],
             catering_enabled: listing.cateringEnabled ?? false,
             catering_cards: Array.isArray(listing.cateringCards) ? listing.cateringCards : [],
+            wedding_packages: Array.isArray(listing.weddingPackages) ? listing.weddingPackages : [],
             wedding_weekend_enabled: listing.weddingWeekendEnabled ?? false,
             wedding_weekend_subtitle: listing.weddingWeekendSubtitle || '',
             wedding_weekend_days: Array.isArray(listing.weddingWeekendDays) ? listing.weddingWeekendDays : [],
@@ -632,6 +639,28 @@ export const useListingForm = (listingId = null) => {
           id: c.id, icon: c.icon || 'dining', title: c.title || '',
           description: c.description || '', subtext: c.subtext || '', sortOrder: c.sortOrder ?? idx,
         })),
+        // Wedding Packages — structured multi-day offerings (max 5)
+        weddingPackages: (formData.wedding_packages || [])
+          .filter(p => p && (p.name || p.description || (Array.isArray(p.inclusions) && p.inclusions.length > 0)))
+          .slice(0, 5)
+          .map((p, idx) => ({
+            id: p.id || `pkg-${Date.now()}-${idx}`,
+            name: (p.name || '').slice(0, 80),
+            duration_days: parseInt(p.duration_days, 10) || 0,
+            exclusive_use: !!p.exclusive_use,
+            price_from: parseInt(p.price_from, 10) || 0,
+            price_currency: p.price_currency || '',
+            season: ['winter', 'summer', 'year-round'].includes(p.season) ? p.season : '',
+            min_guests: parseInt(p.min_guests, 10) || 0,
+            max_guests: parseInt(p.max_guests, 10) || 0,
+            dining_capacity: parseInt(p.dining_capacity, 10) || 0,
+            accommodation_capacity: parseInt(p.accommodation_capacity, 10) || 0,
+            description: (p.description || '').slice(0, 500),
+            inclusions: Array.isArray(p.inclusions)
+              ? p.inclusions.filter(i => typeof i === 'string' && i.trim()).map(i => i.trim().slice(0, 60)).slice(0, 12)
+              : [],
+            sort_order: p.sort_order ?? idx,
+          })),
         // Wedding Weekend
         weddingWeekendEnabled: formData.wedding_weekend_enabled ?? false,
         weddingWeekendSubtitle: formData.wedding_weekend_subtitle || '',

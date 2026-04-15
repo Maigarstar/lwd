@@ -4125,6 +4125,226 @@ function ExclusiveUse({ venue, onEnquire }) {
 }
 
 // ─── CATERING ────────────────────────────────────────────────────────────────
+// ── Wedding Packages ─────────────────────────────────────────────────────────
+// Renders the structured wedding-package offerings saved by the Listing
+// Studio's PackagesSection (e.g. Orchardleigh's "House Weddings" / "Estate
+// Weddings"). Hidden when there are no packages.
+function WeddingPackagesSection({ venue }) {
+  const C = useT();
+  const isMobile = useIsMobile();
+  const packages = (venue?.weddingPackages || [])
+    .filter(p => p && (p.name || p.description))
+    .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
+    .slice(0, 5);
+
+  if (packages.length === 0) return null;
+
+  const formatPrice = (n, ccy) => {
+    if (!n || n <= 0) return null;
+    const sym = ccy || '£';
+    return `${sym}${Number(n).toLocaleString()}`;
+  };
+
+  const colCount = isMobile ? 1 : Math.min(packages.length, 2);
+
+  return (
+    <section style={{ marginBottom: 56 }} id="wedding-packages">
+      <SectionHeading
+        title="Wedding Packages"
+        subtitle={venue?.sectionIntros?.packages || 'Choose the package that fits your celebration — from intimate house weddings to full-estate buyouts.'}
+      />
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${colCount}, 1fr)`,
+        gap: 20,
+      }}>
+        {packages.map((p) => {
+          const priceLabel = formatPrice(p.price_from, p.price_currency);
+          return (
+            <div
+              key={p.id || p.name}
+              style={{
+                background: C.surface || '#fff',
+                border: `1px solid ${C.border || '#e5e0d8'}`,
+                borderRadius: 4,
+                padding: isMobile ? 22 : 32,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 18,
+                position: 'relative',
+              }}
+            >
+              {/* Header: name + duration + season chip */}
+              <div>
+                <div style={{
+                  fontFamily: 'var(--font-heading-primary)',
+                  fontSize: isMobile ? 22 : 26,
+                  fontWeight: 400,
+                  color: C.text,
+                  lineHeight: 1.2,
+                  marginBottom: 6,
+                }}>
+                  {p.name || 'Wedding Package'}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                  {p.duration_days > 0 && (
+                    <span style={{
+                      fontFamily: 'var(--font-body)',
+                      fontSize: 10,
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                      color: '#9a6f0a',
+                      background: 'rgba(201,168,76,0.1)',
+                      border: '1px solid rgba(201,168,76,0.35)',
+                      padding: '4px 10px',
+                      borderRadius: 20,
+                    }}>
+                      {p.duration_days} day{p.duration_days === 1 ? '' : 's'}
+                    </span>
+                  )}
+                  {p.exclusive_use && (
+                    <span style={{
+                      fontFamily: 'var(--font-body)',
+                      fontSize: 10,
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                      color: '#9a6f0a',
+                      background: 'rgba(201,168,76,0.1)',
+                      border: '1px solid rgba(201,168,76,0.35)',
+                      padding: '4px 10px',
+                      borderRadius: 20,
+                    }}>
+                      Exclusive Use
+                    </span>
+                  )}
+                  {p.season && p.season !== 'year-round' && (
+                    <span style={{
+                      fontFamily: 'var(--font-body)',
+                      fontSize: 10,
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                      color: C.muted,
+                      background: 'transparent',
+                      border: `1px solid ${C.border || '#e5e0d8'}`,
+                      padding: '4px 10px',
+                      borderRadius: 20,
+                    }}>
+                      {p.season === 'winter' ? 'Winter' : 'Summer'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Description */}
+              {p.description && (
+                <p style={{
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 13,
+                  lineHeight: 1.65,
+                  color: C.muted,
+                  margin: 0,
+                }}>
+                  {p.description}
+                </p>
+              )}
+
+              {/* Capacity grid */}
+              {(p.dining_capacity > 0 || p.accommodation_capacity > 0 || p.min_guests > 0 || p.max_guests > 0) && (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 12,
+                  paddingTop: 14,
+                  borderTop: `1px solid ${C.border || '#e5e0d8'}`,
+                }}>
+                  {p.dining_capacity > 0 && (
+                    <div>
+                      <div style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 2 }}>Dining</div>
+                      <div style={{ fontSize: 16, fontWeight: 500, color: C.text }}>up to {p.dining_capacity}</div>
+                    </div>
+                  )}
+                  {p.accommodation_capacity > 0 && (
+                    <div>
+                      <div style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 2 }}>Sleeps</div>
+                      <div style={{ fontSize: 16, fontWeight: 500, color: C.text }}>up to {p.accommodation_capacity}</div>
+                    </div>
+                  )}
+                  {(p.min_guests > 0 || p.max_guests > 0) && (
+                    <div>
+                      <div style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 2 }}>Guests</div>
+                      <div style={{ fontSize: 16, fontWeight: 500, color: C.text }}>
+                        {p.min_guests > 0 && p.max_guests > 0
+                          ? `${p.min_guests}–${p.max_guests}`
+                          : p.max_guests > 0
+                            ? `up to ${p.max_guests}`
+                            : `min ${p.min_guests}`}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Inclusions */}
+              {Array.isArray(p.inclusions) && p.inclusions.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 8 }}>Includes</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {p.inclusions.map((it, i) => (
+                      <span
+                        key={i}
+                        style={{
+                          fontSize: 11,
+                          color: C.text,
+                          background: 'rgba(201,168,76,0.06)',
+                          border: `1px solid ${C.border || '#e5e0d8'}`,
+                          padding: '4px 10px',
+                          borderRadius: 20,
+                        }}
+                      >
+                        {it}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Footer: price */}
+              {priceLabel && (
+                <div style={{
+                  marginTop: 'auto',
+                  paddingTop: 14,
+                  borderTop: `1px solid ${C.border || '#e5e0d8'}`,
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  justifyContent: 'space-between',
+                }}>
+                  <div>
+                    <div style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 2 }}>From</div>
+                    <div style={{
+                      fontFamily: 'var(--font-heading-primary)',
+                      fontSize: 22,
+                      fontWeight: 400,
+                      color: C.text,
+                    }}>
+                      {priceLabel}
+                    </div>
+                  </div>
+                  {p.min_guests > 0 && (
+                    <div style={{ fontSize: 10, color: C.muted }}>
+                      based on {p.min_guests} guests
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function CateringSection({ venue }) {
   const C = useT();
   const isMobile = useIsMobile();
@@ -7854,6 +8074,12 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
             ? listing.sectionIntros
             : {},
           heroSummary: listing.heroSummary || null,
+          // Wedding Packages — structured multi-day offerings (max 5) saved by
+          // the Listing Studio's PackagesSection. Without this read the
+          // dedicated section on the public listing would silently stay empty.
+          weddingPackages: Array.isArray(listing.weddingPackages)
+            ? listing.weddingPackages.filter(p => p && (p.name || p.description || (Array.isArray(p.inclusions) && p.inclusions.length > 0)))
+            : [],
           // Wedding Weekend — `weddingWeekendDays` from the editor maps onto the
           // existing `weddingWeekend.days` shape consumed by the WeddingWeekend
           // component. Without this block the entire section silently rendered
@@ -8082,6 +8308,7 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
                 </>
               )}
 
+              <WeddingPackagesSection venue={VV} />
               <CateringSection venue={VV} />
               {VV.spaces && <SpacesSection spaces={VV.spaces} venue={VV} />}
               <RoomsSection venue={VV} />
