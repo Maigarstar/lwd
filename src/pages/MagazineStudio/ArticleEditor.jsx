@@ -6880,7 +6880,22 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
       // Apply returned identity fields via a functional setter that also
       // re-checks the session to guard against a late race where the article
       // switched between the await resolving and this setter running.
+      //
+      // CRITICAL: we ALSO sync formDataRef.current synchronously here. The
+      // ref-mirror useEffect (on [formData]) only fires after render, so if
+      // the drain microtask kicks off before React re-renders, `save(
+      // formDataRef.current)` would run with the PRE-save updatedAt — which
+      // is exactly what produced the "Featured + Trending → save failed"
+      // bug: the second save's conflict check compared a stale updatedAt
+      // against the DB's fresh one and returned "Another session updated
+      // this article", which the UI surfaced as a generic save failure.
       if (result?.savedId || result?.slug || result?.updatedAt) {
+        const patch = {
+          ...(result.savedId   ? { id: result.savedId }       : {}),
+          ...(result.slug      ? { slug: result.slug }        : {}),
+          ...(result.updatedAt ? { updatedAt: result.updatedAt } : {}),
+        };
+        formDataRef.current = { ...formDataRef.current, ...patch };
         setFormData(fd => {
           if (sessionAtStart !== saveSessionRef.current) return fd;
           return {
