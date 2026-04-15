@@ -12,9 +12,35 @@
 import { useState, useEffect } from 'react';
 import RichTextEditor from '../components/RichTextEditor';
 import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
-import { LUXURY_TONE_SYSTEM, buildCeremonyDescriptionPrompt } from '../../../lib/aiPrompts';
+import {
+  LUXURY_TONE_SYSTEM,
+  buildCeremonyDescriptionPrompt,
+  SPACES_LOOKUP_SYSTEM,
+  buildSpacesLookupPrompt,
+} from '../../../lib/aiPrompts';
 
 const MAX_SPACES = 5;
+const SHOWCASE_INTRO_MAX = 300;
+
+// Tolerant JSON extractor — strips markdown fences and falls back to first {...}
+// block. Mirrors the helper used in DiningSection / RoomsSection / etc.
+function extractJsonObject(text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  let cleaned = text.trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
+  try { return JSON.parse(cleaned); } catch { /* fall through */ }
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try { return JSON.parse(match[0]); } catch { return null; }
+}
+
+const toIntOrNull = (v) => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+};
+const toBoolOrNull = (v) => (v === true || v === false ? v : null);
 
 // ── Shared primitives ─────────────────────────────────────────────────────────
 const labelStyle = {
@@ -318,6 +344,67 @@ const SpacesSection = ({ formData, onChange }) => {
   const spaces    = formData?.spaces || [];
   const venueId   = formData?.id;
   const venueName = formData?.venue_name || formData?.name || '';
+  const websiteUrl = formData?.website || formData?.website_url || '';
+  const locationHint = [formData?.city, formData?.region, formData?.country]
+    .filter(Boolean)
+    .join(', ');
+  const [showSpacesLookupAI, setShowSpacesLookupAI] = useState(false);
+
+  const handleSpacesLookupInsert = (text) => {
+    const parsed = extractJsonObject(text);
+    if (!parsed) {
+      alert('AI did not return valid JSON. Try again or add spaces manually.');
+      return;
+    }
+
+    let appliedSpaces = 0;
+    if (Array.isArray(parsed.spaces) && parsed.spaces.length > 0) {
+      const newSpaces = parsed.spaces
+        .slice(0, MAX_SPACES)
+        .map((s, i) => {
+          const type = typeof s.type === 'string' && SPACE_TYPES.includes(s.type) ? s.type : '';
+          if (!s || (typeof s.name !== 'string' && !type)) return null;
+          return {
+            id: genId(),
+            name: typeof s.name === 'string' ? s.name.trim() : '',
+            type,
+            description: typeof s.description === 'string' ? s.description.trim() : '',
+            capacityCeremony: toIntOrNull(s.capacityCeremony),
+            capacityReception: toIntOrNull(s.capacityReception),
+            capacityDining: toIntOrNull(s.capacityDining),
+            capacityStanding: toIntOrNull(s.capacityStanding),
+            indoor: toBoolOrNull(s.indoor),
+            covered: toBoolOrNull(s.covered),
+            accessible: toBoolOrNull(s.accessible),
+            imgFile: null,
+            img: '',
+            floorPlanFile: null,
+            floorPlanUrl: '',
+            sortOrder: i,
+          };
+        })
+        .filter(Boolean);
+
+      if (newSpaces.length > 0) {
+        onChange('spaces', newSpaces);
+        appliedSpaces = newSpaces.length;
+      }
+    }
+
+    let appliedIntro = false;
+    if (typeof parsed.showcase_intro === 'string' && parsed.showcase_intro.trim()) {
+      const intros = { ...(formData?.section_intros || {}) };
+      intros.spaces = parsed.showcase_intro.trim().slice(0, SHOWCASE_INTRO_MAX);
+      onChange('section_intros', intros);
+      appliedIntro = true;
+    }
+
+    if (appliedSpaces === 0 && !appliedIntro) {
+      alert('AI returned JSON but no recognised spaces. Try again or add spaces manually.');
+      return;
+    }
+    setShowSpacesLookupAI(false);
+  };
 
   const addSpace = () => {
     if (spaces.length >= MAX_SPACES) return;
@@ -363,12 +450,32 @@ const SpacesSection = ({ formData, onChange }) => {
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1a1a1a', margin: '0 0 4px' }}>
-          Venue Spaces
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1a1a1a', margin: 0 }}>
+            Venue Spaces
+          </h3>
+          <button type="button" onClick={() => setShowSpacesLookupAI(v => !v)} style={aiLinkStyle}>
+            ✦ Find spaces with AI
+          </button>
+        </div>
         <p style={{ fontSize: 12, color: '#999', margin: 0 }}>
           Add up to {MAX_SPACES} individual event spaces. Each space has its own capacities, attributes and floor plan. Empty = section hidden on listing.
         </p>
+        {showSpacesLookupAI && (
+          <div style={{ marginTop: 12 }}>
+            <AIContentGenerator
+              feature="spaces_lookup"
+              systemPrompt={SPACES_LOOKUP_SYSTEM}
+              userPrompt={buildSpacesLookupPrompt(venueName, websiteUrl, locationHint)}
+              venueId={venueId}
+              onInsert={handleSpacesLookupInsert}
+              label="Find Venue Spaces"
+            />
+            <p style={hintStyle}>
+              AI will research the venue's event spaces (ballroom, garden, terrace, etc.) and pre-fill the cards below. Existing spaces will be replaced — review and edit before saving.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Space cards */}

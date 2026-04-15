@@ -67,6 +67,33 @@ Rules:
 - price_range is the symbolic price-band ("€", "€€", "€€€", "€€€€") that best matches the absolute price_from.
 - If the venue cannot be confidently identified or has no public pricing, return the JSON object with empty/zero values for every field.`;
 
+export const DINING_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available dining and culinary information for wedding venues. You are NOT a copywriter or sales agent.
+
+Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
+
+Rules:
+- Return ONLY the JSON object literal, starting with { and ending with }.
+- Use empty string "" or empty array [] for any field you are not certain about. Never invent chef names, restaurant names or culinary credentials.
+- Boolean fields default to false unless the venue explicitly markets that capability.
+- Array fields (menu_styles, dietary, drinks) MUST only use the exact allowed values listed in the user prompt — drop anything that does not match.
+- showcase_intro must be a single short editorial sentence (under 300 characters) suitable for a luxury magazine page intro. If the venue has no public dining information, return "" — do not invent.
+- chef_name must be the actual chef's full name only — no titles, no awards, no restaurant prefix. Empty string if not publicly known.
+- If the venue cannot be confidently identified or has no public dining information, return the JSON object with empty/false values for every field.`;
+
+export const SPACES_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available event-space information for wedding venues. You are NOT a copywriter or sales agent.
+
+Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
+
+Rules:
+- Return ONLY the JSON object literal, starting with { and ending with }.
+- The object must have a single top-level key "spaces" whose value is an array of space objects (return at most 5 spaces — the venue's most prominent ceremony / reception / dining areas).
+- Each space object's "type" MUST be one of the exact allowed values listed in the user prompt — drop the entry or use "Other" if you cannot match.
+- Numeric capacity fields must be plain integers (no commas, no units, no words). Use 0 for any capacity that is not publicly stated — never invent numbers.
+- Boolean fields (indoor, covered, accessible) default to null when unknown — only set true/false when the venue clearly documents the attribute.
+- description must be a single short evocative sentence (under 200 characters) suitable for a luxury listing card. Use "" if no public description exists — do not invent.
+- showcase_intro must be a single short editorial sentence (under 300 characters) suitable for a luxury magazine page intro. If the venue has no public spaces information, return "" — do not invent.
+- If the venue cannot be confidently identified or has no public event-space information, return { "spaces": [], "showcase_intro": "" }.`;
+
 export const ROOMS_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available accommodation information for wedding venues. You are NOT a copywriter or sales agent.
 
 Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
@@ -439,6 +466,96 @@ Field rules:
 - capacity: maximum seated guest capacity as a plain integer. Use 0 if not published.
 
 IMPORTANT: Use 0 or "" for any field you cannot confirm from public sources. NEVER invent or estimate pricing — wedding venues sue over inaccurate price quotes. If you cannot find published pricing for this venue, return zeros and empty strings.
+RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation, no disclaimers.`;
+};
+
+/**
+ * Build prompt for Venue Spaces Lookup from business name + URL + optional location.
+ * Returns: spaces[] array (each with name, type from fixed list, description,
+ * capacityCeremony/Reception/Dining/Standing integers, indoor/covered/accessible
+ * booleans-or-null) plus showcase_intro for the spaces section header.
+ */
+export const buildSpacesLookupPrompt = (venueName, websiteUrl, locationHint) => {
+  return `Look up the public event-space layout for the wedding venue "${venueName}"${websiteUrl ? ` (website: ${websiteUrl})` : ''}${locationHint ? ` located in ${locationHint}` : ''}.
+
+Return ONLY a valid JSON object in this exact format:
+{
+  "spaces": [
+    {
+      "name": "The Grand Salon",
+      "type": "Ballroom",
+      "description": "A frescoed 18th-century ballroom anchored by a vaulted ceiling and original chandeliers.",
+      "capacityCeremony": 180,
+      "capacityReception": 220,
+      "capacityDining": 160,
+      "capacityStanding": 250,
+      "indoor": true,
+      "covered": true,
+      "accessible": true
+    },
+    {
+      "name": "Cypress Garden",
+      "type": "Garden",
+      "description": "A walled formal garden framed by century-old cypress alleys, ideal for outdoor ceremonies at golden hour.",
+      "capacityCeremony": 120,
+      "capacityReception": 0,
+      "capacityDining": 80,
+      "capacityStanding": 150,
+      "indoor": false,
+      "covered": false,
+      "accessible": true
+    }
+  ],
+  "showcase_intro": "Five distinct spaces — from a frescoed ballroom to a cypress-lined garden — let every couple shape the day on their own terms."
+}
+
+Field rules:
+- spaces: array of at most 5 of the venue's most prominent event spaces. Empty array if no public information.
+- name: the venue's actual name for the space (e.g. "The Orangery", "Sala degli Specchi"). Empty string only if it is referred to generically.
+- type: MUST be one of exactly these values: "Ballroom", "Garden", "Terrace", "Private Dining Room", "Poolside Area", "Chapel / Ceremony Space", "Rooftop", "Courtyard", "Vineyard", "Barn / Rustic Hall", "Beach / Waterfront", "Library / Drawing Room", "Gallery Space", "Other". Use "Other" if no match.
+- description: ONE short evocative sentence (under 200 characters). Empty string if no public description.
+- capacityCeremony / capacityReception / capacityDining / capacityStanding: plain integers. Use 0 for any layout the venue does not publish.
+- indoor: true if the space is fully indoors, false if outdoors, null if unknown / partial.
+- covered: true if the space has a permanent roof or marquee cover, false if open-air, null if unknown.
+- accessible: true if the venue documents step-free / wheelchair access, false if it explicitly does not, null if unknown.
+- showcase_intro: ONE short editorial sentence (under 300 characters) describing the venue's overall event-space offering in luxury-magazine tone. Use "" if there is no public information.
+
+IMPORTANT: Use 0, "", null or [] for any field you cannot confirm from public sources. NEVER invent capacities or attributes — venues complain about inaccurate listings. If you cannot find published space information for this venue, return { "spaces": [], "showcase_intro": "" }.
+RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation, no disclaimers.`;
+};
+
+/**
+ * Build prompt for Dining Lookup from business name + URL + optional location.
+ * Returns: dining_style (free text), chef_name (free text), in_house_catering /
+ * external_catering_allowed (booleans), menu_styles / dietary / drinks (arrays
+ * constrained to the allowed values), showcase_intro (short editorial sentence).
+ */
+export const buildDiningLookupPrompt = (venueName, websiteUrl, locationHint) => {
+  return `Look up public dining and culinary information for the wedding venue "${venueName}"${websiteUrl ? ` (website: ${websiteUrl})` : ''}${locationHint ? ` located in ${locationHint}` : ''}.
+
+Return ONLY a valid JSON object in this exact format:
+{
+  "dining_style": "Michelin-inspired Tuscan farm-to-table",
+  "chef_name": "Marco Ricci",
+  "in_house_catering": true,
+  "external_catering_allowed": false,
+  "menu_styles": ["Plated Dinner", "Tasting Menu"],
+  "dietary": ["Vegetarian", "Vegan", "Gluten Free"],
+  "drinks": ["Wine Pairing", "Signature Cocktails"],
+  "showcase_intro": "A seasonal kitchen led by a Michelin-trained chef, where every plate is built from estate-grown produce and the wine cellar runs four floors deep."
+}
+
+Field rules:
+- dining_style: short free-text description of the culinary style (under 80 characters). Empty string if not public.
+- chef_name: head chef's full name only — no honorifics, no restaurant prefix, no awards. Empty string if not publicly named.
+- in_house_catering: true if the venue runs its own kitchen / has resident chef. Default false.
+- external_catering_allowed: true if outside caterers are explicitly permitted. Default false.
+- menu_styles: array — MUST only contain values from this fixed list: "Plated Dinner", "Tasting Menu", "Family Style", "Buffet", "Custom". Drop anything else. Empty array if unknown.
+- dietary: array — MUST only contain values from this fixed list: "Vegetarian", "Vegan", "Halal", "Kosher", "Gluten Free", "Dairy Free". Drop anything else. Empty array if unknown.
+- drinks: array — MUST only contain values from this fixed list: "Open Bar", "Wine Pairing", "Signature Cocktails", "Beer & Spirits", "Non-Alcoholic", "Soft Drinks Only". Drop anything else. Empty array if unknown.
+- showcase_intro: ONE short editorial sentence (under 300 characters) describing the dining experience in luxury-magazine tone, suitable for the dining section intro on the showcase page. Use "" if there is no public dining information.
+
+IMPORTANT: Use "", false, or [] for any field you cannot confirm from public sources. NEVER invent chef names, restaurant credentials or culinary claims — venues take this seriously and inaccurate claims cause complaints. If you cannot find published dining information for this venue, return empty values throughout.
 RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation, no disclaimers.`;
 };
 
@@ -1243,6 +1360,8 @@ export default {
   ADDRESS_LOOKUP_SYSTEM,
   PRICING_LOOKUP_SYSTEM,
   ROOMS_LOOKUP_SYSTEM,
+  DINING_LOOKUP_SYSTEM,
+  SPACES_LOOKUP_SYSTEM,
   ALT_TEXT_SYSTEM,
   FAQ_SYSTEM,
   buildAboutPrompt,
@@ -1261,6 +1380,8 @@ export default {
   buildAddressLookupPrompt,
   buildPricingLookupPrompt,
   buildRoomsLookupPrompt,
+  buildDiningLookupPrompt,
+  buildSpacesLookupPrompt,
   buildSectionIntroPrompt,
   buildListingNamePrompt,
   buildHeroTaglinePrompt,
