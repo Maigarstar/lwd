@@ -329,15 +329,42 @@ function buildListingUrl(v) {
 }
 
 // ─── RECENTLY VIEWED, localStorage helpers ────────────────────────────────────
-const RV_KEY = 'ldw_recently_viewed';
+// v2: bumped to invalidate stale entries stored before canonical-path sanitization
+const RV_KEY = 'ldw_recently_viewed_v2';
 const MAX_RV_STORED = 6;
 
-function getRVList() {
-  try { return JSON.parse(localStorage.getItem(RV_KEY) || '[]'); } catch { return []; }
+// A valid canonical listing URL is /<country>/<region>/<category>/<slug>
+// — 4 lowercase segments. Anything shorter routes through stateToPath which
+// returns '/' when country/region are missing, dumping the user on the home page.
+function isCanonicalListingPath(path) {
+  if (typeof path !== 'string' || !path) return false;
+  return /^\/[a-z0-9-]+\/[a-z0-9-]+\/[a-z0-9-]+\/[a-z0-9-]+\/?$/.test(path);
 }
 
-function recordVenueView(v, slug) {
+function sanitizeCanonicalPath(path) {
+  return isCanonicalListingPath(path) ? path.replace(/\/$/, '') : null;
+}
+
+function getRVList() {
   try {
+    const raw = JSON.parse(localStorage.getItem(RV_KEY) || '[]');
+    if (!Array.isArray(raw)) return [];
+    // Defensively drop any entry whose canonicalPath is missing or non-canonical —
+    // click handler falls back to `/${slug}` which routes to home via stateToPath.
+    return raw.filter((x) => x && isCanonicalListingPath(x.canonicalPath));
+  } catch { return []; }
+}
+
+function recordVenueView(v, slug, canonicalPathArg) {
+  try {
+    // canonicalPathArg is the authoritative canonical URL computed from the DB
+    // row by the caller. We do NOT fall back to window.location.pathname here —
+    // the record effect can fire before the URL has been canonicalized, and a
+    // non-canonical path stored here will route the user back to `/` on click
+    // (stateToPath in main.jsx returns '/' when country/region are missing).
+    const canonicalPath = sanitizeCanonicalPath(canonicalPathArg);
+    if (!canonicalPath) return;
+
     // Extract gallery photo or first image
     let img = '';
     if (v.imgs && Array.isArray(v.imgs) && v.imgs.length > 0) {
@@ -360,7 +387,7 @@ function recordVenueView(v, slug) {
       currency: v.priceCurrency || '£',
       img: img,
       slug: slug,
-      canonicalPath: window.location.pathname,
+      canonicalPath,
       viewedAt: Date.now(),
     };
     const updated = [entry, ...getRVList().filter(x => x.id !== entry.id)].slice(0, MAX_RV_STORED);
@@ -7565,7 +7592,21 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
   // Only record AFTER database has loaded with real data, not on mount with dummy data
   useEffect(() => {
     if (dbVenue && dbVenue.name && slug) {
-      recordVenueView(VV, slug);
+      // Build the canonical URL from rawListing (not from window.location.pathname)
+      // — the URL may not yet be canonicalized when this effect fires. Mirrors the
+      // logic in the replaceState effect below so the stored path is always a
+      // valid /<country>/<region>/<category>/<slug>.
+      let canonicalPath = null;
+      if (rawListing) {
+        const cs = rawListing.country_slug || rawListing.countrySlug || countrySlug;
+        let rs  = rawListing.region_slug  || rawListing.regionSlug  || regionSlug;
+        const cat = rawListing.category_slug || rawListing.categorySlug || categorySlug || 'wedding-venues';
+        if (!rs && rawListing.region) rs = rawListing.region.toLowerCase().replace(/\s+/g, '-');
+        if (cs && rs && cat) {
+          canonicalPath = `/${cs.toLowerCase()}/${rs.toLowerCase()}/${cat.toLowerCase()}/${slug.toLowerCase()}`;
+        }
+      }
+      recordVenueView(VV, slug, canonicalPath);
       // Track profile_view in unified event system (once per real data load)
       trackProfileView({
         entityType:    'venue',
@@ -7587,7 +7628,7 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
     }
     // Clear listing context when component unmounts or slug changes
     return () => clearListingContext();
-  }, [slug, dbVenue]);
+  }, [slug, dbVenue, rawListing, countrySlug, regionSlug, categorySlug]);
 
   // Fetch venue intelligence — single source of truth for capacity + pricing
   useEffect(() => {
