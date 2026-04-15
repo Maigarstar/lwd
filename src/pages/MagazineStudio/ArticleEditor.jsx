@@ -6477,7 +6477,13 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
     setDirty(false);
     setTone(initialPost.tone || 'Luxury Editorial');
     setFocusKeyword('');
-    setShowTemplate((initialPost.content || []).length === 0);
+    // Template picker must NEVER show when switching into an existing article
+    // (real DB UUID) even if its content blocks haven't loaded yet. Only
+    // genuinely-new articles without a UUID get the picker. Must match the
+    // same rule used by the useState initializer at line 6386.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const hasDbId = initialPost?.id && UUID_RE.test(initialPost.id);
+    setShowTemplate(hasDbId ? false : (initialPost.content || []).length === 0);
     // Bump the save session counter. Any in-flight save from the previous
     // article will see a stale session on resolution and exit silently.
     saveSessionRef.current += 1;
