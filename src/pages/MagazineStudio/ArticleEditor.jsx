@@ -5082,6 +5082,17 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
   const wrapRef   = useRef(null);  // block outer div — used to detect focus within format bar
   const blockRef  = useRef(block); // always-current block — avoids stale closure in commit
   useEffect(() => { blockRef.current = block; }, [block]);
+  // Ref-captured onChange + canvasAI. Both are passed in as props that may be
+  // re-created on every parent render. The alt-generation effect below awaits
+  // an async AI call and then applies the result via onChange(...), but if
+  // the parent re-rendered during the await window the captured closure
+  // would fire a stale onChange and potentially write to a stale block.
+  // Indirecting through refs means the .then() callback always uses the
+  // latest handler and the latest block state at resolution time.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  const canvasAIRef = useRef(canvasAI);
+  useEffect(() => { canvasAIRef.current = canvasAI; }, [canvasAI]);
   const uploadRef = useRef(null); // for inline image upload in image blocks
   const [hovered, setHovered] = useState(false);
   const [slashQuery, setSlashQuery] = useState(null); // null = closed, string = open with filter text
@@ -5109,16 +5120,31 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
   // Close slash palette when block deactivated
   useEffect(() => { if (!isActive) setSlashQuery(null); }, [isActive]);
 
-  // Auto-generate alt text when a new image src is set and alt is empty
+  // Auto-generate alt text when a new image src is set and alt is empty.
+  //
+  // All three props that matter here (onChange, canvasAI, and the latest
+  // block state) are read through refs so the async .then() can never
+  // apply an AI-generated alt to a stale block via a stale onChange.
+  // prevSrcRef guards against the effect retriggering when the user pastes
+  // the same src twice; the blockRef.current re-check inside the .then()
+  // guards against firing for a src that the user already changed again
+  // mid-generation (e.g. rapid image swap).
   useEffect(() => {
     const src = block.src;
-    if (!src || block.alt || !canvasAI || src === prevSrcRef.current) return;
+    if (!src || block.alt || !canvasAIRef.current || src === prevSrcRef.current) return;
     prevSrcRef.current = src;
     const filename = src.split('/').pop()?.split('?')[0]?.replace(/[-_]/g, ' ').replace(/\.\w+$/, '').trim() || '';
     setAltGenerating(true);
-    const capturedBlock = block;
-    canvasAI('canvas-image-alt', filename).then(text => {
-      if (text) onChange({ ...capturedBlock, alt: text });
+    canvasAIRef.current('canvas-image-alt', filename).then(text => {
+      // Re-read the latest block state at resolution time — user may have
+      // typed in a caption, moved to a different src, or edited alt manually
+      // while the AI call was in flight. We only apply the generated alt if
+      // (a) the src we fired for is still the one showing, and (b) alt is
+      // still empty (don't stomp a manual caption written during the wait).
+      const latest = blockRef.current;
+      if (text && latest && latest.src === src && !latest.alt) {
+        onChangeRef.current({ ...latest, alt: text });
+      }
       setAltGenerating(false);
     }).catch(() => setAltGenerating(false));
   }, [block.src]); // eslint-disable-line react-hooks/exhaustive-deps
