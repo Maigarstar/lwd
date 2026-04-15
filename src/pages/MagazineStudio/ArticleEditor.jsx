@@ -6615,6 +6615,20 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   const formDataRef = useRef(formData);
   useEffect(() => { formDataRef.current = formData; }, [formData]);
 
+  // Ref-captured onSaveToParent. The parent (MagazineStudio) passes this as
+  // an inline arrow:
+  //   onSaveToParent={async (updated) => { ... handleSavePost(updated) }}
+  // which makes it a NEW function reference on every parent render. Without
+  // this ref, the save() useCallback below closed over a specific closure
+  // snapshot at the moment save was memoized; a drain microtask (queued after
+  // save succeeded) could then invoke a stale onSaveToParent reference whose
+  // closure had since been replaced by a newer parent render. That manifested
+  // as autosave flakiness after tab-visibility changes, category changes, or
+  // any other parent state transition that re-rendered MagazineStudio.
+  // Indirecting through a ref means save() always calls the latest prop.
+  const onSaveToParentRef = useRef(onSaveToParent);
+  useEffect(() => { onSaveToParentRef.current = onSaveToParent; }, [onSaveToParent]);
+
   // ── Phase 3.1: local crash recovery (IndexedDB) ───────────────────────────
   // draftKey is the stable slot this article's backup lives under.
   //   existing article → 'article:<id>'
@@ -7004,8 +7018,11 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
     let succeeded = false;
 
     try {
+      // Read onSaveToParent through the ref so we always invoke the latest
+      // prop, not a snapshot captured when this useCallback was memoized.
+      // See the onSaveToParentRef declaration for the full rationale.
       const result = await Promise.race([
-        onSaveToParent({ ...data, tone, focusKeyword }),
+        onSaveToParentRef.current({ ...data, tone, focusKeyword }),
         timeoutPromise,
       ]);
 
@@ -7131,7 +7148,10 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
         });
       }
     }
-  }, [formData, tone, focusKeyword, onSaveToParent]);
+  // onSaveToParent is intentionally NOT in deps — it's accessed through
+  // onSaveToParentRef.current so parent re-renders don't rebuild `save`.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData, tone, focusKeyword]);
 
   // Retry handler — clears the error state and re-runs save() with current formData.
   const retrySave = useCallback(() => {
