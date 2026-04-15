@@ -6971,17 +6971,40 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   }, [formData, tone, save]);
 
   // ── AI Draft handlers ─────────────────────────────────────────────────
-  const handleAcceptBlocks = useCallback((selectedBlocks) => {
+  // Accept AI-generated blocks into the article.
+  // `draftMeta` carries metadata fields extracted from the AI response
+  // (seoTitle, metaDescription, faqs) so they're absorbed alongside the
+  // block array. Without this the user merges a polished draft and the
+  // sidebar still shows empty SEO fields — exactly the "AI articles not
+  // saving" symptom they reported.
+  //
+  // We also flush a save() synchronously in a microtask after committing
+  // the new state. The 25s autosave interval was too long — users who
+  // navigated back before it fired lost their freshly-accepted blocks.
+  const handleAcceptBlocks = useCallback((selectedBlocks, draftMeta = {}) => {
     const now = new Date().toISOString();
-    setFormData(fd => ({
-      ...fd,
-      content: [...(fd.content || []), ...selectedBlocks],
+    const currentForm = formDataRef.current;
+    const next = {
+      ...currentForm,
+      content: [...(currentForm.content || []), ...selectedBlocks],
       aiGenerated: true,
       aiLastGeneratedAt: now,
-    }));
+      // Only fill fields the user hasn't already typed into — never clobber
+      // manual input with AI-suggested values.
+      ...(draftMeta.seoTitle        && !currentForm.seoTitle        ? { seoTitle:        draftMeta.seoTitle }        : {}),
+      ...(draftMeta.metaDescription && !currentForm.metaDescription ? { metaDescription: draftMeta.metaDescription } : {}),
+    };
+    setFormData(next);
+    // Keep the ref in sync immediately so the save() below sees the new
+    // content without waiting for the next effect-flush commit cycle.
+    formDataRef.current = next;
     markDirty();
     setAiDraft(null);
-  }, [markDirty]);
+    // Flush to DB right away so a Back-to-list click doesn't lose content.
+    // save() is in-flight-guarded, so if autosave already started it will
+    // see the pending flag and drain with the new state after committing.
+    Promise.resolve().then(() => { save(next); });
+  }, [markDirty, save]);
 
   const handleRegenerateSection = useCallback(async (sectionId, headingText) => {
     // Regenerate a single section via AI
@@ -7346,8 +7369,14 @@ Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY t
               formData={formData}
               focusKeyword={focusKeyword}
               tone={tone}
-              onAcceptAll={() => handleAcceptBlocks(aiDraft.blocks.map(b => ({ ...b, id: crypto.randomUUID() })))}
-              onAcceptBlocks={handleAcceptBlocks}
+              onAcceptAll={() => handleAcceptBlocks(
+                aiDraft.blocks.map(b => ({ ...b, id: crypto.randomUUID() })),
+                { seoTitle: aiDraft.seoTitle, metaDescription: aiDraft.metaDescription }
+              )}
+              onAcceptBlocks={(selected) => handleAcceptBlocks(
+                selected,
+                { seoTitle: aiDraft.seoTitle, metaDescription: aiDraft.metaDescription }
+              )}
               onRegenerate={handleRegenerateSection}
               onRegenerateAll={() => { setAiDraft(null); /* DocSidebar re-triggers */ }}
               onDiscard={() => setAiDraft(null)}
