@@ -137,15 +137,25 @@ function mapPostToDb(formData) {
     row.author_data = formData.author;
   }
   // Piggyback galleryImages + coverImageFocal onto ai_metadata jsonb so these
-  // persist without a schema migration. When the caller sets formData.galleryImages
-  // or formData.coverImageFocal, we merge them into whatever ai_metadata is
-  // already being written, preserving other keys (aiOutline, aiTopic, etc.).
-  // Both branches share the same base object so writes to one don't clobber
-  // the other.
+  // persist without a schema migration. Base the merge on formData.aiMetadata
+  // directly (not row.ai_metadata, which is the same data routed through the
+  // generic field-map loop above) so the intent is explicit and future keys
+  // added to formData.aiMetadata — aiOutline, aiTopic, aiLastGeneratedAt,
+  // etc. — are always preserved by this piggyback branch instead of relying
+  // on the ordering of writes inside `row`.
+  //
+  // IMPORTANT partial-save caveat: Supabase UPDATE replaces an entire jsonb
+  // column, not individual keys. If a caller ever invokes savePost with a
+  // formData that has galleryImages or coverImageFocal but NO aiMetadata,
+  // this merge will overwrite any aiOutline/aiTopic/etc. currently in the
+  // DB with just the piggyback keys. All current call sites derive formData
+  // from the loaded post (which includes the full aiMetadata object), so
+  // this is safe today — but partial-update helpers MUST pass the existing
+  // aiMetadata through if they touch galleryImages or coverImageFocal.
   const hasGallery = Array.isArray(formData.galleryImages);
   const hasFocal   = formData.coverImageFocal !== undefined;
   if (hasGallery || hasFocal) {
-    const base = (row.ai_metadata && typeof row.ai_metadata === 'object') ? row.ai_metadata : {};
+    const base = (formData.aiMetadata && typeof formData.aiMetadata === 'object') ? formData.aiMetadata : {};
     const merged = { ...base };
     if (hasGallery) merged.galleryImages   = formData.galleryImages;
     if (hasFocal)   merged.coverImageFocal = formData.coverImageFocal;
