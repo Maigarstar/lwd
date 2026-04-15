@@ -14,6 +14,19 @@ function slugify(text) {
     .replace(/-+/g, '-');      // collapse multiple dashes
 }
 
+// ── Title-case helper for free-text place names ──────────────────────────────
+// Users often type "frome" or "FROME" — normalise to "Frome" before save so
+// city/region display names always look correct on the front end. Preserves
+// hyphens and apostrophes ("stratford-upon-avon" → "Stratford-Upon-Avon",
+// "o'neill" → "O'Neill").
+function titleCasePlace(text) {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/\b([a-z])/g, (_, ch) => ch.toUpperCase());
+}
+
 // ── Country normaliser ────────────────────────────────────────────────────────
 // Dropdown values are full display names ("Austria", "United Kingdom") to match
 // how the DB stores the country column. Just pass through as-is.
@@ -280,8 +293,13 @@ export const useListingForm = (listingId = null) => {
             description: listing.description || '',
             amenities: listing.amenities || '',
             country: countryToSlug(listing.country || ''),
-            region: listing.regionSlug || listing.region || '',
-            city: listing.citySlug || listing.city || '',
+            // Prefer the display-name column (region/city) over the slug column
+            // (regionSlug/citySlug). Previously the slug was loaded first,
+            // which meant "Somerset" came back as "somerset" and "Frome" came
+            // back as "frome" — the region <select> couldn't match its options
+            // and the city input rendered in lowercase.
+            region: listing.region || listing.regionSlug || '',
+            city:   listing.city   || listing.citySlug   || '',
             postcode: listing.postcode || '',
             address: listing.address || '',
             address_line2: '',
@@ -546,8 +564,18 @@ export const useListingForm = (listingId = null) => {
         description: formData.description,
         amenities: formData.amenities,
         country: formData.country,
+        // Persist BOTH the display name and the slug. Previously only the slug
+        // was saved, so on reload the form picked up "somerset" and the
+        // <select> dropdown — whose options use display names like "Somerset"
+        // — couldn't find a match and silently reverted to "Select region…".
+        // City is title-cased before save so "frome" becomes "Frome" — users
+        // type all sorts of casings and we don't want them to leak to the
+        // front end. Region is left as-is because it comes from a fixed
+        // dropdown that already uses the correct display casing.
+        region:     formData.region || '',
         regionSlug: slugify(formData.region),
-        citySlug: slugify(formData.city),
+        city:       titleCasePlace(formData.city),
+        citySlug:   slugify(formData.city),
         postcode: formData.postcode,
         address: [formData.address, formData.address_line2].filter(Boolean).join('\n'),
         lat: formData.lat,
