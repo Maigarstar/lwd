@@ -7335,7 +7335,18 @@ Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY t
         />
         )}
 
-        {/* AIPanel — Content Tools, right-side alongside SEO */}
+        {/* Live SEO Score — DIAGNOSTIC layer first (shows the issue) */}
+        {!isPhone && (
+        <LiveSeoPanel
+          formData={formData}
+          focusKeyword={focusKeyword}
+          onKeywordChange={setFocusKeyword}
+          onOpenIntelligence={() => setShowIntelPanel(p => !p)}
+          S={SS}
+        />
+        )}
+
+        {/* AIPanel — ACTION layer after SEO (provides the fix) */}
         {!isPhone && showAIPanel && (
           <div style={{
             width: 320,
@@ -7398,17 +7409,6 @@ Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY t
               />
             </div>
           </div>
-        )}
-
-        {/* Live SEO Score — always visible */}
-        {!isPhone && (
-        <LiveSeoPanel
-          formData={formData}
-          focusKeyword={focusKeyword}
-          onKeywordChange={setFocusKeyword}
-          onOpenIntelligence={() => setShowIntelPanel(p => !p)}
-          S={SS}
-        />
         )}
 
         {/* Far right: Intelligence slide-in panel */}
