@@ -18,7 +18,25 @@
 
 import { useState } from 'react';
 import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
-import { LUXURY_TONE_SYSTEM, buildExclusiveUsePrompt } from '../../../lib/aiPrompts';
+import {
+  LUXURY_TONE_SYSTEM,
+  buildExclusiveUsePrompt,
+  EXCLUSIVE_USE_LOOKUP_SYSTEM,
+  buildExclusiveUseLookupPrompt,
+} from '../../../lib/aiPrompts';
+
+// Tolerant JSON extractor — strips markdown fences and falls back to first {...}
+// block. Mirrors the helper used in the other lookup sections.
+function extractJsonObject(text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  let cleaned = text.trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
+  try { return JSON.parse(cleaned); } catch { /* fall through */ }
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try { return JSON.parse(match[0]); } catch { return null; }
+}
 
 const aiLinkStyle = {
   fontSize: 11, color: '#C9A84C', background: 'none', border: 'none',
@@ -146,8 +164,62 @@ const ExclusiveUseSection = ({ formData, onChange }) => {
   const enabled  = formData?.exclusive_use_enabled ?? false;
   const includes = formData?.exclusive_use_includes ?? [];
   const [showDescAI, setShowDescAI] = useState(false);
+  const [showLookupAI, setShowLookupAI] = useState(false);
 
   const set = (key, val) => onChange(key, val);
+
+  // ── Full Exclusive Use lookup ──────────────────────────────────────────────
+  const venueId      = formData?.id;
+  const venueName    = formData?.venue_name || formData?.name || '';
+  const websiteUrl   = formData?.website || formData?.website_url || '';
+  const locationHint = [formData?.city, formData?.region, formData?.country]
+    .filter(Boolean)
+    .join(', ');
+
+  const handleLookupInsert = (text) => {
+    const parsed = extractJsonObject(text);
+    if (!parsed || typeof parsed !== 'object') {
+      alert('AI did not return valid JSON. Try again or fill in the fields manually.');
+      return;
+    }
+
+    const cleanStr = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+    let appliedAny = false;
+
+    const title    = cleanStr(parsed.title,    40);
+    const subtitle = cleanStr(parsed.subtitle, 120);
+    const price    = cleanStr(parsed.price,    60);
+    const subline  = cleanStr(parsed.subline,  120);
+    const desc     = cleanStr(parsed.description, 360);
+    const cta      = cleanStr(parsed.cta_text, 40);
+
+    if (title)    { set('exclusive_use_title',       title);    appliedAny = true; }
+    if (subtitle) { set('exclusive_use_subtitle',    subtitle); appliedAny = true; }
+    if (price)    { set('exclusive_use_price',       price);    appliedAny = true; }
+    if (subline)  { set('exclusive_use_subline',     subline);  appliedAny = true; }
+    if (desc)     { set('exclusive_use_description', desc);     appliedAny = true; }
+    if (cta)      { set('exclusive_use_cta_text',    cta);      appliedAny = true; }
+
+    if (Array.isArray(parsed.includes)) {
+      const newIncludes = parsed.includes
+        .map(it => cleanStr(it, 80))
+        .filter(Boolean)
+        .slice(0, MAX_INCLUDES);
+      if (newIncludes.length > 0) {
+        set('exclusive_use_includes', newIncludes);
+        appliedAny = true;
+      }
+    }
+
+    if (!appliedAny) {
+      alert('AI returned a valid response but no usable exclusive-use info. The venue may not offer full-estate hire.');
+      return;
+    }
+
+    // Auto-enable so the user immediately sees it on the listing
+    if (!enabled) set('exclusive_use_enabled', true);
+    setShowLookupAI(false);
+  };
 
   // ── Includes list helpers ──────────────────────────────────────────────────
   const updateItem = (idx, val) => {
@@ -178,13 +250,33 @@ const ExclusiveUseSection = ({ formData, onChange }) => {
 
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
-        <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1a1a1a', margin: '0 0 4px' }}>
-          Exclusive Use
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1a1a1a', margin: 0 }}>
+            Exclusive Use
+          </h3>
+          <button type="button" onClick={() => setShowLookupAI(v => !v)} style={aiLinkStyle}>
+            ✦ Find exclusive use with AI
+          </button>
+        </div>
         <p style={{ fontSize: 12, color: '#999', margin: 0 }}>
           Full-estate hire block with price, description, and what's included list.
           Toggle visibility without deleting content.
         </p>
+        {showLookupAI && (
+          <div style={{ marginTop: 12 }}>
+            <AIContentGenerator
+              feature="exclusive_use_lookup"
+              systemPrompt={EXCLUSIVE_USE_LOOKUP_SYSTEM}
+              userPrompt={buildExclusiveUseLookupPrompt(venueName, websiteUrl, locationHint)}
+              venueId={venueId}
+              onInsert={handleLookupInsert}
+              label="Find Exclusive Use Info"
+            />
+            <p style={hintStyle}>
+              AI will research the venue's full-estate buyout offering and fill the title, price, subline, description, CTA and What's Included list. Review every field before saving — never publish unverified prices or capacity numbers.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Enable/Disable toggle */}

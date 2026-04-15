@@ -123,6 +123,22 @@ Rules:
 - showcase_intro must be a single short editorial sentence (under 300 characters) suitable for a luxury magazine page intro. If the venue has no public spaces information, return "" — do not invent.
 - If the venue cannot be confidently identified or has no public event-space information, return { "spaces": [], "showcase_intro": "" }.`;
 
+export const EXCLUSIVE_USE_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available exclusive-use / full-estate-hire information for wedding venues. You ARE permitted to write one short editorial body description in luxury-magazine tone, but you are NOT a sales agent and must not embellish facts.
+
+Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
+
+Rules:
+- Return ONLY the JSON object literal, starting with { and ending with }.
+- The object must contain the keys: "title", "subtitle", "price", "subline", "description", "cta_text", "includes".
+- title: short heading (under 40 characters). Default to "Exclusive Use" if no other framing is published.
+- subtitle: ONE short intro line (under 120 characters). Empty string "" if nothing public.
+- price: a SHORT headline price string starting with "From " followed by the currency symbol and number (e.g. "From £28,000", "From €35,000", "From $40,000"). Use "" if no public exclusive-use pricing is available — NEVER invent prices.
+- subline: ONE short price sub-line, ideally pattern "Minimum X nights · Sleeps Y guests" or "Minimum X nights · Up to Y guests". Use "" if nights / capacity are not publicly stated. NEVER invent night minimums or guest counts.
+- description: 2-3 sentence body in refined luxury-editorial tone, focused on privacy, exclusivity, and the experience of having the entire estate. Maximum 360 characters. Use "" only if the venue clearly does not offer exclusive use.
+- cta_text: short button label (under 40 characters). Default to "Enquire About Exclusive Use".
+- includes: array of at most 7 short strings (each under 80 characters) describing what is included in the buyout (e.g. "All 24 rooms & 6 suites", "Full estate grounds & gardens", "Dedicated wedding coordinator"). Empty array [] if nothing public.
+- If the venue clearly does NOT offer exclusive-use buyouts, return every field as empty / default values.`;
+
 export const LISTING_INFO_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available business information for wedding venues. You are NOT a copywriter or sales agent.
 
 Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
@@ -731,6 +747,45 @@ Field rules:
 - showcase_intro: ONE short editorial sentence (under 300 characters) describing the accommodation experience in luxury-magazine tone, suitable for the rooms section intro on the showcase page. Use "" if there is no public accommodation information.
 
 IMPORTANT: Use 0, "" or false for any field you cannot confirm from public sources. NEVER invent room counts or capacity numbers — venues complain about inaccurate listings. If you cannot find published accommodation information for this venue, return zeros and empty strings.
+RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation, no disclaimers.`;
+};
+
+/**
+ * Build prompt for Exclusive Use Lookup from business name + URL + optional location.
+ * Returns: title, subtitle, price, subline, description, cta_text, includes (max 7).
+ */
+export const buildExclusiveUseLookupPrompt = (venueName, websiteUrl, locationHint) => {
+  return `Look up public exclusive-use / full-estate-hire information for the wedding venue "${venueName}"${websiteUrl ? ` (website: ${websiteUrl})` : ''}${locationHint ? ` located in ${locationHint}` : ''}.
+
+Return ONLY a valid JSON object in this exact format:
+{
+  "title": "Exclusive Use",
+  "subtitle": "Hire the entire estate, just your guests, your celebration",
+  "price": "From £28,000",
+  "subline": "Minimum 2 nights · Sleeps 40 guests",
+  "description": "When you book exclusive use, the estate is entirely yours. No other guests, no other events — just your family and friends in one of the world's most extraordinary settings.",
+  "cta_text": "Enquire About Exclusive Use",
+  "includes": [
+    "All 24 rooms & 6 suites",
+    "Full estate grounds & gardens",
+    "Dedicated wedding coordinator",
+    "Use of all reception spaces",
+    "Welcome dinner the night before",
+    "Farewell brunch the morning after",
+    "Exclusive access to the chapel"
+  ]
+}
+
+Field rules:
+- title: short heading under 40 characters. Default to "Exclusive Use" if nothing more specific is published.
+- subtitle: ONE short intro line under 120 characters. Use "" if no published framing.
+- price: SHORT headline price string starting with "From " followed by currency symbol and number (e.g. "From £28,000", "From €35,000"). Use "" if no public exclusive-use pricing exists — NEVER invent prices.
+- subline: ONE short price sub-line, ideally pattern "Minimum X nights · Sleeps Y guests" or "Minimum X nights · Up to Y guests". Use "" if nights / capacity are not publicly stated. NEVER invent night minimums or guest counts.
+- description: 2-3 sentence body in refined luxury-editorial tone, focused on privacy, exclusivity and the experience of having the entire estate. Maximum 360 characters. Use "" only if the venue does not offer exclusive use.
+- cta_text: short button label under 40 characters. Default to "Enquire About Exclusive Use".
+- includes: array of at most 7 short strings (each under 80 characters) describing what is included in the buyout. Empty array [] if nothing public.
+
+IMPORTANT: Use "" or [] for any field you cannot confirm from public sources. NEVER invent prices, room counts, capacity numbers or amenities — venues complain about inaccurate listings. If the venue clearly does NOT offer exclusive-use buyouts, return every field empty.
 RETURN ONLY THE JSON OBJECT. No markdown, no code fences, no explanation, no disclaimers.`;
 };
 
@@ -1559,6 +1614,7 @@ export default {
   ADDRESS_LOOKUP_SYSTEM,
   PRICING_LOOKUP_SYSTEM,
   ROOMS_LOOKUP_SYSTEM,
+  EXCLUSIVE_USE_LOOKUP_SYSTEM,
   LISTING_INFO_LOOKUP_SYSTEM,
   DINING_LOOKUP_SYSTEM,
   SPACES_LOOKUP_SYSTEM,
@@ -1582,6 +1638,7 @@ export default {
   buildAddressLookupPrompt,
   buildPricingLookupPrompt,
   buildRoomsLookupPrompt,
+  buildExclusiveUseLookupPrompt,
   buildListingInfoLookupPrompt,
   buildDiningLookupPrompt,
   buildSpacesLookupPrompt,
