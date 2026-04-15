@@ -139,19 +139,27 @@ Rules:
 - includes: array of at most 7 short strings (each under 80 characters) describing what is included in the buyout (e.g. "All 24 rooms & 6 suites", "Full estate grounds & gardens", "Dedicated wedding coordinator"). Empty array [] if nothing public.
 - If the venue clearly does NOT offer exclusive-use buyouts, return every field as empty / default values.`;
 
-export const LISTING_INFO_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available business information for wedding venues. You are NOT a copywriter or sales agent.
+export const LISTING_INFO_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available business information for wedding venues. You may write ONE short factual "about" sentence for the venue itself, but you are not a copywriter and must never embellish facts.
 
 Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
 
 Rules:
 - Return ONLY the JSON object literal, starting with { and ending with }.
 - The object must contain the top-level keys: "contact_profile", "opening_hours", "press_features", "awards".
-- contact_profile fields (name, title, bio, email, phone, whatsapp, website, social.{instagram,facebook,linkedin,tiktok,twitter,pinterest,youtube}) — use empty string "" for any field you cannot confirm. NEVER invent contact people, phone numbers, email addresses or social handles.
-- opening_hours: an object with keys mon, tue, wed, thu, fri, sat, sun. Each day is { "type": "open"|"closed"|"by_appointment", "from": "HH:MM" (24h, half-hour increments), "to": "HH:MM" }. Times must be drawn from this fixed set: "06:00","06:30","07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30","19:00","19:30","20:00","20:30","21:00","21:30","22:00","22:30","23:00","23:30". If hours are unknown for a day, use { "type": "by_appointment", "from": "09:00", "to": "17:00" }. If a day is clearly closed, use { "type": "closed", "from": "09:00", "to": "17:00" }.
+- contact_profile fields: name, title, bio, email, phone, whatsapp, website, social.{instagram,facebook,linkedin,tiktok,twitter,pinterest,youtube}.
+- contact_profile.name: the public-facing wedding contact, sales lead or venue manager IF and only if their name is published on the venue website / official directory. Use "" if no named individual is published — NEVER invent a person.
+- contact_profile.title: the contact's title (e.g. "Wedding Coordinator", "Venue Director"). Use "" if no name is known. If a name IS known but no title, use "Venue Team".
+- contact_profile.bio: ALWAYS provide a short factual 1–2 sentence bio (under 240 characters). If a named contact exists, write about them. If no contact name exists, write a short factual "about" sentence for the venue itself (e.g. "Orchardleigh Estate is a Grade II Tudor manor on 500 acres in Somerset, hosting around 60 weddings a year."). Use "" only if you cannot identify the venue at all.
+- contact_profile.email: ALWAYS try to find the venue's public weddings / general enquiries email. Check the website's contact / weddings / book-an-event page. Return the most public-facing email available. Use "" only if no public email exists anywhere. NEVER invent an email address.
+- contact_profile.phone: ALWAYS try to find the venue's public weddings / main reception phone number. Format as published (with country code if international). Use "" only if no public phone exists. NEVER invent a phone number.
+- contact_profile.whatsapp: only if explicitly published, otherwise "".
+- contact_profile.website: the venue's official website URL. ALWAYS try to fill this — it is almost always public.
+- contact_profile.social: object with seven keys (instagram, facebook, linkedin, tiktok, twitter, pinterest, youtube). Each value is the FULL public profile URL or "". NEVER invent handles.
+- opening_hours: an object with keys mon, tue, wed, thu, fri, sat, sun. Each day is { "type": "open"|"closed"|"by_appointment", "from": "HH:MM", "to": "HH:MM" }. Times must be drawn from this fixed set: "06:00","06:30","07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30","19:00","19:30","20:00","20:30","21:00","21:30","22:00","22:30","23:00","23:30". If hours are unknown for a day, use { "type": "by_appointment", "from": "09:00", "to": "17:00" }. If a day is clearly closed, use { "type": "closed", "from": "09:00", "to": "17:00" }.
 - press_features: an array of at most 6 objects, each with { "outlet": "", "year": 0, "title": "", "url": "" }. Only include features you can confirm from public sources. Empty array if unknown. NEVER invent press coverage.
 - awards: an array of at most 8 objects, each with { "award": "", "year": 0, "issuer": "" }. Only include awards confirmed by public sources. Empty array if unknown. NEVER invent awards.
 - All year fields must be plain integers (e.g., 2024). Use 0 if unknown.
-- If the venue cannot be confidently identified or has no public listing information, return the JSON object with empty/closed/zero values throughout.`;
+- If the venue cannot be confidently identified, return the JSON object with empty/closed/zero values throughout, but ALWAYS try the website + social discovery before giving up — most venues have a public email and phone.`;
 
 export const ROOMS_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available accommodation information for wedding venues. You are NOT a copywriter or sales agent.
 
@@ -800,14 +808,14 @@ Return ONLY a valid JSON object in this exact format:
 {
   "contact_profile": {
     "name": "",
-    "title": "",
-    "bio": "",
-    "email": "",
-    "phone": "",
+    "title": "Venue Team",
+    "bio": "${venueName} is a [type] in [location], hosting approximately [N] weddings each year.",
+    "email": "weddings@venue.com",
+    "phone": "+44 1234 567890",
     "whatsapp": "",
     "website": "https://example.com",
     "social": {
-      "instagram": "",
+      "instagram": "https://instagram.com/venue",
       "facebook": "",
       "linkedin": "",
       "tiktok": "",
@@ -834,9 +842,13 @@ Return ONLY a valid JSON object in this exact format:
 }
 
 Field rules:
-- contact_profile.name / title / bio: ONLY include if a public-facing wedding contact, manager or sales lead is published on the venue website. Use "" if no named contact is published. NEVER invent a person.
-- contact_profile.email / phone / whatsapp: ONLY include if explicitly published on the venue's public website or official directory listing. Use "" otherwise. NEVER invent contact details.
-- contact_profile.website: the venue's official website URL if known, "" otherwise.
+- contact_profile.name: ONLY include if a public-facing wedding contact, manager or sales lead is published on the venue website. Use "" if no named contact is published. NEVER invent a person.
+- contact_profile.title: the contact's role/title (e.g. "Wedding Coordinator"). If a name was found but no title, use "Venue Team". Use "Venue Team" when no name is known either.
+- contact_profile.bio: ALWAYS provide a 1-2 sentence factual bio (under 240 characters). If a named contact exists, write about them. If no contact name exists, write a SHORT factual "about" sentence describing the VENUE itself (not embellished — just facts: type of property, location, approximate scale of weddings hosted). This is required so the public profile card always has something to show.
+- contact_profile.email: ALWAYS try to find the venue's public weddings or general enquiries email from the website / contact page / directory listings. Return the most relevant public-facing email. Use "" only if no public email exists anywhere. NEVER invent an email address.
+- contact_profile.phone: ALWAYS try to find the venue's public weddings or main reception phone number. Format as published. Use "" only if no public phone exists. NEVER invent a phone number.
+- contact_profile.whatsapp: ONLY include if explicitly published, otherwise "".
+- contact_profile.website: the venue's official website URL — almost always public, ALWAYS try to fill this.
 - contact_profile.social: object with seven keys (instagram, facebook, linkedin, tiktok, twitter, pinterest, youtube). Each value is the FULL public profile URL (e.g. "https://instagram.com/venue") or "" if unknown. NEVER invent handles.
 - opening_hours: object with keys mon, tue, wed, thu, fri, sat, sun. Each day must be { "type": "open"|"closed"|"by_appointment", "from": "HH:MM", "to": "HH:MM" }. Times must be on the half hour from "06:00" to "23:30". If the venue does not publish opening hours for a day, use { "type": "by_appointment", "from": "09:00", "to": "17:00" }. If a day is clearly closed (e.g. weekends for an office), use { "type": "closed", ... }.
 - press_features: array of at most 6 confirmed public press features. Each: { "outlet", "year" (integer), "title", "url" }. Empty array if no public press coverage exists. NEVER invent magazine names, article titles or URLs.
