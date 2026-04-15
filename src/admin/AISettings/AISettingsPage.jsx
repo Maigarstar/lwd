@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
+// Direct-fetch helpers for the ai-settings edge function. These bypass
+// supabase.functions.invoke() so stale admin JWTs never poison the call —
+// see src/lib/aiSettings.js and src/lib/aiGenerate.js for the full
+// rationale. Previously this page used supabase.functions.invoke() and
+// surfaced the generic "Edge Function returned a non-2xx status code"
+// error whenever the admin session's JWT had expired at the gateway.
+import { fetchAiSettings, saveAiSettings } from '../../lib/aiSettings';
 
 const GD = 'var(--font-heading-primary)';
 const NU = 'var(--font-body)';
@@ -116,15 +123,19 @@ export default function AISettingsPage({ C = {} }) {
 
   const fetchSettings = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('ai-settings');
-      if (error) { console.log('No active AI provider configured yet:', error.message); return; }
+      // fetchAiSettings throws on real errors and returns null for the
+      // 503 "no active provider" case, so we don't need a second error
+      // branch for the empty state.
+      const data = await fetchAiSettings();
       if (data) {
         setSettings(data);
         setFormData({ provider: data.provider, api_key: '', model: data.model, active: data.active });
+      } else {
+        console.log('No active AI provider configured yet.');
       }
     } catch (error) {
       console.error('Failed to load AI settings:', error);
-      setMessage({ type: 'error', text: 'Failed to load settings' });
+      setMessage({ type: 'error', text: error.message || 'Failed to load settings' });
     }
   };
 
@@ -151,10 +162,16 @@ export default function AISettingsPage({ C = {} }) {
     setLoading(true);
     setMessage({ type: '', text: '' });
     try {
-      const { data: updated, error: invokeError } = await supabase.functions.invoke('ai-settings', {
-        body: { provider: formData.provider, api_key: formData.api_key, model: formData.model, active: formData.active },
+      // saveAiSettings throws on any non-200 — the real error body from
+      // the edge function is in err.message, so the catch branch below
+      // surfaces the actual reason instead of the SDK's generic
+      // "Edge Function returned a non-2xx status code".
+      const updated = await saveAiSettings({
+        provider: formData.provider,
+        api_key:  formData.api_key,
+        model:    formData.model,
+        active:   formData.active,
       });
-      if (invokeError) { setMessage({ type: 'error', text: invokeError.message || 'Failed to save settings' }); setLoading(false); return; }
       if (updated) {
         setSettings(updated);
         setFormData(prev => ({ ...prev, api_key: '', model: updated.model, provider: updated.provider, active: updated.active }));
@@ -163,7 +180,7 @@ export default function AISettingsPage({ C = {} }) {
       }
     } catch (error) {
       console.error('Save error:', error);
-      setMessage({ type: 'error', text: error.message });
+      setMessage({ type: 'error', text: error.message || 'Failed to save settings' });
     } finally {
       setLoading(false);
     }
