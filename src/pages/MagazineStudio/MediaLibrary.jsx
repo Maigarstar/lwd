@@ -46,30 +46,53 @@ function fmt(bytes) {
 }
 
 // ── Recursive loader: traverses YYYY/MM/ subdirectories ───────────────────────
+//
+// Returns { items, errors } so callers can surface partial failures instead of
+// silently showing an empty library when Supabase `.list()` errors (bucket
+// missing, RLS blocking anon list, auth drift, network). Previously any
+// `error` returned by list() was swallowed and the library just looked empty,
+// which made debugging impossible.
 async function loadAllImages(bucket) {
   const IMG_RE = /\.(jpe?g|png|webp|gif)$/i;
   const b = supabase.storage.from(bucket);
   const results = [];
+  const errors = [];
+  let foldersScanned = 0;
 
-  async function listFolder(prefix) {
+  async function listFolder(prefix, depth = 0) {
+    // Bail out of pathological recursion (circular structure, weird metadata).
+    if (depth > 4) return;
+    foldersScanned++;
     const { data, error } = await b.list(prefix, {
-      limit: 500, sortBy: { column: 'created_at', order: 'desc' },
+      limit: 1000, sortBy: { column: 'created_at', order: 'desc' },
     });
-    if (error || !data) return;
+    if (error) {
+      console.error(`[MediaLibrary] list('${prefix}') failed:`, error);
+      errors.push({ prefix, message: error.message || String(error) });
+      return;
+    }
+    if (!data) return;
     for (const item of data) {
       if (!item.name) continue;
+      // Supabase uses a synthetic root marker `.emptyFolderPlaceholder`; skip it.
+      if (item.name === '.emptyFolderPlaceholder') continue;
       const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
-      if (item.id === null || item.metadata === null) {
-        // It's a folder — recurse one level
-        await listFolder(fullPath);
+      // Folder detection: Supabase returns folders with metadata === null AND
+      // id === null. Files always have a metadata object with size/mimetype.
+      const isFolder = item.metadata === null;
+      if (isFolder) {
+        await listFolder(fullPath, depth + 1);
       } else if (IMG_RE.test(item.name)) {
-        // It's an image file
         const url = b.getPublicUrl(fullPath).data.publicUrl;
         const parts = fullPath.split('/');
-        const yyyy  = parts.length >= 2 ? parts[parts.length - 3] || parts[0] : '';
-        const mm    = parts.length >= 2 ? parts[parts.length - 2] || parts[1] : '';
-        const yearMonth = (yyyy && mm && /^\d{4}$/.test(yyyy) && /^\d{2}$/.test(mm))
-          ? `${yyyy}/${mm}` : '';
+        // Extract YYYY/MM from the path, wherever the file happens to sit.
+        let yyyy = '', mm = '';
+        for (let i = 0; i < parts.length - 1; i++) {
+          if (/^\d{4}$/.test(parts[i]) && /^\d{2}$/.test(parts[i + 1])) {
+            yyyy = parts[i]; mm = parts[i + 1]; break;
+          }
+        }
+        const yearMonth = yyyy && mm ? `${yyyy}/${mm}` : '';
         results.push({
           path: fullPath,
           name: item.name,
@@ -85,13 +108,18 @@ async function loadAllImages(bucket) {
   }
 
   await listFolder('');
-  // Sort newest first: yearMonth desc, then name desc
   results.sort((a, b) => {
     if (a.yearMonth > b.yearMonth) return -1;
     if (a.yearMonth < b.yearMonth) return 1;
     return b.name.localeCompare(a.name);
   });
-  return results;
+  console.log(`[MediaLibrary] loadAllImages('${bucket}'):`, {
+    items: results.length,
+    foldersScanned,
+    errors: errors.length,
+    firstFew: results.slice(0, 3).map(r => r.path),
+  });
+  return { items: results, errors };
 }
 
 // ── Image compression ─────────────────────────────────────────────────────────
@@ -389,10 +417,19 @@ export default function MediaLibrary({ open, onClose, onSelect, onSelectMany, mu
     setLoading(true);
     setError('');
     try {
-      const imgs = await loadAllImages(bucket);
+      const { items: imgs, errors } = await loadAllImages(bucket);
       setItems(imgs);
+      if (errors && errors.length > 0) {
+        if (imgs.length === 0) {
+          const first = errors[0];
+          setError(`Could not load media library: ${first.message}${first.prefix ? ` (at "${first.prefix || '/'}")` : ''}`);
+        } else {
+          console.warn(`[MediaLibrary] Partial load: ${errors.length} folder(s) failed`, errors);
+        }
+      }
     } catch (err) {
-      setError('Could not load media library. Check Supabase storage permissions.');
+      console.error('[MediaLibrary] loadLibrary failed:', err);
+      setError(`Could not load media library: ${err?.message || 'unknown error'}`);
     }
     setLoading(false);
   }, [bucket]);
