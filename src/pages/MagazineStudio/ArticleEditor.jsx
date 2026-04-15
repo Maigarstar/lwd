@@ -3818,10 +3818,21 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
   const [aiWriterTone, setAiWriterTone] = useState('Luxury Editorial');
   const [aiWriterWordCount, setAiWriterWordCount] = useState(600);
   const [coverLibOpen, setCoverLibOpen] = useState(false);
+  // What the next MediaLibrary open should target: 'library' | 'unsplash' | 'upload'.
+  // Lets the Unsplash button jump straight to the Unsplash tab instead of making
+  // the user click Library → Unsplash.
+  const [coverLibInitialTab, setCoverLibInitialTab] = useState('library');
+  // When MediaLibrary is used for picking a gallery slide instead of the main
+  // cover image, the onSelect callback routes differently. null = cover, index
+  // number = replace that gallery slot.
+  const [coverLibMode, setCoverLibMode] = useState('cover'); // 'cover' | 'gallery'
   const [coverUploading, setCoverUploading] = useState(false);
   // Surface upload failures to the user instead of silently swallowing them.
   // Shown as a red line under the upload buttons, with the real error message.
   const [coverUploadError, setCoverUploadError] = useState('');
+  // Slider: which gallery slide is currently previewed in the sidebar. The
+  // primary coverImage is index 0; extra galleryImages start at index 1.
+  const [coverSlideIdx, setCoverSlideIdx] = useState(0);
   const aiWriterLoading = aiDraftLoading;
   const setAiWriterLoading = onAiDraftLoading;
   const aiWriterDraft = aiDraft;
@@ -4541,84 +4552,224 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
 
       {/* Featured Image */}
       <ACC id="image" title="Featured Image" icon="◻">
-        {/* Thumbnail preview */}
-        {formData.coverImage && (
-          <div style={{ position: 'relative', borderRadius: 2, overflow: 'hidden', aspectRatio: '16/9', marginBottom: 2 }}>
-            <img src={formData.coverImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            <button onClick={() => upd('coverImage', '')}
-              style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.65)', border: 'none', color: 'rgba(245,240,232,0.8)', width: 22, height: 22, borderRadius: '50%', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
-              title="Remove image">✕</button>
-          </div>
-        )}
-        {/* Upload + Library row */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          <label style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px 6px', background: coverUploading ? `${GOLD}10` : 'none', border: `1px dashed ${GOLD}50`, borderRadius: 2, cursor: coverUploading ? 'not-allowed' : 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, color: coverUploading ? `${GOLD}80` : GOLD, letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'all 0.15s' }}>
-            <input type="file" accept="image/*" style={{ display: 'none' }} disabled={coverUploading}
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                setCoverUploadError('');
-                setCoverUploading(true);
-                try {
-                  const url = await compressAndUploadImage(file);
-                  upd('coverImage', url);
-                } catch (err) {
-                  console.error('Cover upload failed', err);
-                  setCoverUploadError(err?.message || 'Upload failed — please try again.');
-                } finally {
-                  setCoverUploading(false);
-                  e.target.value = '';
+        {(() => {
+          // Slider model: slide 0 is the primary coverImage, slides 1..N are
+          // additional gallery images. The hero consumer can pick up either
+          // a single cover or cycle through all of them. galleryImages is
+          // persisted via ai_metadata.galleryImages (see magazineService).
+          const gallery = Array.isArray(formData.galleryImages) ? formData.galleryImages : [];
+          const allSlides = [formData.coverImage, ...gallery].filter(Boolean);
+          const safeIdx = Math.min(coverSlideIdx, Math.max(0, allSlides.length - 1));
+          const activeSlide = allSlides[safeIdx] || '';
+          const heroEmbed = getVideoEmbed(formData.heroVideoUrl);
+
+          // Replace a slide by index. idx 0 = coverImage, idx >= 1 = galleryImages[idx-1].
+          const replaceSlide = (idx, url) => {
+            if (idx === 0) { upd('coverImage', url); return; }
+            const next = [...gallery];
+            next[idx - 1] = url;
+            upd('galleryImages', next);
+          };
+          const removeSlide = (idx) => {
+            if (idx === 0) { upd('coverImage', ''); return; }
+            const next = gallery.filter((_, i) => i !== idx - 1);
+            upd('galleryImages', next);
+            setCoverSlideIdx(i => Math.max(0, Math.min(i, next.length)));
+          };
+          const addSlideUrl = (url) => {
+            if (!url) return;
+            if (!formData.coverImage) { upd('coverImage', url); setCoverSlideIdx(0); return; }
+            const next = [...gallery, url];
+            upd('galleryImages', next);
+            setCoverSlideIdx(next.length); // jump to the one we just added
+          };
+          const openLibraryFor = (tab, mode = 'cover') => {
+            setCoverLibInitialTab(tab);
+            setCoverLibMode(mode);
+            setCoverLibOpen(true);
+          };
+
+          return <>
+            {/* Slider preview — shows video if set, otherwise cycles through images */}
+            {(activeSlide || heroEmbed) && (
+              <div style={{ position: 'relative', borderRadius: 2, overflow: 'hidden', aspectRatio: '16/9', marginBottom: 6, background: '#000' }}>
+                {heroEmbed?.type === 'direct' ? (
+                  <video src={heroEmbed.embedUrl} autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                ) : heroEmbed ? (
+                  <iframe src={heroEmbed.embedUrl} allow="autoplay; encrypted-media" style={{ width: '100%', height: '100%', border: 'none', display: 'block', pointerEvents: 'none' }} title="Hero video preview" />
+                ) : (
+                  <img src={activeSlide} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                )}
+
+                {/* Video badge so the user knows which medium is live */}
+                {heroEmbed && (
+                  <div style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(0,0,0,0.6)', color: GOLD, fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '3px 6px', borderRadius: 2 }}>
+                    ▶ {heroEmbed.type === 'youtube' ? 'YouTube' : heroEmbed.type === 'vimeo' ? 'Vimeo' : 'Video'}
+                  </div>
+                )}
+
+                {/* Slider prev/next buttons — only when multiple image slides exist and no video */}
+                {!heroEmbed && allSlides.length > 1 && (
+                  <>
+                    <button onClick={() => setCoverSlideIdx(i => (i - 1 + allSlides.length) % allSlides.length)}
+                      style={{ position: 'absolute', top: '50%', left: 6, transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.55)', border: 'none', color: 'rgba(245,240,232,0.85)', width: 24, height: 24, borderRadius: '50%', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+                      title="Previous slide">‹</button>
+                    <button onClick={() => setCoverSlideIdx(i => (i + 1) % allSlides.length)}
+                      style={{ position: 'absolute', top: '50%', right: 6, transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.55)', border: 'none', color: 'rgba(245,240,232,0.85)', width: 24, height: 24, borderRadius: '50%', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+                      title="Next slide">›</button>
+                    {/* Dots */}
+                    <div style={{ position: 'absolute', bottom: 6, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 4 }}>
+                      {allSlides.map((_, i) => (
+                        <button key={i} onClick={() => setCoverSlideIdx(i)}
+                          style={{ width: 6, height: 6, borderRadius: '50%', background: i === safeIdx ? GOLD : 'rgba(245,240,232,0.35)', border: 'none', padding: 0, cursor: 'pointer' }}
+                          title={`Slide ${i + 1}`} />
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Remove current slide */}
+                {!heroEmbed && activeSlide && (
+                  <button onClick={() => removeSlide(safeIdx)}
+                    style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.65)', border: 'none', color: 'rgba(245,240,232,0.8)', width: 22, height: 22, borderRadius: '50%', cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+                    title={safeIdx === 0 ? 'Remove cover image' : 'Remove this slide'}>✕</button>
+                )}
+              </div>
+            )}
+
+            {/* Thumbnails strip when gallery has multiple slides */}
+            {allSlides.length > 1 && !heroEmbed && (
+              <div style={{ display: 'flex', gap: 4, marginBottom: 6, flexWrap: 'wrap' }}>
+                {allSlides.map((u, i) => (
+                  <button key={i} onClick={() => setCoverSlideIdx(i)}
+                    style={{ width: 44, height: 30, padding: 0, border: `1px solid ${i === safeIdx ? GOLD : S.border}`, borderRadius: 2, background: 'none', cursor: 'pointer', overflow: 'hidden', flexShrink: 0 }}
+                    title={i === 0 ? 'Main cover' : `Slide ${i + 1}`}>
+                    <img src={u} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Upload / Library / Unsplash row — primary actions */}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <label style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px 6px', background: coverUploading ? `${GOLD}10` : 'none', border: `1px dashed ${GOLD}50`, borderRadius: 2, cursor: coverUploading ? 'not-allowed' : 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, color: coverUploading ? `${GOLD}80` : GOLD, letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'all 0.15s' }}>
+                <input type="file" accept="image/*" style={{ display: 'none' }} disabled={coverUploading}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setCoverUploadError('');
+                    setCoverUploading(true);
+                    try {
+                      const url = await compressAndUploadImage(file);
+                      addSlideUrl(url);
+                    } catch (err) {
+                      console.error('Cover upload failed', err);
+                      setCoverUploadError(err?.message || 'Upload failed — please try again.');
+                    } finally {
+                      setCoverUploading(false);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+                {coverUploading ? '↑ Uploading…' : '↑ Upload'}
+              </label>
+              <button onClick={() => openLibraryFor('library')}
+                style={{ flex: 1, padding: '8px 6px', background: 'none', border: `1px solid ${S.border}`, borderRadius: 2, cursor: 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, color: S.muted, letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}50`; e.currentTarget.style.color = GOLD; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.color = S.muted; }}>
+                ◻ Library
+              </button>
+              <button onClick={() => openLibraryFor('unsplash')}
+                style={{ flex: 1, padding: '8px 6px', background: 'none', border: `1px solid ${S.border}`, borderRadius: 2, cursor: 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, color: S.muted, letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}50`; e.currentTarget.style.color = GOLD; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.color = S.muted; }}
+                title="Browse Unsplash (free editorial photos)">
+                ✦ Unsplash
+              </button>
+            </div>
+
+            {/* Add-another-slide row — only surfaces once the cover exists */}
+            {formData.coverImage && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <button onClick={() => openLibraryFor('library', 'gallery-add')}
+                  style={{ flex: 1, padding: '6px 8px', background: 'none', border: `1px dashed ${S.border}`, borderRadius: 2, cursor: 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, color: S.muted, letterSpacing: '0.1em', textTransform: 'uppercase' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}50`; e.currentTarget.style.color = GOLD; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.color = S.muted; }}>
+                  + Add slide
+                </button>
+                <button onClick={() => openLibraryFor('unsplash', 'gallery-add')}
+                  style={{ flex: 1, padding: '6px 8px', background: 'none', border: `1px dashed ${S.border}`, borderRadius: 2, cursor: 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, color: S.muted, letterSpacing: '0.1em', textTransform: 'uppercase' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}50`; e.currentTarget.style.color = GOLD; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.color = S.muted; }}>
+                  + Unsplash slide
+                </button>
+              </div>
+            )}
+
+            {/* Upload error — shown in place, never swallowed silently */}
+            {coverUploadError && (
+              <div style={{
+                fontFamily: FU, fontSize: 10, fontWeight: 500,
+                color: '#e05555',
+                background: 'rgba(224,85,85,0.06)',
+                border: '1px solid rgba(224,85,85,0.25)',
+                borderRadius: 2,
+                padding: '8px 10px',
+                marginTop: -2,
+                lineHeight: 1.4,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 6,
+              }}>
+                <span style={{ flexShrink: 0, marginTop: 1 }}>⚠</span>
+                <span style={{ flex: 1, wordBreak: 'break-word' }}>{coverUploadError}</span>
+                <button onClick={() => setCoverUploadError('')}
+                  style={{ background: 'none', border: 'none', color: '#e05555', cursor: 'pointer', fontSize: 11, lineHeight: 1, padding: 0, opacity: 0.7, flexShrink: 0 }}>
+                  ✕
+                </button>
+              </div>
+            )}
+            {/* URL fallback */}
+            <div>
+              <Lbl>Or paste URL</Lbl>
+              <FI value={formData.coverImage} onChange={v => upd('coverImage', v)} placeholder="https://…" />
+            </div>
+
+            {/* Video URL — YouTube, Vimeo, or direct .mp4. Takes priority over
+                image in the hero if set. */}
+            <div>
+              <Lbl right="YouTube / Vimeo / mp4">Hero Video</Lbl>
+              <HeroVideoInput value={formData.heroVideoUrl} onChange={v => upd('heroVideoUrl', v)} />
+            </div>
+
+            <div>
+              <Lbl>Alt Text</Lbl>
+              <FI value={formData.coverImageAlt} onChange={v => upd('coverImageAlt', v)} placeholder="Describe the image…" />
+            </div>
+            <div>
+              <Lbl>Hero Style</Lbl>
+              <select value={formData.heroStyle || 'editorial'} onChange={e => upd('heroStyle', e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
+                {[['editorial','Editorial'],['split','Split'],['cinematic','Cinematic'],['minimal','Minimal'],['banner','Banner']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+            <MediaLibrary
+              open={coverLibOpen}
+              initialTab={coverLibInitialTab}
+              onClose={() => setCoverLibOpen(false)}
+              onSelect={img => {
+                if (coverLibMode === 'gallery-add') {
+                  addSlideUrl(img.url);
+                } else if (coverLibMode === 'cover' || coverLibMode === 'library') {
+                  upd('coverImage', img.url);
+                } else {
+                  addSlideUrl(img.url);
                 }
+                setCoverLibOpen(false);
+                setCoverLibMode('cover');
               }}
             />
-            {coverUploading ? '↑ Uploading…' : '↑ Upload'}
-          </label>
-          <button onClick={() => setCoverLibOpen(true)}
-            style={{ flex: 1, padding: '8px 6px', background: 'none', border: `1px solid ${S.border}`, borderRadius: 2, cursor: 'pointer', fontFamily: FU, fontSize: 9, fontWeight: 600, color: S.muted, letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = `${GOLD}50`; e.currentTarget.style.color = GOLD; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.color = S.muted; }}>
-            ◻ Library
-          </button>
-        </div>
-        {/* Upload error — shown in place, never swallowed silently */}
-        {coverUploadError && (
-          <div style={{
-            fontFamily: FU, fontSize: 10, fontWeight: 500,
-            color: '#e05555',
-            background: 'rgba(224,85,85,0.06)',
-            border: '1px solid rgba(224,85,85,0.25)',
-            borderRadius: 2,
-            padding: '8px 10px',
-            marginTop: -2,
-            lineHeight: 1.4,
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 6,
-          }}>
-            <span style={{ flexShrink: 0, marginTop: 1 }}>⚠</span>
-            <span style={{ flex: 1, wordBreak: 'break-word' }}>{coverUploadError}</span>
-            <button onClick={() => setCoverUploadError('')}
-              style={{ background: 'none', border: 'none', color: '#e05555', cursor: 'pointer', fontSize: 11, lineHeight: 1, padding: 0, opacity: 0.7, flexShrink: 0 }}>
-              ✕
-            </button>
-          </div>
-        )}
-        {/* URL fallback */}
-        <div>
-          <Lbl>Or paste URL</Lbl>
-          <FI value={formData.coverImage} onChange={v => upd('coverImage', v)} placeholder="https://…" />
-        </div>
-        <div>
-          <Lbl>Alt Text</Lbl>
-          <FI value={formData.coverImageAlt} onChange={v => upd('coverImageAlt', v)} placeholder="Describe the image…" />
-        </div>
-        <div>
-          <Lbl>Hero Style</Lbl>
-          <select value={formData.heroStyle || 'editorial'} onChange={e => upd('heroStyle', e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
-            {[['editorial','Editorial'],['split','Split'],['cinematic','Cinematic'],['minimal','Minimal'],['banner','Banner']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-        </div>
-        <MediaLibrary open={coverLibOpen} onClose={() => setCoverLibOpen(false)} onSelect={img => { upd('coverImage', img.url); setCoverLibOpen(false); }} />
+          </>;
+        })()}
       </ACC>
 
       {/* Typography */}

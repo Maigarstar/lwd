@@ -112,8 +112,10 @@ const POST_FIELD_MAP = {
 };
 
 // Keys NOT written to magazine_posts (stored elsewhere or derived)
+// `galleryImages` lives inside ai_metadata.galleryImages, not as a top-level
+// column — see mapPostToDb/mapPostFromDb below.
 const POST_EXCLUDED_KEYS = new Set(['content', '_lastEdited', 'date', 'category',
-  'coverImageFocal', 'relatedPosts', 'heroTextAlign']);
+  'coverImageFocal', 'relatedPosts', 'heroTextAlign', 'galleryImages']);
 
 function mapPostToDb(formData) {
   const row = {};
@@ -126,6 +128,15 @@ function mapPostToDb(formData) {
   // Normalise author: editor stores it as `author` (object), DB wants author_data
   if (formData.author && !row.author_data) {
     row.author_data = formData.author;
+  }
+  // Piggyback galleryImages onto ai_metadata jsonb so the slider persists without
+  // a schema migration. When the caller explicitly sets formData.galleryImages we
+  // merge it into whatever ai_metadata we were already about to write, preserving
+  // other keys (aiOutline etc). An empty array is still written so the user can
+  // clear a gallery.
+  if (Array.isArray(formData.galleryImages)) {
+    const base = (row.ai_metadata && typeof row.ai_metadata === 'object') ? row.ai_metadata : {};
+    row.ai_metadata = { ...base, galleryImages: formData.galleryImages };
   }
   // Ensure published_at is set when publishing
   if (row.published && !row.published_at) {
@@ -141,6 +152,13 @@ function mapPostFromDb(row) {
   c.content     = [];    // blocks fetched separately, merged by fetchPostBySlug
   c.readingTime = c.readingTime ?? 5;
   c.tags        = c.tags ?? [];
+  // Lift ai_metadata.galleryImages → formData.galleryImages so the editor's
+  // slider can read it directly without knowing about the piggyback.
+  if (c.aiMetadata && typeof c.aiMetadata === 'object' && Array.isArray(c.aiMetadata.galleryImages)) {
+    c.galleryImages = c.aiMetadata.galleryImages;
+  } else {
+    c.galleryImages = [];
+  }
   return c;
 }
 

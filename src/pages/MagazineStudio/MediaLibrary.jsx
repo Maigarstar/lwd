@@ -370,8 +370,8 @@ function UnsplashPanel({ onSelect, multiple, selected, onToggle }) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function MediaLibrary({ open, onClose, onSelect, onSelectMany, multiple = false, preSelected = [], bucket = DEFAULT_BUCKET }) {
-  const [tab, setTab]           = useState('library'); // 'library' | 'unsplash' | 'upload'
+export default function MediaLibrary({ open, onClose, onSelect, onSelectMany, multiple = false, preSelected = [], bucket = DEFAULT_BUCKET, initialTab = 'library' }) {
+  const [tab, setTab]           = useState(initialTab); // 'library' | 'unsplash' | 'upload'
   const [items, setItems]       = useState([]);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
@@ -398,8 +398,8 @@ export default function MediaLibrary({ open, onClose, onSelect, onSelectMany, mu
   }, [bucket]);
 
   useEffect(() => {
-    if (open) { loadLibrary(); setSelected([]); setActiveItem(null); setSearch(''); setDateFilter('all'); setTab('library'); }
-  }, [open, loadLibrary]);
+    if (open) { loadLibrary(); setSelected([]); setActiveItem(null); setSearch(''); setDateFilter('all'); setTab(initialTab); }
+  }, [open, loadLibrary, initialTab]);
 
   // Pre-seed selection
   useEffect(() => {
