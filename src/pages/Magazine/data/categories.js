@@ -1,4 +1,18 @@
+// The default category every new article falls into if the author doesn't
+// pick one. Matches WordPress's "Default Post Category" pattern — Editorial
+// is guaranteed to exist so save can silently reapply it when needed.
+export const DEFAULT_CATEGORY_ID    = 'editorial';
+export const DEFAULT_CATEGORY_LABEL = 'Editorial';
+
 export const CATEGORIES = [
+  {
+    id: 'editorial',
+    label: 'Editorial',
+    description: 'Longform features, opinion, and the editorial voice of Luxury Wedding Directory.',
+    heroImage: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1920&q=85',
+    accentColor: '#c9a96e',
+    defaultCardStyle: 'editorial',
+  },
   {
     id: 'destinations',
     label: 'Destinations',

@@ -206,6 +206,12 @@ export async function fetchPostBySlug(slug) {
  */
 export async function savePost(formData) {
   if (!isSupabaseAvailable()) return { data: null, error: new Error('Supabase not configured') };
+  // Per-step timing. When a save hangs past the editor's 20s ceiling, the
+  // console shows exactly which Supabase round-trip was slow (slug lookup,
+  // slug resolve, upsert, blocks read, blocks delete, blocks insert). Cheap
+  // — one label per step, 0 cost on happy path.
+  const t0 = performance.now();
+  const mark = (label) => console.log(`[magazineService.savePost] ${label} +${Math.round(performance.now() - t0)}ms`);
   try {
     // Detect whether the incoming ID is a real DB UUID
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -215,17 +221,21 @@ export async function savePost(formData) {
     // with this slug — if so, update it instead of inserting a duplicate each session
     let existingDbId = null;
     if (!isDbId && formData.slug) {
+      mark('slug-lookup start');
       const { data: existing } = await supabase
         .from('magazine_posts').select('id').eq('slug', formData.slug).maybeSingle();
+      mark('slug-lookup end');
       if (existing?.id) { existingDbId = existing.id; isDbId = true; }
     }
     const effectiveId = isDbId ? (existingDbId || formData.id) : null;
 
     // 1. Resolve slug collisions
+    mark('resolveSlug start');
     const { slug: resolvedSlug, changed: slugChanged } = await resolveSlug(
       formData.slug || slugify(formData.title || 'untitled'),
       effectiveId
     );
+    mark('resolveSlug end');
 
     // 2. Build DB row
     const row = mapPostToDb({ ...formData, slug: resolvedSlug });
@@ -238,33 +248,41 @@ export async function savePost(formData) {
     let savedPost;
     if (isDbId) {
       // Update existing (real UUID or found-by-slug)
+      mark('update start');
       const { data, error } = await supabase
         .from('magazine_posts')
         .update(row)
         .eq('id', effectiveId)
         .select()
         .single();
+      mark('update end');
       if (error) throw error;
       savedPost = data;
     } else {
       // Insert new
+      mark('insert start');
       const { data, error } = await supabase
         .from('magazine_posts')
         .insert([row])
         .select()
         .single();
+      mark('insert end');
       if (error) throw error;
       savedPost = data;
     }
 
     // 4. Replace blocks — atomic two-phase: backup existing, delete, insert new with restore on failure
+    mark('blocks-read start');
     const { data: existingBlocks } = await supabase
       .from('magazine_blocks')
       .select('*')
       .eq('post_id', savedPost.id)
       .order('block_order', { ascending: true });
+    mark('blocks-read end');
 
+    mark('blocks-delete start');
     const { error: deleteErr } = await supabase.from('magazine_blocks').delete().eq('post_id', savedPost.id);
+    mark('blocks-delete end');
     if (deleteErr && formData.content && formData.content.length > 0) {
       // Can't proceed with block replacement if delete failed
       throw deleteErr;
@@ -282,7 +300,9 @@ export async function savePost(formData) {
           block_content: blockContent,
         };
       });
+      mark('blocks-insert start');
       const { error: blocksErr } = await supabase.from('magazine_blocks').insert(blockRows);
+      mark('blocks-insert end');
       if (blocksErr) {
         console.error('[magazineService] Block insert failed, attempting restore:', blocksErr);
         // Restore backup to prevent data loss
@@ -316,6 +336,7 @@ export async function savePost(formData) {
       blocksPersisted = true; // Empty content is valid
     }
 
+    mark('done');
     const result = mapPostFromDb(savedPost);
     result.content = formData.content || [];
     return {
@@ -327,6 +348,7 @@ export async function savePost(formData) {
       blocksPersisted // Client can verify blocks were saved successfully
     };
   } catch (err) {
+    mark(`threw: ${err?.message || err}`);
     console.error('[magazineService] savePost:', err);
     return { data: null, error: err, slugChanged: false, resolvedSlug: formData.slug };
   }

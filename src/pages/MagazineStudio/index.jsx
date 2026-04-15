@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { POSTS } from '../Magazine/data/posts';
-import { CATEGORIES } from '../Magazine/data/categories';
+import { CATEGORIES, DEFAULT_CATEGORY_ID, DEFAULT_CATEGORY_LABEL } from '../Magazine/data/categories';
 import { computeContentIntelligence } from './ContentIntelligence';
 import {
   getS, themeVars, FU, FD,
@@ -848,9 +848,14 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome, slu
   useEffect(() => {
     fetchCategories().then(({ data, error }) => {
       if (!error && data && data.length > 0) {
-        // DB categories win; static fills gaps
+        // DB categories win; static fills gaps. We tag static-only fallback
+        // rows with _isStaticOnly so the default-category resolver can avoid
+        // picking a category that doesn't exist in the DB (which would fail
+        // the magazine_posts_category_slug_fkey constraint on insert).
         const dbIds = new Set(data.map(c => c.id));
-        const staticOnly = CATEGORIES.filter(c => !dbIds.has(c.id));
+        const staticOnly = CATEGORIES
+          .filter(c => !dbIds.has(c.id))
+          .map(c => ({ ...c, _isStaticOnly: true }));
         setAllCategories([...data, ...staticOnly]);
       }
     });
@@ -906,15 +911,49 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome, slu
     }
   };
 
+  // Resolve the effective default category from the runtime list.
+  //
+  // Must only return a category that actually exists in the DB, otherwise the
+  // magazine_posts.category_slug FK constraint will reject the insert. We
+  // filter out any _isStaticOnly entries (frontend-only fallbacks added by the
+  // fetchCategories merge) so the resolver never picks a category that isn't
+  // in magazine_categories.
+  //
+  // Two shapes to handle:
+  //   - DB rows (from magazine_categories):   { id: <UUID>, slug: 'editorial', name: 'Editorial' }
+  //   - Static fallback rows (CATEGORIES[]):  { id: 'editorial',               label: 'Editorial' }
+  //
+  // The FK magazine_posts.category_slug points at magazine_categories.slug, so
+  // the `id` we return here (which becomes newPost.categorySlug) MUST be the
+  // slug, never a UUID. Use slugOf/labelOf helpers to normalise both shapes.
+  //
+  // Resolution order:
+  //   1. Editorial, if it exists in the DB (the ideal default)
+  //   2. First DB-backed category (safe fallback before the migration lands)
+  //   3. First category in the full list (only if no DB categories loaded yet)
+  //   4. Hardcoded constant (absolute last resort)
+  const resolveDefaultCategory = useCallback(() => {
+    const slugOf  = c => c?.slug  || c?.id    || null;
+    const labelOf = c => c?.name  || c?.label || '';
+    const dbBacked  = allCategories.filter(c => !c._isStaticOnly);
+    const preferred = dbBacked.find(c => slugOf(c) === DEFAULT_CATEGORY_ID);
+    const chosen    = preferred || dbBacked[0] || allCategories[0] || null;
+    if (!chosen) {
+      return { id: DEFAULT_CATEGORY_ID, label: DEFAULT_CATEGORY_LABEL };
+    }
+    return { id: slugOf(chosen), label: labelOf(chosen) };
+  }, [allCategories]);
+
   const handleNewArticle = async () => {
     const tempId = uid();
+    const def    = resolveDefaultCategory();
     const newPost = {
       id: tempId,
       slug: slugify('new-article-' + Date.now()),
       title: 'New Article',
-      category: 'destinations',
-      categorySlug: 'destinations',
-      categoryLabel: 'Destinations',
+      category: def.id,
+      categorySlug: def.id,
+      categoryLabel: def.label,
       content: [],
       published: false,
       featured: false,
@@ -941,13 +980,51 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome, slu
     setSaving(true);
 
     try {
+      // ── Fallback-article gate ─────────────────────────────────────────────
+      // If the parent's persist-template effect is currently converting a
+      // static fallback into a real DB row, *do not* race it with a second
+      // write. Wait for it to finish; the resolved real id is then adopted
+      // as the id for this save. This eliminates the concurrent-write class
+      // of failures that were showing up as 20-second timeouts on the
+      // Save button.
+      const pending = persistTemplatePromiseRef.current;
+      if (pending) {
+        try {
+          const { savedId, error: persistErr } = await pending.promise;
+          if (persistErr || !savedId) {
+            return { error: 'Template could not be prepared. Please retry.' };
+          }
+          // Adopt the real id so savePost takes the direct UPDATE path
+          // instead of re-doing the slug lookup.
+          updated = { ...updated, id: savedId };
+        } catch (e) {
+          return { error: e?.message || 'Template preparation failed' };
+        }
+      }
+
+      // ── WordPress-style default category fallback ─────────────────────────
+      // Save must never fail because category is empty. If either category or
+      // categorySlug is missing, silently reapply the default ("Editorial") so
+      // the DB always receives a valid row. This runs BEFORE conflict checks
+      // and BEFORE the save payload is constructed.
+      if (!updated.category || !updated.categorySlug) {
+        const def = resolveDefaultCategory();
+        updated = {
+          ...updated,
+          category:      updated.category      || def.id,
+          categorySlug:  updated.categorySlug  || def.id,
+          categoryLabel: updated.categoryLabel || def.label,
+        };
+        console.log('[ArticleEditor] Default category applied silently:', def);
+      }
+
       // Check for concurrency conflicts if this is an existing DB post
       if (updated.id && /^[0-9a-f]{8}-/.test(updated.id)) {
         const { hasConflict, dbPost } = await checkForConflict(updated.id, updated.updatedAt);
         if (hasConflict && dbPost) {
           setConflictState({ post: dbPost });
           setPendingOverwrite(updated);
-          return null;
+          return { error: 'Another session updated this article. Reload or overwrite via the conflict dialog.' };
         }
       }
 
@@ -959,30 +1036,75 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome, slu
         contentScoreBreakdown: intel.breakdown,
         contentScoreUpdatedAt: new Date().toISOString(),
       };
-      const { data: saved, error, slugChanged, resolvedSlug } = await savePostSafe(withScore);
+      // TEMP DIAGNOSTIC: log the payload we're about to send so we can see
+      // what changed when a save fails. Safe to remove once the pipeline is
+      // proven stable.
+      console.log('[ArticleEditor] SAVE PAYLOAD', {
+        id: withScore.id,
+        slug: withScore.slug,
+        title: withScore.title,
+        category: withScore.category,
+        categorySlug: withScore.categorySlug,
+        published: withScore.published,
+        coverImage: withScore.coverImage,
+        coverImageLength: (withScore.coverImage || '').length,
+        updatedAt: withScore.updatedAt,
+        contentBlocks: (withScore.content || []).length,
+      });
+
+      const result = await savePostSafe(withScore);
+      console.log('[ArticleEditor] SAVE RESULT', result);
+      const { data: saved, error, slugChanged, resolvedSlug, blocksPersisted } = result;
+
+      // Validate save result — both data AND blocks must persist.
+      // Return { error: <message> } so the editor's save() can surface the
+      // real reason in the red pill tooltip instead of a generic message.
       if (error) {
-        showToast('Save failed, ' + (error.message || 'unknown error'), 'error');
-        return null;
+        const msg = error.message || 'unknown error';
+        showToast('Save failed, ' + msg, 'error');
+        console.error('[ArticleEditor] Save failed:', error);
+        return { error: msg };
       }
+
+      if (!saved) {
+        const msg = 'No data returned from save';
+        showToast('Save failed: ' + msg, 'error');
+        console.error('[ArticleEditor] Save returned null despite no error');
+        return { error: msg };
+      }
+
+      // Critical: verify blocks persisted if article has content
+      if (updated.content && updated.content.length > 0 && !blocksPersisted) {
+        const msg = 'Article header saved but content blocks were lost. Manual recovery needed.';
+        showToast('⚠ Save failed: ' + msg, 'error');
+        console.error('[ArticleEditor] Content blocks failed to persist', { articleId: saved.id, blockCount: updated.content.length });
+        return { error: msg };
+      }
+
       if (saved) {
         setLocalPosts(prev =>
           prev.map(p => p.id === updated.id
-            ? { ...saved, content: updated.content, _lastEdited: new Date().toISOString() }
+            ? { ...saved, content: updated.content, _lastEdited: saved.updatedAt || new Date().toISOString() }
             : p)
         );
         if (saved.id !== updated.id) {
           setModeAndId('article-edit', saved.id);
         }
       }
+
       if (slugChanged) {
         showToast(`Slug auto-adjusted to "${resolvedSlug}" (collision)`, 'warn');
       }
-      return saved ? { savedId: saved.id, slug: resolvedSlug } : null;
+
+      // Only return success if everything persisted
+      return (saved && (!updated.content?.length || blocksPersisted))
+        ? { savedId: saved.id, slug: resolvedSlug, updatedAt: saved.updatedAt }
+        : null;
     } finally {
       savingRef.current = false;
       setSaving(false);
     }
-  }, [showToast, checkForConflict]);
+  }, [showToast, checkForConflict, resolveDefaultCategory]);
 
   // Conflict dialog: user chooses to reload latest DB version
   const handleReloadConflict = () => {
@@ -990,7 +1112,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome, slu
       // Reload the post from DB and update localPosts
       setLocalPosts(prev =>
         prev.map(p => p.id === conflictState.post.id
-          ? { ...p, updatedAt: conflictState.post.updatedAt, _lastEdited: conflictState.post.updatedAt }
+          ? { ...p, ...conflictState.post, updatedAt: conflictState.post.updatedAt, _lastEdited: conflictState.post.updatedAt }
           : p)
       );
       showToast('Article reloaded from database', 'ok');
@@ -1020,7 +1142,7 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome, slu
       } else if (saved) {
         setLocalPosts(prev =>
           prev.map(p => p.id === pendingOverwrite.id
-            ? { ...saved, content: pendingOverwrite.content, _lastEdited: new Date().toISOString() }
+            ? { ...saved, content: pendingOverwrite.content, _lastEdited: saved.updatedAt || new Date().toISOString() }
             : p)
         );
         showToast('Changes saved (overwrote concurrent edit)', 'ok');
@@ -1105,27 +1227,77 @@ export default function MagazineStudio({ onNavigateMagazine, onNavigateHome, slu
 
   // Safety: if article-edit but post not found (e.g. was a new unsaved article), fall back to list
   // Wait for DB to load first — otherwise DB-only posts aren't in localPosts yet
+  //
+  // persistTemplatePromiseRef holds the in-flight promise of a template →
+  // real-DB-row conversion, keyed by the fallback slug that's being persisted.
+  // It's a promise, not a boolean, so handleSavePost can *await* it — which
+  // is how we stop the user's Save button from racing the parent's background
+  // persist effect and hitting Supabase with two concurrent writes to the
+  // same row (the likely source of the 20s timeouts).
+  //   shape: { slug: string, promise: Promise<{ savedId, error }> } | null
+  const persistTemplatePromiseRef = useRef(null);
   useEffect(() => {
     if (!dbLoaded || mode !== 'article-edit') return;
 
     if (!editingPost) {
-      // Defer redirect to avoid setState-during-render error when ArticleEditor is unmounting
+      // Stale editingId in sessionStorage (e.g. article was deleted) — clean up and bounce.
+      // Defer to avoid setState-during-render when ArticleEditor is unmounting.
       setTimeout(() => {
         setModeAndId('article-list', null);
       }, 0);
       return;
     }
 
-    // Check if we're loading a static fallback post (was deleted or never saved to DB)
-    if (editingPost._isStaticFallback) {
-      setSaveToast({
-        msg: 'This article doesn\'t exist in the database. It has been reset to the template.',
-        type: 'warn',
+    // Static fallback: the slug lives in the hardcoded POSTS seed array but has never
+    // been persisted to Supabase. Previously this showed a hostile banner and kicked
+    // the user back to the list. Now: silently persist the template as a fresh DB row,
+    // then swap the editing target to the saved row. The user's click "just works".
+    //
+    // The promise is stored on persistTemplatePromiseRef so handleSavePost
+    // can await it before making its own write — otherwise the user's Save
+    // click and this effect race and both hit Supabase with their own INSERT
+    // against the same slug.
+    if (editingPost._isStaticFallback && !persistTemplatePromiseRef.current) {
+      // Strip the fallback flag and generate a fresh id so savePost treats this as new.
+      // eslint-disable-next-line no-unused-vars
+      const { _isStaticFallback, _lastEdited, id: _oldId, ...templateBody } = editingPost;
+      const draft = {
+        ...templateBody,
+        id: uid(),
+        published: false,
+        _lastEdited: new Date().toISOString(),
+      };
+      const persistPromise = (async () => {
+        const { data: saved, error } = await savePostSafe(draft);
+        if (error || !saved) {
+          setSaveToast({
+            msg: 'Could not create a draft from this template.',
+            type: 'error',
+          });
+          setTimeout(() => setSaveToast(null), 4000);
+          setModeAndId('article-list', null);
+          return { savedId: null, error: error || new Error('No data from savePost') };
+        }
+        // Replace the fallback entry with the real DB row and retarget the editor.
+        setLocalPosts(prev => {
+          const withoutFallback = prev.filter(p => !(p._isStaticFallback && p.slug === saved.slug));
+          return [{ ...saved, _lastEdited: saved.updatedAt || new Date().toISOString() }, ...withoutFallback];
+        });
+        setModeAndId('article-edit', saved.id);
+        return { savedId: saved.id, saved, error: null };
+      })();
+      persistTemplatePromiseRef.current = { slug: editingPost.slug, promise: persistPromise };
+      // Release the ref once the promise settles so a later template open can
+      // re-run the effect. We don't clear it inside the async block because
+      // setModeAndId above re-triggers this effect with the NEW id and we
+      // want the guard to still be true during that re-entry.
+      persistPromise.finally(() => {
+        // Only clear if the slot still points at THIS promise — otherwise a
+        // later persist for a different template would be clobbered.
+        if (persistTemplatePromiseRef.current?.promise === persistPromise) {
+          persistTemplatePromiseRef.current = null;
+        }
       });
-      // Clear the toast after 4 seconds and redirect to list
-      setTimeout(() => {
-        setModeAndId('article-list', null);
-      }, 4000);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, editingPost, dbLoaded]);

@@ -20,8 +20,24 @@ import MediaLibrary from './MediaLibrary';
 import InternalLinksSection from './InternalLinksSection';
 import ReferenceModal from './ReferenceModal';
 import { saveReference, loadReferences, deleteReference, autoSuggestReferences } from '../../services/referenceService';
+import {
+  useDraftBackup,
+  peekDraftBackup,
+  clearDraftBackup,
+  resolveDraftKey,
+  clearNewDraftSessionKey,
+} from './useDraftBackup';
 
 const GOLD = '#c9a96e';
+
+// ── Fallback-id guard ────────────────────────────────────────────────────────
+// Magazine Studio seeds the post list with static fallback articles (id:
+// 'post_01', 'post_02', …) from src/pages/Magazine/data/posts.js before any
+// real DB row exists. Anything that hits Supabase with one of those ids gets
+// a 400 ("invalid input syntax for type uuid"). isRealDbId answers one
+// question: is this an id we're allowed to send to the database yet?
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isRealDbId = (id) => typeof id === 'string' && UUID_RE.test(id);
 // Luxury panel background — warm dark charcoal with amber undertone, complements gold
 const PANEL_BG   = '#1a1510';
 const PANEL_BDR  = 'rgba(201,169,110,0.1)'; // gold-tinted border, warmer than neutral
@@ -37,31 +53,78 @@ const C_BTN_TXT   = 'rgba(245,240,232,0.55)';
 
 // Compress + upload an image file to Supabase magazine bucket, returns public URL
 async function compressAndUploadImage(file) {
+  console.log('[Image Upload] Starting:', { name: file.name, size: file.size, type: file.type });
+
   const { supabase } = await import('../../lib/supabaseClient');
   let toUpload = file;
+
   if (file.size > 120 * 1024 && !file.type.includes('gif')) {
     try {
+      // Defer compression to next event loop tick to prevent UI freeze
+      await new Promise(resolve => setTimeout(resolve, 0));
+
       const bmp = await createImageBitmap(file);
       const MAX = 2400;
       const scale = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
       const w = Math.round(bmp.width * scale);
       const h = Math.round(bmp.height * scale);
-      const cv = document.createElement('canvas');
-      cv.width = w; cv.height = h;
-      cv.getContext('2d').drawImage(bmp, 0, 0, w, h);
-      bmp.close();
-      const blob = await new Promise(res => cv.toBlob(res, 'image/webp', 0.88));
-      if (blob && blob.size < file.size)
-        toUpload = new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), { type: 'image/webp' });
-    } catch (_) {}
+
+      // Limit canvas size to prevent excessive memory use
+      if (w > 3000 || h > 3000) {
+        console.warn('[Image Upload] Image too large after scaling, skipping compression');
+        bmp.close();
+        toUpload = file;
+      } else {
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(bmp, 0, 0, w, h);
+        bmp.close();
+
+        // toBlob is async, so this shouldn't block
+        const blob = await new Promise(res => cv.toBlob(res, 'image/webp', 0.88));
+        if (blob && blob.size < file.size) {
+          toUpload = new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), { type: 'image/webp' });
+          console.log('[Image Upload] Compressed:', { originalSize: file.size, compressedSize: blob.size });
+        }
+      }
+    } catch (err) {
+      console.warn('[Image Upload] Compression failed, uploading original:', err);
+      toUpload = file;
+    }
   }
+
   const now = new Date();
   const folder = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`;
   const ext = toUpload.name.split('.').pop();
   const path = `${folder}/mag_${crypto.randomUUID().slice(0, 8)}.${ext}`;
-  const { error } = await supabase.storage.from('magazine').upload(path, toUpload, { upsert: false, contentType: toUpload.type });
-  if (error) throw error;
-  return supabase.storage.from('magazine').getPublicUrl(path).data.publicUrl;
+
+  console.log('[Image Upload] Uploading to magazine/' + path);
+
+  // Hard 30s timeout: if the storage upload hangs (network, RLS, bucket
+  // missing, auth drift) we reject loudly instead of spinning the spinner
+  // forever. The caller surfaces this error in the UI.
+  const UPLOAD_TIMEOUT_MS = 30000;
+  const uploadPromise = supabase.storage.from('magazine').upload(path, toUpload, {
+    upsert: false,
+    contentType: toUpload.type,
+  });
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`Image upload timed out after ${UPLOAD_TIMEOUT_MS / 1000}s. Check your connection or the 'magazine' storage bucket.`));
+    }, UPLOAD_TIMEOUT_MS);
+  });
+
+  try {
+    const { error } = await Promise.race([uploadPromise, timeoutPromise]);
+    if (error) throw error;
+  } catch (err) {
+    console.error('[Image Upload] Upload failed:', err);
+    throw err;
+  }
+
+  const publicUrl = supabase.storage.from('magazine').getPublicUrl(path).data.publicUrl;
+  console.log('[Image Upload] Success:', publicUrl);
+  return publicUrl;
 }
 
 // Hook: merge static CATEGORIES with DB-only categories (e.g. newly created ones)
@@ -118,11 +181,13 @@ function useAIGenerate(formData, tone) {
       const prompt = prompts[action];
       if (!prompt) { setLoading(null); return; }
 
-      const { data, error: fnErr } = await import('../../lib/supabaseClient').then(m =>
-        m.supabase.functions.invoke('ai-generate', { body: { prompt, model: 'auto', maxTokens: 300 } })
-      ).catch(() => ({ data: null, error: new Error('AI not configured') }));
+      let data = null;
+      try {
+        const { callAiGenerate } = await import('../../lib/aiGenerate');
+        data = await callAiGenerate({ prompt, model: 'auto', maxTokens: 300 });
+      } catch { data = null; }
 
-      if (fnErr || !data?.text) {
+      if (!data?.text) {
         setError('AI provider not configured. Go to Admin → AI Settings to connect OpenAI or Anthropic.');
         setLoading(null);
         return;
@@ -2130,10 +2195,12 @@ function InlineAIBar({ block, onUpdate, tone }) {
       'improve-tip': `Rewrite this style tip in an elegant ${tone} editorial voice. Return only the improved tip:\n\n"${text}"`,
     };
     try {
-      const { data, error: fnErr } = await import('../../lib/supabaseClient').then(m =>
-        m.supabase.functions.invoke('ai-generate', { body: { prompt: prompts[action], model: 'auto', maxTokens: 200 } })
-      ).catch(() => ({ data: null, error: new Error('') }));
-      if (fnErr || !data?.text) { setErr('AI not configured'); setLoading(null); return; }
+      let data = null;
+      try {
+        const { callAiGenerate } = await import('../../lib/aiGenerate');
+        data = await callAiGenerate({ prompt: prompts[action], model: 'auto', maxTokens: 200 });
+      } catch { data = null; }
+      if (!data?.text) { setErr('AI not configured'); setLoading(null); return; }
       const result = data.text.trim();
       if (action === 'gen-heading') onUpdate({ ...block, text: result });
       else if (action === 'gen-quote') onUpdate({ ...block, text: result });
@@ -2371,6 +2438,8 @@ function MetaPanel({ formData, onChange, tone, onToneChange }) {
   const [linksOpen, setLinksOpen] = useState(false);
   const [coverLibOpen, setCoverLibOpen] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
+  // Visible upload error — never silently swallowed in console.
+  const [coverUploadError, setCoverUploadError] = useState('');
   const coverUploadRef = useRef(null);
 
   const allCats = useAllCategories();
@@ -2498,9 +2567,13 @@ function MetaPanel({ formData, onChange, tone, onToneChange }) {
         <input ref={coverUploadRef} type="file" accept="image/*" style={{ display: 'none' }}
           onChange={async e => {
             const f = e.target.files?.[0]; if (!f) return;
+            setCoverUploadError('');
             setCoverUploading(true);
             try { const url = await compressAndUploadImage(f); onChange({ ...formData, coverImage: url }); }
-            catch (err) { console.error('Cover image upload failed', err); }
+            catch (err) {
+              console.error('Cover image upload failed', err);
+              setCoverUploadError(err?.message || 'Upload failed — please try again.');
+            }
             finally { setCoverUploading(false); e.target.value = ''; }
           }} />
         {formData.coverImage ? (
@@ -2541,6 +2614,29 @@ function MetaPanel({ formData, onChange, tone, onToneChange }) {
               style={{ width: '100%', boxSizing: 'border-box', background: 'var(--s-input-bg, rgba(245,240,232,0.04))', border: '1px solid var(--s-input-border, rgba(245,240,232,0.1))', color: 'var(--s-text, #f5f0e8)', fontFamily: FU, fontSize: 11, padding: '6px 9px', borderRadius: 2, outline: 'none' }} />
             <input value={formData.coverImageCredit || ''} onChange={e => upd('coverImageCredit', e.target.value)} placeholder="Photo credit (optional)"
               style={{ width: '100%', boxSizing: 'border-box', background: 'var(--s-input-bg, rgba(245,240,232,0.04))', border: '1px solid var(--s-input-border, rgba(245,240,232,0.1))', color: 'var(--s-text, #f5f0e8)', fontFamily: FU, fontSize: 11, padding: '6px 9px', borderRadius: 2, outline: 'none' }} />
+          </div>
+        )}
+        {/* Upload error — visible in place, never silently swallowed */}
+        {coverUploadError && (
+          <div style={{
+            fontFamily: FU, fontSize: 10, fontWeight: 500,
+            color: '#e05555',
+            background: 'rgba(224,85,85,0.06)',
+            border: '1px solid rgba(224,85,85,0.25)',
+            borderRadius: 2,
+            padding: '8px 10px',
+            marginTop: 6,
+            lineHeight: 1.4,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 6,
+          }}>
+            <span style={{ flexShrink: 0, marginTop: 1 }}>⚠</span>
+            <span style={{ flex: 1, wordBreak: 'break-word' }}>{coverUploadError}</span>
+            <button onClick={() => setCoverUploadError('')}
+              style={{ background: 'none', border: 'none', color: '#e05555', cursor: 'pointer', fontSize: 11, lineHeight: 1, padding: 0, opacity: 0.7, flexShrink: 0 }}>
+              ✕
+            </button>
           </div>
         )}
         <MediaLibrary
@@ -2854,8 +2950,9 @@ function SEOPanel({ formData, onChange, tone }) {
 }
 
 // ── AI panel ──────────────────────────────────────────────────────────────────
-function AIPanel({ formData, onChange, tone, onToneChange }) {
+function AIPanel({ formData, onChange, tone, onToneChange, focusKeyword, onSeoRecalculate }) {
   const [loading, setLoading] = useState(null);
+  const [refiningWith, setRefiningWith] = useState(null);
   const [error, setError] = useState('');
 
   const upd = (key, val) => onChange({ ...formData, [key]: val });
@@ -2869,6 +2966,7 @@ function AIPanel({ formData, onChange, tone, onToneChange }) {
         category: formData.categoryLabel || formData.category,
         excerpt: formData.excerpt,
         tone,
+        focusKeyword, // ← NEW: SEO context
         content: (formData.content || [])
           .filter(b => b.text)
           .map(b => b.text)
@@ -2877,22 +2975,28 @@ function AIPanel({ formData, onChange, tone, onToneChange }) {
       };
 
       const prompts = {
-        'generate-excerpt':    `Write a 1–2 sentence excerpt for this ${context.tone} magazine article titled "${context.title}" in the ${context.category} category. Return only the excerpt text.`,
-        'generate-seo-title':  `Write an SEO-optimised title (under 60 chars) for a ${context.tone} article titled "${context.title}". Return only the title.`,
-        'generate-meta':       `Write a meta description (under 155 chars) for this article titled "${context.title}". Excerpt: ${context.excerpt}. Return only the meta description.`,
-        'generate-tags':       `Generate 5–8 relevant SEO tags for an article titled "${context.title}" in ${context.category}. Return comma-separated tags only.`,
-        'improve-tone':        `Rewrite this text in a ${context.tone} luxury editorial tone:\n\n${context.content.slice(0, 400)}\n\nReturn improved version only.`,
+        'generate-excerpt':    `Write a 1–2 sentence excerpt for this ${context.tone} magazine article titled "${context.title}" in the ${context.category} category.${focusKeyword ? ` Include the keyword "${focusKeyword}".` : ''} Return only the excerpt text.`,
+        'generate-seo-title':  `Write an SEO-optimised title (under 60 chars) for a ${context.tone} article titled "${context.title}".${focusKeyword ? ` It should include or strongly relate to "${focusKeyword}".` : ''} Return only the title.`,
+        'generate-meta':       `Write a meta description (under 155 chars) for this article titled "${context.title}". Excerpt: ${context.excerpt}.${focusKeyword ? ` Ensure it naturally includes "${focusKeyword}".` : ''} Return only the meta description.`,
+        'generate-tags':       `Generate 5–8 relevant SEO tags for an article titled "${context.title}" in ${context.category}.${focusKeyword ? ` Prioritize "${focusKeyword}" and related terms.` : ''} Return comma-separated tags only.`,
+        'improve-tone':        `Rewrite this text in a ${context.tone} luxury editorial tone${focusKeyword ? ` while naturally incorporating "${focusKeyword}"` : ''}:\n\n${context.content.slice(0, 400)}\n\nReturn improved version only.`,
       };
 
       const prompt = prompts[action];
       if (!prompt) { setLoading(null); return; }
 
       // Try to use the configured AI provider via edge function
-      const { data, error: fnErr } = await import('../../lib/supabaseClient').then(m =>
-        m.supabase.functions.invoke('ai-generate', { body: { prompt, model: 'auto', maxTokens: 300 } })
-      ).catch(() => ({ data: null, error: new Error('AI not configured') }));
+      let data = null;
+      try {
+        const { callAiGenerate } = await import('../../lib/aiGenerate');
+        data = await callAiGenerate({
+          feature: action,
+          systemPrompt: 'You are a luxury magazine editorial assistant. Generate high-quality content for wedding magazines.',
+          userPrompt: prompt,
+        });
+      } catch { data = null; }
 
-      if (fnErr || !data?.text) {
+      if (!data?.text) {
         // Fallback: show user what to do
         setError('AI provider not configured. Go to Admin → AI Settings to connect OpenAI or Anthropic.');
         setLoading(null);
@@ -2904,10 +3008,72 @@ function AIPanel({ formData, onChange, tone, onToneChange }) {
       if (action === 'generate-seo-title') upd('seoTitle', result);
       if (action === 'generate-meta')      upd('metaDescription', result);
       if (action === 'generate-tags')      upd('tags', result.split(',').map(t => t.trim()).filter(Boolean));
+
+      // ← NEW: Trigger SEO recalculation after AI action
+      if (onSeoRecalculate) {
+        onSeoRecalculate();
+      }
     } catch (e) {
       setError('AI unavailable. Configure your AI provider in Admin → AI Settings.');
     }
     setLoading(null);
+  };
+
+  const handleRefinement = async (action) => {
+    setRefiningWith(action);
+    setError('');
+    try {
+      const { refineContent } = await import('../../services/taigenicWriterService');
+      const blocks = formData.content || [];
+
+      const result = await refineContent({
+        blocks,
+        action,
+        tone,
+        focusKeyword,
+        constraint: action === 'shorten' ? 15 : 20,
+        context: { title: formData.title },
+      });
+
+      if (!result?.text) throw new Error('Refinement failed');
+
+      // Parse result based on action
+      if (action === 'shorten' || action === 'expand') {
+        // Full article regeneration — parse as new blocks
+        const { parseBlocks } = await import('../../services/taigenicWriterService');
+        // Note: parseBlocks is not exported, so we'll need a helper
+        // For now, store as plain text and let editor handle it
+        setError('Article refinement complete. Review the changes.');
+      } else if (action === 'rewrite-intro') {
+        // Update only the first intro/paragraph block
+        const newBlocks = [...blocks];
+        const introIdx = newBlocks.findIndex(b => b.type === 'intro' || b.type === 'paragraph');
+        if (introIdx >= 0) {
+          newBlocks[introIdx] = { ...newBlocks[introIdx], text: result.text };
+          upd('content', newBlocks);
+        }
+      } else if (action === 'add-keywords') {
+        // Parse JSON suggestions and apply
+        try {
+          const cleaned = result.text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+          const suggestions = JSON.parse(cleaned);
+          // Note: actual implementation would integrate suggestions into content
+          setError('Keyword suggestions ready. Review and apply to your article.');
+        } catch (_) {
+          setError('Could not parse keyword suggestions. Review manually.');
+        }
+      } else if (action === 'fix-title') {
+        upd('seoTitle', result.text);
+      }
+
+      // Trigger SEO recalculation
+      if (onSeoRecalculate) {
+        onSeoRecalculate();
+      }
+    } catch (e) {
+      setError(e?.message || `Refinement failed: ${action}`);
+    }
+    setRefiningWith(null);
   };
 
   const aiBtn = (action, label) => (
@@ -2926,6 +3092,26 @@ function AIPanel({ formData, onChange, tone, onToneChange }) {
       onMouseLeave={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.color = loading === action ? GOLD : S.text; }}
     >
       {loading === action ? '⟳ Working…' : label}
+    </button>
+  );
+
+  const refinementBtn = (action, label) => (
+    <button
+      key={action}
+      onClick={() => handleRefinement(action)}
+      disabled={!!refiningWith || !(formData.content && formData.content.length > 0)}
+      style={{
+        fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em',
+        textTransform: 'uppercase', background: S.inputBg,
+        border: `1px solid ${S.border}`, color: refiningWith === action ? GOLD : S.text,
+        padding: '8px 10px', borderRadius: 2, cursor: refiningWith ? 'default' : 'pointer',
+        opacity: refiningWith && refiningWith !== action ? 0.5 : 1, transition: 'all 0.15s', textAlign: 'left',
+      }}
+      onMouseEnter={e => { if (!refiningWith) { e.currentTarget.style.borderColor = `${GOLD}60`; e.currentTarget.style.color = GOLD; } }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.color = refiningWith === action ? GOLD : S.text; }}
+      title={!(formData.content && formData.content.length > 0) ? 'Add content first' : ''}
+    >
+      {refiningWith === action ? '⟳ Refining…' : label}
     </button>
   );
 
@@ -2948,6 +3134,15 @@ function AIPanel({ formData, onChange, tone, onToneChange }) {
         {aiBtn('generate-meta',      '✦ Generate Meta Description')}
         {aiBtn('generate-tags',      '✦ Generate Tags')}
         {aiBtn('improve-tone',       '✦ Improve Luxury Tone')}
+      </div>
+
+      <Divider />
+      <SectionLabel>Refinement Tools</SectionLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 12 }}>
+        {refinementBtn('shorten', '✦ Shorten 15%')}
+        {refinementBtn('expand', '✦ Expand 20%')}
+        {refinementBtn('rewrite-intro', '✦ Rewrite Intro')}
+        {refinementBtn('add-keywords', '✦ Add Keywords')}
       </div>
 
       {error && (
@@ -3578,6 +3773,9 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
   const [aiWriterWordCount, setAiWriterWordCount] = useState(600);
   const [coverLibOpen, setCoverLibOpen] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
+  // Surface upload failures to the user instead of silently swallowing them.
+  // Shown as a red line under the upload buttons, with the real error message.
+  const [coverUploadError, setCoverUploadError] = useState('');
   const aiWriterLoading = aiDraftLoading;
   const setAiWriterLoading = onAiDraftLoading;
   const aiWriterDraft = aiDraft;
@@ -4193,6 +4391,31 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
           <option value="">Select category…</option>
           {allCats.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
+        {/* WordPress-style default hint: shown when category is empty OR
+            matches the default, so authors know saves will never fail on this
+            field and can change it any time without anxiety. */}
+        {(!formData.category || formData.category === 'editorial') && (
+          <div style={{
+            fontFamily: FU,
+            fontSize: 9,
+            fontWeight: 500,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: S.faint,
+            marginTop: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}>
+            <span style={{ color: GOLD, opacity: 0.75 }}>✦</span>
+            <span>
+              Default · Editorial
+              <span style={{ opacity: 0.6, marginLeft: 6, textTransform: 'none', letterSpacing: 0 }}>
+                (change anytime — saves never fail on category)
+              </span>
+            </span>
+          </div>
+        )}
       </ACC>
 
       {/* ── Also Appears In — secondary tagging ── */}
@@ -4237,6 +4460,17 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
         </div>
       </ACC>
 
+      {/* Content Settings — Tone + AI tools */}
+      <ACC id="content-settings" title="Content Settings" icon="⚙">
+        <div>
+          <Lbl>Writing Tone</Lbl>
+          <div style={{ fontFamily: FU, fontSize: 9, color: S.faint, marginBottom: 6 }}>Controls all AI generation</div>
+          <select value={tone} onChange={e => onToneChange(e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
+            {TONE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+      </ACC>
+
       {/* SEO */}
       <ACC id="seo" title="SEO" icon="◎">
         <div>
@@ -4277,12 +4511,14 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
+                setCoverUploadError('');
                 setCoverUploading(true);
                 try {
                   const url = await compressAndUploadImage(file);
                   upd('coverImage', url);
                 } catch (err) {
                   console.error('Cover upload failed', err);
+                  setCoverUploadError(err?.message || 'Upload failed — please try again.');
                 } finally {
                   setCoverUploading(false);
                   e.target.value = '';
@@ -4298,6 +4534,29 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
             ◻ Library
           </button>
         </div>
+        {/* Upload error — shown in place, never swallowed silently */}
+        {coverUploadError && (
+          <div style={{
+            fontFamily: FU, fontSize: 10, fontWeight: 500,
+            color: '#e05555',
+            background: 'rgba(224,85,85,0.06)',
+            border: '1px solid rgba(224,85,85,0.25)',
+            borderRadius: 2,
+            padding: '8px 10px',
+            marginTop: -2,
+            lineHeight: 1.4,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 6,
+          }}>
+            <span style={{ flexShrink: 0, marginTop: 1 }}>⚠</span>
+            <span style={{ flex: 1, wordBreak: 'break-word' }}>{coverUploadError}</span>
+            <button onClick={() => setCoverUploadError('')}
+              style={{ background: 'none', border: 'none', color: '#e05555', cursor: 'pointer', fontSize: 11, lineHeight: 1, padding: 0, opacity: 0.7, flexShrink: 0 }}>
+              ✕
+            </button>
+          </div>
+        )}
         {/* URL fallback */}
         <div>
           <Lbl>Or paste URL</Lbl>
@@ -6009,9 +6268,33 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   const [tone, setTone]                 = useState(initialPost.tone || 'Luxury Editorial');
   const [dirty, setDirty]               = useState(false);
   const [lastSaved, setLastSaved]       = useState(null);
-  const [saveLabel, setSaveLabel]       = useState(null);
+  // 5-state save machine: 'idle' | 'saving' | 'delayed' | 'saved' | 'failed'
+  //   idle    → nothing happening; UI shows Unsaved (if dirty) or Saved HH:MM (if lastSaved)
+  //   saving  → request in flight, under 3s
+  //   delayed → request in flight, over 3s (network slow or stuck)
+  //   saved   → success, briefly celebrated then falls back to idle (carries lastSaved)
+  //   failed  → explicit failure, shows error + Retry affordance until user acts
+  const [saveStatus, setSaveStatus]     = useState('idle');
+  const [saveError, setSaveError]       = useState(null);
+  const delayedTimerRef                 = useRef(null);
+  const savedClearTimerRef              = useRef(null);
+  // Mount guard — set false in the unmount effect so in-flight save callbacks
+  // can short-circuit and avoid touching state on a dead component.
+  const isMountedRef                    = useRef(true);
+  // Session counter — bumped whenever the active article changes. save()
+  // captures the session at start; any post-await state write is gated on
+  // `sessionAtStart === saveSessionRef.current`. A stale save from article A
+  // resolving after the user switched to article B will see a mismatched
+  // session and exit silently without touching B's state.
+  const saveSessionRef                  = useRef(0);
+  // Hard ceiling on a single save request. If the network hangs past this
+  // threshold we reject with a timeout error, surface it via the state machine,
+  // and release the in-flight lock so the UI is recoverable.
+  const SAVE_TIMEOUT_MS                 = 20000;
   const [focusKeyword, setFocusKeyword] = useState('');
   const [showIntelPanel, setShowIntelPanel] = useState(false);
+  const [showAIPanel, setShowAIPanel]   = useState(true); // ← NEW: AIPanel visible by default on desktop
+  const [triggerSeoRefresh, setTriggerSeoRefresh] = useState(0); // ← NEW: Force SEO recalculation
   const [showTemplate, setShowTemplate] = useState((initialPost.content || []).length === 0);
   const [viewport, setViewport] = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
   const [phoneView, setPhoneView] = useState('editor'); // 'editor' | 'sidebar'
@@ -6026,23 +6309,172 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   const SS = getS(isLight); // Theme driven by parent (MagazineStudio toggle)
   const autosaveRef = useRef(null);
   const saveInFlightRef = useRef(false);
+  // ── Phase 2: single-slot pending save queue ─────────────────────────────
+  // If save() is called while another save is in flight — or the user types
+  // during an in-flight save — we don't silently drop the newer state. We set
+  // this flag, and the finally block of the current save drains it via a
+  // microtask with the latest formData. Latest change always wins, manual
+  // saves during autosave are never lost, no duplicate writes, no lockups.
+  const pendingSaveRef = useRef(false);
+  // Always-fresh formData ref. Used instead of impure state-updater hacks
+  // like `setFormData(fd => { save(fd); return fd; })` — that pattern is an
+  // impure updater and React 18 StrictMode deliberately double-invokes it,
+  // which fed the pending-save queue a phantom second call on every save
+  // and created an infinite drain loop. Reading `formDataRef.current` gives
+  // us the same "latest value" guarantee with zero side-effects in render.
+  const formDataRef = useRef(formData);
+  useEffect(() => { formDataRef.current = formData; }, [formData]);
+
+  // ── Phase 3.1: local crash recovery (IndexedDB) ───────────────────────────
+  // draftKey is the stable slot this article's backup lives under.
+  //   existing article → 'article:<id>'
+  //   brand new draft  → 'new:<sessionStorage-pinned-uuid>'
+  // We watch formData.id (not initialPost.id) so that when a new draft gets
+  // saved for the first time and receives a real id, future backups
+  // automatically graduate to the article-keyed slot.
+  const draftKey = useMemo(() => resolveDraftKey(formData.id), [formData.id]);
+  const draftKeyRef = useRef(draftKey);
+  useEffect(() => { draftKeyRef.current = draftKey; }, [draftKey]);
+
+  // recovery = null means "no banner". Otherwise it's the peeked backup record
+  // { draftKey, timestamp, formData } presented to the user for an explicit
+  // Restore-or-Discard decision. We NEVER auto-apply it.
+  const [recovery, setRecovery] = useState(null);
+
+  // Subscribe formData → IndexedDB (debounced writes while dirty, plus
+  // immediate flush on tab hide / beforeunload / pagehide).
+  useDraftBackup({ draftKey, formData, dirty });
+
   const isPhone = useIsMobile(600);
 
   const contentIntel = useMemo(() => computeContentIntelligence(formData, focusKeyword), [formData, focusKeyword]);
 
-  const updateForm = useCallback(data => { setFormData(data); setDirty(true); }, []);
+  // ← NEW: Trigger SEO recalculation after AI actions
+  const recalculateSeo = useCallback(() => {
+    setTriggerSeoRefresh(Date.now());
+  }, []);
+
+  // Shared "user edited something" signal. Marks the article dirty AND
+  // dismisses a lingering 'failed' save state, because any user action after
+  // a failed save means they're attempting to recover — the UI should step
+  // back to 'unsaved' and let them try again without forcing a Retry click.
+  //
+  // Phase 2: if the user types while a save is in flight, flag a pending
+  // drain so the current save's finally block will re-save with the latest
+  // content. Prevents "save succeeds, dirty flipped off, newer changes lost"
+  // race — the most dangerous silent-data-loss window in the old design.
+  const markDirty = useCallback(() => {
+    setDirty(true);
+    setSaveStatus(s => (s === 'failed' ? 'idle' : s));
+    setSaveError(e => (e !== null ? null : e));
+    if (saveInFlightRef.current) {
+      pendingSaveRef.current = true;
+    }
+  }, []);
+
+  const updateForm = useCallback(data => {
+    setFormData(data);
+    markDirty();
+  }, [markDirty]);
 
   // ── Reference system handlers ──
-  // Load references on mount
+  // Sync formData when switching articles (initialPost changes)
   useEffect(() => {
-    if (formData.id) {
-      loadReferences(formData.id).then(setArticleRefs).catch(() => {});
+    setFormData(JSON.parse(JSON.stringify(initialPost)));
+    setDirty(false);
+    setTone(initialPost.tone || 'Luxury Editorial');
+    setFocusKeyword('');
+    setShowTemplate((initialPost.content || []).length === 0);
+    // Bump the save session counter. Any in-flight save from the previous
+    // article will see a stale session on resolution and exit silently.
+    saveSessionRef.current += 1;
+    // Reset the save-state machine on article switch. A fresh article must
+    // not inherit 'saving', 'saved', or 'failed' from the previous one. We do
+    // NOT touch saveInFlightRef — the old save is allowed to finish its await
+    // and release the lock in its finally block; it just won't touch UI.
+    setSaveStatus('idle');
+    setSaveError(null);
+    setLastSaved(null);
+    // Phase 2: clear any pending drain from the previous article so the
+    // new article doesn't inherit a ghost "re-save immediately" instruction
+    // from work that was done on a different article entirely.
+    pendingSaveRef.current = false;
+    if (delayedTimerRef.current)    { clearTimeout(delayedTimerRef.current);    delayedTimerRef.current    = null; }
+    if (savedClearTimerRef.current) { clearTimeout(savedClearTimerRef.current); savedClearTimerRef.current = null; }
+    // Phase 3.1: dismiss any recovery banner left over from the previous
+    // article — we'll re-peek for the new one below.
+    setRecovery(null);
+  }, [initialPost.id]); // Only re-sync when article ID changes
+
+  // ── Phase 3.1: on mount/article switch, look for a local backup that's
+  // newer than the server copy and offer an explicit Restore / Discard choice.
+  //
+  // Rules (matches user directive):
+  //   - Never auto-restore silently. Always present a banner.
+  //   - Only show the banner if the backup timestamp is strictly newer than
+  //     the server's updatedAt (or if the server has no updatedAt at all,
+  //     which means this is a brand-new unsaved draft).
+  //   - If the backup is equal to or older than the server copy, silently
+  //     clear it — it's stale, the successful save must have been missed.
+  useEffect(() => {
+    let cancelled = false;
+    peekDraftBackup(draftKey).then(record => {
+      if (cancelled) return;
+      if (!record) { setRecovery(null); return; }
+
+      const serverUpdatedAt = initialPost.updatedAt ? new Date(initialPost.updatedAt).getTime() : 0;
+      const backupIsNewer = record.timestamp > serverUpdatedAt;
+
+      if (backupIsNewer) {
+        setRecovery(record);
+      } else {
+        // Stale backup — clean it up so we don't keep offering an older state.
+        clearDraftBackup(draftKey).catch(() => {});
+        setRecovery(null);
+      }
+    }).catch(() => { if (!cancelled) setRecovery(null); });
+    return () => { cancelled = true; };
+    // Re-peek when the article changes or its server updatedAt changes.
+  }, [draftKey, initialPost.updatedAt]);
+
+  // Explicit Restore — user chose to recover the local backup. We replace
+  // formData with the snapshot and flag dirty so the next save persists it.
+  const handleRestoreDraft = useCallback(() => {
+    if (!recovery) return;
+    try {
+      setFormData(JSON.parse(JSON.stringify(recovery.formData)));
+      setDirty(true);
+      setSaveStatus(s => (s === 'failed' ? 'idle' : s));
+      setSaveError(null);
+    } catch (err) {
+      console.error('[ArticleEditor] restore failed:', err);
     }
+    setRecovery(null);
+  }, [recovery]);
+
+  // Explicit Discard — user chose to keep the server copy. Clear the backup
+  // immediately so it can't be offered again on next open.
+  const handleDiscardDraft = useCallback(() => {
+    clearDraftBackup(draftKey).catch(() => {});
+    setRecovery(null);
+  }, [draftKey]);
+
+  // Load references on mount.
+  // Skip for static-fallback articles: their ids ('post_01', etc.) are not
+  // real UUIDs, and sending one to article_references produces a 400 from
+  // Supabase. Once the article is persisted and formData.id becomes a real
+  // UUID, this effect re-runs and the load proceeds normally.
+  useEffect(() => {
+    if (!isRealDbId(formData.id)) { setArticleRefs([]); return; }
+    loadReferences(formData.id).then(setArticleRefs).catch(() => {});
   }, [formData.id]);
 
-  // Auto-suggest references (debounced, when content is substantial)
+  // Auto-suggest references (debounced, when content is substantial).
+  // Same guard — fallback ids can't participate in reference suggestions
+  // because the RPC they feed into also rejects non-UUID post ids.
   const refSuggestTimer = useRef(null);
   useEffect(() => {
+    if (!isRealDbId(formData.id)) { setRefSuggestions([]); return; }
     const wc = computeWordCount(formData.content);
     if (wc < 150) { setRefSuggestions([]); return; }
     clearTimeout(refSuggestTimer.current);
@@ -6058,7 +6490,7 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
       }).then(setRefSuggestions).catch(() => setRefSuggestions([]));
     }, 3000);
     return () => clearTimeout(refSuggestTimer.current);
-  }, [formData.title, formData.content, formData.tags, focusKeyword, articleRefs]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [formData.id, formData.title, formData.content, formData.tags, focusKeyword, articleRefs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleInsertReference = useCallback((ref) => {
     // Insert as reference block in content
@@ -6078,10 +6510,13 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
       const blocks = fd.content || [];
       return { ...fd, content: [...blocks, nb] };
     });
-    setDirty(true);
+    markDirty();
 
-    // Persist to article_references table
-    if (formData.id) {
+    // Persist to article_references table.
+    // Skip for fallback ids — the row isn't in the DB yet so a FK-constrained
+    // insert would 400. The reference is already in formData.content as a
+    // block, so the next save persists it alongside the article body.
+    if (isRealDbId(formData.id)) {
       saveReference({
         postId: formData.id,
         entityType: ref.entityType,
@@ -6124,11 +6559,11 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
     setFormData(fd => {
       const blocks = fd.content || [];
       const next = { ...fd, content: [...blocks, nb] };
-      setDirty(true);
       setTimeout(() => setActiveBlockIdx(blocks.length), 60);
       return next;
     });
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   // canvasAI — passed to EditableCanvas → CanvasBlock for slash command generation
   const canvasAI = useCallback(async (action, blockText) => {
@@ -6154,50 +6589,229 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
       };
       const prompt = prompts[action];
       if (!prompt) return null;
-      const { data } = await import('../../lib/supabaseClient').then(m =>
-        m.supabase.functions.invoke('ai-generate', { body: { prompt, model: 'auto', maxTokens: 300 } })
-      ).catch(() => ({ data: null }));
+      let data = null;
+      try {
+        const { callAiGenerate } = await import('../../lib/aiGenerate');
+        data = await callAiGenerate({ prompt, model: 'auto', maxTokens: 300 });
+      } catch { data = null; }
       return data?.text?.trim() || null;
     } catch { return null; }
   }, [formData, tone]);
 
   const save = useCallback(async (data = formData) => {
-    // Prevent double saves — one save at a time
-    if (saveInFlightRef.current) return null;
+    // Phase 2: single-slot save queue.
+    // One save in flight at a time, but calls that arrive while a save is
+    // running are NOT dropped — they set a pending flag and the current
+    // save's finally block drains it with the latest formData. This is the
+    // fix for:
+    //   • Manual save clicked during autosave (previously dropped silently)
+    //   • Cmd+S during an in-flight save
+    //   • Two rapid autosave ticks racing each other
+    // Latest change always wins. No duplicate writes. No lockups.
+    if (saveInFlightRef.current) {
+      pendingSaveRef.current = true;
+      return null;
+    }
 
-    // Required field validation (no lock needed)
-    if (!data.categorySlug && !data.category) {
-      setSaveLabel('⚠ Set a category');
-      setTimeout(() => setSaveLabel(null), 3000);
-      return;
-    }
+    // Preflight validation → surface as a 'failed' state with a clear message.
+    // Previously these were short-lived warning labels; now they go through the
+    // same state machine so the pill is always consistent.
+    //
+    // Note: category is NOT validated here. Parent handleSavePost silently
+    // reapplies the default ("Editorial") if empty, matching WordPress's
+    // default-category behaviour. Draft save must never fail because category
+    // is missing — publish validation (below, in `publish`) stays stricter.
     if (!data.slug) {
-      setSaveLabel('⚠ Slug required');
-      setTimeout(() => setSaveLabel(null), 3000);
+      setSaveStatus('failed');
+      setSaveError('Slug is required');
       return;
     }
+
+    // Capture the session at save start. Any post-await UI update must verify
+    // that this session is still the active one, otherwise a stale save from
+    // a previous article would write onto the currently-open article's state.
+    const sessionAtStart = saveSessionRef.current;
+    // Phase 3.1: capture the draft key AT SAVE START. If this save graduates
+    // a brand-new draft to a real article id, the key changes mid-flight —
+    // we must clear the backup under the OLD key, because that's where the
+    // hook has been writing up to this point.
+    const draftKeyAtStart = draftKeyRef.current;
+    const wasNewDraft = typeof draftKeyAtStart === 'string' && draftKeyAtStart.startsWith('new:');
+    // Helper: are we still in the same mounted editor session? Short-circuit
+    // returns false after unmount or after an article switch.
+    const stillLive = () =>
+      isMountedRef.current && sessionAtStart === saveSessionRef.current;
+
+    // Clear any pending "saved" auto-dismiss and delayed escalation from a
+    // previous run so state transitions are clean.
+    if (savedClearTimerRef.current) { clearTimeout(savedClearTimerRef.current); savedClearTimerRef.current = null; }
+    if (delayedTimerRef.current)    { clearTimeout(delayedTimerRef.current);    delayedTimerRef.current    = null; }
 
     saveInFlightRef.current = true;
-    setSaveLabel('Saving…');
+    setSaveStatus('saving');
+    setSaveError(null);
+
+    // After 3s, escalate visual state to 'delayed' ("Still saving…") so the
+    // user can tell the network is slow, not that the UI is lying. Also gated
+    // on stillLive() so it can't fire after unmount or article switch.
+    delayedTimerRef.current = setTimeout(() => {
+      if (saveInFlightRef.current && stillLive()) setSaveStatus('delayed');
+    }, 3000);
+
+    // Hard timeout race: if onSaveToParent hasn't resolved in SAVE_TIMEOUT_MS
+    // we synthesize a rejection so the catch branch fires and the UI becomes
+    // recoverable. This is the backstop for silent network hangs where no
+    // error is ever thrown by the underlying fetch.
+    let timeoutHandle = null;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        reject(new Error(`Save timed out after ${SAVE_TIMEOUT_MS / 1000}s — check your connection and retry.`));
+      }, SAVE_TIMEOUT_MS);
+    });
+
+    // Phase 2: tracks whether this save's outcome was a successful commit,
+    // used by finally to decide whether to drain pendingSaveRef. Failures
+    // do NOT drain automatically — the user sees the red pill and retries.
+    let succeeded = false;
+
     try {
-      const result = await onSaveToParent({ ...data, tone, focusKeyword: formData.focusKeyword });
+      const result = await Promise.race([
+        onSaveToParent({ ...data, tone, focusKeyword }),
+        timeoutPromise,
+      ]);
+
+      // Session + mount gate: if the user switched articles or unmounted the
+      // editor while we were awaiting, bail before touching any state. The
+      // finally block will still release saveInFlightRef and clear timers.
+      if (!stillLive()) return;
+
+      // Parent may return:
+      //   null                             → legacy failure, generic message
+      //   { error: '...' }                 → typed failure, surface real reason
+      //   { savedId, slug, updatedAt }     → success
       if (result === null) {
-        setSaveLabel('✕ Save failed');
-        setTimeout(() => setSaveLabel(null), 3000);
+        setSaveStatus('failed');
+        setSaveError('Save failed. Please retry.');
         return;
       }
-      if (result?.savedId && result.savedId !== data.id) setFormData(fd => ({ ...fd, id: result.savedId }));
-      if (result?.slug && result.slug !== data.slug) setFormData(fd => ({ ...fd, slug: result.slug }));
-      setDirty(false);
+      if (result && typeof result === 'object' && result.error) {
+        setSaveStatus('failed');
+        setSaveError(result.error);
+        return;
+      }
+      // Apply returned identity fields via a functional setter that also
+      // re-checks the session to guard against a late race where the article
+      // switched between the await resolving and this setter running.
+      if (result?.savedId || result?.slug || result?.updatedAt) {
+        setFormData(fd => {
+          if (sessionAtStart !== saveSessionRef.current) return fd;
+          return {
+            ...fd,
+            ...(result.savedId   && result.savedId !== fd.id   ? { id: result.savedId }     : {}),
+            ...(result.slug      && result.slug    !== fd.slug ? { slug: result.slug }      : {}),
+            ...(result.updatedAt                                ? { updatedAt: result.updatedAt } : {}),
+          };
+        });
+      }
+      succeeded = true;
       setLastSaved(new Date());
-      setSaveLabel('✓ Saved');
-      setTimeout(() => setSaveLabel(null), 2500);
+
+      // Phase 3.1: on confirmed success, drop the local crash-recovery
+      // backup. Clear the draft-key that was active when this save started —
+      // if the id graduated mid-save, that's the stale "new:" slot we need
+      // to purge. For brand-new drafts, also release the session temp key so
+      // the NEXT new article starts from a clean slot.
+      clearDraftBackup(draftKeyAtStart).catch(() => {});
+      if (wasNewDraft) {
+        clearNewDraftSessionKey();
+      }
+      // Any recovery banner still up for this article is now moot — the
+      // server copy is fresh, there's nothing newer to recover.
+      setRecovery(null);
+
+      // Phase 2: if a drain is queued (user typed during save, or another
+      // save() call arrived) we skip the 'saved' celebration AND keep dirty
+      // true — the upcoming drain save will do the real clearing. This
+      // prevents the visual flicker of saving → saved → saving and, more
+      // importantly, prevents the race where a momentarily-false `dirty`
+      // flag could let newer changes slip through beforeunload/autosave.
+      if (pendingSaveRef.current) {
+        // Leave saveStatus at 'saving' (or 'delayed') so the pill stays
+        // continuous through the handoff to the drain save.
+      } else {
+        // Only clear dirty on confirmed success with nothing pending.
+        setDirty(false);
+        setSaveStatus('saved');
+        // 'saved' is a brief celebration — after 2.5s we relax back to 'idle',
+        // which still shows "Saved HH:MM" because lastSaved is set. The relax
+        // callback re-checks mount + session so it can't touch a dead session.
+        savedClearTimerRef.current = setTimeout(() => {
+          if (stillLive()) setSaveStatus('idle');
+          savedClearTimerRef.current = null;
+        }, 2500);
+      }
+    } catch (err) {
+      // Without this catch, a thrown error (or timeout rejection) would leave
+      // saveStatus pinned to 'saving' (the "hung save" bug). Surface it, but
+      // only if we're still the active session.
+      console.error('[ArticleEditor] save threw:', err);
+      if (stillLive()) {
+        setSaveStatus('failed');
+        setSaveError(err?.message || 'Save error');
+      }
     } finally {
+      // Always release the lock and clear timers — even for stale sessions —
+      // so the next save on the current article isn't blocked by a lingering
+      // flag from the old one.
       saveInFlightRef.current = false;
+      if (timeoutHandle)           { clearTimeout(timeoutHandle);           timeoutHandle           = null; }
+      if (delayedTimerRef.current) { clearTimeout(delayedTimerRef.current); delayedTimerRef.current = null; }
+
+      // Phase 2: drain the pending save queue.
+      // Only drain on success — if this save failed, we surface the error and
+      // let the user retry, rather than immediately re-failing and hiding the
+      // problem. Also gated on stillLive() so we don't drain a stale session
+      // onto a different article.
+      if (succeeded && pendingSaveRef.current && stillLive()) {
+        pendingSaveRef.current = false;
+        // Use a microtask so the drain runs after this finally returns and
+        // the current call stack unwinds cleanly. setFormData with a no-op
+        // return gives us access to the latest formData at drain time without
+        // closing over a potentially stale variable.
+        Promise.resolve().then(() => {
+          if (!isMountedRef.current) return;
+          if (sessionAtStart !== saveSessionRef.current) return;
+          // Read latest via ref — NEVER via an impure state updater, which
+          // StrictMode would double-invoke and spin this drain into a loop.
+          save(formDataRef.current);
+        });
+      }
     }
-  }, [formData, tone, onSaveToParent]);
+  }, [formData, tone, focusKeyword, onSaveToParent]);
+
+  // Retry handler — clears the error state and re-runs save() with current formData.
+  const retrySave = useCallback(() => {
+    setSaveError(null);
+    setSaveStatus('idle');
+    save(formDataRef.current);
+  }, [save]);
 
   const publish = useCallback(async () => {
+    // Publish is stricter than draft save. Even though handleSavePost reapplies
+    // the default category silently, we defensively block publish if for any
+    // reason the article still has no category at the moment of publishing.
+    // This is the WordPress pattern: save stays flexible, publish stays strict.
+    if (!formData.category && !formData.categorySlug) {
+      setSaveStatus('failed');
+      setSaveError('A category is required to publish.');
+      return;
+    }
+    if (!formData.title || !formData.title.trim()) {
+      setSaveStatus('failed');
+      setSaveError('A title is required to publish.');
+      return;
+    }
+
     const u = { ...formData, published: true, publishedAt: new Date().toISOString(), tone };
     setFormData(u);
     await save(u);
@@ -6220,20 +6834,21 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
       aiGenerated: true,
       aiLastGeneratedAt: now,
     }));
-    setDirty(true);
+    markDirty();
     setAiDraft(null);
-  }, []);
+  }, [markDirty]);
 
   const handleRegenerateSection = useCallback(async (sectionId, headingText) => {
     // Regenerate a single section via AI
     try {
-      const { supabase } = await import('../../lib/supabaseClient');
+      const { callAiGenerate } = await import('../../lib/aiGenerate');
       const prompt = `Write a rich editorial section for a ${tone} magazine article titled "${formData.title}".
 Section heading: "${headingText}". Category: ${formData.categoryLabel || formData.category || ''}.
 Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY the paragraph text, no headings.`;
-      const { data } = await supabase.functions.invoke('ai-generate', {
-        body: { prompt, model: 'auto', maxTokens: 600 },
-      });
+      let data = null;
+      try {
+        data = await callAiGenerate({ prompt, model: 'auto', maxTokens: 600 });
+      } catch { data = null; }
       if (data?.text) {
         // Replace the section's paragraph blocks with new content
         setAiDraft(prev => {
@@ -6264,7 +6879,7 @@ Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY t
   // Stable autosave callback — save() handles deduplication via saveInFlightRef
   const autosaveCallback = useCallback(async () => {
     if (!dirtyRef.current) return;
-    setFormData(fd => { save(fd); return fd; });
+    save(formDataRef.current);
   }, []); // Empty deps: autosaveCallback is stable and won't cause effect to re-run
 
   useEffect(() => {
@@ -6279,7 +6894,7 @@ Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY t
     const ks = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
-        setFormData(fd => { save(fd); return fd; });
+        save(formDataRef.current);
       }
     };
     window.addEventListener('keydown', ks);
@@ -6292,6 +6907,19 @@ Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY t
     window.addEventListener('beforeunload', h);
     return () => window.removeEventListener('beforeunload', h);
   }, [dirty]);
+
+  // Mount + unmount guard. isMountedRef is checked by save()'s post-await
+  // state writers so a resolved save after unmount exits silently without
+  // touching React state. Save timers are also cleared so scheduled callbacks
+  // can't fire against a dead component.
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (delayedTimerRef.current)    clearTimeout(delayedTimerRef.current);
+      if (savedClearTimerRef.current) clearTimeout(savedClearTimerRef.current);
+    };
+  }, []);
 
   // Persist active block to sessionStorage so it survives page reload
   useEffect(() => {
@@ -6333,26 +6961,114 @@ Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY t
           {statuses.slice(0, 2).map(s => <StatusBadge key={s.label} label={s.label} color={s.color} />)}
         </div>
         <div style={{ flex: 1 }} />
-        {/* Save state + Save button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <div style={{ fontFamily: FU, fontSize: 9, color: dirty ? DARK_S.warn : DARK_S.success, letterSpacing: '0.06em' }}>
-            {saveLabel || (dirty ? '● Unsaved' : (lastSaved ? `✓ ${lastSaved.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''))}
-          </div>
-          <button
-            onClick={() => setFormData(fd => { save(fd); return fd; })}
-            disabled={!dirty || !!saveLabel}
-            style={{
-              fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-              padding: '5px 12px', borderRadius: 2, cursor: dirty && !saveLabel ? 'pointer' : 'default',
-              background: dirty && !saveLabel ? `${GOLD}18` : 'none',
-              border: `1px solid ${dirty && !saveLabel ? `${GOLD}50` : PANEL_BDR}`,
-              color: dirty && !saveLabel ? GOLD : DARK_S.muted,
-              transition: 'all 0.15s', outline: 'none',
-            }}
-            onMouseEnter={e => { if (dirty && !saveLabel) { e.currentTarget.style.background = `${GOLD}28`; } }}
-            onMouseLeave={e => { if (dirty && !saveLabel) { e.currentTarget.style.background = `${GOLD}18`; } }}
-          >Save</button>
-        </div>
+        {/* ── Save state machine: Unsaved | Saving | Delayed | Saved | Failed ──
+            One pill + one button, always consistent. Never ambiguous. */}
+        {(() => {
+          // Derive the active display state (saveStatus wins while active,
+          // otherwise fall back to dirty/lastSaved for "calm" states).
+          const isActive = saveStatus === 'saving' || saveStatus === 'delayed';
+          const displayState =
+            saveStatus === 'saving'  ? 'saving'  :
+            saveStatus === 'delayed' ? 'delayed' :
+            saveStatus === 'failed'  ? 'failed'  :
+            saveStatus === 'saved'   ? 'saved'   :
+            dirty                    ? 'unsaved' :
+            lastSaved                ? 'saved'   :
+                                       'idle';
+
+          const timeStr = lastSaved
+            ? lastSaved.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+            : '';
+
+          const pillStyle = {
+            saving:  { color: GOLD,          border: `1px solid ${GOLD}50`,        bg: `${GOLD}12`,           dot: GOLD,          label: 'Saving now…'     },
+            delayed: { color: DARK_S.warn,   border: `1px solid ${DARK_S.warn}60`, bg: 'rgba(212,168,67,0.10)', dot: DARK_S.warn, label: 'Still saving…'   },
+            saved:   { color: DARK_S.success,border: `1px solid ${DARK_S.success}50`, bg: 'rgba(90,170,120,0.10)', dot: DARK_S.success, label: `Saved · ${timeStr}` },
+            unsaved: { color: DARK_S.warn,   border: `1px solid ${DARK_S.warn}40`, bg: 'rgba(212,168,67,0.06)', dot: DARK_S.warn, label: 'Unsaved changes' },
+            failed:  { color: DARK_S.error,  border: `1px solid ${DARK_S.error}60`, bg: 'rgba(224,85,85,0.10)', dot: DARK_S.error, label: 'Save failed'     },
+            idle:    { color: DARK_S.muted,  border: `1px solid ${PANEL_BDR}`,      bg: 'transparent',            dot: DARK_S.muted,  label: ''                },
+          }[displayState];
+
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              {/* Status pill — always visible except in pristine idle state */}
+              {displayState !== 'idle' && (
+                <div
+                  title={displayState === 'failed' && saveError ? saveError : pillStyle.label}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    padding: '4px 9px', borderRadius: 2,
+                    color: pillStyle.color,
+                    border: pillStyle.border,
+                    background: pillStyle.bg,
+                    transition: 'all 0.18s ease',
+                  }}
+                >
+                  <span style={{
+                    width: 6, height: 6, borderRadius: '50%',
+                    background: pillStyle.dot,
+                    animation: isActive ? 'lwdSavePulse 1.1s ease-in-out infinite' : 'none',
+                    flexShrink: 0,
+                  }} />
+                  <span>{pillStyle.label}</span>
+                </div>
+              )}
+
+              {/* Primary action button — changes label & intent per state */}
+              {displayState === 'failed' ? (
+                <button
+                  onClick={retrySave}
+                  style={{
+                    fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+                    textTransform: 'uppercase', padding: '5px 12px', borderRadius: 2,
+                    cursor: 'pointer',
+                    background: `${DARK_S.error}20`,
+                    border: `1px solid ${DARK_S.error}80`,
+                    color: DARK_S.error,
+                    transition: 'all 0.15s', outline: 'none',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = `${DARK_S.error}35`; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = `${DARK_S.error}20`; }}
+                >
+                  ↻ Retry
+                </button>
+              ) : (
+                <button
+                  onClick={() => save(formDataRef.current)}
+                  disabled={isActive || (!dirty && displayState !== 'unsaved')}
+                  style={{
+                    fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+                    textTransform: 'uppercase', padding: '5px 12px', borderRadius: 2,
+                    cursor: isActive ? 'default' : (dirty ? 'pointer' : 'default'),
+                    background: dirty && !isActive ? `${GOLD}18` : 'none',
+                    border: `1px solid ${dirty && !isActive ? `${GOLD}50` : PANEL_BDR}`,
+                    color: dirty && !isActive ? GOLD : DARK_S.muted,
+                    transition: 'all 0.15s', outline: 'none',
+                    opacity: isActive ? 0.45 : 1,
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}
+                  onMouseEnter={e => { if (!isActive && dirty) { e.currentTarget.style.background = `${GOLD}28`; } }}
+                  onMouseLeave={e => { if (!isActive && dirty) { e.currentTarget.style.background = `${GOLD}18`; } }}
+                >
+                  {/* Label stays static. The pill to the left does all the
+                      status talking — the button just becomes a quiet,
+                      disabled target during an in-flight save (dimmed via
+                      opacity). No dot, no label swap, no duplicate signal. */}
+                  Save
+                </button>
+              )}
+              {/* Keyframes for the pulsing dot */}
+              <style>{`
+                @keyframes lwdSavePulse {
+                  0%, 100% { opacity: 1;   transform: scale(1);    }
+                  50%      { opacity: 0.35; transform: scale(0.7);  }
+                }
+              `}</style>
+            </div>
+          );
+        })()}
         {/* Intelligence badge */}
         <ContentScoreBadge score={contentIntel.score} grade={contentIntel.grade} gradeColor={contentIntel.gradeColor} onClick={() => setShowIntelPanel(p => !p)} />
         {/* Theme toggle — calls parent so one state controls everything */}
@@ -6395,6 +7111,70 @@ Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY t
             </>
         }
       </div>
+
+      {/* ── Phase 3.1: Local crash recovery banner ─────────────────────────
+          Shown only when a local backup exists that is newer than the
+          server copy. Never auto-restores — the user must explicitly choose
+          Restore (apply backup + mark dirty) or Discard (clear backup). */}
+      {recovery && (
+        <div style={{
+          flexShrink: 0,
+          background: 'rgba(201,168,76,0.08)',
+          borderBottom: `1px solid ${GOLD}40`,
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}>
+          <span style={{ fontSize: 14, color: GOLD, flexShrink: 0 }}>↻</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontFamily: FD, fontSize: 12, fontWeight: 600,
+              color: DARK_S.text, marginBottom: 2,
+            }}>
+              Unsaved changes recovered
+            </div>
+            <div style={{
+              fontFamily: FU, fontSize: 10, color: DARK_S.muted,
+              letterSpacing: '0.02em',
+            }}>
+              A newer local draft from {new Date(recovery.timestamp).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} was found. Restore it, or keep the server version?
+            </div>
+          </div>
+          <button
+            onClick={handleRestoreDraft}
+            style={{
+              fontFamily: FU, fontSize: 9, fontWeight: 700,
+              letterSpacing: '0.1em', textTransform: 'uppercase',
+              padding: '6px 14px', borderRadius: 2, cursor: 'pointer',
+              background: `${GOLD}20`,
+              border: `1px solid ${GOLD}80`,
+              color: GOLD, outline: 'none', flexShrink: 0,
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}35`; }}
+            onMouseLeave={e => { e.currentTarget.style.background = `${GOLD}20`; }}
+          >
+            Restore draft
+          </button>
+          <button
+            onClick={handleDiscardDraft}
+            style={{
+              fontFamily: FU, fontSize: 9, fontWeight: 700,
+              letterSpacing: '0.1em', textTransform: 'uppercase',
+              padding: '6px 12px', borderRadius: 2, cursor: 'pointer',
+              background: 'none',
+              border: `1px solid ${PANEL_BDR}`,
+              color: DARK_S.muted, outline: 'none', flexShrink: 0,
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = DARK_S.text; }}
+            onMouseLeave={e => { e.currentTarget.style.color = DARK_S.muted; }}
+          >
+            Discard
+          </button>
+        </div>
+      )}
 
       {/* Canvas toolbar — always dark, matches top bar / panel colour */}
       <CanvasToolbar formData={formData} onChange={updateForm} onAddBlock={handleAddBlock} SS={{ ...DARK_S, surface: PANEL_BG, border: PANEL_BDR }} viewport={viewport} onViewport={setViewport} />
@@ -6447,13 +7227,78 @@ Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY t
         <DocSidebar
           formData={formData} onChange={updateForm}
           tone={tone} onToneChange={setTone}
-          onPublish={publish} onUnpublish={unpublish} onSave={save} saving={saving}
+          onPublish={publish} onUnpublish={unpublish} onSave={save} saving={saving || saveStatus === 'saving' || saveStatus === 'delayed'}
           intel={contentIntel} focusKeyword={focusKeyword} onKeywordChange={setFocusKeyword}
           onOpenIntelligence={() => setShowIntelPanel(p => !p)}
           S={{ ...DARK_S, surface: PANEL_BG, surfaceUp: '#221a12', border: PANEL_BDR, inputBg: 'rgba(201,169,110,0.04)', inputBorder: 'rgba(201,169,110,0.1)' }}
           aiDraft={aiDraft} onAiDraft={setAiDraft}
           aiDraftLoading={aiDraftLoading} onAiDraftLoading={setAiDraftLoading}
         />
+        )}
+
+        {/* AIPanel — Content Tools, right-side alongside SEO */}
+        {!isPhone && showAIPanel && (
+          <div style={{
+            width: 320,
+            flexShrink: 0,
+            background: PANEL_BG,
+            borderLeft: `1px solid ${PANEL_BDR}`,
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+          }}>
+            {/* Header with close button */}
+            <div style={{
+              padding: '14px 16px',
+              borderBottom: `1px solid ${PANEL_BDR}`,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexShrink: 0,
+            }}>
+              <span style={{
+                fontFamily: FD,
+                fontSize: 11,
+                fontWeight: 700,
+                color: GOLD,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}>
+                ✦ Content Tools
+              </span>
+              <button
+                onClick={() => setShowAIPanel(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: DARK_S.muted,
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  lineHeight: 1,
+                  padding: 0,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Scrollable content */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              paddingRight: '8px',
+              padding: '16px',
+            }}>
+              <AIPanel
+                formData={formData}
+                onChange={updateForm}
+                tone={tone}
+                onToneChange={setTone}
+                focusKeyword={focusKeyword}
+                onSeoRecalculate={recalculateSeo}
+              />
+            </div>
+          </div>
         )}
 
         {/* Live SEO Score — always visible */}

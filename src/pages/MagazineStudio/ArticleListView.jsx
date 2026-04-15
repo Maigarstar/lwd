@@ -111,8 +111,25 @@ export default function ArticleListView({
               <div style={{
                 fontFamily: FD, fontSize: 14, color: CV.text, lineHeight: 1.3,
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                display: 'flex', alignItems: 'center', gap: 8,
               }}>
-                {post.title || 'Untitled'}
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {post.title || 'Untitled'}
+                </span>
+                {post._isStaticFallback && (
+                  <span
+                    title="Template — click Edit to create a draft from this starter."
+                    style={{
+                      fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.12em',
+                      textTransform: 'uppercase', padding: '2px 6px', borderRadius: 2,
+                      background: 'rgba(201,168,76,0.10)',
+                      border: '1px solid rgba(201,168,76,0.35)',
+                      color: CV.gold, flexShrink: 0,
+                    }}
+                  >
+                    Template
+                  </span>
+                )}
               </div>
               {(post.categoryLabel || post.category) && (
                 <span style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: CV.gold, opacity: 0.7 }}>

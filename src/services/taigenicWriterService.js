@@ -13,6 +13,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { NLP_TERMS } from '../pages/MagazineStudio/ContentIntelligence';
+import { callAiGenerate } from '../lib/aiGenerate';
 
 // Word count targets per category (mirrored from ContentIntelligence.jsx)
 const WORD_TARGETS = {
@@ -117,7 +118,7 @@ function buildUserPrompt(brief, title, category, focusKeyword) {
   const parts = [`Write a luxury editorial magazine article for Luxury Wedding Directory.`];
   if (title) parts.push(`Article title: "${title}"`);
   if (category) parts.push(`Category: ${category}`);
-  if (focusKeyword) parts.push(`Focus keyword: ${focusKeyword}`);
+  if (focusKeyword) parts.push(`Primary focus keyword: "${focusKeyword}" — weave naturally into the content without forcing it.`);
   if (brief) parts.push(`Editorial brief:\n${brief}`);
   parts.push(`\nGenerate the full article now as a JSON block array per the system prompt.`);
   return parts.join('\n');
@@ -209,6 +210,113 @@ export async function updateGenerationOutcome(logId, outcome) {
   }
 }
 
+// ── Refine content with targeted modifications (Phase 2) ─────────────────────
+// Actions:
+//   'shorten': reduce by X% while preserving meaning
+//   'expand': add X% more content with deeper insights
+//   'rewrite-intro': rewrite only intro (first 1-2 paragraphs)
+//   'add-keywords': find sections where focusKeyword fits, suggest targeted additions
+//   'fix-title': regenerate title with length constraint
+export async function refineContent({
+  blocks = [],
+  action,
+  tone,
+  focusKeyword,
+  constraint = 15,
+  context = {},
+}) {
+  if (!action) throw new Error('Refinement action required');
+
+  const content = blocks
+    .map(b => b.text || b.caption || '')
+    .filter(Boolean)
+    .join('\n\n');
+
+  const wordCount = content.split(/\s+/).filter(Boolean).length;
+
+  const prompts = {
+    'shorten': `You are a luxury editorial editor. Reduce this article by ${constraint}% while preserving all meaning, nuance, and luxury tone. Remove padding and redundancy, but keep every important idea.
+
+Current article (${wordCount} words):
+${content}
+
+Return ONLY the shortened article text. No markdown, no explanation.`,
+
+    'expand': `You are a luxury editorial editor. Expand this article by ${constraint}% with deeper insights, specific examples, and more sensory detail. Maintain the ${tone || 'Luxury Editorial'} tone throughout.
+
+Current article (${wordCount} words):
+${content}
+
+Return ONLY the expanded article text. No markdown, no explanation.`,
+
+    'rewrite-intro': `You are a luxury editorial editor. Rewrite ONLY the introduction (opening 1-2 paragraphs) in a ${tone || 'Luxury Editorial'} tone. Create a compelling hook that draws readers in.${focusKeyword ? ` Naturally introduce "${focusKeyword}" in the opening.` : ''}
+
+Current introduction:
+${blocks
+  .filter(b => b.type === 'intro' || b.type === 'paragraph')
+  .slice(0, 2)
+  .map(b => b.text)
+  .join('\n\n')}
+
+Return ONLY the rewritten introduction (1-2 paragraphs). No markdown, no explanation.`,
+
+    'add-keywords': `You are a luxury editorial editor. Find 2-3 sections in this article where "${focusKeyword}" naturally fits and would strengthen the content. For each section, suggest 1-2 sentence additions that complement the existing text WITHOUT replacing it.
+
+Article:
+${content}
+
+Return ONLY a JSON array with no markdown:
+[
+  { "sectionIndex": 0, "suggestion": "One or two sentences to add after paragraph X..." },
+  { "sectionIndex": 2, "suggestion": "One or two sentences to add after paragraph Y..." }
+]`,
+
+    'fix-title': `You are a luxury editorial editor. Generate an SEO-optimised title (50-60 characters) for this article.${focusKeyword ? ` Include or strongly relate to "${focusKeyword}".` : ''} Write in a ${tone || 'Luxury Editorial'} tone.
+
+Article snippet:
+${content.slice(0, 300)}
+
+Return ONLY the title text. No markdown, no explanation.`,
+  };
+
+  const prompt = prompts[action];
+  if (!prompt) throw new Error(`Unknown refinement action: ${action}`);
+
+  let data;
+  try {
+    data = await callAiGenerate({
+      feature: `refine_${action}`,
+      systemPrompt: `You are a luxury magazine editor with expertise in wedding editorial content. ${tone ? `Write in a ${tone} tone.` : ''} Focus on quality, engagement, and natural language. Never regenerate text unless specifically asked to.`,
+      userPrompt: prompt,
+      maxTokens: action === 'add-keywords' ? 600 : 2000,
+    });
+  } catch (err) {
+    throw new Error(err?.message || `Refinement failed: ${action}`);
+  }
+
+  if (!data?.text) {
+    throw new Error(`Refinement failed for action: ${action}`);
+  }
+
+  // Fire-and-forget log
+  logGeneration({
+    feature: `refine_${action}`,
+    topic: context.title || '',
+    word_count: wordCount,
+    provider: data.provider || 'ai',
+    model: data.model || '',
+    tokens_in: data.usage?.prompt_tokens ?? null,
+    tokens_out: data.usage?.completion_tokens ?? null,
+    focus_keyword: focusKeyword,
+  });
+
+  return {
+    text: data.text.trim(),
+    action,
+    fullArticleRegen: ['shorten', 'expand'].includes(action),
+  };
+}
+
 // ── Main: generate full article body ─────────────────────────────────────────
 export async function generateArticleBody({ brief, title, category, tone, focusKeyword }) {
   const categoryKey = (category || 'default').toLowerCase();
@@ -219,20 +327,22 @@ export async function generateArticleBody({ brief, title, category, tone, focusK
   const systemPrompt = buildSystemPrompt(category, wordTarget, imageTarget, nlpTerms, tone);
   const userPrompt   = buildUserPrompt(brief, title, category, focusKeyword);
 
-  const { supabase } = await import('../lib/supabaseClient');
   const t0 = Date.now();
-  const { data, error } = await supabase.functions.invoke('ai-generate', {
-    body: {
+  let data;
+  try {
+    data = await callAiGenerate({
       feature:      'taigenic-writer',
       systemPrompt,
       userPrompt,
       maxTokens:    4000,
-    },
-  });
+    });
+  } catch (err) {
+    throw new Error(err?.message || 'AI generation failed — check AI Settings in Admin.');
+  }
   const latencyMs = Date.now() - t0;
 
-  if (error || !data?.text) {
-    throw new Error(error?.message || 'AI generation failed — check AI Settings in Admin.');
+  if (!data?.text) {
+    throw new Error('AI generation failed — check AI Settings in Admin.');
   }
 
   const blocks = parseBlocks(data.text);
@@ -327,19 +437,21 @@ RULES:
 - Tone recommendation should match the topic and category
 - Return ONLY the JSON object`;
 
-  const { supabase } = await import('../lib/supabaseClient');
   const t0 = Date.now();
-  const { data, error } = await supabase.functions.invoke('ai-generate', {
-    body: {
+  let data;
+  try {
+    data = await callAiGenerate({
       feature: 'taigenic-brief',
       userPrompt: prompt,
       maxTokens: 1200,
-    },
-  });
+    });
+  } catch (err) {
+    throw new Error(err?.message || 'Brief generation failed.');
+  }
   const latencyMs = Date.now() - t0;
 
-  if (error || !data?.text) {
-    throw new Error(error?.message || 'Brief generation failed.');
+  if (!data?.text) {
+    throw new Error('Brief generation failed.');
   }
 
   try {
@@ -379,17 +491,19 @@ RULES:
 export async function generateOutline({ brief, title, category }) {
   const prompt = buildOutlinePrompt(brief, title, category);
 
-  const { supabase } = await import('../lib/supabaseClient');
-  const { data, error } = await supabase.functions.invoke('ai-generate', {
-    body: {
+  let data;
+  try {
+    data = await callAiGenerate({
       feature:   'taigenic-outline',
       userPrompt: prompt,
       maxTokens:  600,
-    },
-  });
+    });
+  } catch (err) {
+    throw new Error(err?.message || 'Outline generation failed.');
+  }
 
-  if (error || !data?.text) {
-    throw new Error(error?.message || 'Outline generation failed.');
+  if (!data?.text) {
+    throw new Error('Outline generation failed.');
   }
 
   const blocks = parseBlocks(data.text);

@@ -5,6 +5,7 @@
  */
 
 import { supabase } from '../lib/supabaseClient';
+import { callAiGenerate } from '../lib/aiGenerate';
 import {
   buildSeoTitlePrompt,
   buildSeoDescriptionPrompt,
@@ -12,23 +13,20 @@ import {
   SEO_SYSTEM,
 } from '../lib/aiPrompts';
 
-const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
 // ── Core AI caller ─────────────────────────────────────────────────────────────
 
 async function callAI(feature, userPrompt) {
-  const { data, error } = await supabase.functions.invoke('ai-generate', {
-    body: { feature, systemPrompt: SEO_SYSTEM, userPrompt },
-    headers: { Authorization: `Bearer ${ANON_KEY}` },
-  });
-  if (error) throw new Error(error.message || 'AI service error');
-  if (!data || data.error) {
-    const msg = data?.status === 'not_configured'
-      ? 'AI not configured - set up a provider in Admin > AI Settings'
-      : (data?.error || 'AI service unavailable');
+  try {
+    const data = await callAiGenerate({ feature, systemPrompt: SEO_SYSTEM, userPrompt });
+    if (!data?.text) throw new Error('AI service unavailable');
+    return data.text.trim();
+  } catch (err) {
+    const msg = err?.message || 'AI service error';
+    if (msg.includes('not_configured') || msg.includes('No active AI provider')) {
+      throw new Error('AI not configured - set up a provider in Admin > AI Settings');
+    }
     throw new Error(msg);
   }
-  return (data.text || '').trim();
 }
 
 // ── Fetch SEO status for all listings ─────────────────────────────────────────
