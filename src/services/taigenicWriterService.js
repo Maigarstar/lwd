@@ -442,6 +442,7 @@ RULES:
   try {
     data = await callAiGenerate({
       feature: 'taigenic-brief',
+      systemPrompt: 'You are an expert SEO content strategist specialising in luxury wedding editorial. You return only valid JSON matching the schema requested — no markdown, no commentary, no code fences.',
       userPrompt: prompt,
       maxTokens: 1200,
     });
@@ -495,6 +496,7 @@ export async function generateOutline({ brief, title, category }) {
   try {
     data = await callAiGenerate({
       feature:   'taigenic-outline',
+      systemPrompt: 'You are a luxury magazine editor. Return only a clean list of H2/H3 headings for the requested article, one per line, no numbering, no commentary.',
       userPrompt: prompt,
       maxTokens:  600,
     });

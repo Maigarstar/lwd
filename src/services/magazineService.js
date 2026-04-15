@@ -13,6 +13,25 @@
 
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
 
+// ── Per-call timeout guard ────────────────────────────────────────────────────
+// supabase-js can wedge indefinitely on the navigator-lock path (auth refresh
+// lock held by a crashed/orphaned tab). When that happens REST calls never
+// resolve or reject — they just hang. That defeats savePostSafe's retry
+// because there is no thrown error to catch. Wrap every await in savePost
+// with a hard per-step ceiling so a hang becomes a catchable error.
+const SUPABASE_STEP_TIMEOUT_MS = 8000;
+function withTimeout(promise, ms, label) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => {
+      reject(new Error(`supabase-timeout:${label} after ${ms}ms (likely navigator-lock stall — reload tab)`));
+    }, ms);
+    Promise.resolve(promise).then(
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); },
+    );
+  });
+}
+
 // ── Case helpers ───────────────────────────────────────────────────────────────
 function snakeToCamel(key) {
   return key.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
@@ -222,8 +241,11 @@ export async function savePost(formData) {
     let existingDbId = null;
     if (!isDbId && formData.slug) {
       mark('slug-lookup start');
-      const { data: existing } = await supabase
-        .from('magazine_posts').select('id').eq('slug', formData.slug).maybeSingle();
+      const { data: existing } = await withTimeout(
+        supabase.from('magazine_posts').select('id').eq('slug', formData.slug).maybeSingle(),
+        SUPABASE_STEP_TIMEOUT_MS,
+        'slug-lookup',
+      );
       mark('slug-lookup end');
       if (existing?.id) { existingDbId = existing.id; isDbId = true; }
     }
@@ -249,23 +271,22 @@ export async function savePost(formData) {
     if (isDbId) {
       // Update existing (real UUID or found-by-slug)
       mark('update start');
-      const { data, error } = await supabase
-        .from('magazine_posts')
-        .update(row)
-        .eq('id', effectiveId)
-        .select()
-        .single();
+      const { data, error } = await withTimeout(
+        supabase.from('magazine_posts').update(row).eq('id', effectiveId).select().single(),
+        SUPABASE_STEP_TIMEOUT_MS,
+        'update',
+      );
       mark('update end');
       if (error) throw error;
       savedPost = data;
     } else {
       // Insert new
       mark('insert start');
-      const { data, error } = await supabase
-        .from('magazine_posts')
-        .insert([row])
-        .select()
-        .single();
+      const { data, error } = await withTimeout(
+        supabase.from('magazine_posts').insert([row]).select().single(),
+        SUPABASE_STEP_TIMEOUT_MS,
+        'insert',
+      );
       mark('insert end');
       if (error) throw error;
       savedPost = data;
@@ -273,15 +294,19 @@ export async function savePost(formData) {
 
     // 4. Replace blocks — atomic two-phase: backup existing, delete, insert new with restore on failure
     mark('blocks-read start');
-    const { data: existingBlocks } = await supabase
-      .from('magazine_blocks')
-      .select('*')
-      .eq('post_id', savedPost.id)
-      .order('block_order', { ascending: true });
+    const { data: existingBlocks } = await withTimeout(
+      supabase.from('magazine_blocks').select('*').eq('post_id', savedPost.id).order('block_order', { ascending: true }),
+      SUPABASE_STEP_TIMEOUT_MS,
+      'blocks-read',
+    );
     mark('blocks-read end');
 
     mark('blocks-delete start');
-    const { error: deleteErr } = await supabase.from('magazine_blocks').delete().eq('post_id', savedPost.id);
+    const { error: deleteErr } = await withTimeout(
+      supabase.from('magazine_blocks').delete().eq('post_id', savedPost.id),
+      SUPABASE_STEP_TIMEOUT_MS,
+      'blocks-delete',
+    );
     mark('blocks-delete end');
     if (deleteErr && formData.content && formData.content.length > 0) {
       // Can't proceed with block replacement if delete failed
@@ -301,7 +326,11 @@ export async function savePost(formData) {
         };
       });
       mark('blocks-insert start');
-      const { error: blocksErr } = await supabase.from('magazine_blocks').insert(blockRows);
+      const { error: blocksErr } = await withTimeout(
+        supabase.from('magazine_blocks').insert(blockRows),
+        SUPABASE_STEP_TIMEOUT_MS,
+        'blocks-insert',
+      );
       mark('blocks-insert end');
       if (blocksErr) {
         console.error('[magazineService] Block insert failed, attempting restore:', blocksErr);

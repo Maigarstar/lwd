@@ -12290,13 +12290,22 @@ function MagazineAdminModule({ C, onNavigate }) {
   const [editCatForm, setEditCatForm] = useState({});
 
   useEffect(() => {
-    fetchPosts().then(({ data }) => {
-      if (data && data.length > 0) {
-        const staticSlugs = new Set(POSTS.map(p => p.slug));
-        const dbOnly = data.filter(p => !staticSlugs.has(p.slug));
-        setAllPosts([...POSTS, ...dbOnly]);
+    fetchPosts().then(({ data, error }) => {
+      if (error) {
+        console.error('[MagazineAdmin] fetchPosts error:', error);
+        return;
       }
-    }).catch(() => {});
+      if (data && data.length > 0) {
+        // DB is source of truth. Static POSTS only fills in legacy articles
+        // that haven't been migrated to the DB yet.
+        const dbSlugs = new Set(data.map(p => p.slug));
+        const staticOnly = POSTS.filter(p => !dbSlugs.has(p.slug));
+        setAllPosts([...data, ...staticOnly]);
+        console.log(`[MagazineAdmin] loaded ${data.length} DB posts + ${staticOnly.length} static-only = ${data.length + staticOnly.length} total`);
+      }
+    }).catch((e) => {
+      console.error('[MagazineAdmin] fetchPosts threw:', e);
+    });
   }, []);
 
   const handleDelete = async (post) => {
@@ -12370,10 +12379,10 @@ function MagazineAdminModule({ C, onNavigate }) {
   });
 
   const stats = [
-    { label: 'Total Articles', value: POSTS.length },
+    { label: 'Total Articles', value: allPosts.length },
     { label: 'Categories', value: CATEGORIES.length },
-    { label: 'Featured', value: POSTS.filter(p => p.featured).length },
-    { label: 'Trending', value: POSTS.filter(p => p.trending).length },
+    { label: 'Featured', value: allPosts.filter(p => p.featured).length },
+    { label: 'Trending', value: allPosts.filter(p => p.trending).length },
   ];
 
   const TabBtn = ({ id, label }) => (

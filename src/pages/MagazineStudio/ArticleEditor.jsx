@@ -5915,16 +5915,84 @@ function CanvasBlock({ block, index, isActive, onActivate, onDeactivate, onChang
 }
 
 // ── Canvas top toolbar ────────────────────────────────────────────────────────
+// Inline SVG thumbnails for the Hero menu. Pure-vector, ~220×90 viewBox,
+// palette matches the studio surface so they feel native to the menu.
+const HERO_THUMBS = {
+  'hero-cinematic': (
+    <svg viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', width: '100%', height: '100%' }}>
+      <defs>
+        <linearGradient id="ht-cine" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#2a2520" />
+          <stop offset="100%" stopColor="#0d0b08" />
+        </linearGradient>
+      </defs>
+      <rect width="220" height="90" fill="url(#ht-cine)" />
+      <circle cx="165" cy="28" r="10" fill="#3a3228" opacity="0.6" />
+      <rect x="16" y="56" width="120" height="5" rx="1" fill="#c9a96e" />
+      <rect x="16" y="66" width="90"  height="3" rx="1" fill="rgba(245,240,232,0.55)" />
+      <rect x="16" y="73" width="60"  height="3" rx="1" fill="rgba(245,240,232,0.35)" />
+    </svg>
+  ),
+  'hero-editorial': (
+    <svg viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', width: '100%', height: '100%' }}>
+      <rect width="220" height="90" fill="#141210" />
+      <rect x="16" y="14" width="110" height="4" rx="1" fill="#c9a96e" />
+      <rect x="16" y="24" width="140" height="9" rx="1" fill="rgba(245,240,232,0.85)" />
+      <rect x="16" y="38" width="130" height="9" rx="1" fill="rgba(245,240,232,0.85)" />
+      <rect x="16" y="55" width="160" height="3" rx="1" fill="rgba(245,240,232,0.35)" />
+      <rect x="16" y="62" width="140" height="3" rx="1" fill="rgba(245,240,232,0.35)" />
+      <rect x="16" y="69" width="120" height="3" rx="1" fill="rgba(245,240,232,0.35)" />
+      <rect x="170" y="20" width="36" height="36" rx="1" fill="#2a2520" />
+    </svg>
+  ),
+  'hero-split': (
+    <svg viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', width: '100%', height: '100%' }}>
+      <rect width="220" height="90" fill="#141210" />
+      <rect x="0" y="0" width="110" height="90" fill="#2a2520" />
+      <circle cx="55" cy="45" r="14" fill="#3a3228" opacity="0.7" />
+      <rect x="122" y="22" width="80" height="5" rx="1" fill="#c9a96e" />
+      <rect x="122" y="34" width="88" height="4" rx="1" fill="rgba(245,240,232,0.8)" />
+      <rect x="122" y="44" width="72" height="3" rx="1" fill="rgba(245,240,232,0.45)" />
+      <rect x="122" y="52" width="80" height="3" rx="1" fill="rgba(245,240,232,0.45)" />
+      <rect x="122" y="60" width="60" height="3" rx="1" fill="rgba(245,240,232,0.45)" />
+    </svg>
+  ),
+  'hero-minimal': (
+    <svg viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', width: '100%', height: '100%' }}>
+      <rect width="220" height="90" fill="#141210" />
+      <rect x="40" y="22" width="30" height="3" rx="1" fill="#c9a96e" />
+      <rect x="40" y="32" width="140" height="8" rx="1" fill="rgba(245,240,232,0.85)" />
+      <rect x="40" y="45" width="110" height="8" rx="1" fill="rgba(245,240,232,0.85)" />
+      <rect x="40" y="62" width="100" height="3" rx="1" fill="rgba(245,240,232,0.35)" />
+      <rect x="40" y="69" width="80"  height="3" rx="1" fill="rgba(245,240,232,0.35)" />
+    </svg>
+  ),
+  'hero-dark': (
+    <svg viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', width: '100%', height: '100%' }}>
+      <defs>
+        <radialGradient id="ht-dark" cx="50%" cy="55%" r="70%">
+          <stop offset="0%" stopColor="#1a1512" />
+          <stop offset="100%" stopColor="#050403" />
+        </radialGradient>
+      </defs>
+      <rect width="220" height="90" fill="url(#ht-dark)" />
+      <rect x="60" y="30" width="100" height="4" rx="1" fill="#c9a96e" />
+      <rect x="50" y="42" width="120" height="8" rx="1" fill="rgba(245,240,232,0.92)" />
+      <rect x="70" y="56" width="80"  height="3" rx="1" fill="rgba(245,240,232,0.5)" />
+    </svg>
+  ),
+};
+
 const TOOLBAR_MENUS = [
   {
     label: 'Hero',
     icon: '◉',
     items: [
-      { label: 'Cinematic — full bleed',    action: 'hero-cinematic' },
-      { label: 'Editorial — text dominant', action: 'hero-editorial' },
-      { label: 'Split — 50/50 image+text',  action: 'hero-split' },
-      { label: 'Minimalist — no image',     action: 'hero-minimal' },
-      { label: 'Dark full-bleed',           action: 'hero-dark' },
+      { label: 'Cinematic',  sub: 'Full-bleed image · overlay text', action: 'hero-cinematic' },
+      { label: 'Editorial',  sub: 'Text dominant · inset image',     action: 'hero-editorial' },
+      { label: 'Split',      sub: '50/50 image + text',              action: 'hero-split' },
+      { label: 'Minimalist', sub: 'No image · typography only',      action: 'hero-minimal' },
+      { label: 'Dark',       sub: 'Dark full-bleed · centred',       action: 'hero-dark' },
     ],
   },
   {
@@ -6020,24 +6088,40 @@ function CanvasToolbar({ formData, onChange, onAddBlock, SS, viewport = 'desktop
             {menu.label}
             <span style={{ fontSize: 7, opacity: 0.45 }}>▾</span>
           </button>
-          {openMenu === menu.label && (
-            <div
-              style={{ position: 'absolute', top: '100%', left: 0, zIndex: 300, width: 210, background: '#1a1714', border: `1px solid ${border}`, borderRadius: 4, boxShadow: '0 12px 40px rgba(0,0,0,0.5)', overflow: 'hidden', marginTop: 3 }}
-              onMouseLeave={() => setOpenMenu(null)}
-            >
-              <div style={{ padding: '7px 12px 5px', borderBottom: `1px solid ${border}` }}>
-                <span style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: GOLD, opacity: 0.8 }}>{menu.label}</span>
+          {openMenu === menu.label && (() => {
+            const isHero = menu.label === 'Hero';
+            return (
+              <div
+                style={{ position: 'absolute', top: '100%', left: 0, zIndex: 300, width: isHero ? 280 : 210, background: '#1a1714', border: `1px solid ${border}`, borderRadius: 4, boxShadow: '0 12px 40px rgba(0,0,0,0.5)', overflow: 'hidden', marginTop: 3 }}
+                onMouseLeave={() => setOpenMenu(null)}
+              >
+                <div style={{ padding: '7px 12px 5px', borderBottom: `1px solid ${border}` }}>
+                  <span style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: GOLD, opacity: 0.8 }}>{menu.label}</span>
+                </div>
+                {menu.items.map(item => {
+                  const thumb = isHero ? HERO_THUMBS[item.action] : null;
+                  return (
+                    <button key={item.label} onClick={() => handleItem(menu, item)}
+                      style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: isHero ? 10 : 0, padding: isHero ? '8px 12px' : '8px 14px', fontFamily: FU, fontSize: 10, color: 'rgba(245,240,232,0.7)', background: 'none', border: 'none', borderBottom: isHero ? `1px solid rgba(245,240,232,0.04)` : 'none', cursor: 'pointer', transition: 'background 0.1s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}10`; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}>
+                      {thumb && (
+                        <div style={{ width: 76, height: 32, flexShrink: 0, borderRadius: 2, overflow: 'hidden', border: `1px solid rgba(245,240,232,0.08)` }}>
+                          {thumb}
+                        </div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.85)', letterSpacing: '0.04em' }}>{item.label}</div>
+                        {item.sub && (
+                          <div style={{ fontSize: 8, color: 'rgba(245,240,232,0.4)', marginTop: 2, letterSpacing: '0.03em', textTransform: 'none' }}>{item.sub}</div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-              {menu.items.map(item => (
-                <button key={item.label} onClick={() => handleItem(menu, item)}
-                  style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', padding: '8px 14px', fontFamily: FU, fontSize: 10, color: 'rgba(245,240,232,0.7)', background: 'none', border: 'none', cursor: 'pointer', transition: 'background 0.1s' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = `${GOLD}14`; e.currentTarget.style.color = GOLD; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'rgba(245,240,232,0.7)'; }}>
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          )}
+            );
+          })()}
         </div>
       ))}
       {openMenu && <div style={{ position: 'fixed', inset: 0, zIndex: 299 }} onClick={() => setOpenMenu(null)} />}
@@ -6295,7 +6379,16 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   const [showIntelPanel, setShowIntelPanel] = useState(false);
   const [showAIPanel, setShowAIPanel]   = useState(true); // ← NEW: AIPanel visible by default on desktop
   const [triggerSeoRefresh, setTriggerSeoRefresh] = useState(0); // ← NEW: Force SEO recalculation
-  const [showTemplate, setShowTemplate] = useState((initialPost.content || []).length === 0);
+  // Template picker should ONLY appear for genuinely-new articles (no real DB
+  // UUID). Existing articles must go straight to the editor even if their
+  // content blocks are still loading async — otherwise every edit click flashes
+  // the template picker because useState seeds once from an empty initialPost.
+  const [showTemplate, setShowTemplate] = useState(() => {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const hasDbId = initialPost?.id && UUID_RE.test(initialPost.id);
+    if (hasDbId) return false; // existing article — never show template picker
+    return (initialPost.content || []).length === 0; // new article — show picker if empty
+  });
   const [viewport, setViewport] = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
   const [phoneView, setPhoneView] = useState('editor'); // 'editor' | 'sidebar'
   // Lifted AI draft state — shared between DocSidebar (brief form) and AiDraftPreview (canvas)

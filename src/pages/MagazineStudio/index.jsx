@@ -126,11 +126,15 @@ function ConflictDialog({ open, conflictPost, onReload, onOverwrite, onCancel })
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 // Retry-aware savePost wrapper: Navigator Lock steal (AbortError) can cause a
-// one-off failure when multiple tabs contend for the Supabase auth lock.
-// A single retry after a short delay resolves it.
+// one-off failure when multiple tabs contend for the Supabase auth lock. Same
+// lock can wedge a call entirely — magazineService now surfaces those as
+// `supabase-timeout:<step>` errors (8s per step). A single retry after a short
+// delay usually clears both conditions.
 async function savePostSafe(postData) {
   let result = await savePost(postData);
-  if (result.error && /abort|lock.*broken|steal/i.test(result.error.message || '')) {
+  const msg = result?.error?.message || '';
+  if (result.error && /abort|lock.*broken|steal|supabase-timeout/i.test(msg)) {
+    console.warn('[savePostSafe] transient error, retrying once:', msg);
     await new Promise(r => setTimeout(r, 500));
     result = await savePost(postData);
   }

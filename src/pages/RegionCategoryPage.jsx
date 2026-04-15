@@ -1321,6 +1321,7 @@ export default function RegionCategoryPage({
                       className="lwd-venue-grid"
                       style={{
                         ...getGridStyles(false),
+                        gridTemplateColumns: "repeat(2, 1fr)",
                       }}
                       aria-label={isVendor ? `${categoryLabel} grid` : "Venue grid"}
                     >
