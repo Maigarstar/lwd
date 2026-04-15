@@ -526,10 +526,24 @@ export const useListingForm = (listingId = null) => {
         handleChange('dining_menu_images', diningUpload.items);
       }
 
-      if (heroUpload.failed > 0 || mediaUpload.failed > 0 || roomsUpload.failed > 0 || diningUpload.failed > 0) {
+      const totalFailed = heroUpload.failed + mediaUpload.failed + roomsUpload.failed + diningUpload.failed;
+      if (totalFailed > 0) {
         console.warn(
-          `[storage] ${heroUpload.failed + mediaUpload.failed + roomsUpload.failed + diningUpload.failed} file(s) failed to upload, ` +
+          `[storage] ${totalFailed} file(s) failed to upload, ` +
           `they will be excluded from the saved listing.`
+        );
+        // Surface to the user — silent failures inside a "Save" click are
+        // worse than a noisy banner. The save will still complete with the
+        // files that did succeed.
+        const sourceList = [
+          heroUpload.failed > 0 && `${heroUpload.failed} hero`,
+          mediaUpload.failed > 0 && `${mediaUpload.failed} media`,
+          roomsUpload.failed > 0 && `${roomsUpload.failed} room`,
+          diningUpload.failed > 0 && `${diningUpload.failed} dining`,
+        ].filter(Boolean).join(', ');
+        setError(
+          `${totalFailed} image${totalFailed === 1 ? '' : 's'} failed to upload (${sourceList}). ` +
+          `Check the file size (max 5MB) and try Save again. Other changes were saved.`
         );
       }
 

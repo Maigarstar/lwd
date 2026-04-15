@@ -4129,9 +4129,11 @@ function ExclusiveUse({ venue, onEnquire }) {
 // Renders the structured wedding-package offerings saved by the Listing
 // Studio's PackagesSection (e.g. Orchardleigh's "House Weddings" / "Estate
 // Weddings"). Hidden when there are no packages.
-function WeddingPackagesSection({ venue }) {
+function WeddingPackagesSection({ venue, onEnquire }) {
   const C = useT();
   const isMobile = useIsMobile();
+  const [hoverIdx, setHoverIdx] = useState(null);
+
   const packages = (venue?.weddingPackages || [])
     .filter(p => p && (p.name || p.description))
     .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
@@ -4139,205 +4141,412 @@ function WeddingPackagesSection({ venue }) {
 
   if (packages.length === 0) return null;
 
+  // Currency symbol — accept either a symbol or an ISO code.
+  const currencySymbol = (ccy) => {
+    if (!ccy) return '£';
+    const map = { GBP: '£', EUR: '€', USD: '$', AUD: 'A$', CAD: 'C$' };
+    if (map[ccy]) return map[ccy];
+    return ccy.length <= 2 ? ccy : '£';
+  };
   const formatPrice = (n, ccy) => {
     if (!n || n <= 0) return null;
-    const sym = ccy || '£';
-    return `${sym}${Number(n).toLocaleString()}`;
+    return `${currencySymbol(ccy)}${Number(n).toLocaleString()}`;
   };
 
-  const colCount = isMobile ? 1 : Math.min(packages.length, 2);
+  // Fluid columns: 1 on mobile, auto-fit on desktop so 3 cards never orphan.
+  const gridTemplateColumns = isMobile
+    ? '1fr'
+    : packages.length === 1
+      ? '1fr'
+      : 'repeat(auto-fit, minmax(320px, 1fr))';
+
+  // Soft palette tokens — fall back to safe luxury defaults if theme is sparse.
+  const GOLD       = C.gold || '#c9a84c';
+  const GOLD_DEEP  = '#9a7416';
+  const SURFACE    = C.surface || '#fffdf9';
+  const BORDER     = C.border  || '#ece6d8';
+  const TEXT       = C.text    || '#1a1510';
+  const MUTED      = C.muted   || '#7a7264';
 
   return (
-    <section style={{ marginBottom: 56 }} id="wedding-packages">
-      <SectionHeading
-        title="Wedding Packages"
-        subtitle={venue?.sectionIntros?.packages || 'Choose the package that fits your celebration — from intimate house weddings to full-estate buyouts.'}
-      />
+    <section style={{ marginBottom: 64 }} id="wedding-packages">
+      {/* Editorial header — gold eyebrow + serif title + ornament */}
+      <div style={{ marginBottom: isMobile ? 24 : 36, textAlign: 'center', maxWidth: 720, marginLeft: 'auto', marginRight: 'auto' }}>
+        <div style={{
+          fontFamily: FB,
+          fontSize: 10,
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
+          color: GOLD,
+          fontWeight: 600,
+          marginBottom: 10,
+        }}>
+          ✦ Curated Offerings ✦
+        </div>
+        <h2 style={{
+          fontFamily: FD,
+          fontSize: isMobile ? 28 : 38,
+          fontWeight: 400,
+          color: TEXT,
+          margin: '0 0 14px',
+          lineHeight: 1.15,
+          letterSpacing: '-0.01em',
+        }}>
+          Wedding Packages
+        </h2>
+        {/* Gold ornament */}
+        <div aria-hidden style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+          margin: '0 auto 14px',
+        }}>
+          <span style={{ width: 36, height: 1, background: `linear-gradient(90deg, transparent, ${GOLD})` }} />
+          <span style={{ color: GOLD, fontSize: 9 }}>◆</span>
+          <span style={{ width: 36, height: 1, background: `linear-gradient(90deg, ${GOLD}, transparent)` }} />
+        </div>
+        <p style={{
+          fontFamily: FB,
+          fontSize: isMobile ? 13 : 14,
+          lineHeight: 1.7,
+          color: MUTED,
+          margin: 0,
+          fontStyle: 'italic',
+        }}>
+          {venue?.sectionIntros?.packages || 'Choose the package that fits your celebration — from intimate house weddings to full-estate buyouts.'}
+        </p>
+      </div>
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: `repeat(${colCount}, 1fr)`,
-        gap: 20,
+        gridTemplateColumns,
+        gap: isMobile ? 18 : 24,
+        alignItems: 'stretch',
       }}>
-        {packages.map((p) => {
+        {packages.map((p, idx) => {
           const priceLabel = formatPrice(p.price_from, p.price_currency);
+          const isHover = hoverIdx === idx;
+          const indexLabel = String(idx + 1).padStart(2, '0');
+
           return (
-            <div
-              key={p.id || p.name}
+            <article
+              key={p.id || p.name || idx}
+              onMouseEnter={() => setHoverIdx(idx)}
+              onMouseLeave={() => setHoverIdx(null)}
               style={{
-                background: C.surface || '#fff',
-                border: `1px solid ${C.border || '#e5e0d8'}`,
-                borderRadius: 4,
-                padding: isMobile ? 22 : 32,
+                background: `linear-gradient(180deg, ${SURFACE} 0%, ${SURFACE} 70%, rgba(201,168,76,0.025) 100%)`,
+                border: `1px solid ${isHover ? `${GOLD}80` : BORDER}`,
+                borderRadius: 6,
+                padding: isMobile ? '34px 22px 26px' : '42px 32px 32px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 18,
+                gap: 22,
                 position: 'relative',
+                overflow: 'hidden',
+                transition: 'all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                transform: isHover ? 'translateY(-4px)' : 'translateY(0)',
+                boxShadow: isHover
+                  ? '0 24px 48px -20px rgba(154, 116, 22, 0.18), 0 8px 24px -12px rgba(0,0,0,0.06)'
+                  : '0 2px 12px -4px rgba(0,0,0,0.04)',
               }}
             >
-              {/* Header: name + duration + season chip */}
-              <div>
-                <div style={{
-                  fontFamily: 'var(--font-heading-primary)',
-                  fontSize: isMobile ? 22 : 26,
+              {/* Top gold accent bar */}
+              <div aria-hidden style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 3,
+                background: `linear-gradient(90deg, ${GOLD_DEEP}, ${GOLD}, ${GOLD_DEEP})`,
+                opacity: isHover ? 1 : 0.65,
+                transition: 'opacity 0.3s',
+              }} />
+
+              {/* Ghost numeral — top right, editorial */}
+              <div aria-hidden style={{
+                position: 'absolute',
+                top: isMobile ? 14 : 20,
+                right: isMobile ? 18 : 26,
+                fontFamily: FD,
+                fontSize: isMobile ? 32 : 44,
+                fontWeight: 300,
+                color: GOLD,
+                opacity: isHover ? 0.35 : 0.18,
+                lineHeight: 1,
+                letterSpacing: '-0.02em',
+                fontStyle: 'italic',
+                transition: 'opacity 0.3s',
+                pointerEvents: 'none',
+              }}>
+                {indexLabel}
+              </div>
+
+              {/* Header: name */}
+              <header style={{ paddingRight: isMobile ? 50 : 64 }}>
+                <h3 style={{
+                  fontFamily: FD,
+                  fontSize: isMobile ? 24 : 30,
                   fontWeight: 400,
-                  color: C.text,
-                  lineHeight: 1.2,
-                  marginBottom: 6,
+                  color: TEXT,
+                  lineHeight: 1.15,
+                  margin: '0 0 12px',
+                  letterSpacing: '-0.005em',
                 }}>
                   {p.name || 'Wedding Package'}
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                  {p.duration_days > 0 && (
-                    <span style={{
-                      fontFamily: 'var(--font-body)',
-                      fontSize: 10,
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
-                      color: '#9a6f0a',
-                      background: 'rgba(201,168,76,0.1)',
-                      border: '1px solid rgba(201,168,76,0.35)',
-                      padding: '4px 10px',
-                      borderRadius: 20,
-                    }}>
-                      {p.duration_days} day{p.duration_days === 1 ? '' : 's'}
-                    </span>
-                  )}
-                  {p.exclusive_use && (
-                    <span style={{
-                      fontFamily: 'var(--font-body)',
-                      fontSize: 10,
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
-                      color: '#9a6f0a',
-                      background: 'rgba(201,168,76,0.1)',
-                      border: '1px solid rgba(201,168,76,0.35)',
-                      padding: '4px 10px',
-                      borderRadius: 20,
-                    }}>
-                      Exclusive Use
-                    </span>
-                  )}
-                  {p.season && p.season !== 'year-round' && (
-                    <span style={{
-                      fontFamily: 'var(--font-body)',
-                      fontSize: 10,
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
-                      color: C.muted,
-                      background: 'transparent',
-                      border: `1px solid ${C.border || '#e5e0d8'}`,
-                      padding: '4px 10px',
-                      borderRadius: 20,
-                    }}>
-                      {p.season === 'winter' ? 'Winter' : 'Summer'}
-                    </span>
-                  )}
-                </div>
-              </div>
+                </h3>
+
+                {/* Meta chips: duration · exclusive use · season */}
+                {(p.duration_days > 0 || p.exclusive_use || (p.season && p.season !== 'year-round')) && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {p.duration_days > 0 && (
+                      <span style={{
+                        fontFamily: FB,
+                        fontSize: 9,
+                        letterSpacing: '0.14em',
+                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        color: GOLD_DEEP,
+                        background: 'rgba(201,168,76,0.09)',
+                        border: `1px solid ${GOLD}40`,
+                        padding: '5px 11px',
+                        borderRadius: 2,
+                      }}>
+                        {p.duration_days} {p.duration_days === 1 ? 'Day' : 'Days'}
+                      </span>
+                    )}
+                    {p.exclusive_use && (
+                      <span style={{
+                        fontFamily: FB,
+                        fontSize: 9,
+                        letterSpacing: '0.14em',
+                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        color: GOLD_DEEP,
+                        background: 'rgba(201,168,76,0.09)',
+                        border: `1px solid ${GOLD}40`,
+                        padding: '5px 11px',
+                        borderRadius: 2,
+                      }}>
+                        Exclusive Use
+                      </span>
+                    )}
+                    {p.season && p.season !== 'year-round' && (
+                      <span style={{
+                        fontFamily: FB,
+                        fontSize: 9,
+                        letterSpacing: '0.14em',
+                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        color: MUTED,
+                        background: 'transparent',
+                        border: `1px solid ${BORDER}`,
+                        padding: '5px 11px',
+                        borderRadius: 2,
+                      }}>
+                        {p.season === 'winter' ? 'Winter Package' : p.season === 'summer' ? 'Summer Package' : p.season}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </header>
 
               {/* Description */}
               {p.description && (
                 <p style={{
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 13,
-                  lineHeight: 1.65,
-                  color: C.muted,
+                  fontFamily: FB,
+                  fontSize: isMobile ? 13 : 14,
+                  lineHeight: 1.7,
+                  color: MUTED,
                   margin: 0,
+                  fontStyle: 'italic',
                 }}>
                   {p.description}
                 </p>
               )}
 
-              {/* Capacity grid */}
+              {/* Capacity grid — refined */}
               {(p.dining_capacity > 0 || p.accommodation_capacity > 0 || p.min_guests > 0 || p.max_guests > 0) && (
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: 12,
-                  paddingTop: 14,
-                  borderTop: `1px solid ${C.border || '#e5e0d8'}`,
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))',
+                  gap: 16,
+                  paddingTop: 18,
+                  paddingBottom: 4,
+                  borderTop: `1px solid ${BORDER}`,
                 }}>
                   {p.dining_capacity > 0 && (
                     <div>
-                      <div style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 2 }}>Dining</div>
-                      <div style={{ fontSize: 16, fontWeight: 500, color: C.text }}>up to {p.dining_capacity}</div>
+                      <div style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: MUTED, marginBottom: 4, fontWeight: 600 }}>Dining</div>
+                      <div style={{ fontFamily: FD, fontSize: 19, fontWeight: 400, color: TEXT, lineHeight: 1.1 }}>
+                        up to <span style={{ color: GOLD_DEEP }}>{p.dining_capacity}</span>
+                      </div>
                     </div>
                   )}
                   {p.accommodation_capacity > 0 && (
                     <div>
-                      <div style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 2 }}>Sleeps</div>
-                      <div style={{ fontSize: 16, fontWeight: 500, color: C.text }}>up to {p.accommodation_capacity}</div>
+                      <div style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: MUTED, marginBottom: 4, fontWeight: 600 }}>Sleeps</div>
+                      <div style={{ fontFamily: FD, fontSize: 19, fontWeight: 400, color: TEXT, lineHeight: 1.1 }}>
+                        up to <span style={{ color: GOLD_DEEP }}>{p.accommodation_capacity}</span>
+                      </div>
                     </div>
                   )}
                   {(p.min_guests > 0 || p.max_guests > 0) && (
                     <div>
-                      <div style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 2 }}>Guests</div>
-                      <div style={{ fontSize: 16, fontWeight: 500, color: C.text }}>
-                        {p.min_guests > 0 && p.max_guests > 0
-                          ? `${p.min_guests}–${p.max_guests}`
-                          : p.max_guests > 0
-                            ? `up to ${p.max_guests}`
-                            : `min ${p.min_guests}`}
+                      <div style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: MUTED, marginBottom: 4, fontWeight: 600 }}>Guests</div>
+                      <div style={{ fontFamily: FD, fontSize: 19, fontWeight: 400, color: TEXT, lineHeight: 1.1 }}>
+                        {p.min_guests > 0 && p.max_guests > 0 ? (
+                          <span style={{ color: GOLD_DEEP }}>{p.min_guests}–{p.max_guests}</span>
+                        ) : p.max_guests > 0 ? (
+                          <>up to <span style={{ color: GOLD_DEEP }}>{p.max_guests}</span></>
+                        ) : (
+                          <>min <span style={{ color: GOLD_DEEP }}>{p.min_guests}</span></>
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Inclusions */}
+              {/* Inclusions — bulleted list with gold ornament marks (cleaner than chips) */}
               {Array.isArray(p.inclusions) && p.inclusions.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 8 }}>Includes</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {p.inclusions.map((it, i) => (
-                      <span
-                        key={i}
-                        style={{
-                          fontSize: 11,
-                          color: C.text,
-                          background: 'rgba(201,168,76,0.06)',
-                          border: `1px solid ${C.border || '#e5e0d8'}`,
-                          padding: '4px 10px',
-                          borderRadius: 20,
-                        }}
-                      >
-                        {it}
-                      </span>
-                    ))}
+                <div style={{ paddingTop: 4 }}>
+                  <div style={{
+                    fontFamily: FB,
+                    fontSize: 9,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    color: MUTED,
+                    fontWeight: 600,
+                    marginBottom: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}>
+                    <span>What's Included</span>
+                    <span style={{ flex: 1, height: 1, background: BORDER }} />
                   </div>
+                  <ul style={{
+                    listStyle: 'none',
+                    padding: 0,
+                    margin: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 7,
+                  }}>
+                    {p.inclusions.map((it, i) => (
+                      <li key={i} style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 10,
+                        fontFamily: FB,
+                        fontSize: 13,
+                        lineHeight: 1.55,
+                        color: TEXT,
+                      }}>
+                        <span aria-hidden style={{
+                          color: GOLD,
+                          fontSize: 9,
+                          marginTop: 5,
+                          flexShrink: 0,
+                        }}>
+                          ✦
+                        </span>
+                        <span>{it}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
-              {/* Footer: price */}
-              {priceLabel && (
-                <div style={{
-                  marginTop: 'auto',
-                  paddingTop: 14,
-                  borderTop: `1px solid ${C.border || '#e5e0d8'}`,
-                  display: 'flex',
-                  alignItems: 'baseline',
-                  justifyContent: 'space-between',
-                }}>
-                  <div>
-                    <div style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 2 }}>From</div>
-                    <div style={{
-                      fontFamily: 'var(--font-heading-primary)',
-                      fontSize: 22,
-                      fontWeight: 400,
-                      color: C.text,
-                    }}>
-                      {priceLabel}
+              {/* Footer: price + CTA */}
+              <div style={{
+                marginTop: 'auto',
+                paddingTop: 22,
+                borderTop: `1px solid ${BORDER}`,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
+              }}>
+                {priceLabel && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                  }}>
+                    <div>
+                      <div style={{
+                        fontFamily: FB,
+                        fontSize: 9,
+                        letterSpacing: '0.18em',
+                        textTransform: 'uppercase',
+                        color: MUTED,
+                        fontWeight: 600,
+                        marginBottom: 4,
+                      }}>
+                        Investment From
+                      </div>
+                      <div style={{
+                        fontFamily: FD,
+                        fontSize: isMobile ? 30 : 36,
+                        fontWeight: 400,
+                        color: TEXT,
+                        lineHeight: 1,
+                        letterSpacing: '-0.015em',
+                      }}>
+                        {priceLabel}
+                      </div>
                     </div>
+                    {p.min_guests > 0 && (
+                      <div style={{
+                        fontFamily: FB,
+                        fontSize: 10,
+                        color: MUTED,
+                        textAlign: 'right',
+                        lineHeight: 1.4,
+                        fontStyle: 'italic',
+                        paddingBottom: 4,
+                      }}>
+                        based on<br />{p.min_guests} guests
+                      </div>
+                    )}
                   </div>
-                  {p.min_guests > 0 && (
-                    <div style={{ fontSize: 10, color: C.muted }}>
-                      based on {p.min_guests} guests
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                )}
+
+                {/* CTA — only if onEnquire wired */}
+                {typeof onEnquire === 'function' && (
+                  <button
+                    onClick={onEnquire}
+                    style={{
+                      width: '100%',
+                      padding: '13px 16px',
+                      background: isHover ? GOLD : 'transparent',
+                      border: `1px solid ${GOLD}`,
+                      borderRadius: 2,
+                      color: isHover ? '#0f0d0a' : GOLD_DEEP,
+                      fontFamily: FB,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: '0.14em',
+                      textTransform: 'uppercase',
+                      cursor: 'pointer',
+                      transition: 'all 0.25s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    Enquire About This Package
+                    <span aria-hidden style={{
+                      transition: 'transform 0.25s ease',
+                      transform: isHover ? 'translateX(3px)' : 'translateX(0)',
+                    }}>→</span>
+                  </button>
+                )}
+              </div>
+            </article>
           );
         })}
       </div>
@@ -8308,7 +8517,7 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
                 </>
               )}
 
-              <WeddingPackagesSection venue={VV} />
+              <WeddingPackagesSection venue={VV} onEnquire={() => setEnquiryOpen(true)} />
               <CateringSection venue={VV} />
               {VV.spaces && <SpacesSection spaces={VV.spaces} venue={VV} />}
               <RoomsSection venue={VV} />
