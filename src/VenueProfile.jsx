@@ -1485,10 +1485,14 @@ function OwnerCard({ owner, venue }) {
           </div>
           <div>
             <div style={{ fontFamily: FD, fontSize: 16, color: C.text, lineHeight: 1.2, marginBottom: 2 }}>{owner.name}</div>
-            <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 1 }}>{owner.title}</div>
-            <div style={{ fontFamily: FB, fontSize: 11, color: C.gold, fontWeight: 600, letterSpacing: "0.2px" }}>
-              ✦ LWD Partner since {owner.memberSince}
-            </div>
+            {owner.title && (
+              <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 1 }}>{owner.title}</div>
+            )}
+            {owner.memberSince && (
+              <div style={{ fontFamily: FB, fontSize: 11, color: C.gold, fontWeight: 600, letterSpacing: "0.2px" }}>
+                ✦ LWD Partner since {owner.memberSince}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1502,6 +1506,53 @@ function OwnerCard({ owner, venue }) {
               fontFamily: FD, fontSize: 13, fontStyle: "italic",
               color: C.textMid, lineHeight: 1.75, margin: 0,
             }}>"{owner.bio}"</p>
+          </div>
+        )}
+
+        {/* Quick contact strip — visible whenever email / phone is known.
+            Especially useful when no named contact has been added and the card
+            is using the venue name as a fallback. */}
+        {(owner.email || owner.phone || owner.whatsapp) && (
+          <div style={{
+            borderTop: `1px solid ${C.border}`,
+            paddingTop: 14, marginBottom: 14,
+            display: 'flex', flexDirection: 'column', gap: 8,
+          }}>
+            {owner.phone && (
+              <a href={`tel:${owner.phone}`} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                fontFamily: FB, fontSize: 12, color: C.text,
+                textDecoration: 'none', lineHeight: 1.3,
+              }}>
+                <Icon name="phone" size={12} color={C.gold} />
+                <span>{owner.phone}</span>
+              </a>
+            )}
+            {owner.email && (
+              <a href={`mailto:${owner.email}`} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                fontFamily: FB, fontSize: 12, color: C.text,
+                textDecoration: 'none', lineHeight: 1.3, wordBreak: 'break-all',
+              }}>
+                <Icon name="mail" size={12} color={C.gold} />
+                <span>{owner.email}</span>
+              </a>
+            )}
+            {owner.whatsapp && (
+              <a
+                href={`https://wa.me/${String(owner.whatsapp).replace(/[^0-9]/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  fontFamily: FB, fontSize: 12, color: C.text,
+                  textDecoration: 'none', lineHeight: 1.3,
+                }}
+              >
+                <Icon name="phone" size={12} color={C.gold} />
+                <span>WhatsApp</span>
+              </a>
+            )}
           </div>
         )}
 
@@ -1567,6 +1618,124 @@ function OpeningHoursWidget({ openingHours }) {
       {openingHours.note && (
         <div style={{ marginTop: 8, fontFamily: FB, fontSize: 11, color: C.textLight, lineHeight: 1.5 }}>{openingHours.note}</div>
       )}
+    </div>
+  );
+}
+
+// ─── PRESS FEATURES SIDEBAR CARD ──────────────────────────────────────────────
+function PressSidebarCard({ items }) {
+  const C = useT();
+  if (!Array.isArray(items) || items.length === 0) return null;
+  return (
+    <div style={{
+      border: `1px solid ${C.border}`,
+      background: C.surface,
+      padding: '18px 20px',
+    }}>
+      <div style={{
+        fontFamily: FB, fontSize: 9, color: C.textMuted,
+        letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 14,
+      }}>
+        As Featured In
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {items.slice(0, 6).map((p, i) => {
+          const headline = p.outlet || p.title || '';
+          const body     = p.outlet && p.title ? p.title : '';
+          const inner = (
+            <div key={i} style={{
+              borderLeft: `2px solid ${C.gold}40`,
+              paddingLeft: 12,
+            }}>
+              <div style={{
+                fontFamily: FD, fontSize: 14, color: C.text,
+                lineHeight: 1.3, marginBottom: body || p.year ? 3 : 0,
+              }}>
+                {headline}
+              </div>
+              {body && (
+                <div style={{
+                  fontFamily: FB, fontSize: 11, color: C.textLight,
+                  lineHeight: 1.4, fontStyle: 'italic',
+                }}>
+                  {body}
+                </div>
+              )}
+              {p.year && (
+                <div style={{
+                  fontFamily: FB, fontSize: 10, color: C.gold,
+                  letterSpacing: '0.5px', marginTop: 3, fontWeight: 600,
+                }}>
+                  {p.year}
+                </div>
+              )}
+            </div>
+          );
+          return p.url
+            ? (
+              <a
+                key={i}
+                href={p.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: 'none', display: 'block' }}
+              >
+                {inner}
+              </a>
+            )
+            : inner;
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── AWARDS SIDEBAR CARD ──────────────────────────────────────────────────────
+function AwardsSidebarCard({ items }) {
+  const C = useT();
+  if (!Array.isArray(items) || items.length === 0) return null;
+  return (
+    <div style={{
+      border: `1px solid ${C.border}`,
+      background: C.surface,
+      padding: '18px 20px',
+    }}>
+      <div style={{
+        fontFamily: FB, fontSize: 9, color: C.textMuted,
+        letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 14,
+      }}>
+        Awards & Recognition
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {items.slice(0, 8).map((a, i) => (
+          <div key={i} style={{
+            display: 'flex', gap: 12, alignItems: 'flex-start',
+          }}>
+            <div style={{
+              flexShrink: 0, fontSize: 18, lineHeight: 1.2,
+              filter: 'grayscale(0.1)',
+            }}>
+              {a.icon || '🏆'}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontFamily: FD, fontSize: 13, color: C.text,
+                lineHeight: 1.35, marginBottom: a.issuer || a.year ? 3 : 0,
+              }}>
+                {a.award}
+              </div>
+              {(a.issuer || a.year) && (
+                <div style={{
+                  fontFamily: FB, fontSize: 11, color: C.textLight,
+                  lineHeight: 1.4,
+                }}>
+                  {[a.issuer, a.year].filter(Boolean).join(' · ')}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -8137,8 +8306,40 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
           awards:  Array.isArray(listing.awards)
             ? listing.awards.map(a => typeof a === 'string' ? a : (a.award || a.title || a.issuer || '')).filter(Boolean)
             : [],
+          // Full award objects preserved for the sidebar widget (year, issuer, icon, description)
+          awardsList: Array.isArray(listing.awards)
+            ? listing.awards
+                .map(a => {
+                  if (!a) return null;
+                  if (typeof a === 'string') return { award: a };
+                  return {
+                    award:       a.award || a.title || '',
+                    year:        a.year || '',
+                    issuer:      a.issuer || '',
+                    icon:        a.icon || '🏆',
+                    description: a.description || '',
+                  };
+                })
+                .filter(a => a && a.award)
+            : [],
           press:   Array.isArray(listing.pressFeatures)
             ? listing.pressFeatures.map(p => typeof p === 'string' ? p : (p.outlet || p.title || '')).filter(Boolean)
+            : [],
+          // Full press objects preserved for the sidebar widget (outlet, year, title, url, logo_url)
+          pressFeatures: Array.isArray(listing.pressFeatures)
+            ? listing.pressFeatures
+                .map(p => {
+                  if (!p) return null;
+                  if (typeof p === 'string') return { outlet: p };
+                  return {
+                    outlet:   p.outlet || '',
+                    year:     p.year || '',
+                    title:    p.title || '',
+                    url:      p.url || '',
+                    logo_url: p.logo_url || p.logoUrl || '',
+                  };
+                })
+                .filter(p => p && (p.outlet || p.title))
             : [],
           videos:  Array.isArray(listing.mediaItems) ? buildVenueVideos(listing.mediaItems) : [],
           accommodation: (listing.roomsMaxGuests || listing.roomsTotal || listing.roomsDescription)
@@ -8188,13 +8389,31 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
             return rate ? String(rate).replace('%', '') : null;
           })(),
           weddingsHosted: listing.weddingsHosted || null,
-          owner: listing.contactProfile?.name ? {
-            name:        listing.contactProfile.name || null,
-            title:       listing.contactProfile.title || null,
-            bio:         listing.contactProfile.bio || listing.contactProfile.about || null,
-            photo:       listing.contactProfile.photoUrl || listing.contactProfile.photo || null,
-            memberSince: listing.memberSince || null,
-          } : null,
+          // Owner card falls back to the venue's own name + contact details when no
+          // dedicated contact_profile.name has been entered. This guarantees the
+          // sidebar profile card always renders something useful.
+          owner: (() => {
+            const cp = listing.contactProfile || {};
+            const hasNamedContact = !!cp.name;
+            const fallbackName = listing.name || listing.venueName || null;
+            const displayName  = cp.name || fallbackName;
+            if (!displayName) return null;
+            return {
+              name:        displayName,
+              title:       cp.title || (hasNamedContact ? null : 'Venue Team'),
+              bio:         cp.bio || cp.about || null,
+              photo:       cp.photoUrl || cp.photo || null,
+              memberSince: listing.memberSince || null,
+              // Contact-channel fallbacks so the card can show email/phone even
+              // when the AI lookup didn't return a named contact.
+              email:       cp.email   || listing.email   || null,
+              phone:       cp.phone   || listing.phone   || null,
+              whatsapp:    cp.whatsapp || null,
+              website:     cp.website  || listing.website || null,
+              social:      cp.social   || null,
+              isFallback:  !hasNamedContact,
+            };
+          })(),
           contact: {
             address: {
               line1:   listing.address  || '',
@@ -8637,8 +8856,16 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
             </div>
             {/* Sidebar, 4 zones, sticky on desktop */}
             <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 108, alignSelf: "start" }}>
-              {/* Zone 1, Owner card (only if owner data available) */}
+              {/* Zone 1, Owner card (always renders if any name available — falls back to venue name) */}
               {VV.owner && VV.owner.name && <OwnerCard owner={VV.owner} venue={VV} />}
+              {/* Zone 1b, Press Features (As Featured In) — sidebar widget */}
+              {Array.isArray(VV.pressFeatures) && VV.pressFeatures.length > 0 && (
+                <PressSidebarCard items={VV.pressFeatures} />
+              )}
+              {/* Zone 1c, Awards & Recognition — sidebar widget */}
+              {Array.isArray(VV.awardsList) && VV.awardsList.length > 0 && (
+                <AwardsSidebarCard items={VV.awardsList} />
+              )}
               {/* Zone 2, Venue enquiry form (lead gen) */}
               <VenueEnquiryForm
                 listingId={VV.id}
