@@ -3760,12 +3760,58 @@ function HeroPreviewPane({ formData, isLight }) {
 }
 
 // ── Document Sidebar ──────────────────────────────────────────────────────────
+// Slugify helper: title → url-safe slug. Used by auto-slug logic below.
+const slugifyTitle = (s) =>
+  (s || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')       // strip punctuation
+    .replace(/\s+/g, '-')            // spaces → hyphens
+    .replace(/-+/g, '-')             // collapse repeats
+    .replace(/^-|-$/g, '');          // trim edge hyphens
+
+// "Is this slug a placeholder / auto-derived value?" — used to decide whether
+// a title change should overwrite the slug. Matches the `new-article-<ts>`
+// default created in MagazineStudio/index.jsx, empty strings, and slugs that
+// equal slugifyTitle(title).
+const isPlaceholderSlug = (slug, title) => {
+  if (!slug) return true;
+  if (/^new-article-\d+$/.test(slug)) return true;
+  if (title && slug === slugifyTitle(title)) return true;
+  return false;
+};
+
 function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpublish, onSave, saving, intel, focusKeyword, onKeywordChange, onOpenIntelligence, S, aiDraft, onAiDraft, aiDraftLoading, onAiDraftLoading }) {
   const allCats = useAllCategories();
   const { runAI, loading: aiLoading } = useAIGenerate(formData, tone);
   const [open, setOpen] = useState({ status: true, publish: false, author: false, excerpt: false, seo: false, image: false, typography: false, intelligence: true, links: false, features: false });
   const toggle = (k) => setOpen(p => ({ ...p, [k]: !p[k] }));
   const upd = (k, v) => onChange({ ...formData, [k]: v });
+
+  // ── Auto-slug from title ────────────────────────────────────────────────
+  // Rule: until the user manually edits the slug, it tracks slugifyTitle(title).
+  // Once the user types anything into the slug field (or we load an article
+  // whose slug already differs from the title), the ref flips to `true` and
+  // we stop overwriting. The user can still manually edit anytime after.
+  // Re-evaluated whenever the article id changes (new article loaded).
+  const slugManualRef = useRef(false);
+  useEffect(() => {
+    slugManualRef.current = !isPlaceholderSlug(formData.slug, formData.title);
+  }, [formData.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const updateTitle = (v) => {
+    if (slugManualRef.current) {
+      // user has claimed the slug — only update the title
+      onChange({ ...formData, title: v });
+    } else {
+      // slug is still auto-tracking — regenerate it from the new title
+      onChange({ ...formData, title: v, slug: slugifyTitle(v) });
+    }
+  };
+  const updateSlug = (v) => {
+    slugManualRef.current = true;
+    upd('slug', v.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
+  };
   const [sidebarTab, setSidebarTab] = useState('document'); // 'document' | 'ai'
   const [statusMachineOpen, setStatusMachineOpen] = useState(false);
   const [aiWriterTopic, setAiWriterTopic] = useState('');
@@ -4351,11 +4397,11 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
       <ACC id="author" title="Title & URL">
         <div>
           <Lbl>Title</Lbl>
-          <FI value={formData.title} onChange={v => upd('title', v)} placeholder="Article title" />
+          <FI value={formData.title} onChange={updateTitle} placeholder="Article title" />
         </div>
         <div>
-          <Lbl>URL Slug</Lbl>
-          <FI value={formData.slug} onChange={v => upd('slug', v.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''))} placeholder="article-url-slug" />
+          <Lbl right={slugManualRef.current ? 'custom' : 'auto from title'}>URL Slug</Lbl>
+          <FI value={formData.slug} onChange={updateSlug} placeholder="article-url-slug" />
           {formData.slug && <div style={{ fontFamily: FU, fontSize: 9, color: S.faint, marginTop: 3 }}>/magazine/{formData.slug}</div>}
         </div>
         <div>
