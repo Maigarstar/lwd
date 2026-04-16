@@ -196,89 +196,198 @@ function SidebarPostRow({ post, onClick, light = false }) {
 }
 
 // ─── Gallery Split Hero ───────────────────────────────────────────────────────
-function GallerySplitHero({ post }) {
+function GallerySplitHero({ post, isLight = true }) {
   const gallery = Array.isArray(post.galleryImages) ? post.galleryImages : [];
+  // Build full image array: cover first, then gallery images (skip gallery[0] on right panel)
   const allImages = [post.coverImage, ...gallery].filter(Boolean);
   const [activeIdx, setActiveIdx] = useState(0);
-  const leftImg = allImages[activeIdx] || post.coverImage || null;
-  const rightImg = gallery[0] || null;
-  const caption = post.heroCaption || '';
+  const leftImg  = allImages[activeIdx] || null;
+  // Right panel: always gallery[0] (first gallery image), separate from the cycling left
+  const rightImg = gallery[0] || allImages[1] || null;
+  const caption  = post.heroCaption || '';
 
-  const metaRow = (
-    <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginTop: 16 }}>
-      {post.author && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {post.author.avatar && <img src={post.author.avatar} alt={post.author.name} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />}
-          <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.55)' }}>{post.author.name}</span>
-        </div>
-      )}
-      <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.4)' }}>{formatDate(post.date)}</span>
-      {post.readingTime && <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.4)' }}>{post.readingTime} min read</span>}
-    </div>
-  );
+  // Light editorial palette — matches 5starweddingdirectory.com
+  const bg        = isLight ? '#ffffff'                  : '#0f0f0d';
+  const titleClr  = isLight ? '#141414'                  : '#f5f0e8';
+  const mutedClr  = isLight ? 'rgba(20,20,20,0.48)'      : 'rgba(245,240,232,0.50)';
+  const borderClr = isLight ? 'rgba(20,20,20,0.10)'      : 'rgba(245,240,232,0.08)';
+  const stripBg   = isLight ? '#f7f5f2'                  : '#111110';
+  const emptyBg   = isLight ? '#e8e3dc'                  : '#1a1a16';
 
   return (
-    <header style={{ background: '#0a0a0a' }}>
-      {/* Title block */}
-      <div style={{ padding: 'clamp(64px, 8vw, 100px) clamp(24px, 6vw, 80px) clamp(24px, 3vw, 40px)', maxWidth: 1280, margin: '0 auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-          <div style={{ width: 20, height: 1, background: GOLD }} />
-          <span style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.24em', textTransform: 'uppercase', color: GOLD }}>
-            {post.categoryLabel}
+    <header style={{ background: bg }}>
+
+      {/* ── Title block ── white bg, clean editorial */}
+      <div style={{
+        maxWidth: 1230,
+        margin: '0 auto',
+        padding: 'clamp(48px, 6vw, 80px) clamp(24px, 6vw, 80px) clamp(24px, 3vw, 36px)',
+      }}>
+
+        {/* Category label — centred */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 20 }}>
+          <div style={{ width: 40, height: 1, background: GOLD, opacity: 0.45 }} />
+          <span style={{
+            fontFamily: FU, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD,
+          }}>
+            {post.categoryLabel || 'Feature'}
           </span>
+          <div style={{ width: 40, height: 1, background: GOLD, opacity: 0.45 }} />
         </div>
-        <h1 style={{ fontFamily: FD, fontSize: 'clamp(28px, 4.5vw, 64px)', fontWeight: 400, color: CREAM, margin: '0 0 14px', lineHeight: 1.06, maxWidth: 900 }}>
+
+        {/* H1 — centred */}
+        <h1 style={{
+          fontFamily: FD,
+          fontSize: 'clamp(30px, 4.5vw, 62px)',
+          fontWeight: 400,
+          color: titleClr,
+          margin: '0 auto 16px',
+          lineHeight: 1.1,
+          letterSpacing: '-0.01em',
+          maxWidth: 860,
+          textAlign: 'center',
+        }}>
           {post.title}
         </h1>
+
+        {/* Standfirst — centred italic subtitle */}
         {post.standfirst && (
-          <p style={{ fontFamily: FD, fontSize: 'clamp(15px, 1.5vw, 20px)', fontStyle: 'italic', color: 'rgba(245,240,232,0.65)', margin: 0, lineHeight: 1.6, maxWidth: 700 }}>
+          <p style={{
+            fontFamily: FD, fontSize: 'clamp(15px, 1.4vw, 20px)',
+            fontStyle: 'italic', color: mutedClr,
+            margin: '0 auto 20px', lineHeight: 1.65, maxWidth: 640,
+            textAlign: 'center',
+          }}>
             {post.standfirst}
           </p>
         )}
-        {metaRow}
+
+        {/* Divider */}
+        <div style={{ width: 48, height: 1, background: borderClr, margin: '0 auto 18px' }} />
+
+        {/* Meta row — centred */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {post.author && (
+            <>
+              {post.author.avatar && (
+                <img src={post.author.avatar} alt={post.author.name}
+                  style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+              )}
+              <span style={{ fontFamily: FU, fontSize: 11, fontWeight: 400, color: mutedClr }}>
+                {post.author.name}
+              </span>
+              <span style={{ color: borderClr, fontSize: 16, lineHeight: 1 }}>·</span>
+            </>
+          )}
+          <span style={{ fontFamily: FU, fontSize: 11, color: mutedClr }}>{formatDate(post.date)}</span>
+          {post.readingTime && (
+            <>
+              <span style={{ color: borderClr, fontSize: 16, lineHeight: 1 }}>·</span>
+              <span style={{ fontFamily: FU, fontSize: 11, color: mutedClr }}>{post.readingTime} min read</span>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Split image area */}
-      <div style={{ display: 'flex', gap: 3, height: 'clamp(300px, 48svh, 580px)', overflow: 'hidden', margin: '0 clamp(24px, 6vw, 80px)' }}>
-        {/* Left: large, cycles with thumbnails */}
-        <div style={{ flex: '2 1 0%', position: 'relative', overflow: 'hidden', borderRadius: '2px 0 0 0' }}>
-          {leftImg
-            ? <img src={leftImg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 0.35s' }} />
-            : <div style={{ position: 'absolute', inset: 0, background: '#1a1a16' }} />
-          }
-          {caption && (
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '10px 18px', background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)' }}>
-              <span style={{ fontFamily: FD, fontSize: 12, fontStyle: 'italic', color: 'rgba(245,240,232,0.72)', letterSpacing: '0.02em' }}>{caption}</span>
+      {/* ── Split image area ── contained, no black margin */}
+      <div style={{
+        maxWidth: 1230,
+        margin: '0 auto',
+        padding: '0 clamp(24px, 6vw, 80px)',
+      }}>
+        <div style={{
+          display: 'flex',
+          gap: 4,
+          height: 'clamp(380px, 58svh, 760px)',
+          overflow: 'hidden',
+          borderRadius: 3,
+        }}>
+          {/* Left panel: 2/3, carousel slides via thumbnail clicks */}
+          <div style={{ flex: '2 1 0%', position: 'relative', overflow: 'hidden' }}>
+            {/* Sliding strip of all images */}
+            <div style={{
+              display: 'flex',
+              width: `${allImages.length * 100}%`,
+              height: '100%',
+              transform: `translateX(${-activeIdx * (100 / allImages.length)}%)`,
+              transition: 'transform 0.45s cubic-bezier(0.25, 0.1, 0.25, 1)',
+              willChange: 'transform',
+            }}>
+              {allImages.map((src, i) => (
+                <div key={i} style={{ width: `${100 / allImages.length}%`, height: '100%', flexShrink: 0, position: 'relative' }}>
+                  <img src={src} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              ))}
+            </div>
+            {/* Caption overlay */}
+            {caption && (
+              <div style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0,
+                padding: '14px 20px',
+                background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)',
+                pointerEvents: 'none',
+              }}>
+                <span style={{ fontFamily: FD, fontSize: 12, fontStyle: 'italic', color: 'rgba(255,255,255,0.85)', letterSpacing: '0.02em' }}>
+                  {caption}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Right panel: 1/3, fixed on gallery[0] */}
+          {rightImg && (
+            <div style={{ flex: '1 1 0%', position: 'relative', overflow: 'hidden' }}>
+              <img src={rightImg} alt=""
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
           )}
         </div>
-        {/* Right: fixed on gallery[0] */}
-        {rightImg ? (
-          <div style={{ flex: '1 1 0%', position: 'relative', overflow: 'hidden', borderRadius: '0 2px 0 0' }}>
-            <img src={rightImg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-          </div>
-        ) : null}
       </div>
 
-      {/* Thumbnail strip */}
+      {/* ── Thumbnail strip ── square, clickable, light bg */}
       {allImages.length > 1 && (
-        <div style={{ display: 'flex', gap: 6, padding: '10px clamp(24px, 6vw, 80px)', overflowX: 'auto', background: '#0a0a0a' }}>
-          {allImages.slice(0, 8).map((src, i) => (
-            <button
-              key={i}
-              onClick={() => setActiveIdx(i)}
-              style={{
-                width: 68, height: 46, borderRadius: 2, overflow: 'hidden',
-                flexShrink: 0, padding: 0, cursor: 'pointer', background: 'none',
-                border: activeIdx === i ? `2px solid ${GOLD}` : '2px solid rgba(255,255,255,0.12)',
-                transition: 'border-color 0.15s',
-              }}
-            >
-              <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            </button>
-          ))}
+        <div style={{
+          maxWidth: 1230, margin: '0 auto',
+          padding: '12px clamp(24px, 6vw, 80px) 0',
+        }}>
+          <div style={{
+            display: 'flex', gap: 6, overflowX: 'auto',
+            background: stripBg,
+            padding: '10px 12px',
+            borderRadius: '0 0 3px 3px',
+            /* hide scrollbar on webkit */
+            scrollbarWidth: 'none',
+          }}>
+            {allImages.slice(0, 10).map((src, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveIdx(i)}
+                title={`Image ${i + 1}`}
+                style={{
+                  width: 64, height: 64,          /* square */
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  padding: 0,
+                  cursor: 'pointer',
+                  background: 'none',
+                  border: activeIdx === i
+                    ? `2.5px solid ${GOLD}`
+                    : `2px solid ${isLight ? 'rgba(20,20,20,0.14)' : 'rgba(245,240,232,0.14)'}`,
+                  opacity: activeIdx === i ? 1 : 0.65,
+                  transition: 'opacity 0.15s, border-color 0.15s',
+                }}
+              >
+                <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              </button>
+            ))}
+          </div>
         </div>
       )}
+
+      {/* Bottom spacing */}
+      <div style={{ height: 'clamp(32px, 4vw, 56px)', background: bg }} />
     </header>
   );
 }
@@ -305,7 +414,7 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
 
       {/* Hero — switches on post.heroStyle */}
       {post.heroStyle === 'gallery-split' ? (
-        <GallerySplitHero post={post} />
+        <GallerySplitHero post={post} isLight={isLight} />
       ) : (
       <header style={{ position: 'relative', overflow: 'hidden' }}>
         <div style={{
@@ -420,7 +529,7 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
       />
 
       {/* Hero — switches on post.heroStyle */}
-      {post.heroStyle === 'gallery-split' && <GallerySplitHero post={post} />}
+      {post.heroStyle === 'gallery-split' && <GallerySplitHero post={post} isLight={isLight} />}
       <header style={{
         position: 'relative', overflow: 'hidden',
         background: '#0a0a0a',
