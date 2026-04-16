@@ -677,6 +677,100 @@ function PageCounter({ currentPage, totalPages, isDouble, bookmarks, T }) {
   );
 }
 
+// ── Paywall gate overlay ──────────────────────────────────────────────────────
+function PaywallGate({ issue, freePageCount, onBack, T }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div style={{
+      position: 'absolute', inset: 0,
+      background: 'rgba(8,7,6,0.92)',
+      backdropFilter: 'blur(18px)',
+      WebkitBackdropFilter: 'blur(18px)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      zIndex: 200, padding: '40px 24px',
+      textAlign: 'center',
+    }}>
+      {/* Cover thumbnail */}
+      {issue.cover_image && (
+        <div style={{
+          width: 120, height: 170, borderRadius: 3,
+          backgroundImage: `url(${issue.cover_image})`,
+          backgroundSize: 'cover', backgroundPosition: 'center',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.7)',
+          marginBottom: 28, flexShrink: 0,
+          opacity: 0.75,
+        }} />
+      )}
+
+      {/* ✦ icon */}
+      <div style={{ color: GOLD, fontSize: 22, letterSpacing: 4, marginBottom: 12 }}>✦</div>
+
+      {/* Headline */}
+      <h2 style={{
+        fontFamily: GD, fontSize: 28, fontWeight: 400,
+        color: '#ffffff', margin: '0 0 10px',
+        letterSpacing: '0.02em', lineHeight: 1.2,
+      }}>
+        Continue Reading
+      </h2>
+
+      {/* Sub */}
+      <p style={{
+        fontFamily: NU, fontSize: 13, color: 'rgba(255,255,255,0.55)',
+        margin: '0 0 28px', maxWidth: 380, lineHeight: 1.6,
+      }}>
+        You've read {freePageCount} complimentary page{freePageCount !== 1 ? 's' : ''} of{' '}
+        <em style={{ color: 'rgba(255,255,255,0.75)' }}>{issue.title}</em>.{' '}
+        Subscribe to unlock the full issue and every edition in our archive.
+      </p>
+
+      {/* CTA buttons */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 300 }}>
+        <button
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          onClick={() => window.location.href = '/subscribe'}
+          style={{
+            background: hovered
+              ? 'linear-gradient(135deg, #D4B06A 0%, #C9A96E 100%)'
+              : 'linear-gradient(135deg, #C9A96E 0%, #B8935A 100%)',
+            border: 'none', borderRadius: 2, color: '#18120A',
+            fontFamily: NU, fontSize: 11, fontWeight: 700,
+            letterSpacing: '0.12em', textTransform: 'uppercase',
+            padding: '14px 24px', cursor: 'pointer',
+            transition: 'all 0.2s',
+            boxShadow: hovered ? '0 4px 20px rgba(201,169,110,0.35)' : 'none',
+          }}
+        >
+          ✦ Subscribe to Read More
+        </button>
+
+        <button
+          onClick={onBack}
+          style={{
+            background: 'none', border: `1px solid rgba(255,255,255,0.15)`,
+            borderRadius: 2, color: 'rgba(255,255,255,0.45)',
+            fontFamily: NU, fontSize: 10, fontWeight: 600,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            padding: '10px 24px', cursor: 'pointer', transition: 'color 0.15s',
+          }}
+        >
+          Back to Publications
+        </button>
+      </div>
+
+      {/* Fine print */}
+      <p style={{
+        fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.25)',
+        margin: '28px 0 0', lineHeight: 1.5, maxWidth: 320,
+      }}>
+        Subscribers enjoy unlimited access to all issues, plus exclusive editorial content.
+      </p>
+    </div>
+  );
+}
+
 // ── Thumbnail strip ───────────────────────────────────────────────────────────
 function ThumbnailStrip({ pages, currentPage, onJump, isDesktop, T }) {
   const [open, setOpen] = useState(false);
@@ -1206,6 +1300,11 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     }
   }, []);
 
+  // ── Paywall ──────────────────────────────────────────────────────────────────
+  const paywallEnabled  = issue?.paywall_enabled === true;
+  const freePageCount   = issue?.free_page_count ?? 3;
+  const paywallBlocking = paywallEnabled && currentPage > freePageCount;
+
   // ── Page size → aspect ratio ─────────────────────────────────────────────────
   // Used to set correct proportions when no image is loaded yet
   const PAGE_RATIOS = { A4: 1.414, A5: 1.414, US_LETTER: 1.294, SQUARE: 1.0, TABLOID: 1.545 };
@@ -1321,7 +1420,17 @@ export default function PublicationsReaderPage({ slug, onBack }) {
 
         {/* Nav buttons */}
         <NavButton direction="prev" onClick={goPrev} disabled={!canPrev} T={T} />
-        <NavButton direction="next" onClick={goNext} disabled={!canNext} T={T} />
+        <NavButton direction="next" onClick={goNext} disabled={!canNext || paywallBlocking} T={T} />
+
+        {/* Paywall gate — renders over pages when limit reached */}
+        {paywallBlocking && (
+          <PaywallGate
+            issue={issue}
+            freePageCount={freePageCount}
+            onBack={onBack}
+            T={T}
+          />
+        )}
       </div>
 
       {/* ② Zoom reset pill */}

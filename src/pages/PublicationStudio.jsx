@@ -35,9 +35,10 @@ import { sendEmail, fetchNewsletterSubscribers } from '../services/emailSendServ
 // ── Re-used admin components ──────────────────────────────────────────────────
 import PageGrid       from './AdminModules/components/PageGrid';
 import PdfUploader    from './AdminModules/components/PdfUploader';
-import HotspotEditor  from './PublicationStudio/HotspotEditor';
-import TemplatePicker from './PublicationStudio/templates/TemplatePicker';
-import TemplateEditor from './PublicationStudio/templates/TemplateEditor';
+import HotspotEditor    from './PublicationStudio/HotspotEditor';
+import TemplatePicker  from './PublicationStudio/templates/TemplatePicker';
+import TemplateEditor  from './PublicationStudio/templates/TemplateEditor';
+import MonetizationTab from './PublicationStudio/MonetizationTab';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const GOLD   = '#C9A84C';
@@ -1044,6 +1045,7 @@ const TABS = [
   { key: 'pages',      label: 'Pages'      },
   { key: 'pdf',        label: 'PDF'        },
   { key: 'analytics',  label: 'Analytics'  },
+  { key: 'monetize',   label: '✦ Monetize' },
   { key: 'settings',   label: 'Settings'   },
 ];
 
@@ -1083,6 +1085,12 @@ function IssueWorkspace({ issueId, onDelete }) {
 
   const change = useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  // Called by child tabs (e.g. MonetizationTab) after they save a partial update
+  const handleIssueUpdate = useCallback((updatedFields) => {
+    setIssue(prev => ({ ...prev, ...updatedFields }));
+    setFormData(prev => ({ ...prev, ...updatedFields }));
   }, []);
 
   const handleSave = async () => {
@@ -1423,6 +1431,10 @@ function IssueWorkspace({ issueId, onDelete }) {
 
         {tab === 'analytics' && (
           <AnalyticsTab issueId={issueId} issue={issue} />
+        )}
+
+        {tab === 'monetize' && (
+          <MonetizationTab issue={issue} onIssueUpdate={handleIssueUpdate} />
         )}
 
         {tab === 'settings' && (
