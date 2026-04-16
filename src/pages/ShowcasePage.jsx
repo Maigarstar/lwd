@@ -58,6 +58,8 @@ function HeroSection({ showcase, listing, onEnquire, isMobile }) {
   const title   = showcase?.name || listing?.name || '';
   const location = showcase?.location || (listing?.city && listing?.country ? `${listing.city}, ${listing.country}` : '') || '';
   const excerpt  = showcase?.excerpt || listing?.short_description || '';
+  const publishedAt = showcase?.publishedAt || showcase?.published_at || listing?.publishedAt || listing?.published_at || null;
+  const updatedAt   = showcase?.updatedAt   || showcase?.updated_at   || listing?.updatedAt   || listing?.updated_at   || null;
 
   return (
     <div style={{ position: 'relative', height: isMobile ? '80vh' : '100vh', overflow: 'hidden', background: '#0a0a08' }}>
@@ -78,7 +80,23 @@ function HeroSection({ showcase, listing, onEnquire, isMobile }) {
           {title}
         </h1>
         {excerpt && (
-          <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 17, color: C.textMid, lineHeight: 1.65, maxWidth: 560, marginBottom: 28 }}>{excerpt}</p>
+          <p style={{ fontFamily: FB, fontSize: isMobile ? 14 : 17, color: C.textMid, lineHeight: 1.65, maxWidth: 560, marginBottom: 16 }}>{excerpt}</p>
+        )}
+        {/* Published / Updated date — WordPress-style editorial timestamp */}
+        {publishedAt && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <span style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.3px' }}>
+              Published {new Date(publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
+            {updatedAt && new Date(updatedAt) > new Date(publishedAt) && (
+              <>
+                <span style={{ width: 1, height: 10, background: 'rgba(255,255,255,0.12)' }} />
+                <span style={{ fontFamily: FB, fontSize: 11, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.3px' }}>
+                  Updated {new Date(updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </span>
+              </>
+            )}
+          </div>
         )}
         <button
           onClick={onEnquire}

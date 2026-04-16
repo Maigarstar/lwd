@@ -20,6 +20,26 @@ const THUMBNAIL_WIDTH = 400;
 const THUMBNAIL_HEIGHT = 300;
 const THUMBNAIL_QUALITY = 0.8;
 
+// Hard timeouts so a stalled storage call or wedged FileReader can never
+// spin the save button forever. Tuned for a 5MB image upload over a slow
+// connection plus generous slack for Supabase's CDN edge.
+const UPLOAD_TIMEOUT_MS    = 30000; // 30s per file → original
+const THUMB_UPLOAD_TIMEOUT = 15000; // 15s per file → thumbnail
+const THUMB_GEN_TIMEOUT_MS = 10000; // 10s for canvas thumbnail generation
+
+// Race a promise against a timeout. The label is surfaced in the error
+// message so we can tell which step hung.
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)),
+      ms
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 // ─── Thumbnail generation ─────────────────────────────────────────────────
 
 /**
@@ -32,6 +52,10 @@ const THUMBNAIL_QUALITY = 0.8;
  */
 async function generateThumbnail(file, maxWidth = THUMBNAIL_WIDTH, maxHeight = THUMBNAIL_HEIGHT, quality = THUMBNAIL_QUALITY) {
   console.log('[generateThumbnail] Creating thumbnail:', { fileName: file.name, maxWidth, maxHeight });
+
+  // Yield to the event loop so the spinner can paint before we hit the
+  // (synchronous-ish) FileReader + Image decode pipeline on big files.
+  await new Promise(r => setTimeout(r, 0));
 
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -106,8 +130,10 @@ export async function uploadMediaFile(file, mediaId) {
   console.log('[uploadMediaFile] Starting upload:', { fileName: file.name, fileSize: file.size, fileType: file.type, mediaId });
 
   const rawExt = file.name.split('.').pop()?.toLowerCase() || '';
-  const isImage = ['jpg','jpeg','png','webp','gif','avif'].includes(rawExt) || file.type.startsWith('image/');
-  const ext = ['jpg','jpeg','png','webp','gif','avif','mp4','webm','mov'].includes(rawExt)
+  const IMAGE_EXTS = ['jpg','jpeg','png','webp','gif','avif','heic','heif'];
+  const VIDEO_EXTS = ['mp4','webm','mov'];
+  const isImage = IMAGE_EXTS.includes(rawExt) || file.type.startsWith('image/');
+  const ext = [...IMAGE_EXTS, ...VIDEO_EXTS].includes(rawExt)
     ? rawExt
     : (file.type.startsWith('video') ? 'mp4' : 'jpg');
 
@@ -117,14 +143,21 @@ export async function uploadMediaFile(file, mediaId) {
   console.log('[uploadMediaFile] Upload paths:', { path, thumbPath, isImage });
 
   try {
-    // Upload original file
-    const { error: uploadError, data: uploadData } = await supabase.storage
+    // Upload original file — wrapped in a hard timeout so a stalled
+    // network or wedged Supabase storage call never freezes the save UI.
+    const uploadPromise = supabase.storage
       .from(BUCKET)
       .upload(path, file, {
         cacheControl:  '31536000',   // 1 year, images don't change at a given path
         upsert:        true,         // overwrite if the same media_id is re-uploaded
         contentType:   file.type || 'image/jpeg',
       });
+
+    const { error: uploadError, data: uploadData } = await withTimeout(
+      uploadPromise,
+      UPLOAD_TIMEOUT_MS,
+      `Upload of "${file.name}"`,
+    );
 
     console.log('[uploadMediaFile] Upload response:', { uploadError, uploadData });
 
@@ -142,15 +175,25 @@ export async function uploadMediaFile(file, mediaId) {
     if (isImage && thumbPath) {
       try {
         console.log('[uploadMediaFile] Generating thumbnail...');
-        const thumbBlob = await generateThumbnail(file);
+        const thumbBlob = await withTimeout(
+          generateThumbnail(file),
+          THUMB_GEN_TIMEOUT_MS,
+          `Thumbnail generation for "${file.name}"`,
+        );
 
-        const { error: thumbError } = await supabase.storage
+        const thumbUploadPromise = supabase.storage
           .from(BUCKET)
           .upload(thumbPath, thumbBlob, {
             cacheControl: '31536000',
             upsert: true,
             contentType: 'image/jpeg',
           });
+
+        const { error: thumbError } = await withTimeout(
+          thumbUploadPromise,
+          THUMB_UPLOAD_TIMEOUT,
+          `Thumbnail upload for "${file.name}"`,
+        );
 
         if (thumbError) {
           console.warn('[uploadMediaFile] Thumbnail upload failed (non-fatal):', thumbError);
@@ -160,7 +203,7 @@ export async function uploadMediaFile(file, mediaId) {
           console.log('[uploadMediaFile] Thumbnail URL:', thumbnailUrl);
         }
       } catch (err) {
-        console.warn('[uploadMediaFile] Thumbnail generation failed (non-fatal):', err);
+        console.warn('[uploadMediaFile] Thumbnail generation/upload failed (non-fatal):', err);
         // Non-fatal: continue even if thumbnail fails
       }
     }

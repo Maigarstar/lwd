@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useListingForm } from './hooks/useListingForm';
 import useListingPreview from './hooks/useListingPreview';
 import ListingLivePreview from './preview/ListingLivePreview';
@@ -15,6 +15,7 @@ import ExclusiveUseSection from './sections/ExclusiveUseSection';
 import CateringCardsSection from './sections/CateringCardsSection';
 import RoomsSection from './sections/RoomsSection';
 import DiningSection from './sections/DiningSection';
+import PackagesSection from './sections/PackagesSection';
 import WeddingWeekendSection from './sections/WeddingWeekendSection';
 import ExperiencesSection from './sections/ExperiencesSection';
 import FAQSectionEditor from './sections/FAQSectionEditor';
@@ -51,6 +52,7 @@ const LISTING_SECTIONS = [
   { id: 'quality',     label: 'Content Quality',      icon: '⭐', Component: ContentQualityStatusSection, locked: false, condition: null },
   { id: 'features',    label: 'Features & Amenities', icon: '✦',  Component: FeaturesSection,          locked: false, condition: 'showFeatures' },
   { id: 'commercial',  label: 'Commercial Details',   icon: '£',  Component: CommercialDetailsSection, locked: false, condition: 'showCommercial' },
+  { id: 'packages',    label: 'Wedding Packages',     icon: '🎁', Component: PackagesSection,          locked: false, condition: 'showCommercial' },
   { id: 'media',       label: 'Media',                icon: '🖼',  Component: MediaSection,             locked: false, condition: null },
   { id: 'spaces',      label: 'Spaces',               icon: '⊞',  Component: SpacesSection,            locked: false, condition: 'showFeatures' },
   { id: 'rooms',       label: 'Rooms',                icon: '🛏',  Component: RoomsSection,             locked: false, condition: 'showFeatures' },
@@ -84,6 +86,7 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
   const { formData, handleChange, handleSave, handleSaveDraft, handlePublish, loading, uploadProgress, error, hasChanges } = useListingForm(listingId);
   const previewData = useListingPreview(formData);
   const [saveStatus, setSaveStatus] = useState(null);
+  const [showPublishPanel, setShowPublishPanel] = useState(false);
   const [showAITools,    setShowAITools]    = useState(false);
   const [showAIImport,   setShowAIImport]   = useState(false);
   const [importToast,    setImportToast]    = useState(null); // { count: n }
@@ -110,6 +113,19 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
 
   // Determine which sections to show based on listing type
   const { showFeatures, showCommercial } = getSectionVisibility(formData.listing_type);
+
+  // Close publish panel when clicking outside
+  const publishPanelRef = useRef(null);
+  useEffect(() => {
+    if (!showPublishPanel) return;
+    const handler = (e) => {
+      if (publishPanelRef.current && !publishPanelRef.current.contains(e.target)) {
+        setShowPublishPanel(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPublishPanel]);
 
   // Load view mode preference from localStorage on mount
   useEffect(() => {
@@ -159,6 +175,10 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
   }, []);
 
   // Handle save (preserve current status)
+  // CRITICAL: always clear saveStatus on failure — without the else branch
+  // the button stays stuck on "Saving…" forever when the underlying save
+  // throws (eg. missing DB column, RLS error, network timeout). The error
+  // banner from useListingForm.error tells the user what went wrong.
   const handleSaveClick = useCallback(async () => {
     setSaveStatus('saving');
     const savedId = await handleSave(formData.status || 'draft');
@@ -167,6 +187,8 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
       setTimeout(() => setSaveStatus(null), 3000);
       // Pass the real saved listing ID (important for new listings)
       if (onSaveComplete) onSaveComplete(typeof savedId === 'string' ? savedId : listingId);
+    } else {
+      setSaveStatus(null);
     }
   }, [handleSave, formData.status, listingId, onSaveComplete]);
 
@@ -179,6 +201,8 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
       setTimeout(() => setSaveStatus(null), 3000);
       // Pass the real saved listing ID (important for new listings)
       if (onSaveComplete) onSaveComplete(typeof savedId === 'string' ? savedId : listingId);
+    } else {
+      setSaveStatus(null);
     }
   }, [handleSaveDraft, listingId, onSaveComplete]);
 
@@ -191,6 +215,8 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
       setTimeout(() => setSaveStatus(null), 3000);
       // Pass the real saved listing ID (important for new listings)
       if (onSaveComplete) onSaveComplete(typeof savedId === 'string' ? savedId : listingId);
+    } else {
+      setSaveStatus(null);
     }
   }, [handlePublish, listingId, onSaveComplete]);
 
@@ -305,6 +331,11 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
             padding: 8px 10px !important;
           }
         }
+        @keyframes ls-live-pulse {
+          0%   { box-shadow: 0 0 0 0 rgba(26,168,74,0.55); }
+          70%  { box-shadow: 0 0 0 6px rgba(26,168,74,0); }
+          100% { box-shadow: 0 0 0 0 rgba(26,168,74,0); }
+        }
       `}</style>
 
       {/* ═══════════════════════════════════════════════════════
@@ -357,7 +388,155 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
         </div>
 
         {/* Save actions, order:2 so they stay on row 1 next to AI tools on mobile */}
-        <div className="ls-toolbar-save" style={{ display: 'flex', gap: 8, order: 2, marginLeft: 'auto' }}>
+        <div className="ls-toolbar-save" style={{ display: 'flex', gap: 8, order: 2, marginLeft: 'auto', alignItems: 'center' }}>
+          {/* Live indicator — only shown when the listing is currently published */}
+          {formData.status === 'published' && (
+            <span
+              title="This listing is live on the public site"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '5px 10px',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: '#0a7a2f',
+                backgroundColor: '#e8f7ed',
+                border: '1px solid #b6e3c4',
+                borderRadius: 999,
+              }}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: '#1aa84a',
+                  boxShadow: '0 0 0 0 rgba(26,168,74,0.6)',
+                  animation: 'ls-live-pulse 1.8s ease-out infinite',
+                }}
+              />
+              Live
+            </span>
+          )}
+
+          {/* ── WordPress-style publish date panel ── */}
+          <div ref={publishPanelRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowPublishPanel(p => !p)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '5px 10px', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.04em',
+                color: darkMode ? '#ccc' : '#555',
+                backgroundColor: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                border: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                borderRadius: 6, cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              {formData.published_at
+                ? new Date(formData.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                : formData.status === 'published' ? 'Set date' : 'Immediately'
+              }
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {showPublishPanel && (
+              <div
+                style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: 6,
+                  width: 280, padding: 16,
+                  background: darkMode ? '#1e1e1e' : '#fff',
+                  border: `1px solid ${darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'}`,
+                  borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                  zIndex: 100,
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: darkMode ? '#888' : '#999', marginBottom: 12 }}>
+                  Publishing
+                </div>
+
+                {/* Status */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span style={{ fontSize: 12, color: darkMode ? '#aaa' : '#666' }}>Status</span>
+                  <span style={{
+                    fontSize: 12, fontWeight: 600,
+                    color: formData.status === 'published' ? '#1aa84a' : (darkMode ? '#ccc' : '#333'),
+                  }}>
+                    {formData.status === 'published' ? 'Published' : formData.status === 'draft' ? 'Draft' : (formData.status || 'Draft')}
+                  </span>
+                </div>
+
+                {/* Publish date */}
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ display: 'block', fontSize: 12, color: darkMode ? '#aaa' : '#666', marginBottom: 4 }}>
+                    Publish date
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.published_at ? new Date(formData.published_at).toISOString().slice(0, 16) : ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      handleChange('published_at', val ? new Date(val).toISOString() : null);
+                    }}
+                    style={{
+                      width: '100%', padding: '6px 8px', fontSize: 12,
+                      background: darkMode ? '#2a2a2a' : '#f5f5f5',
+                      border: `1px solid ${darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'}`,
+                      borderRadius: 4, color: darkMode ? '#ddd' : '#333',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                </div>
+
+                {/* Quick set buttons */}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('published_at', new Date().toISOString())}
+                    style={{
+                      flex: 1, padding: '5px 8px', fontSize: 10, fontWeight: 600,
+                      color: darkMode ? '#ccc' : '#555',
+                      background: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                      border: `1px solid ${darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+                      borderRadius: 4, cursor: 'pointer',
+                    }}
+                  >
+                    Now
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('published_at', null)}
+                    style={{
+                      flex: 1, padding: '5px 8px', fontSize: 10, fontWeight: 600,
+                      color: darkMode ? '#ccc' : '#555',
+                      background: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                      border: `1px solid ${darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+                      borderRadius: 4, cursor: 'pointer',
+                    }}
+                  >
+                    Clear
+                  </button>
+                </div>
+
+                {/* Last modified info */}
+                {formData.updated_at && (
+                  <div style={{ fontSize: 11, color: darkMode ? '#666' : '#999', borderTop: `1px solid ${darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`, paddingTop: 8 }}>
+                    Last modified: {new Date(formData.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={handleDiscardClick}
@@ -407,16 +586,34 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
             disabled={loading}
             style={{
               fontSize: 13, fontWeight: 600, padding: '7px 14px',
-              backgroundColor: darkMode ? '#ffffff' : '#1a1a1a',
-              color: darkMode ? '#0a0a0a' : '#ffffff',
+              backgroundColor: formData.status === 'published'
+                ? '#1aa84a'
+                : (darkMode ? '#ffffff' : '#1a1a1a'),
+              color: formData.status === 'published'
+                ? '#ffffff'
+                : (darkMode ? '#0a0a0a' : '#ffffff'),
               border: 'none',
               borderRadius: 6, cursor: loading ? 'not-allowed' : 'pointer',
               opacity: loading ? 0.6 : 1,
             }}
           >
-            {saveStatus === 'publishing' ? 'Publishing…' : 'Publish'}
+            {saveStatus === 'publishing'
+              ? 'Publishing…'
+              : (formData.status === 'published' ? 'Update Live' : 'Publish')}
           </button>
         </div>
+
+        {/* Inline save-error indicator — visible right next to the save buttons
+            so the user can't miss it when scrolled down into a section. */}
+        {error && !saveStatus && (
+          <span style={{
+            fontSize: 11, fontWeight: 600, color: LUX.red, maxWidth: 260,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            order: 2,
+          }} title={error}>
+            ⚠ Save failed
+          </span>
+        )}
 
         {/* View mode text links, order:3 so they wrap to row 2 on mobile */}
         <div className="ls-toolbar-vm" style={{ display: 'flex', gap: 16, alignItems: 'center', order: 3 }}>

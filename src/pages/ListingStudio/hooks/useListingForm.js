@@ -14,6 +14,19 @@ function slugify(text) {
     .replace(/-+/g, '-');      // collapse multiple dashes
 }
 
+// ── Title-case helper for free-text place names ──────────────────────────────
+// Users often type "frome" or "FROME" — normalise to "Frome" before save so
+// city/region display names always look correct on the front end. Preserves
+// hyphens and apostrophes ("stratford-upon-avon" → "Stratford-Upon-Avon",
+// "o'neill" → "O'Neill").
+function titleCasePlace(text) {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/\b([a-z])/g, (_, ch) => ch.toUpperCase());
+}
+
 // ── Country normaliser ────────────────────────────────────────────────────────
 // Dropdown values are full display names ("Austria", "United Kingdom") to match
 // how the DB stores the country column. Just pass through as-is.
@@ -109,6 +122,12 @@ export const useListingForm = (listingId = null) => {
     // ── Catering cards (max 3, icon + title + description + subtext) ────────
     catering_enabled: false,
     catering_cards: [],  // [{ id, icon, title, description, subtext, sortOrder }]
+    // ── Wedding Packages (max 5, structured offerings like "House Weddings") ─
+    // Each package: { id, name, duration_days, exclusive_use, price_from,
+    //                 price_currency, season, min_guests, max_guests,
+    //                 dining_capacity, accommodation_capacity, description,
+    //                 inclusions[], sort_order }
+    wedding_packages: [],
     // ── Wedding Weekend day cards (max 4) ─────────────────────────────────────
     wedding_weekend_enabled: false,
     wedding_weekend_subtitle: '',
@@ -131,6 +150,9 @@ export const useListingForm = (listingId = null) => {
     // cinematic = default (5-image luxury fade transition)
     hero_layout: 'cinematic',
     hero_video_url: '',   // YouTube or Vimeo URL, required when hero_layout === 'video'
+    // ── Card settings (JSONB) — per-card-type media, title, badges etc. ──────
+    // Keyed by card type: { venue: {...}, vendor: {...}, gcard: {...} }
+    card_settings: {},
     seo_title: '',
     seo_description: '',
     seo_keywords: [],   // max 8, used for meta keywords + AI search indexing
@@ -280,13 +302,19 @@ export const useListingForm = (listingId = null) => {
             description: listing.description || '',
             amenities: listing.amenities || '',
             country: countryToSlug(listing.country || ''),
-            region: listing.regionSlug || listing.region || '',
-            city: listing.citySlug || listing.city || '',
+            // Prefer the display-name column (region/city) over the slug column
+            // (regionSlug/citySlug). Previously the slug was loaded first,
+            // which meant "Somerset" came back as "somerset" and "Frome" came
+            // back as "frome" — the region <select> couldn't match its options
+            // and the city input rendered in lowercase.
+            region: listing.region || listing.regionSlug || '',
+            city:   listing.city   || listing.citySlug   || '',
             postcode: listing.postcode || '',
             address: listing.address || '',
             address_line2: '',
             lat: listing.lat != null ? String(listing.lat) : '',
             lng: listing.lng != null ? String(listing.lng) : '',
+            additional_locations: Array.isArray(listing.additionalLocations) ? listing.additionalLocations : [],
             // price_range: prefer priceLabel (legacy), fall back to priceRange / price_range (new schema)
             price_range: listing.priceLabel || listing.priceRange || '',
             price_from: listing.priceFrom != null ? String(listing.priceFrom) : '',
@@ -313,6 +341,7 @@ export const useListingForm = (listingId = null) => {
             exclusive_use_includes: Array.isArray(listing.exclusiveUseIncludes) ? listing.exclusiveUseIncludes : [],
             catering_enabled: listing.cateringEnabled ?? false,
             catering_cards: Array.isArray(listing.cateringCards) ? listing.cateringCards : [],
+            wedding_packages: Array.isArray(listing.weddingPackages) ? listing.weddingPackages : [],
             wedding_weekend_enabled: listing.weddingWeekendEnabled ?? false,
             wedding_weekend_subtitle: listing.weddingWeekendSubtitle || '',
             wedding_weekend_days: Array.isArray(listing.weddingWeekendDays) ? listing.weddingWeekendDays : [],
@@ -355,8 +384,24 @@ export const useListingForm = (listingId = null) => {
             member_since:    listing.memberSince    || '',
             status: listing.status || 'draft',
             published_at: listing.publishedAt || null,
+            updated_at: listing.updatedAt || null,
             visibility: listing.isHidden ? 'private' : (listing.visibility || 'public'),
             // ── Editorial Content Layer (Phase 3) ─────────────────────────────────────
+            // Card settings — all per-card-type config (media, title, badges)
+            card_settings: (listing.cardSettings && typeof listing.cardSettings === 'object') ? listing.cardSettings : {},
+            // Hydrate flat card_venue_*, card_vendor_*, card_gcard_* fields from cardSettings JSONB
+            ...(() => {
+              const cs = listing.cardSettings;
+              if (!cs || typeof cs !== 'object') return {};
+              const flat = {};
+              for (const [type, fields] of Object.entries(cs)) {
+                if (!fields || typeof fields !== 'object') continue;
+                for (const [key, val] of Object.entries(fields)) {
+                  flat[`card_${type}_${key}`] = val;
+                }
+              }
+              return flat;
+            })(),
             hero_summary: listing.heroSummary || null,
             section_intros: (listing.sectionIntros && typeof listing.sectionIntros === 'object') ? listing.sectionIntros : { overview: '', spaces: '', dining: '', rooms: '', art: '', weddings: '' },
             editorial_approved: listing.editorialApproved ?? false,
@@ -424,13 +469,18 @@ export const useListingForm = (listingId = null) => {
       // Generate slug if not provided
       const slug = formData.slug || generateSlug(formData.venue_name);
 
-      // Validate slug matches name pattern (prevent data consistency issues)
-      const expectedSlug = generateSlug(formData.venue_name);
-      if (slug.toLowerCase() !== expectedSlug.toLowerCase()) {
+      // Format-only validation. We no longer compare against the auto-generated
+      // slug — historic listings, geographic disambiguators, SEO tweaks and
+      // multi-region same-name venues all need the freedom to diverge from a
+      // strict transliteration of the current venue name. We still reject
+      // structurally-broken slugs (uppercase, spaces, leading/trailing dashes,
+      // illegal chars) because those will break the canonical URL.
+      const slugLc = slug.toLowerCase();
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slugLc)) {
         setError(
-          `Slug must match the venue name pattern. ` +
-          `Expected: "${expectedSlug}" but got "${slug}". ` +
-          `The slug is auto-generated from your venue name.`
+          `Slug "${slug}" is not a valid URL slug. ` +
+          `Use lowercase letters, numbers and single hyphens only ` +
+          `(e.g. "orchardleigh-house" or "orchardleigh-house-uk").`
         );
         setLoading(false);
         return false;
@@ -495,10 +545,24 @@ export const useListingForm = (listingId = null) => {
         handleChange('dining_menu_images', diningUpload.items);
       }
 
-      if (heroUpload.failed > 0 || mediaUpload.failed > 0 || roomsUpload.failed > 0 || diningUpload.failed > 0) {
+      const totalFailed = heroUpload.failed + mediaUpload.failed + roomsUpload.failed + diningUpload.failed;
+      if (totalFailed > 0) {
         console.warn(
-          `[storage] ${heroUpload.failed + mediaUpload.failed + roomsUpload.failed + diningUpload.failed} file(s) failed to upload, ` +
+          `[storage] ${totalFailed} file(s) failed to upload, ` +
           `they will be excluded from the saved listing.`
+        );
+        // Surface to the user — silent failures inside a "Save" click are
+        // worse than a noisy banner. The save will still complete with the
+        // files that did succeed.
+        const sourceList = [
+          heroUpload.failed > 0 && `${heroUpload.failed} hero`,
+          mediaUpload.failed > 0 && `${mediaUpload.failed} media`,
+          roomsUpload.failed > 0 && `${roomsUpload.failed} room`,
+          diningUpload.failed > 0 && `${diningUpload.failed} dining`,
+        ].filter(Boolean).join(', ');
+        setError(
+          `${totalFailed} image${totalFailed === 1 ? '' : 's'} failed to upload (${sourceList}). ` +
+          `Check the file size (max 5MB) and try Save again. Other changes were saved.`
         );
       }
 
@@ -540,12 +604,38 @@ export const useListingForm = (listingId = null) => {
         description: formData.description,
         amenities: formData.amenities,
         country: formData.country,
+        // Persist BOTH the display name and the slug. Previously only the slug
+        // was saved, so on reload the form picked up "somerset" and the
+        // <select> dropdown — whose options use display names like "Somerset"
+        // — couldn't find a match and silently reverted to "Select region…".
+        // City is title-cased before save so "frome" becomes "Frome" — users
+        // type all sorts of casings and we don't want them to leak to the
+        // front end. Region is left as-is because it comes from a fixed
+        // dropdown that already uses the correct display casing.
+        region:     formData.region || '',
         regionSlug: slugify(formData.region),
-        citySlug: slugify(formData.city),
+        city:       titleCasePlace(formData.city),
+        citySlug:   slugify(formData.city),
         postcode: formData.postcode,
         address: [formData.address, formData.address_line2].filter(Boolean).join('\n'),
         lat: formData.lat,
         lng: formData.lng,
+        // Additional locations — multi-pin venues. Editor allows up to 3
+        // secondary locations in LocationSection.jsx; this is the only place
+        // that persists them. Strip empty rows so we don't ship blank pins.
+        additionalLocations: Array.isArray(formData.additional_locations)
+          ? formData.additional_locations
+              .filter(loc => loc && (loc.name || loc.address || loc.city || loc.lat || loc.lng))
+              .map(loc => ({
+                id:       loc.id || null,
+                name:     loc.name     || '',
+                address:  loc.address  || '',
+                city:     loc.city     || '',
+                postcode: loc.postcode || '',
+                lat:      loc.lat      || '',
+                lng:      loc.lng      || '',
+              }))
+          : [],
         priceLabel: formData.price_range,
         priceFrom: formData.price_from ? (parseFloat(formData.price_from) || null) : null,
         priceCurrency: formData.price_currency || null,
@@ -582,6 +672,28 @@ export const useListingForm = (listingId = null) => {
           id: c.id, icon: c.icon || 'dining', title: c.title || '',
           description: c.description || '', subtext: c.subtext || '', sortOrder: c.sortOrder ?? idx,
         })),
+        // Wedding Packages — structured multi-day offerings (max 5)
+        weddingPackages: (formData.wedding_packages || [])
+          .filter(p => p && (p.name || p.description || (Array.isArray(p.inclusions) && p.inclusions.length > 0)))
+          .slice(0, 5)
+          .map((p, idx) => ({
+            id: p.id || `pkg-${Date.now()}-${idx}`,
+            name: (p.name || '').slice(0, 80),
+            duration_days: parseInt(p.duration_days, 10) || 0,
+            exclusive_use: !!p.exclusive_use,
+            price_from: parseInt(p.price_from, 10) || 0,
+            price_currency: p.price_currency || '',
+            season: ['winter', 'summer', 'year-round'].includes(p.season) ? p.season : '',
+            min_guests: parseInt(p.min_guests, 10) || 0,
+            max_guests: parseInt(p.max_guests, 10) || 0,
+            dining_capacity: parseInt(p.dining_capacity, 10) || 0,
+            accommodation_capacity: parseInt(p.accommodation_capacity, 10) || 0,
+            description: (p.description || '').slice(0, 500),
+            inclusions: Array.isArray(p.inclusions)
+              ? p.inclusions.filter(i => typeof i === 'string' && i.trim()).map(i => i.trim().slice(0, 60)).slice(0, 12)
+              : [],
+            sort_order: p.sort_order ?? idx,
+          })),
         // Wedding Weekend
         weddingWeekendEnabled: formData.wedding_weekend_enabled ?? false,
         weddingWeekendSubtitle: formData.wedding_weekend_subtitle || '',
@@ -667,6 +779,32 @@ export const useListingForm = (listingId = null) => {
         // Full rich media_items array (File objects stripped), stored as JSONB.
         // Also consumed by sync-media-ai-index edge function after save.
         mediaItems: cleanMediaItems,
+        // Card settings — per-card-type media, title, badges, CTA etc.
+        // Collect all card_venue_*, card_vendor_*, card_gcard_* fields into
+        // a single JSONB object keyed by card type.
+        cardSettings: (() => {
+          const settings = {};
+          const TYPES = ['venue', 'vendor', 'gcard'];
+          for (const t of TYPES) {
+            const prefix = `card_${t}_`;
+            const entry = {};
+            let hasData = false;
+            for (const key in formData) {
+              if (key.startsWith(prefix)) {
+                const field = key.slice(prefix.length);
+                // Strip File objects from images before saving
+                if (field === 'images' && Array.isArray(formData[key])) {
+                  entry[field] = formData[key].map(({ file: _f, ...rest }) => rest);
+                } else {
+                  entry[field] = formData[key];
+                }
+                hasData = true;
+              }
+            }
+            if (hasData) settings[t] = entry;
+          }
+          return Object.keys(settings).length > 0 ? settings : (formData.card_settings || {});
+        })(),
         // Editorial Content Layer (Phase 3)
         heroSummary: formData.hero_summary || null,
         sectionIntros: formData.section_intros || {},
@@ -685,9 +823,9 @@ export const useListingForm = (listingId = null) => {
       );
       listingPayload.contentQualityScore = contentQualityScore;
 
-      // Add published_at if publishing
+      // Add published_at if publishing — use user-selected date or fall back to now
       if (publishStatus === 'published') {
-        listingPayload.publishedAt = new Date().toISOString();
+        listingPayload.publishedAt = formData.published_at || new Date().toISOString();
       }
 
       let result;

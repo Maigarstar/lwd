@@ -1,6 +1,22 @@
 import { useState, useMemo } from 'react';
 import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
-import { SEO_SYSTEM, buildAddressLookupPrompt } from '../../../lib/aiPrompts';
+import { SEO_SYSTEM, ADDRESS_LOOKUP_SYSTEM, buildAddressLookupPrompt } from '../../../lib/aiPrompts';
+
+// Tolerant JSON extractor for AI responses. Strips markdown fences, finds the
+// first {...} block, and returns null if nothing parseable is present.
+function extractJsonObject(text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  // Strip ```json ... ``` or ``` ... ``` fences if present
+  let cleaned = text.trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
+  // First try direct parse
+  try { return JSON.parse(cleaned); } catch { /* fall through */ }
+  // Fall back to extracting the first {...} block
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try { return JSON.parse(match[0]); } catch { return null; }
+}
 import { getCountryOptions } from '../utils/countryOptions';
 
 // ── Region options keyed by country value ────────────────────────────────────
@@ -388,22 +404,45 @@ const LocationSection = ({ formData, onChange }) => {
         <div style={{ marginBottom: 20 }}>
           <AIContentGenerator
             feature="address_lookup"
-            systemPrompt={SEO_SYSTEM}
+            systemPrompt={ADDRESS_LOOKUP_SYSTEM}
             userPrompt={buildAddressLookupPrompt(
               formData?.venue_name || formData?.name || '',
               formData?.website || formData?.website_url || formData?.url || ''
             )}
             venueId={formData?.id}
             onInsert={(text) => {
-              try {
-                const addr = JSON.parse(text);
-                if (addr.address)       onChange('address', addr.address);
-                if (addr.address_line2) onChange('address_line2', addr.address_line2);
-                if (addr.city)          onChange('city', addr.city);
-                if (addr.postcode)      onChange('postcode', addr.postcode);
-                if (addr.region)        onChange('region', addr.region);
-                if (addr.country && COUNTRY_KEYS.includes(addr.country)) onChange('country', addr.country);
-              } catch { /* invalid JSON, ignore */ }
+              const addr = extractJsonObject(text);
+              if (!addr) {
+                // eslint-disable-next-line no-alert
+                alert(
+                  'Could not parse address from AI response. The model returned ' +
+                  'something that is not valid JSON. Try clicking Generate again ' +
+                  'or fill the address manually.\n\nResponse was:\n\n' +
+                  String(text).slice(0, 400)
+                );
+                return;
+              }
+              const fieldsApplied = [];
+              if (addr.address)       { onChange('address', addr.address);             fieldsApplied.push('address'); }
+              if (addr.address_line2) { onChange('address_line2', addr.address_line2); fieldsApplied.push('address_line2'); }
+              if (addr.city)          { onChange('city', addr.city);                   fieldsApplied.push('city'); }
+              if (addr.postcode)      { onChange('postcode', addr.postcode);           fieldsApplied.push('postcode'); }
+              if (addr.region)        { onChange('region', addr.region);               fieldsApplied.push('region'); }
+              if (addr.country && COUNTRY_KEYS.includes(addr.country)) {
+                onChange('country', addr.country);
+                fieldsApplied.push('country');
+              }
+              if (addr.lat) { onChange('lat', String(addr.lat)); fieldsApplied.push('lat'); }
+              if (addr.lng) { onChange('lng', String(addr.lng)); fieldsApplied.push('lng'); }
+              if (fieldsApplied.length === 0) {
+                // eslint-disable-next-line no-alert
+                alert(
+                  'AI returned a JSON response but every field was empty — the ' +
+                  'model could not confidently identify this venue. Try giving it ' +
+                  'a website URL, or fill the address manually.'
+                );
+                return;
+              }
               setShowAddressAI(false);
             }}
             label="Find Address"

@@ -36,6 +36,23 @@ const toAbsoluteUrl = (url) => {
   return `https://${url}`;
 };
 
+// Parse a YouTube or Vimeo URL into the { type, heroId } shape that
+// HeroVideo expects. Returns null for unrecognised URLs.
+const parseHeroVideoUrl = (url) => {
+  if (!url) return null;
+  // YouTube: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID
+  const ytMatch = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/
+  );
+  if (ytMatch) return { type: 'youtube', heroId: ytMatch[1] };
+  // Vimeo: vimeo.com/ID, player.vimeo.com/video/ID
+  const vmMatch = url.match(
+    /(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/
+  );
+  if (vmMatch) return { type: 'vimeo', heroId: vmMatch[1] };
+  return null;
+};
+
 function useIsMobile(bp = 768) {
   const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
   useEffect(() => {
@@ -331,7 +348,9 @@ function buildListingUrl(v) {
 // ─── RECENTLY VIEWED, localStorage helpers ────────────────────────────────────
 // v2: bumped to invalidate stale entries stored before canonical-path sanitization
 const RV_KEY = 'ldw_recently_viewed_v2';
-const MAX_RV_STORED = 6;
+// Display cap is 3. Store 4 so that filtering out the current venue still
+// leaves 3 cards to display (current venue is always the freshest entry).
+const MAX_RV_STORED = 4;
 
 // A valid canonical listing URL is /<country>/<region>/<category>/<slug>
 // — 4 lowercase segments. Anything shorter routes through stateToPath which
@@ -355,14 +374,15 @@ function getRVList() {
   } catch { return []; }
 }
 
-function recordVenueView(v, slug, canonicalPathArg) {
+function recordVenueView(v, slug, canonicalPathArg, locationFallback) {
   try {
-    // canonicalPathArg is the authoritative canonical URL computed from the DB
-    // row by the caller. We do NOT fall back to window.location.pathname here —
-    // the record effect can fire before the URL has been canonicalized, and a
-    // non-canonical path stored here will route the user back to `/` on click
-    // (stateToPath in main.jsx returns '/' when country/region are missing).
-    const canonicalPath = sanitizeCanonicalPath(canonicalPathArg);
+    // Try the caller-computed canonical path first (built from rawListing). If
+    // that's missing or not yet computable, fall back to window.location.pathname
+    // — but ONLY when the URL bar is itself already canonical, since stateToPath
+    // returns '/' for non-canonical paths and would dump the user on home.
+    const canonicalPath =
+      sanitizeCanonicalPath(canonicalPathArg) ||
+      sanitizeCanonicalPath(typeof window !== 'undefined' ? window.location.pathname : null);
     if (!canonicalPath) return;
 
     // Extract gallery photo or first image
@@ -378,10 +398,15 @@ function recordVenueView(v, slug, canonicalPathArg) {
       }
     }
 
+    // Location is cosmetic but the RecentlyViewed filter has historically
+    // required it. Provide a sensible URL-slug fallback so entries are never
+    // silently dropped just because the DB row lacks city/region.
+    const location = v.location || locationFallback || '';
+
     const entry = {
       id: v.id,
       name: v.name,
-      location: v.location,
+      location,
       rating: v.rating,
       price: v.priceFrom,
       currency: v.priceCurrency || '£',
@@ -733,6 +758,22 @@ function HeroCinematic({ venue, onEnquire, onBack }) {
             {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.55)" }}>({venue.reviews} reviews)</span>}</> }
             {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>✓ LWD Verified</span>}
           </div>
+          {/* Published / Updated date — WordPress-style editorial timestamp */}
+          {venue.publishedAt && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+              <span style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: "0.3px" }}>
+                Published {new Date(venue.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </span>
+              {venue.updatedAt && new Date(venue.updatedAt) > new Date(venue.publishedAt || 0) && (
+                <>
+                  <span style={{ width: 1, height: 10, background: "rgba(255,255,255,0.15)" }} />
+                  <span style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.3px" }}>
+                    Updated {new Date(venue.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </span>
+                </>
+              )}
+            </div>
+          )}
           {/* Urgency signal — social proof before the CTA */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
             <span style={{
@@ -853,7 +894,22 @@ function HeroSplit({ venue, onEnquire }) {
           {venue.categories.map(cat => <Pill key={cat} color="gold">{cat}</Pill>)}
         </div>
         <h1 style={{ fontFamily: FD, fontSize: isMobile ? 32 : "clamp(30px, 3.5vw, 52px)", fontWeight: 400, color: C.text, lineHeight: 1.05, marginBottom: 8 }}>{venue.name}</h1>
-        <p style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: isMobile ? 14 : 20, lineHeight: 1.6 }}>{venue.flag} {venue.location}</p>
+        <p style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: 8, lineHeight: 1.6 }}>{venue.flag} {venue.location}</p>
+        {venue.publishedAt && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: isMobile ? 14 : 20 }}>
+            <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.3px" }}>
+              Published {new Date(venue.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
+            {venue.updatedAt && new Date(venue.updatedAt) > new Date(venue.publishedAt) && (
+              <>
+                <span style={{ width: 1, height: 10, background: C.border }} />
+                <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.3px" }}>
+                  Updated {new Date(venue.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </span>
+              </>
+            )}
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: isMobile ? 16 : 24, flexWrap: "wrap" }}>
           {venue.rating != null && venue.rating > 0 && <><Stars rating={venue.rating} size={14} />
           <span style={{ fontFamily: FB, fontSize: 14, fontWeight: 700, color: C.text }}>{venue.rating}</span>
@@ -924,6 +980,14 @@ function HeroMagazine({ venue, onEnquire }) {
               <span style={{ fontFamily: FB, fontSize: 13, fontWeight: 700, color: C.text }}>{venue.rating}</span>
               {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>({venue.reviews} reviews)</span>}</> }
               {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: C.green, fontWeight: 700 }}>✓ LWD Verified</span>}
+              {venue.publishedAt && (
+                <>
+                  <span style={{ width: 1, height: 12, background: C.border2 }} />
+                  <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.3px" }}>
+                    Published {new Date(venue.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </span>
+                </>
+              )}
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
@@ -966,19 +1030,86 @@ function HeroMagazine({ venue, onEnquire }) {
 // ─── HERO STYLE 4: VIDEO (YouTube / Vimeo) ───────────────────────────────────
 function HeroVideo({ venue, onEnquire }) {
   const C = useT();
-  const [filmOpen, setFilmOpen] = useState(false);
-  const { type, heroId, filmId } = venue.video || {};
+  const [muted, setMuted] = useState(true);
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const iframeRef = useRef(null);
+  const { type, heroId } = venue.video || {};
 
+  // No valid video → render Cinematic as fallback
+  if (!type || !heroId) return <HeroCinematic venue={venue} onEnquire={onEnquire} />;
+
+  // Hero image shown first while the video loads
+  const posterImg = venue.imgs?.[0] || '';
+
+  // YouTube needs enablejsapi=1 for postMessage mute/unmute control.
+  // Vimeo background mode force-mutes; we switch to normal embed when unmuted.
   const embedUrl = type === "youtube"
-    ? `https://www.youtube-nocookie.com/embed/${heroId}?autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&loop=1&playlist=${heroId}&showinfo=0&iv_load_policy=3&disablekb=1&playsinline=1`
-    : `https://player.vimeo.com/video/${heroId}?autoplay=1&loop=1&muted=1&background=1`;
+    ? `https://www.youtube-nocookie.com/embed/${heroId}?autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&loop=1&playlist=${heroId}&showinfo=0&iv_load_policy=3&disablekb=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`
+    : muted
+      ? `https://player.vimeo.com/video/${heroId}?autoplay=1&loop=1&muted=1&background=1`
+      : `https://player.vimeo.com/video/${heroId}?autoplay=1&loop=1&muted=0&controls=0&background=0&transparent=0`;
 
-  const filmUrl = type === "youtube"
-    ? `https://www.youtube-nocookie.com/embed/${filmId}?autoplay=1&rel=0&modestbranding=1`
-    : `https://player.vimeo.com/video/${filmId}?autoplay=1`;
+  // Listen for YouTube API "onReady" / first state-change so we know playback
+  // has started. For Vimeo, the iframe onLoad is close enough.
+  useEffect(() => {
+    if (type !== "youtube") return;
+    const handler = (e) => {
+      try {
+        const data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+        // YouTube fires { event: "onStateChange", info: 1 } when playing
+        if (data?.event === "onStateChange" && data?.info === 1) {
+          setVideoReady(true);
+        }
+        // Also accept onReady as a signal
+        if (data?.event === "onReady") {
+          setVideoReady(true);
+        }
+      } catch { /* ignore non-JSON messages */ }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [type]);
+
+  // Fallback: if YouTube never fires the playing message, reveal after 3s.
+  // If nothing loads at all after 8s, mark as failed so poster stays.
+  useEffect(() => {
+    if (videoReady || videoFailed) return;
+    const reveal = setTimeout(() => setVideoReady(true), 3000);
+    const fail   = setTimeout(() => { if (!videoReady) setVideoFailed(true); }, 8000);
+    return () => { clearTimeout(reveal); clearTimeout(fail); };
+  }, [videoReady, videoFailed]);
+
+  const toggleSound = () => {
+    const iframe = iframeRef.current;
+    if (type === "youtube" && iframe?.contentWindow) {
+      const cmd = muted ? "unMute" : "mute";
+      iframe.contentWindow.postMessage(
+        JSON.stringify({ event: "command", func: cmd, args: [] }),
+        "*"
+      );
+    }
+    setMuted(m => !m);
+  };
 
   return (
     <div style={{ position: "relative", height: "62vh", overflow: "hidden", background: "#111" }}>
+      {/* Poster image — visible immediately, fades out once video plays */}
+      {posterImg && (
+        <img
+          src={posterImg}
+          alt={venue.name || ""}
+          style={{
+            position: "absolute", inset: 0, width: "100%", height: "100%",
+            objectFit: "cover",
+            opacity: videoReady ? 0 : 1,
+            transition: "opacity 1.2s ease",
+            zIndex: 1,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
       {/* iframe scaled 120% to hide YouTube edge UI */}
       <div style={{
         position: "absolute",
@@ -988,10 +1119,12 @@ function HeroVideo({ venue, onEnquire }) {
         pointerEvents: "none",
       }}>
         <iframe
+          ref={iframeRef}
           src={embedUrl}
           style={{ width: "100%", height: "100%", border: "none" }}
           allow="autoplay; fullscreen; picture-in-picture"
           title="Venue hero video"
+          onLoad={() => { if (type !== "youtube") setVideoReady(true); }}
         />
       </div>
 
@@ -1001,6 +1134,37 @@ function HeroVideo({ venue, onEnquire }) {
         background: "linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.04) 40%, rgba(0,0,0,0.72) 100%)",
         pointerEvents: "none",
       }} />
+
+      {/* Sound on/off toggle — only visible when video is playing */}
+      {videoReady && !videoFailed && <button
+        onClick={toggleSound}
+        title={muted ? "Turn sound on" : "Turn sound off"}
+        style={{
+          position: "absolute", bottom: 56, right: 40, zIndex: 10,
+          width: 44, height: 44, borderRadius: "50%",
+          background: "rgba(0,0,0,0.45)", backdropFilter: "blur(8px)",
+          border: "1px solid rgba(255,255,255,0.2)",
+          color: "#fff", cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "background 0.2s, transform 0.15s",
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,0,0,0.65)"; e.currentTarget.style.transform = "scale(1.08)"; }}
+        onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.45)"; e.currentTarget.style.transform = "scale(1)"; }}
+      >
+        {muted ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <line x1="23" y1="9" x2="17" y2="15" />
+            <line x1="17" y1="9" x2="23" y2="15" />
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+          </svg>
+        )}
+      </button>}
 
       {/* Content, same layout as Cinematic */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 40px 52px", animation: "fadeUp 0.8s ease both" }}>
@@ -1018,6 +1182,22 @@ function HeroVideo({ venue, onEnquire }) {
           {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>({venue.reviews} reviews)</span>}
           {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>✓ LWD Verified</span>}
         </div>
+        {/* Published / Updated date — WordPress-style editorial timestamp */}
+        {venue.publishedAt && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+            <span style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: "0.3px" }}>
+              Published {new Date(venue.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
+            {venue.updatedAt && new Date(venue.updatedAt) > new Date(venue.publishedAt) && (
+              <>
+                <span style={{ width: 1, height: 10, background: "rgba(255,255,255,0.15)" }} />
+                <span style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.3px" }}>
+                  Updated {new Date(venue.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </span>
+              </>
+            )}
+          </div>
+        )}
         {/* Hero CTAs */}
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <button onClick={onEnquire} style={{
@@ -1028,51 +1208,8 @@ function HeroVideo({ venue, onEnquire }) {
             onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
             onMouseLeave={e => e.currentTarget.style.opacity = "1"}
           >Begin Your Enquiry →</button>
-          {/* Watch film CTA */}
-          <button onClick={() => setFilmOpen(true)} style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            padding: "9px 20px",
-            background: "rgba(255,255,255,0.12)",
-            backdropFilter: "blur(10px)",
-            border: "1px solid rgba(255,255,255,0.32)",
-            borderRadius: "var(--lwd-radius-input)",
-            color: "#fff", fontFamily: FB, fontSize: 12, fontWeight: 700,
-            letterSpacing: "0.6px", textTransform: "uppercase", cursor: "pointer",
-            transition: "all 0.2s",
-          }}
-            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.22)"}
-            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.12)"}
-          >
-            <span style={{ fontSize: 14 }}>▶</span> Watch the film
-          </button>
         </div>
       </div>
-
-      {/* Film lightbox */}
-      {filmOpen && (
-        <div onClick={() => setFilmOpen(false)} style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.94)", zIndex: 2000,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <div onClick={e => e.stopPropagation()} style={{ position: "relative", width: "90vw", maxWidth: 1024 }}>
-            <div style={{ position: "relative", paddingTop: "56.25%" }}>
-              <iframe
-                src={filmUrl}
-                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
-                allow="autoplay; fullscreen; picture-in-picture"
-                allowFullScreen
-                title="Venue film"
-              />
-            </div>
-            <button onClick={() => setFilmOpen(false)} style={{
-              position: "absolute", top: -48, right: 0,
-              background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "var(--lwd-radius-input)",
-              color: "rgba(255,255,255,0.7)", fontSize: 22, width: 40, height: 40,
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            }}>✕</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1477,10 +1614,14 @@ function OwnerCard({ owner, venue }) {
           </div>
           <div>
             <div style={{ fontFamily: FD, fontSize: 16, color: C.text, lineHeight: 1.2, marginBottom: 2 }}>{owner.name}</div>
-            <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 1 }}>{owner.title}</div>
-            <div style={{ fontFamily: FB, fontSize: 11, color: C.gold, fontWeight: 600, letterSpacing: "0.2px" }}>
-              ✦ LWD Partner since {owner.memberSince}
-            </div>
+            {owner.title && (
+              <div style={{ fontFamily: FB, fontSize: 12, color: C.textLight, marginBottom: 1 }}>{owner.title}</div>
+            )}
+            {owner.memberSince && (
+              <div style={{ fontFamily: FB, fontSize: 11, color: C.gold, fontWeight: 600, letterSpacing: "0.2px" }}>
+                ✦ LWD Partner since {owner.memberSince}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1494,6 +1635,53 @@ function OwnerCard({ owner, venue }) {
               fontFamily: FD, fontSize: 13, fontStyle: "italic",
               color: C.textMid, lineHeight: 1.75, margin: 0,
             }}>"{owner.bio}"</p>
+          </div>
+        )}
+
+        {/* Quick contact strip — visible whenever email / phone is known.
+            Especially useful when no named contact has been added and the card
+            is using the venue name as a fallback. */}
+        {(owner.email || owner.phone || owner.whatsapp) && (
+          <div style={{
+            borderTop: `1px solid ${C.border}`,
+            paddingTop: 14, marginBottom: 14,
+            display: 'flex', flexDirection: 'column', gap: 8,
+          }}>
+            {owner.phone && (
+              <a href={`tel:${owner.phone}`} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                fontFamily: FB, fontSize: 12, color: C.text,
+                textDecoration: 'none', lineHeight: 1.3,
+              }}>
+                <Icon name="phone" size={12} color={C.gold} />
+                <span>{owner.phone}</span>
+              </a>
+            )}
+            {owner.email && (
+              <a href={`mailto:${owner.email}`} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                fontFamily: FB, fontSize: 12, color: C.text,
+                textDecoration: 'none', lineHeight: 1.3, wordBreak: 'break-all',
+              }}>
+                <Icon name="mail" size={12} color={C.gold} />
+                <span>{owner.email}</span>
+              </a>
+            )}
+            {owner.whatsapp && (
+              <a
+                href={`https://wa.me/${String(owner.whatsapp).replace(/[^0-9]/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  fontFamily: FB, fontSize: 12, color: C.text,
+                  textDecoration: 'none', lineHeight: 1.3,
+                }}
+              >
+                <Icon name="phone" size={12} color={C.gold} />
+                <span>WhatsApp</span>
+              </a>
+            )}
           </div>
         )}
 
@@ -1559,6 +1747,124 @@ function OpeningHoursWidget({ openingHours }) {
       {openingHours.note && (
         <div style={{ marginTop: 8, fontFamily: FB, fontSize: 11, color: C.textLight, lineHeight: 1.5 }}>{openingHours.note}</div>
       )}
+    </div>
+  );
+}
+
+// ─── PRESS FEATURES SIDEBAR CARD ──────────────────────────────────────────────
+function PressSidebarCard({ items }) {
+  const C = useT();
+  if (!Array.isArray(items) || items.length === 0) return null;
+  return (
+    <div style={{
+      border: `1px solid ${C.border}`,
+      background: C.surface,
+      padding: '18px 20px',
+    }}>
+      <div style={{
+        fontFamily: FB, fontSize: 9, color: C.textMuted,
+        letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 14,
+      }}>
+        As Featured In
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {items.slice(0, 6).map((p, i) => {
+          const headline = p.outlet || p.title || '';
+          const body     = p.outlet && p.title ? p.title : '';
+          const inner = (
+            <div key={i} style={{
+              borderLeft: `2px solid ${C.gold}40`,
+              paddingLeft: 12,
+            }}>
+              <div style={{
+                fontFamily: FD, fontSize: 14, color: C.text,
+                lineHeight: 1.3, marginBottom: body || p.year ? 3 : 0,
+              }}>
+                {headline}
+              </div>
+              {body && (
+                <div style={{
+                  fontFamily: FB, fontSize: 11, color: C.textLight,
+                  lineHeight: 1.4, fontStyle: 'italic',
+                }}>
+                  {body}
+                </div>
+              )}
+              {p.year && (
+                <div style={{
+                  fontFamily: FB, fontSize: 10, color: C.gold,
+                  letterSpacing: '0.5px', marginTop: 3, fontWeight: 600,
+                }}>
+                  {p.year}
+                </div>
+              )}
+            </div>
+          );
+          return p.url
+            ? (
+              <a
+                key={i}
+                href={p.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: 'none', display: 'block' }}
+              >
+                {inner}
+              </a>
+            )
+            : inner;
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── AWARDS SIDEBAR CARD ──────────────────────────────────────────────────────
+function AwardsSidebarCard({ items }) {
+  const C = useT();
+  if (!Array.isArray(items) || items.length === 0) return null;
+  return (
+    <div style={{
+      border: `1px solid ${C.border}`,
+      background: C.surface,
+      padding: '18px 20px',
+    }}>
+      <div style={{
+        fontFamily: FB, fontSize: 9, color: C.textMuted,
+        letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 14,
+      }}>
+        Awards & Recognition
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {items.slice(0, 8).map((a, i) => (
+          <div key={i} style={{
+            display: 'flex', gap: 12, alignItems: 'flex-start',
+          }}>
+            <div style={{
+              flexShrink: 0, fontSize: 18, lineHeight: 1.2,
+              filter: 'grayscale(0.1)',
+            }}>
+              {a.icon || '🏆'}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontFamily: FD, fontSize: 13, color: C.text,
+                lineHeight: 1.35, marginBottom: a.issuer || a.year ? 3 : 0,
+              }}>
+                {a.award}
+              </div>
+              {(a.issuer || a.year) && (
+                <div style={{
+                  fontFamily: FB, fontSize: 11, color: C.textLight,
+                  lineHeight: 1.4,
+                }}>
+                  {[a.issuer, a.year].filter(Boolean).join(' · ')}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -2943,7 +3249,7 @@ function AboutSection({ venue, isDbVenue = false }) {
 
   return (
     <section id="overview" style={{ marginBottom: 56 }}>
-      <SectionHeading title={`About ${venue.name}`} />
+      <SectionHeading title={`About ${venue.name}`} subtitle={venue?.sectionIntros?.overview || undefined} />
 
       {/* Single-column editorial layout */}
       <div>
@@ -4117,6 +4423,435 @@ function ExclusiveUse({ venue, onEnquire }) {
 }
 
 // ─── CATERING ────────────────────────────────────────────────────────────────
+// ── Wedding Packages ─────────────────────────────────────────────────────────
+// Renders the structured wedding-package offerings saved by the Listing
+// Studio's PackagesSection (e.g. Orchardleigh's "House Weddings" / "Estate
+// Weddings"). Hidden when there are no packages.
+function WeddingPackagesSection({ venue, onEnquire }) {
+  const C = useT();
+  const isMobile = useIsMobile();
+  const [hoverIdx, setHoverIdx] = useState(null);
+
+  const packages = (venue?.weddingPackages || [])
+    .filter(p => p && (p.name || p.description))
+    .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
+    .slice(0, 5);
+
+  if (packages.length === 0) return null;
+
+  // Currency symbol — accept either a symbol or an ISO code.
+  const currencySymbol = (ccy) => {
+    if (!ccy) return '£';
+    const map = { GBP: '£', EUR: '€', USD: '$', AUD: 'A$', CAD: 'C$' };
+    if (map[ccy]) return map[ccy];
+    return ccy.length <= 2 ? ccy : '£';
+  };
+  const formatPrice = (n, ccy) => {
+    if (!n || n <= 0) return null;
+    return `${currencySymbol(ccy)}${Number(n).toLocaleString()}`;
+  };
+
+  // Fluid columns: 1 on mobile, auto-fit on desktop so 3 cards never orphan.
+  const gridTemplateColumns = isMobile
+    ? '1fr'
+    : packages.length === 1
+      ? '1fr'
+      : 'repeat(auto-fit, minmax(320px, 1fr))';
+
+  // Soft palette tokens — fall back to safe luxury defaults if theme is sparse.
+  const GOLD       = C.gold || '#c9a84c';
+  const GOLD_DEEP  = '#9a7416';
+  const SURFACE    = C.surface || '#fffdf9';
+  const BORDER     = C.border  || '#ece6d8';
+  const TEXT       = C.text    || '#1a1510';
+  const MUTED      = C.muted   || '#7a7264';
+
+  return (
+    <section style={{ marginBottom: 64 }} id="wedding-packages">
+      {/* Editorial header — gold eyebrow + serif title + ornament */}
+      <div style={{ marginBottom: isMobile ? 24 : 36, textAlign: 'center', maxWidth: 720, marginLeft: 'auto', marginRight: 'auto' }}>
+        <div style={{
+          fontFamily: FB,
+          fontSize: 10,
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
+          color: GOLD,
+          fontWeight: 600,
+          marginBottom: 10,
+        }}>
+          ✦ Curated Offerings ✦
+        </div>
+        <h2 style={{
+          fontFamily: FD,
+          fontSize: isMobile ? 28 : 38,
+          fontWeight: 400,
+          color: TEXT,
+          margin: '0 0 14px',
+          lineHeight: 1.15,
+          letterSpacing: '-0.01em',
+        }}>
+          Wedding Packages
+        </h2>
+        {/* Gold ornament */}
+        <div aria-hidden style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+          margin: '0 auto 14px',
+        }}>
+          <span style={{ width: 36, height: 1, background: `linear-gradient(90deg, transparent, ${GOLD})` }} />
+          <span style={{ color: GOLD, fontSize: 9 }}>◆</span>
+          <span style={{ width: 36, height: 1, background: `linear-gradient(90deg, ${GOLD}, transparent)` }} />
+        </div>
+        <p style={{
+          fontFamily: FB,
+          fontSize: isMobile ? 13 : 14,
+          lineHeight: 1.7,
+          color: MUTED,
+          margin: 0,
+          fontStyle: 'italic',
+        }}>
+          {venue?.sectionIntros?.packages || 'Choose the package that fits your celebration — from intimate house weddings to full-estate buyouts.'}
+        </p>
+      </div>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns,
+        gap: isMobile ? 18 : 24,
+        alignItems: 'stretch',
+      }}>
+        {packages.map((p, idx) => {
+          const priceLabel = formatPrice(p.price_from, p.price_currency);
+          const isHover = hoverIdx === idx;
+          const indexLabel = String(idx + 1).padStart(2, '0');
+
+          return (
+            <article
+              key={p.id || p.name || idx}
+              onMouseEnter={() => setHoverIdx(idx)}
+              onMouseLeave={() => setHoverIdx(null)}
+              style={{
+                background: `linear-gradient(180deg, ${SURFACE} 0%, ${SURFACE} 70%, rgba(201,168,76,0.025) 100%)`,
+                border: `1px solid ${isHover ? `${GOLD}80` : BORDER}`,
+                borderRadius: 6,
+                padding: isMobile ? '34px 22px 26px' : '42px 32px 32px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 22,
+                position: 'relative',
+                overflow: 'hidden',
+                transition: 'all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                transform: isHover ? 'translateY(-4px)' : 'translateY(0)',
+                boxShadow: isHover
+                  ? '0 24px 48px -20px rgba(154, 116, 22, 0.18), 0 8px 24px -12px rgba(0,0,0,0.06)'
+                  : '0 2px 12px -4px rgba(0,0,0,0.04)',
+              }}
+            >
+              {/* Top gold accent bar */}
+              <div aria-hidden style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 3,
+                background: `linear-gradient(90deg, ${GOLD_DEEP}, ${GOLD}, ${GOLD_DEEP})`,
+                opacity: isHover ? 1 : 0.65,
+                transition: 'opacity 0.3s',
+              }} />
+
+              {/* Ghost numeral — top right, editorial */}
+              <div aria-hidden style={{
+                position: 'absolute',
+                top: isMobile ? 14 : 20,
+                right: isMobile ? 18 : 26,
+                fontFamily: FD,
+                fontSize: isMobile ? 32 : 44,
+                fontWeight: 300,
+                color: GOLD,
+                opacity: isHover ? 0.35 : 0.18,
+                lineHeight: 1,
+                letterSpacing: '-0.02em',
+                fontStyle: 'italic',
+                transition: 'opacity 0.3s',
+                pointerEvents: 'none',
+              }}>
+                {indexLabel}
+              </div>
+
+              {/* Header: name */}
+              <header style={{ paddingRight: isMobile ? 50 : 64 }}>
+                <h3 style={{
+                  fontFamily: FD,
+                  fontSize: isMobile ? 24 : 30,
+                  fontWeight: 400,
+                  color: TEXT,
+                  lineHeight: 1.15,
+                  margin: '0 0 12px',
+                  letterSpacing: '-0.005em',
+                }}>
+                  {p.name || 'Wedding Package'}
+                </h3>
+
+                {/* Meta chips: duration · exclusive use · season */}
+                {(p.duration_days > 0 || p.exclusive_use || (p.season && p.season !== 'year-round')) && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {p.duration_days > 0 && (
+                      <span style={{
+                        fontFamily: FB,
+                        fontSize: 9,
+                        letterSpacing: '0.14em',
+                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        color: GOLD_DEEP,
+                        background: 'rgba(201,168,76,0.09)',
+                        border: `1px solid ${GOLD}40`,
+                        padding: '5px 11px',
+                        borderRadius: 2,
+                      }}>
+                        {p.duration_days} {p.duration_days === 1 ? 'Day' : 'Days'}
+                      </span>
+                    )}
+                    {p.exclusive_use && (
+                      <span style={{
+                        fontFamily: FB,
+                        fontSize: 9,
+                        letterSpacing: '0.14em',
+                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        color: GOLD_DEEP,
+                        background: 'rgba(201,168,76,0.09)',
+                        border: `1px solid ${GOLD}40`,
+                        padding: '5px 11px',
+                        borderRadius: 2,
+                      }}>
+                        Exclusive Use
+                      </span>
+                    )}
+                    {p.season && p.season !== 'year-round' && (
+                      <span style={{
+                        fontFamily: FB,
+                        fontSize: 9,
+                        letterSpacing: '0.14em',
+                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        color: MUTED,
+                        background: 'transparent',
+                        border: `1px solid ${BORDER}`,
+                        padding: '5px 11px',
+                        borderRadius: 2,
+                      }}>
+                        {p.season === 'winter' ? 'Winter Package' : p.season === 'summer' ? 'Summer Package' : p.season}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </header>
+
+              {/* Description */}
+              {p.description && (
+                <p style={{
+                  fontFamily: FB,
+                  fontSize: isMobile ? 13 : 14,
+                  lineHeight: 1.7,
+                  color: MUTED,
+                  margin: 0,
+                  fontStyle: 'italic',
+                }}>
+                  {p.description}
+                </p>
+              )}
+
+              {/* Capacity grid — refined */}
+              {(p.dining_capacity > 0 || p.accommodation_capacity > 0 || p.min_guests > 0 || p.max_guests > 0) && (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))',
+                  gap: 16,
+                  paddingTop: 18,
+                  paddingBottom: 4,
+                  borderTop: `1px solid ${BORDER}`,
+                }}>
+                  {p.dining_capacity > 0 && (
+                    <div>
+                      <div style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: MUTED, marginBottom: 4, fontWeight: 600 }}>Dining</div>
+                      <div style={{ fontFamily: FD, fontSize: 19, fontWeight: 400, color: TEXT, lineHeight: 1.1 }}>
+                        up to <span style={{ color: GOLD_DEEP }}>{p.dining_capacity}</span>
+                      </div>
+                    </div>
+                  )}
+                  {p.accommodation_capacity > 0 && (
+                    <div>
+                      <div style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: MUTED, marginBottom: 4, fontWeight: 600 }}>Sleeps</div>
+                      <div style={{ fontFamily: FD, fontSize: 19, fontWeight: 400, color: TEXT, lineHeight: 1.1 }}>
+                        up to <span style={{ color: GOLD_DEEP }}>{p.accommodation_capacity}</span>
+                      </div>
+                    </div>
+                  )}
+                  {(p.min_guests > 0 || p.max_guests > 0) && (
+                    <div>
+                      <div style={{ fontFamily: FB, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: MUTED, marginBottom: 4, fontWeight: 600 }}>Guests</div>
+                      <div style={{ fontFamily: FD, fontSize: 19, fontWeight: 400, color: TEXT, lineHeight: 1.1 }}>
+                        {p.min_guests > 0 && p.max_guests > 0 ? (
+                          <span style={{ color: GOLD_DEEP }}>{p.min_guests}–{p.max_guests}</span>
+                        ) : p.max_guests > 0 ? (
+                          <>up to <span style={{ color: GOLD_DEEP }}>{p.max_guests}</span></>
+                        ) : (
+                          <>min <span style={{ color: GOLD_DEEP }}>{p.min_guests}</span></>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Inclusions — bulleted list with gold ornament marks (cleaner than chips) */}
+              {Array.isArray(p.inclusions) && p.inclusions.length > 0 && (
+                <div style={{ paddingTop: 4 }}>
+                  <div style={{
+                    fontFamily: FB,
+                    fontSize: 9,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    color: MUTED,
+                    fontWeight: 600,
+                    marginBottom: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}>
+                    <span>What's Included</span>
+                    <span style={{ flex: 1, height: 1, background: BORDER }} />
+                  </div>
+                  <ul style={{
+                    listStyle: 'none',
+                    padding: 0,
+                    margin: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 7,
+                  }}>
+                    {p.inclusions.map((it, i) => (
+                      <li key={i} style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 10,
+                        fontFamily: FB,
+                        fontSize: 13,
+                        lineHeight: 1.55,
+                        color: TEXT,
+                      }}>
+                        <span aria-hidden style={{
+                          color: GOLD,
+                          fontSize: 9,
+                          marginTop: 5,
+                          flexShrink: 0,
+                        }}>
+                          ✦
+                        </span>
+                        <span>{it}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Footer: price + CTA */}
+              <div style={{
+                marginTop: 'auto',
+                paddingTop: 22,
+                borderTop: `1px solid ${BORDER}`,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
+              }}>
+                {priceLabel && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                  }}>
+                    <div>
+                      <div style={{
+                        fontFamily: FB,
+                        fontSize: 9,
+                        letterSpacing: '0.18em',
+                        textTransform: 'uppercase',
+                        color: MUTED,
+                        fontWeight: 600,
+                        marginBottom: 4,
+                      }}>
+                        Investment From
+                      </div>
+                      <div style={{
+                        fontFamily: FD,
+                        fontSize: isMobile ? 30 : 36,
+                        fontWeight: 400,
+                        color: TEXT,
+                        lineHeight: 1,
+                        letterSpacing: '-0.015em',
+                      }}>
+                        {priceLabel}
+                      </div>
+                    </div>
+                    {p.min_guests > 0 && (
+                      <div style={{
+                        fontFamily: FB,
+                        fontSize: 10,
+                        color: MUTED,
+                        textAlign: 'right',
+                        lineHeight: 1.4,
+                        fontStyle: 'italic',
+                        paddingBottom: 4,
+                      }}>
+                        based on<br />{p.min_guests} guests
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* CTA — only if onEnquire wired */}
+                {typeof onEnquire === 'function' && (
+                  <button
+                    onClick={onEnquire}
+                    style={{
+                      width: '100%',
+                      padding: '13px 16px',
+                      background: isHover ? GOLD : 'transparent',
+                      border: `1px solid ${GOLD}`,
+                      borderRadius: 2,
+                      color: isHover ? '#0f0d0a' : GOLD_DEEP,
+                      fontFamily: FB,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: '0.14em',
+                      textTransform: 'uppercase',
+                      cursor: 'pointer',
+                      transition: 'all 0.25s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    Enquire About This Package
+                    <span aria-hidden style={{
+                      transition: 'transform 0.25s ease',
+                      transform: isHover ? 'translateX(3px)' : 'translateX(0)',
+                    }}>→</span>
+                  </button>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function CateringSection({ venue }) {
   const C = useT();
   const isMobile = useIsMobile();
@@ -4138,7 +4873,7 @@ function CateringSection({ venue }) {
 
   return (
     <section style={{ marginBottom: 56 }}>
-      <SectionHeading title="Catering & Dining" subtitle="Professional catering services and dining options" />
+      <SectionHeading title="Catering & Dining" subtitle={venue?.sectionIntros?.dining || "Professional catering services and dining options"} />
       <div
         className="vp-catering-grid"
         style={{
@@ -4248,7 +4983,7 @@ function SpacesSection({ spaces, venue }) {
     <section id="capacity" style={{ marginBottom: 56 }}>
       <SectionHeading
         title="Venue Spaces"
-        subtitle={`${spaces.length} distinct event space${spaces.length !== 1 ? 's' : ''}, each with unique character and atmosphere`}
+        subtitle={venue?.sectionIntros?.spaces || `${spaces.length} distinct event space${spaces.length !== 1 ? 's' : ''}, each with unique character and atmosphere`}
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 48 : 64 }}>
@@ -4427,7 +5162,7 @@ function RoomsSection({ venue }) {
 
   return (
     <section id="rooms" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Rooms & Accommodation" subtitle={acc.totalRooms ? `${acc.totalRooms} rooms${acc.totalSuites ? ` & ${acc.totalSuites} suites` : ''} for your guests` : "Accommodation for your guests"} />
+      <SectionHeading title="Rooms & Accommodation" subtitle={venue?.sectionIntros?.rooms || (acc.totalRooms ? `${acc.totalRooms} rooms${acc.totalSuites ? ` & ${acc.totalSuites} suites` : ''} for your guests` : "Accommodation for your guests")} />
       <>
         {/* Stats bar */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24 }}>
@@ -4614,7 +5349,7 @@ function DiningSection({ venue }) {
 
   return (
     <section id="dining" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Dining" subtitle="World-class culinary experiences and menu options" />
+      <SectionHeading title="Dining" subtitle={venue?.sectionIntros?.dining || "World-class culinary experiences and menu options"} />
       <SectionLayout sideImg={sideImg} isMobile={isMobile}>
 
         {/* Style + chef */}
@@ -4836,7 +5571,7 @@ function WeddingWeekend({ venue }) {
 
   return (
     <section id="things-to-do" style={{ marginBottom: 56 }}>
-      <SectionHeading title="Your Wedding Weekend" subtitle={ww.subtitle || ''} />
+      <SectionHeading title="Your Wedding Weekend" subtitle={venue?.sectionIntros?.weddings || ww.subtitle || ''} />
       {/* Days */}
       {isMobile ? (
         <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", marginBottom: 36, scrollbarWidth: "none", msOverflowStyle: "none" }} className="vp-weekend-slider">
@@ -5609,7 +6344,7 @@ function SimilarVenues({ venue }) {
 }
 
 // ─── RECENTLY VIEWED ──────────────────────────────────────────────────────────
-// Reads from localStorage (ldw_recently_viewed). Excludes current venue.
+// Reads from localStorage (ldw_recently_viewed_v2). Excludes current venue.
 // Max 3 cards shown. Section hidden if empty or admin-disabled.
 function RecentlyViewed({ venue }) {
   const C = useT();
@@ -5617,9 +6352,12 @@ function RecentlyViewed({ venue }) {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    // Read stored visits, exclude current venue, filter out invalid entries, cap at 3
+    // Read stored visits, exclude current venue, cap at 3.
+    // Only `name` is structurally required — getRVList already enforces a
+    // valid canonicalPath, and `location` is cosmetic (entries with empty
+    // location used to be silently dropped, hiding the whole widget).
     const stored = getRVList()
-      .filter(v => v.id !== venue.id && v.name && v.location)
+      .filter(v => v.id !== venue.id && v.name)
       .slice(0, 3);
     setItems(stored);
   }, [venue.id]);
@@ -7585,6 +8323,19 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
   const [venueEvents, setVenueEvents] = useState([]);
   const [drawerEvent, setDrawerEvent] = useState(null);
 
+  // Sync heroStyle from saved hero_layout once DB data arrives.
+  // Falls back to 'cinematic' when the chosen layout is 'video' but no
+  // video URL was configured (prevents a blank hero).
+  useEffect(() => {
+    if (!dbVenue?.heroLayout) return;
+    const saved = dbVenue.heroLayout;
+    if (saved === 'video' && !dbVenue.video?.type) {
+      setHeroStyle('cinematic');
+    } else {
+      setHeroStyle(saved);
+    }
+  }, [dbVenue?.heroLayout, dbVenue?.video?.type]);
+
   const C = darkMode ? DARK : LIGHT;
   const VV = dbVenue ? { ...VENUE, ...dbVenue } : VENUE;
 
@@ -7597,16 +8348,18 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
       // logic in the replaceState effect below so the stored path is always a
       // valid /<country>/<region>/<category>/<slug>.
       let canonicalPath = null;
-      if (rawListing) {
-        const cs = rawListing.country_slug || rawListing.countrySlug || countrySlug;
-        let rs  = rawListing.region_slug  || rawListing.regionSlug  || regionSlug;
-        const cat = rawListing.category_slug || rawListing.categorySlug || categorySlug || 'wedding-venues';
-        if (!rs && rawListing.region) rs = rawListing.region.toLowerCase().replace(/\s+/g, '-');
-        if (cs && rs && cat) {
-          canonicalPath = `/${cs.toLowerCase()}/${rs.toLowerCase()}/${cat.toLowerCase()}/${slug.toLowerCase()}`;
-        }
+      const cs = rawListing?.country_slug || rawListing?.countrySlug || countrySlug;
+      let   rs = rawListing?.region_slug  || rawListing?.regionSlug  || regionSlug;
+      const cat = rawListing?.category_slug || rawListing?.categorySlug || categorySlug || 'wedding-venues';
+      if (!rs && rawListing?.region) rs = rawListing.region.toLowerCase().replace(/\s+/g, '-');
+      if (cs && rs && cat) {
+        canonicalPath = `/${cs.toLowerCase()}/${rs.toLowerCase()}/${cat.toLowerCase()}/${slug.toLowerCase()}`;
       }
-      recordVenueView(VV, slug, canonicalPath);
+      // Build a location fallback from URL-derived slugs so the entry is never
+      // dropped by a downstream filter just because the DB lacks city/region.
+      const titlecase = (s) => (s ? s.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '');
+      const locationFallback = [titlecase(rs), titlecase(cs)].filter(Boolean).join(', ');
+      recordVenueView(VV, slug, canonicalPath, locationFallback);
       // Track profile_view in unified event system (once per real data load)
       trackProfileView({
         entityType:    'venue',
@@ -7695,8 +8448,40 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
           awards:  Array.isArray(listing.awards)
             ? listing.awards.map(a => typeof a === 'string' ? a : (a.award || a.title || a.issuer || '')).filter(Boolean)
             : [],
+          // Full award objects preserved for the sidebar widget (year, issuer, icon, description)
+          awardsList: Array.isArray(listing.awards)
+            ? listing.awards
+                .map(a => {
+                  if (!a) return null;
+                  if (typeof a === 'string') return { award: a };
+                  return {
+                    award:       a.award || a.title || '',
+                    year:        a.year || '',
+                    issuer:      a.issuer || '',
+                    icon:        a.icon || '🏆',
+                    description: a.description || '',
+                  };
+                })
+                .filter(a => a && a.award)
+            : [],
           press:   Array.isArray(listing.pressFeatures)
             ? listing.pressFeatures.map(p => typeof p === 'string' ? p : (p.outlet || p.title || '')).filter(Boolean)
+            : [],
+          // Full press objects preserved for the sidebar widget (outlet, year, title, url, logo_url)
+          pressFeatures: Array.isArray(listing.pressFeatures)
+            ? listing.pressFeatures
+                .map(p => {
+                  if (!p) return null;
+                  if (typeof p === 'string') return { outlet: p };
+                  return {
+                    outlet:   p.outlet || '',
+                    year:     p.year || '',
+                    title:    p.title || '',
+                    url:      p.url || '',
+                    logo_url: p.logo_url || p.logoUrl || '',
+                  };
+                })
+                .filter(p => p && (p.outlet || p.title))
             : [],
           videos:  Array.isArray(listing.mediaItems) ? buildVenueVideos(listing.mediaItems) : [],
           accommodation: (listing.roomsMaxGuests || listing.roomsTotal || listing.roomsDescription)
@@ -7735,7 +8520,9 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
             ? {
                 enabled: true,
                 hours:   listing.openingHours || {},
-                note:    listing.openingHoursNote || null,
+                // `note` removed: no editor surface writes opening_hours_note,
+                // so this read was permanently null. Re-add when/if the editor
+                // gains a Notes field for opening hours.
               }
             : null,
           responseTime: listing.contactProfile?.responseTime || null,
@@ -7744,13 +8531,31 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
             return rate ? String(rate).replace('%', '') : null;
           })(),
           weddingsHosted: listing.weddingsHosted || null,
-          owner: listing.contactProfile?.name ? {
-            name:        listing.contactProfile.name || null,
-            title:       listing.contactProfile.title || null,
-            bio:         listing.contactProfile.bio || listing.contactProfile.about || null,
-            photo:       listing.contactProfile.photoUrl || listing.contactProfile.photo || null,
-            memberSince: listing.memberSince || null,
-          } : null,
+          // Owner card falls back to the venue's own name + contact details when no
+          // dedicated contact_profile.name has been entered. This guarantees the
+          // sidebar profile card always renders something useful.
+          owner: (() => {
+            const cp = listing.contactProfile || {};
+            const hasNamedContact = !!cp.name;
+            const fallbackName = listing.name || listing.venueName || null;
+            const displayName  = cp.name || fallbackName;
+            if (!displayName) return null;
+            return {
+              name:        displayName,
+              title:       cp.title || (hasNamedContact ? null : 'Venue Team'),
+              bio:         cp.bio || cp.about || null,
+              photo:       cp.photoUrl || cp.photo || null,
+              memberSince: listing.memberSince || null,
+              // Contact-channel fallbacks so the card can show email/phone even
+              // when the AI lookup didn't return a named contact.
+              email:       cp.email   || listing.email   || null,
+              phone:       cp.phone   || listing.phone   || null,
+              whatsapp:    cp.whatsapp || null,
+              website:     cp.website  || listing.website || null,
+              social:      cp.social   || null,
+              isFallback:  !hasNamedContact,
+            };
+          })(),
           contact: {
             address: {
               line1:   listing.address  || '',
@@ -7832,6 +8637,63 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
                 categories:    listing.faqCategories,
               }
             : null,
+          // Editorial Content Layer — section intros + hero summary saved from
+          // the Listing Studio's Editorial Content section. Each section header
+          // below prefers `sectionIntros[key]` over its hardcoded fallback.
+          sectionIntros: (listing.sectionIntros && typeof listing.sectionIntros === 'object')
+            ? listing.sectionIntros
+            : {},
+          heroSummary: listing.heroSummary || null,
+          // Hero layout style chosen in Listing Studio (cinematic | split | magazine | video)
+          heroLayout: listing.heroLayout || 'cinematic',
+          // Parsed video embed for HeroVideo component ({ type, heroId } or null)
+          video: parseHeroVideoUrl(listing.heroVideoUrl),
+          // Wedding Packages — structured multi-day offerings (max 5) saved by
+          // the Listing Studio's PackagesSection. Without this read the
+          // dedicated section on the public listing would silently stay empty.
+          weddingPackages: Array.isArray(listing.weddingPackages)
+            ? listing.weddingPackages.filter(p => p && (p.name || p.description || (Array.isArray(p.inclusions) && p.inclusions.length > 0)))
+            : [],
+          // Wedding Weekend — `weddingWeekendDays` from the editor maps onto the
+          // existing `weddingWeekend.days` shape consumed by the WeddingWeekend
+          // component. Without this block the entire section silently rendered
+          // hardcoded GT_VENUE demo data instead of the saved listing data.
+          weddingWeekend: (listing.weddingWeekendEnabled || (Array.isArray(listing.weddingWeekendDays) && listing.weddingWeekendDays.length > 0))
+            ? {
+                enabled:  listing.weddingWeekendEnabled !== false,
+                subtitle: listing.weddingWeekendSubtitle || null,
+                days:     Array.isArray(listing.weddingWeekendDays) ? listing.weddingWeekendDays : [],
+              }
+            : null,
+          // Estate + Nearby experiences — saved as two separate arrays in the
+          // editor (`estate_items`, `nearby_items`), but the front-end component
+          // expects a single `experiences` array tagged with `category`. We map
+          // editor item shape `{id, icon, title, status, note}` → component
+          // shape `{id, kind, label, isIncluded, isPrivate, season}`. `status`
+          // values "included" / "private" become the boolean flags.
+          experiences: (() => {
+            const mapItem = (it, category) => ({
+              id:         it.id,
+              category,
+              kind:       it.icon || 'nature',
+              label:      it.title || '',
+              isIncluded: (it.status || '').toLowerCase() === 'included',
+              isPrivate:  (it.status || '').toLowerCase() === 'private',
+              season:     it.note || undefined,
+            });
+            const estate = Array.isArray(listing.estateItems)
+              ? listing.estateItems.filter(i => i?.title).map(it => mapItem(it, 'estate'))
+              : [];
+            const nearby = Array.isArray(listing.nearbyItems)
+              ? listing.nearbyItems.filter(i => i?.title).map(it => mapItem(it, 'nearby'))
+              : [];
+            return [...estate, ...nearby];
+          })(),
+          estateEnabled: listing.estateEnabled !== false,
+          nearbyEnabled: listing.nearbyEnabled !== false,
+          // Publishing dates — WordPress-style editorial timestamp
+          publishedAt: listing.publishedAt || null,
+          updatedAt:   listing.updatedAt   || null,
         };
         // ── Fetch approved reviews and map to testimonials format ─────────────
         let testimonials = [];
@@ -8023,6 +8885,7 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
                 </>
               )}
 
+              <WeddingPackagesSection venue={VV} onEnquire={() => setEnquiryOpen(true)} />
               <CateringSection venue={VV} />
               {VV.spaces && <SpacesSection spaces={VV.spaces} venue={VV} />}
               <RoomsSection venue={VV} />
@@ -8142,8 +9005,16 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
             </div>
             {/* Sidebar, 4 zones, sticky on desktop */}
             <div className="lwd-sidebar" style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 108, alignSelf: "start" }}>
-              {/* Zone 1, Owner card (only if owner data available) */}
+              {/* Zone 1, Owner card (always renders if any name available — falls back to venue name) */}
               {VV.owner && VV.owner.name && <OwnerCard owner={VV.owner} venue={VV} />}
+              {/* Zone 1b, Press Features (As Featured In) — sidebar widget */}
+              {Array.isArray(VV.pressFeatures) && VV.pressFeatures.length > 0 && (
+                <PressSidebarCard items={VV.pressFeatures} />
+              )}
+              {/* Zone 1c, Awards & Recognition — sidebar widget */}
+              {Array.isArray(VV.awardsList) && VV.awardsList.length > 0 && (
+                <AwardsSidebarCard items={VV.awardsList} />
+              )}
               {/* Zone 2, Venue enquiry form (lead gen) */}
               <VenueEnquiryForm
                 listingId={VV.id}

@@ -67,7 +67,9 @@ serve(async (req) => {
       if (f.region_slug)   q = q.eq("region_slug",   f.region_slug);
       if (f.country_slug)  q = q.eq("country_slug",  f.country_slug);
       if (f.listing_type)  q = q.eq("listing_type",  f.listing_type);
-      q = q.order("created_at", { ascending: false });
+      q = q.order("updated_at", { ascending: false, nullsFirst: false })
+           .order("published_at", { ascending: false, nullsFirst: false })
+           .order("created_at", { ascending: false });
       if (limit) q = q.limit(limit);
       const { data, error } = await q;
       if (error) throw error;

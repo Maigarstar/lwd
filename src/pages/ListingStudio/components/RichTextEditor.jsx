@@ -232,7 +232,7 @@ const RichTextEditor = ({
         <input
           ref={imageInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
+          accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,image/heif"
           onChange={handleImageFile}
           style={{ display: 'none' }}
         />

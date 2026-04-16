@@ -16,9 +16,30 @@
 import { useState, useEffect } from 'react';
 import RichTextEditor from '../components/RichTextEditor';
 import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
-import { LUXURY_TONE_SYSTEM, buildDiningDescriptionPrompt } from '../../../lib/aiPrompts';
+import {
+  LUXURY_TONE_SYSTEM,
+  buildDiningDescriptionPrompt,
+  DINING_LOOKUP_SYSTEM,
+  buildDiningLookupPrompt,
+} from '../../../lib/aiPrompts';
 
 const MAX_MENU_IMAGES = 5;
+const SHOWCASE_INTRO_MAX = 300;
+
+// Tolerant JSON extractor — strips markdown fences and falls back to first {...}
+// block. Mirrors the helper used in CommercialDetailsSection / RoomsSection /
+// LocationSection so silent JSON.parse failures can't hide a malformed AI
+// response.
+function extractJsonObject(text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  let cleaned = text.trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
+  try { return JSON.parse(cleaned); } catch { /* fall through */ }
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try { return JSON.parse(match[0]); } catch { return null; }
+}
 
 // ── Shared primitives ────────────────────────────────────────────────────────
 const labelStyle = {
@@ -166,7 +187,7 @@ const MenuImageManager = ({ images = [], onChange }) => {
         }}>
           🍽 {images.length === 0 ? 'Upload Menu Images' : `+ Add More (${MAX_MENU_IMAGES - images.length} remaining)`}
           <input
-            type="file" multiple accept="image/jpeg,image/png,image/webp"
+            type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,image/heif"
             onChange={handleFiles} style={{ display: 'none' }}
           />
         </label>
@@ -242,18 +263,95 @@ const aiLinkStyle = {
 const DiningSection = ({ formData, onChange }) => {
   const menu_images = formData?.dining_menu_images || [];
   const [showDiningAI, setShowDiningAI] = useState(false);
+  const [showDiningLookupAI, setShowDiningLookupAI] = useState(false);
+
+  const venueName = formData?.venue_name || formData?.name || '';
+  const websiteUrl = formData?.website || formData?.website_url || '';
+  const locationHint = [formData?.city, formData?.region, formData?.country]
+    .filter(Boolean)
+    .join(', ');
+
+  const handleDiningLookupInsert = (text) => {
+    const parsed = extractJsonObject(text);
+    if (!parsed) {
+      alert('AI did not return valid JSON. Try again or fill the fields manually.');
+      return;
+    }
+    let applied = 0;
+
+    if (typeof parsed.dining_style === 'string' && parsed.dining_style.trim()) {
+      onChange('dining_style', parsed.dining_style.trim());
+      applied++;
+    }
+    if (typeof parsed.chef_name === 'string' && parsed.chef_name.trim()) {
+      onChange('dining_chef_name', parsed.chef_name.trim());
+      applied++;
+    }
+    if (parsed.in_house_catering === true) {
+      onChange('dining_in_house', true);
+      applied++;
+    }
+    if (parsed.external_catering_allowed === true) {
+      onChange('dining_external', true);
+      applied++;
+    }
+    if (Array.isArray(parsed.menu_styles)) {
+      const filtered = parsed.menu_styles.filter(v => MENU_STYLE_OPTIONS.includes(v));
+      if (filtered.length) { onChange('dining_menu_styles', filtered); applied++; }
+    }
+    if (Array.isArray(parsed.dietary)) {
+      const filtered = parsed.dietary.filter(v => DIETARY_OPTIONS.includes(v));
+      if (filtered.length) { onChange('dining_dietary', filtered); applied++; }
+    }
+    if (Array.isArray(parsed.drinks)) {
+      const filtered = parsed.drinks.filter(v => DRINKS_OPTIONS.includes(v));
+      if (filtered.length) { onChange('dining_drinks', filtered); applied++; }
+    }
+    if (typeof parsed.showcase_intro === 'string' && parsed.showcase_intro.trim()) {
+      const intros = { ...(formData?.section_intros || {}) };
+      intros.dining = parsed.showcase_intro.trim().slice(0, SHOWCASE_INTRO_MAX);
+      onChange('section_intros', intros);
+      applied++;
+    }
+
+    if (applied === 0) {
+      alert('AI returned JSON but no recognised dining fields. Try again.');
+      return;
+    }
+    setShowDiningLookupAI(false);
+  };
 
   return (
     <section style={{ marginBottom: 16, padding: 20 }}>
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1a1a1a', margin: '0 0 4px' }}>
-          Dining
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1a1a1a', margin: 0 }}>
+            Dining
+          </h3>
+          <button type="button" onClick={() => setShowDiningLookupAI(v => !v)} style={aiLinkStyle}>
+            ✦ Find dining info with AI
+          </button>
+        </div>
         <p style={{ fontSize: 12, color: '#999', margin: 0 }}>
           Food is one of the top three decisions couples make. The more detail here, the better. Empty sections are hidden on the listing.
         </p>
+        {showDiningLookupAI && (
+          <div style={{ marginTop: 12 }}>
+            <AIContentGenerator
+              feature="dining_lookup"
+              systemPrompt={DINING_LOOKUP_SYSTEM}
+              userPrompt={buildDiningLookupPrompt(venueName, websiteUrl, locationHint)}
+              venueId={formData?.id}
+              onInsert={handleDiningLookupInsert}
+              label="Find Dining Info"
+            />
+            <p style={{ ...hintStyle, marginTop: 6 }}>
+              AI will research the venue's dining offering and fill the fields below. Review and edit before saving.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Dining Style + Chef */}

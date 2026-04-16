@@ -30,8 +30,20 @@ export default function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLig
   const likeCount = eng.likes + (isLiked ? 1 : 0);
   const allComments = [...(eng.comments || []), ...(commentsMap[photo?.id] || [])];
 
+  // Keyboard shortcuts, only active when the lightbox is actually open
+  // (idx !== null) AND the user is not typing in a form field. Without these
+  // guards the global listener stays attached as soon as a gallery is mounted
+  // — e.g. the Listing Studio live preview — and would hijack arrow keys and
+  // the spacebar in every input on the page (clicking Address Line 1 → arrow
+  // key → setLightboxIdx fires from null and the lightbox pops open).
   useEffect(() => {
+    if (idx === null) return undefined;
     const fn = (e) => {
+      const tag = e.target?.tagName;
+      const isFormField =
+        tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' ||
+        e.target?.isContentEditable;
+      if (isFormField) return;
       if (e.key === "Escape") { if (viewAll) setViewAll(false); else onClose(); }
       if (e.key === "ArrowLeft" && !viewAll) onPrev();
       if (e.key === "ArrowRight" && !viewAll) onNext();
@@ -39,7 +51,7 @@ export default function Lightbox({ gallery, idx, onClose, onPrev, onNext, setLig
     };
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
-  }, [onClose, onPrev, onNext, viewAll]);
+  }, [idx, onClose, onPrev, onNext, viewAll]);
 
   useEffect(() => {
     if (!autoPlay) return;

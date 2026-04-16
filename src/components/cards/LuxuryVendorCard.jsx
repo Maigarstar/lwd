@@ -25,6 +25,16 @@ const GOLD = "#C9A84C";
 const GD   = "var(--font-heading-primary)";
 const NU   = "var(--font-body)";
 
+// ── Parse YouTube/Vimeo URL → { type, id } or null ──
+function parseVideoUrl(url) {
+  if (!url) return null;
+  const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  if (ytMatch) return { type: 'youtube', id: ytMatch[1] };
+  const vmMatch = url.match(/(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/);
+  if (vmMatch) return { type: 'vimeo', id: vmMatch[1] };
+  return null;
+}
+
 export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, onQuickView, quickViewItem, setQuickViewItem }) {
   const C = useTheme();
   const { isShortlisted, toggleItem } = useShortlist();
@@ -43,6 +53,7 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
   const isCompared = compareList.some((i) => i.id === v.id);
   const touchRef = useRef({ startX: 0, startY: 0, swiping: false });
   const videoRefs = useRef({});
+  const iframeRefs = useRef({});
 
   // ── Build media array: images first, video last ──
   // v.imgs may be plain URL strings OR objects { src/url, credit_name, credit_instagram }
@@ -62,13 +73,20 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
         });
       }
     });
-    if (v.videoUrl) items.push({ type: "video", src: v.videoUrl, creditName: null, creditIG: null, showCredit: false });
+    if (v.videoUrl) {
+      const parsed = parseVideoUrl(v.videoUrl);
+      if (parsed) {
+        items.push({ type: parsed.type, embedId: parsed.id, src: v.videoUrl, creditName: null, creditIG: null, showCredit: false });
+      } else {
+        items.push({ type: "video", src: v.videoUrl, creditName: null, creditIG: null, showCredit: false });
+      }
+    }
     return items.length > 0 ? items : [{ type: "image", src: "", creditName: null, creditIG: null, showCredit: false }];
   })();
 
   const mediaCount = allMedia.length;
   const hasMultiple = mediaCount > 1;
-  const hasVideo = allMedia.some((m) => m.type === "video");
+  const hasVideo = allMedia.some((m) => m.type === "video" || m.type === "youtube" || m.type === "vimeo");
 
   // ── Track visibility to pause video and close Quick View ──
   const [isVisible, setIsVisible] = useState(false);
@@ -103,6 +121,31 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
       }
     });
   }, [slideIdx, isVisible, muted]);
+
+  // ── Control iframe media (YouTube/Vimeo) mute + play/pause ──
+  useEffect(() => {
+    Object.entries(iframeRefs.current).forEach(([idx, iframe]) => {
+      if (!iframe?.contentWindow) return;
+      const item = allMedia[parseInt(idx)];
+      if (!item) return;
+      if (item.type === 'youtube') {
+        const cmd = muted ? 'mute' : 'unMute';
+        iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: cmd, args: [] }), '*');
+        if (parseInt(idx) === slideIdx && isVisible) {
+          iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: [] }), '*');
+        } else {
+          iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
+        }
+      } else if (item.type === 'vimeo') {
+        iframe.contentWindow.postMessage(JSON.stringify({ method: 'setVolume', value: muted ? 0 : 1 }), '*');
+        if (parseInt(idx) === slideIdx && isVisible) {
+          iframe.contentWindow.postMessage(JSON.stringify({ method: 'play' }), '*');
+        } else {
+          iframe.contentWindow.postMessage(JSON.stringify({ method: 'pause' }), '*');
+        }
+      }
+    });
+  }, [slideIdx, isVisible, muted, allMedia]);
 
   // ── Navigation ──
   const goTo = useCallback((idx) => setSlideIdx(Math.max(0, Math.min(idx, mediaCount - 1))), [mediaCount]);
@@ -219,6 +262,39 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
                     transition: "transform 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
                   }}
                 />
+              ) : (item.type === "youtube" || item.type === "vimeo") ? (
+                <>
+                  {v.imgs?.[0] && (
+                    <img
+                      src={typeof v.imgs[0] === 'string' ? v.imgs[0] : (v.imgs[0]?.src || v.imgs[0]?.url || '')}
+                      alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  )}
+                  {/* Cover wrapper: 16:9 iframe fills the portrait card, overflow hidden by parent */}
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    overflow: "hidden",
+                    opacity: slideIdx === i ? 1 : 0, transition: "opacity 0.6s ease",
+                  }}>
+                    <iframe
+                      ref={(el) => { iframeRefs.current[i] = el; }}
+                      src={item.type === 'youtube'
+                        ? `https://www.youtube.com/embed/${item.embedId}?autoplay=1&mute=1&loop=1&playlist=${item.embedId}&controls=0&showinfo=0&rel=0&enablejsapi=1&modestbranding=1&playsinline=1&vq=hd1080`
+                        : `https://player.vimeo.com/video/${item.embedId}?background=1&autoplay=1&loop=1&muted=1&quality=1080p`
+                      }
+                      allow="autoplay; encrypted-media"
+                      title={`${v.name} video`}
+                      style={{
+                        border: "none", pointerEvents: "none",
+                        /* Height fills card, width auto-scales to 16:9 — overflows are cropped by parent */
+                        height: "100%", aspectRatio: "16/9",
+                        minWidth: "100%", minHeight: "100%",
+                        flexShrink: 0,
+                      }}
+                    />
+                  </div>
+                </>
               ) : (
                 <>
                   {v.imgs?.[0] && (
@@ -443,8 +519,8 @@ export default function LuxuryVendorCard({ v, onView, isMobile, onSave, saved, o
         );
       })()}
 
-      {/* ── Sound toggle on video ── */}
-      {hasVideo && allMedia[slideIdx]?.type === "video" && (
+      {/* ── Sound toggle on video (native, YouTube, Vimeo) ── */}
+      {hasVideo && (allMedia[slideIdx]?.type === "video" || allMedia[slideIdx]?.type === "youtube" || allMedia[slideIdx]?.type === "vimeo") && (
         <button
           onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
           aria-label={muted ? "Unmute" : "Mute"}

@@ -14,6 +14,11 @@
  */
 
 import { useState } from 'react';
+import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
+import {
+  CATERING_CARDS_LOOKUP_SYSTEM,
+  buildCateringCardsLookupPrompt,
+} from '../../../lib/aiPrompts';
 
 const MAX_CARDS = 3;
 
@@ -28,6 +33,26 @@ const ICON_OPTIONS = [
   { value: 'tour',     label: '📍  Experience / Tour' },
   { value: 'check',    label: '✓   General / Included' },
 ];
+
+const ALLOWED_ICONS = ICON_OPTIONS.map(o => o.value);
+
+// Tolerant JSON extractor — strips markdown fences and falls back to first {...}
+// block. Mirrors the helper used in DiningSection / SpacesSection / RoomsSection.
+function extractJsonObject(text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  let cleaned = text.trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
+  try { return JSON.parse(cleaned); } catch { /* fall through */ }
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try { return JSON.parse(match[0]); } catch { return null; }
+}
+
+const aiLinkStyle = {
+  fontSize: 11, color: '#C9A84C', background: 'none', border: 'none',
+  cursor: 'pointer', fontFamily: 'inherit', padding: 0,
+};
 
 // ── Shared primitives ──────────────────────────────────────────────────────────
 const labelStyle = {
@@ -222,8 +247,57 @@ function CardEditor({ card, index, total, onUpdate, onRemove, onMove }) {
 const CateringCardsSection = ({ formData, onChange }) => {
   const enabled = formData?.catering_enabled ?? false;
   const cards   = formData?.catering_cards   ?? [];
+  const venueId = formData?.id;
+  const venueName = formData?.venue_name || formData?.name || '';
+  const websiteUrl = formData?.website || formData?.website_url || '';
+  const locationHint = [formData?.city, formData?.region, formData?.country]
+    .filter(Boolean)
+    .join(', ');
+  const [showCateringLookupAI, setShowCateringLookupAI] = useState(false);
 
   const set = (key, val) => onChange(key, val);
+
+  const handleCateringLookupInsert = (text) => {
+    const parsed = extractJsonObject(text);
+    if (!parsed) {
+      alert('AI did not return valid JSON. Try again or add cards manually.');
+      return;
+    }
+
+    if (!Array.isArray(parsed.cards) || parsed.cards.length === 0) {
+      alert('AI returned no catering cards for this venue. Try again or add manually.');
+      return;
+    }
+
+    const newCards = parsed.cards
+      .slice(0, MAX_CARDS)
+      .map((c, i) => {
+        if (!c) return null;
+        const icon = typeof c.icon === 'string' && ALLOWED_ICONS.includes(c.icon) ? c.icon : 'dining';
+        const title = typeof c.title === 'string' ? c.title.trim().slice(0, 60) : '';
+        const description = typeof c.description === 'string' ? c.description.trim().slice(0, 300) : '';
+        const subtext = typeof c.subtext === 'string' ? c.subtext.trim().slice(0, 100) : '';
+        if (!title && !description) return null;
+        return {
+          id: `card-${Date.now()}-${i}`,
+          icon,
+          title,
+          description,
+          subtext,
+          sortOrder: i,
+        };
+      })
+      .filter(Boolean);
+
+    if (newCards.length === 0) {
+      alert('AI returned cards but none had a title or description. Try again.');
+      return;
+    }
+
+    set('catering_cards', newCards);
+    if (!enabled) set('catering_enabled', true);
+    setShowCateringLookupAI(false);
+  };
 
   // ── Card list helpers ──────────────────────────────────────────────────────
   const updateCard = (idx, updated) => {
@@ -264,13 +338,33 @@ const CateringCardsSection = ({ formData, onChange }) => {
 
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
-        <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1a1a1a', margin: '0 0 4px' }}>
-          Dining Services / Catering Features
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#1a1a1a', margin: 0 }}>
+            Dining Services / Catering Features
+          </h3>
+          <button type="button" onClick={() => setShowCateringLookupAI(v => !v)} style={aiLinkStyle}>
+            ✦ Find catering features with AI
+          </button>
+        </div>
         <p style={{ fontSize: 12, color: '#999', margin: 0 }}>
           Up to 3 feature cards (e.g. In-house catering, External caterers, Sommelier service).
           Each card has an icon, title, and description. Toggle visibility without deleting content.
         </p>
+        {showCateringLookupAI && (
+          <div style={{ marginTop: 12 }}>
+            <AIContentGenerator
+              feature="catering_cards_lookup"
+              systemPrompt={CATERING_CARDS_LOOKUP_SYSTEM}
+              userPrompt={buildCateringCardsLookupPrompt(venueName, websiteUrl, locationHint)}
+              venueId={venueId}
+              onInsert={handleCateringLookupInsert}
+              label="Find Catering Features"
+            />
+            <p style={hintStyle}>
+              AI will research the venue's catering offering and replace the cards below with up to 3 feature highlights. Review and edit before saving.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Enable/Disable toggle */}

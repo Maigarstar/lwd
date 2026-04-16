@@ -1,5 +1,33 @@
 import { useState, useRef } from 'react';
 import RichTextEditor from '../components/RichTextEditor';
+import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerator';
+import {
+  LISTING_INFO_LOOKUP_SYSTEM,
+  buildListingInfoLookupPrompt,
+} from '../../../lib/aiPrompts';
+
+// Tolerant JSON extractor — strips markdown fences and falls back to first {...}
+// block. Mirrors the helper used in CateringCardsSection / DiningSection / etc.
+function extractJsonObject(text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  let cleaned = text.trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
+  try { return JSON.parse(cleaned); } catch { /* fall through */ }
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try { return JSON.parse(match[0]); } catch { return null; }
+}
+
+const aiLinkStyle = {
+  fontSize: 11, color: '#C9A84C', background: 'none', border: 'none',
+  cursor: 'pointer', fontFamily: 'inherit', padding: 0,
+};
+
+const aiHintStyle = { fontSize: 10, color: '#aaa', margin: '4px 0 0' };
+
+const ALLOWED_HOUR_TYPES = ['open', 'closed', 'by_appointment'];
+const SOCIAL_KEYS = ['instagram', 'facebook', 'linkedin', 'tiktok', 'twitter', 'pinterest', 'youtube'];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants & helpers
@@ -190,7 +218,7 @@ function ContactProfileEditor({ profile = {}, onChange }) {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,image/heif"
             style={{ display: 'none' }}
             onChange={handlePhotoFile}
           />
@@ -768,12 +796,169 @@ const ListingInfoSection = ({ formData, onChange }) => {
     () => !!(formData?.opening_hours_enabled)
   );
 
+  // ── AI Lookup ─────────────────────────────────────────────────────────────
+  const venueId      = formData?.id;
+  const venueName    = formData?.venue_name || formData?.name || '';
+  const websiteUrl   = formData?.website || formData?.website_url || profile?.website || '';
+  const locationHint = [formData?.city, formData?.region, formData?.country]
+    .filter(Boolean)
+    .join(', ');
+  const [showListingInfoLookupAI, setShowListingInfoLookupAI] = useState(false);
+
+  const handleListingInfoLookupInsert = (text) => {
+    const parsed = extractJsonObject(text);
+    if (!parsed || typeof parsed !== 'object') {
+      alert('AI did not return valid JSON. Try again or fill in the fields manually.');
+      return;
+    }
+
+    let appliedAny = false;
+
+    // ── contact_profile ─────────────────────────────────────────────
+    if (parsed.contact_profile && typeof parsed.contact_profile === 'object') {
+      const p = parsed.contact_profile;
+      const cleanStr = (v, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+      const incomingSocial = (p.social && typeof p.social === 'object') ? p.social : {};
+      const mergedSocial = { ...(profile.social || {}) };
+      SOCIAL_KEYS.forEach(k => {
+        const val = cleanStr(incomingSocial[k], 300);
+        if (val) mergedSocial[k] = val;
+      });
+
+      const merged = {
+        ...profile,
+        // Preserve photo_url / photo_file — AI cannot supply these
+        photo_url: profile.photo_url || '',
+        name:          cleanStr(p.name, 80)        || profile.name || '',
+        title:         cleanStr(p.title, 80)       || profile.title || '',
+        bio:           cleanStr(p.bio, 600)        || profile.bio || '',
+        response_time: profile.response_time || '',
+        response_rate: profile.response_rate || '',
+        email:         cleanStr(p.email, 200)      || profile.email || '',
+        phone:         cleanStr(p.phone, 60)       || profile.phone || '',
+        whatsapp:      cleanStr(p.whatsapp, 60)    || profile.whatsapp || '',
+        website:       cleanStr(p.website, 300)    || profile.website || '',
+        social:        mergedSocial,
+      };
+      onChange('contact_profile', merged);
+      appliedAny = true;
+    }
+
+    // ── opening_hours ───────────────────────────────────────────────
+    if (parsed.opening_hours && typeof parsed.opening_hours === 'object') {
+      const incoming = parsed.opening_hours;
+      const nextHours = { ...DEFAULT_HOURS };
+      DAYS.forEach(({ key }) => {
+        const day = incoming[key];
+        if (!day || typeof day !== 'object') return;
+        const type = ALLOWED_HOUR_TYPES.includes(day.type) ? day.type : 'by_appointment';
+        const from = (typeof day.from === 'string' && TIME_OPTIONS.includes(day.from)) ? day.from : '09:00';
+        const to   = (typeof day.to   === 'string' && TIME_OPTIONS.includes(day.to))   ? day.to   : '17:00';
+        nextHours[key] = { type, from, to };
+      });
+      onChange('opening_hours', nextHours);
+      // Auto-enable the toggle so user sees the values land
+      if (!hoursEnabled) {
+        setHoursEnabled(true);
+        onChange('opening_hours_enabled', true);
+      }
+      appliedAny = true;
+    }
+
+    // ── press_features ──────────────────────────────────────────────
+    if (Array.isArray(parsed.press_features)) {
+      const newPress = parsed.press_features
+        .slice(0, 6)
+        .map((p, i) => {
+          if (!p || typeof p !== 'object') return null;
+          const outlet = typeof p.outlet === 'string' ? p.outlet.trim().slice(0, 80) : '';
+          const title  = typeof p.title  === 'string' ? p.title.trim().slice(0, 200) : '';
+          const url    = typeof p.url    === 'string' ? p.url.trim().slice(0, 500)   : '';
+          const yearNum = Number(p.year);
+          const year = Number.isFinite(yearNum) && yearNum > 1900 && yearNum < 2100
+            ? String(Math.trunc(yearNum))
+            : '';
+          if (!outlet && !title) return null;
+          return {
+            id: genId(),
+            outlet,
+            year,
+            title,
+            url,
+            logo_url: '',
+            body: '',
+          };
+        })
+        .filter(Boolean);
+      if (newPress.length > 0) {
+        onChange('press_features', newPress);
+        appliedAny = true;
+      }
+    }
+
+    // ── awards ──────────────────────────────────────────────────────
+    if (Array.isArray(parsed.awards)) {
+      const newAwards = parsed.awards
+        .slice(0, 8)
+        .map(a => {
+          if (!a || typeof a !== 'object') return null;
+          const award  = typeof a.award  === 'string' ? a.award.trim().slice(0, 120) : '';
+          const issuer = typeof a.issuer === 'string' ? a.issuer.trim().slice(0, 120) : '';
+          const yearNum = Number(a.year);
+          const year = Number.isFinite(yearNum) && yearNum > 1900 && yearNum < 2100
+            ? String(Math.trunc(yearNum))
+            : '';
+          if (!award) return null;
+          return {
+            id: genId(),
+            award,
+            year,
+            issuer,
+            icon: '🏆',
+            description: '',
+          };
+        })
+        .filter(Boolean);
+      if (newAwards.length > 0) {
+        onChange('awards', newAwards);
+        appliedAny = true;
+      }
+    }
+
+    if (!appliedAny) {
+      alert('AI returned a valid response but no usable listing info. Try again or fill manually.');
+      return;
+    }
+
+    setShowListingInfoLookupAI(false);
+  };
+
   return (
     <section style={{ marginBottom: 16, padding: 20 }}>
-      <h3 style={{ marginBottom: 4 }}>Listing Info</h3>
-      <p style={{ fontSize: 12, color: '#999', marginBottom: 24, marginTop: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+        <h3 style={{ margin: 0 }}>Listing Info</h3>
+        <button type="button" onClick={() => setShowListingInfoLookupAI(v => !v)} style={aiLinkStyle}>
+          ✦ Find listing info with AI
+        </button>
+      </div>
+      <p style={{ fontSize: 12, color: '#999', marginBottom: 16, marginTop: 4 }}>
         Profile card, opening hours, press features and awards, shown in the public listing sidebar
       </p>
+      {showListingInfoLookupAI && (
+        <div style={{ marginBottom: 20 }}>
+          <AIContentGenerator
+            feature="listing_info_lookup"
+            systemPrompt={LISTING_INFO_LOOKUP_SYSTEM}
+            userPrompt={buildListingInfoLookupPrompt(venueName, websiteUrl, locationHint)}
+            venueId={venueId}
+            onInsert={handleListingInfoLookupInsert}
+            label="Find Listing Info"
+          />
+          <p style={aiHintStyle}>
+            AI will research the venue's public profile, opening hours, press coverage and awards. Existing photos and notes are preserved. Review every field before saving — never publish unverified contact details.
+          </p>
+        </div>
+      )}
 
       {/* ── Contact / Profile card ───────────────────────────────── */}
       <SectionCard

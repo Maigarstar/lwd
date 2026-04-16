@@ -24,6 +24,55 @@ async function callListingsEdge(payload: Record<string, unknown>): Promise<any> 
   return json.data
 }
 
+// Detect a "column X does not exist" error and return the offending column name.
+// Postgres surfaces these as either:
+//   "column \"foo\" of relation \"listings\" does not exist"
+//   "Could not find the 'foo' column of 'listings' in the schema cache"
+// PostgREST schema-cache misses look like the second form. We strip the missing
+// column from the payload and retry once so a not-yet-applied migration doesn't
+// brick the entire save.
+function extractMissingColumn(message: string): string | null {
+  if (!message) return null
+  const m1 = message.match(/column "([^"]+)" of relation "[^"]+" does not exist/i)
+  if (m1) return m1[1]
+  const m2 = message.match(/Could not find the '([^']+)' column/i)
+  if (m2) return m2[1]
+  return null
+}
+
+// Run a save (create or update) against the listings edge function. If the
+// payload references columns that don't exist in the live DB yet (typically
+// when a migration hasn't been applied), strip those columns and retry up to
+// 5 times. This keeps the save flow alive while surfacing a console warning
+// so we know the schema is drifting.
+async function callListingsEdgeWithColumnRetry(
+  payload: { action: string; id?: string; payload: Record<string, unknown> },
+): Promise<any> {
+  const stripped: string[] = []
+  let body = { ...payload, payload: { ...payload.payload } }
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      return await callListingsEdge(body)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      const missing = extractMissingColumn(msg)
+      if (!missing || !(missing in body.payload)) throw e
+      console.warn(
+        `[listings] Column "${missing}" not present in DB — stripping and retrying. ` +
+        `Apply the matching migration to persist this field.`,
+      )
+      const next = { ...body.payload }
+      delete next[missing]
+      body = { ...body, payload: next }
+      stripped.push(missing)
+    }
+  }
+  throw new Error(
+    `Listings save failed after stripping columns: ${stripped.join(', ')}. ` +
+    `Schema cache may be stale — apply pending migrations.`,
+  )
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -118,6 +167,31 @@ export function mapListingFromDb(rawListing: any): Listing {
   // Build video URL from media_items
   if (Array.isArray(listing.mediaItems) && !listing.videoUrl) {
     listing.videoUrl = buildCardVideoUrl(listing.mediaItems) ?? undefined;
+  }
+
+  // Fallback: pull video URL from card_settings JSONB if no video from media_items
+  if (!listing.videoUrl && listing.cardSettings && typeof listing.cardSettings === 'object') {
+    const cs = listing.cardSettings as Record<string, any>;
+    for (const type of ['venue', 'vendor', 'gcard']) {
+      const entry = cs[type];
+      if (!entry) continue;
+      const mt = entry.media_type;
+      // YouTube / Vimeo → use media_url embed link
+      if (entry.media_url && (mt === 'youtube' || mt === 'vimeo')) {
+        listing.videoUrl = entry.media_url;
+        break;
+      }
+      // Native video files → first non-empty from video_urls
+      if (mt === 'video' && Array.isArray(entry.video_urls)) {
+        const url = entry.video_urls.find((u: string) => u && u.trim());
+        if (url) { listing.videoUrl = url.trim(); break; }
+      }
+      // Reel / story videos → first non-empty from reel_urls
+      if (mt === 'reel' && Array.isArray(entry.reel_urls)) {
+        const url = entry.reel_urls.find((u: string) => u && u.trim());
+        if (url) { listing.videoUrl = url.trim(); break; }
+      }
+    }
   }
 
   return listing;
@@ -275,6 +349,31 @@ function transformSupabaseListingForUI(listing: any): any {
         is_featured: h.featured ?? i === 0,
         sort_order:  i,
       }));
+  }
+
+  // Fallback: pull video URL from card_settings JSONB if no video from media_items
+  if (!transformed.videoUrl && transformed.cardSettings && typeof transformed.cardSettings === 'object') {
+    const cs = transformed.cardSettings as Record<string, any>;
+    for (const type of ['venue', 'vendor', 'gcard']) {
+      const entry = cs[type];
+      if (!entry) continue;
+      const mt = entry.media_type;
+      // YouTube / Vimeo → use media_url embed link
+      if (entry.media_url && (mt === 'youtube' || mt === 'vimeo')) {
+        transformed.videoUrl = entry.media_url;
+        break;
+      }
+      // Native video files → first non-empty from video_urls
+      if (mt === 'video' && Array.isArray(entry.video_urls)) {
+        const url = entry.video_urls.find((u: string) => u && u.trim());
+        if (url) { transformed.videoUrl = url.trim(); break; }
+      }
+      // Reel / story videos → first non-empty from reel_urls
+      if (mt === 'reel' && Array.isArray(entry.reel_urls)) {
+        const url = entry.reel_urls.find((u: string) => u && u.trim());
+        if (url) { transformed.videoUrl = url.trim(); break; }
+      }
+    }
   }
 
   return transformed
@@ -441,6 +540,8 @@ function mapFormToDatabaseFields(data: any): any {
     'exclusiveUseDescription': 'exclusive_use_description',
     'exclusiveUseCtaText':     'exclusive_use_cta_text',
     'exclusiveUseIncludes':    'exclusive_use_includes',
+    // Multi-pin venues — secondary locations (max 3) stored as JSONB array
+    'additionalLocations':     'additional_locations',
     // Catering cards (max 3, stored as JSONB array)
     'cateringEnabled':         'catering_enabled',
     'cateringCards':           'catering_cards',
@@ -462,6 +563,8 @@ function mapFormToDatabaseFields(data: any): any {
     'faqCtaSubtext':           'faq_cta_subtext',
     'faqCtaButtonText':        'faq_cta_button_text',
     'faqCategories':           'faq_categories',
+    // Wedding Packages — structured offerings (max 5) stored as JSONB array
+    'weddingPackages':         'wedding_packages',
     // Venue spaces (max 5, stored as JSONB array)
     'spaces': 'spaces',
     // Rooms & accommodation
@@ -513,6 +616,7 @@ function mapFormToDatabaseFields(data: any): any {
     'accessibilityNotes': 'accessibility_notes',
     'heroMediaRole': 'hero_media_role',
     'cardMediaRole': 'card_media_role',
+    'cardSettings': 'card_settings',
     'galleryMediaRole': 'gallery_media_role',
     'seoTitle': 'seo_title',
     'seoDescription': 'seo_description',
@@ -823,13 +927,10 @@ export async function createListing(data: Listing) {
     // Sanitize payload: convert empty strings to null for numeric/date fields
     const dbData = sanitizeListingPayload(mapped)
 
-    let listing = await callListingsEdge({ action: 'create', payload: dbData })
-
-    // Graceful retry: if managed_account_id column doesn't exist yet (schema cache miss), strip and retry
-    if (!listing) {
-      const { managed_account_id: _ma, ...dbDataWithout } = dbData as any
-      listing = await callListingsEdge({ action: 'create', payload: dbDataWithout })
-    }
+    // Graceful column-strip retry handles missing columns (eg. a migration
+    // that hasn't been applied yet) so a single drifting field doesn't brick
+    // the whole save flow.
+    const listing = await callListingsEdgeWithColumnRetry({ action: 'create', payload: dbData })
 
     // Fire-and-forget: sync rich media metadata into AI search index
     syncMediaAIIndex(listing.id, data)
@@ -864,13 +965,10 @@ export async function updateListing(id: string, data: Partial<Listing>) {
     // Sanitize payload: convert empty strings to null for numeric/date fields
     const updateData = sanitizeListingPayload(mapped)
 
-    let listing = await callListingsEdge({ action: 'update', id, payload: updateData })
-
-    // Graceful retry: if managed_account_id column doesn't exist yet (schema cache miss), strip and retry
-    if (!listing) {
-      const { managed_account_id: _ma, ...updateDataWithout } = updateData as any
-      listing = await callListingsEdge({ action: 'update', id, payload: updateDataWithout })
-    }
+    // Graceful column-strip retry handles missing columns (eg. a migration
+    // that hasn't been applied yet) so a single drifting field doesn't brick
+    // the whole save flow.
+    const listing = await callListingsEdgeWithColumnRetry({ action: 'update', id, payload: updateData })
 
     // Fire-and-forget: sync rich media metadata into AI search index
     syncMediaAIIndex(listing.id, data)
