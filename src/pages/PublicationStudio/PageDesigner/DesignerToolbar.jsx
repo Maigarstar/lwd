@@ -44,6 +44,8 @@ export default function DesignerToolbar({
   onFitPage,
   showGrid,
   onToggleGrid,
+  snapToGrid,
+  onToggleSnap,
   showRuler,
   onToggleRuler,
   showBleed,
@@ -121,6 +123,15 @@ export default function DesignerToolbar({
 
         {/* Grid toggle */}
         <ToolBtn onClick={onToggleGrid} active={showGrid} title="Toggle grid">⊞ Grid</ToolBtn>
+
+        {/* Snap to grid */}
+        <ToolBtn
+          onClick={onToggleSnap}
+          active={snapToGrid}
+          title={snapToGrid ? 'Snap to grid ON — objects snap to 40px grid' : 'Snap to grid OFF'}
+        >
+          ⊹ Snap
+        </ToolBtn>
 
         {/* Ruler toggle */}
         <ToolBtn onClick={onToggleRuler} active={showRuler} title="Toggle ruler">⊟ Ruler</ToolBtn>

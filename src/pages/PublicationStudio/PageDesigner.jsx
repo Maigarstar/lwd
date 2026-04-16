@@ -276,6 +276,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const [selectedObject, setSelectedObject] = useState(null);
   const [pageSize, setPageSize] = useState(issue?.page_size || 'A4');
   const [showGrid, setShowGrid] = useState(false);
+  const [snapToGrid, setSnapToGrid] = useState(false);
   const [showRuler, setShowRuler] = useState(false);
   const [showBleed, setShowBleed] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -303,6 +304,12 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     excludeBackCover: true,
     position: 'bottom-center',
   });
+
+  // Snap-to-grid ref — lets Fabric event handlers read current state without stale closure
+  const snapToGridRef = useRef(false);
+  useEffect(() => { snapToGridRef.current = snapToGrid; }, [snapToGrid]);
+
+  const SNAP_GRID = 40; // matches GridOverlay cell size
 
   const dims = PAGE_SIZES[pageSize] || PAGE_SIZES.A4;
 
@@ -367,6 +374,29 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     fc.on('object:modified', onModify);
     fc.on('object:added', onModify);
     fc.on('object:removed', onModify);
+
+    // Snap to grid — reads live state via ref so no stale closures
+    fc.on('object:moving', (e) => {
+      if (!snapToGridRef.current) return;
+      const obj = e.target;
+      const g = SNAP_GRID;
+      obj.set({
+        left: Math.round(obj.left / g) * g,
+        top:  Math.round(obj.top  / g) * g,
+      });
+    });
+    fc.on('object:scaling', (e) => {
+      if (!snapToGridRef.current) return;
+      const obj = e.target;
+      const g = SNAP_GRID;
+      // Snap the scaled dimensions to grid increments
+      const w = Math.round((obj.width * obj.scaleX) / g) * g;
+      const h = Math.round((obj.height * obj.scaleY) / g) * g;
+      obj.set({
+        scaleX: w / obj.width,
+        scaleY: h / obj.height,
+      });
+    });
 
     if (pageJSON) {
       fc.loadFromJSON(pageJSON).then(() => fc.renderAll());
@@ -1013,6 +1043,8 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         onFitPage={fitToScreen}
         showGrid={showGrid}
         onToggleGrid={() => setShowGrid(v => !v)}
+        snapToGrid={snapToGrid}
+        onToggleSnap={() => setSnapToGrid(v => !v)}
         showRuler={showRuler}
         onToggleRuler={() => setShowRuler(v => !v)}
         showBleed={showBleed}
