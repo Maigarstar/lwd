@@ -1,8 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GOLD, DARK, CARD, BORDER, MUTED, NU } from './designerConstants';
 import { PAGE_SIZES } from './designerConstants';
 
 const ZOOM_PRESETS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+
+// ── Relative time formatter ──────────────────────────────────────────────────
+// Returns a short human string for how long ago `date` was (e.g. "just now", "2m ago", "1h ago").
+function formatSavedAgo(date) {
+  if (!date) return null;
+  const secs = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (secs < 10)    return 'just now';
+  if (secs < 60)    return `${secs}s ago`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60)    return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)     return `${hrs}h ago`;
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+// Re-renders every 30s so the "Xm ago" label stays fresh.
+function useSavedAgo(date) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!date) return;
+    const id = setInterval(() => tick(t => t + 1), 30000);
+    return () => clearInterval(id);
+  }, [date]);
+  return formatSavedAgo(date);
+}
 
 const popoverLabelStyle = {
   display: 'block',
@@ -56,6 +81,7 @@ export default function DesignerToolbar({
   onToggleSpread,
   onSave,
   saving,
+  lastSaved,
   onExportDigital,
   exportingDigital,
   onExportPrint,
@@ -71,6 +97,8 @@ export default function DesignerToolbar({
 }) {
   const [printConfirm, setPrintConfirm] = useState(false);
   const [showPageNumPopover, setShowPageNumPopover] = useState(false);
+
+  const savedAgo = useSavedAgo(lastSaved);
 
   const zoomPct = Math.round(zoom * 100);
 
@@ -323,6 +351,26 @@ export default function DesignerToolbar({
         >
           {saving ? 'Saving…' : '💾 Save'}
         </button>
+
+        {/* Last saved timestamp */}
+        {savedAgo && !saving && (
+          <span
+            title={lastSaved ? `Last saved ${lastSaved.toLocaleString('en-GB')}` : ''}
+            style={{
+              fontFamily: NU,
+              fontSize: 9,
+              fontWeight: 500,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'rgba(255,255,255,0.4)',
+              padding: '0 4px',
+              whiteSpace: 'nowrap',
+              userSelect: 'none',
+            }}
+          >
+            ✓ Saved {savedAgo}
+          </span>
+        )}
 
         {/* Publish digital */}
         <button

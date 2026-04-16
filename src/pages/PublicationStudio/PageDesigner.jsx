@@ -541,6 +541,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const [lightsOff, setLightsOff] = useState(false); // dim surroundings to focus on canvas
   const [zoom, setZoom] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null); // Date | null — most recent successful save
   const [exportingDigital, setExportingDigital] = useState(false);
   const [exportingPrint, setExportingPrint] = useState(false);
   const [undoStack, setUndoStack] = useState([]);
@@ -683,6 +684,12 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
           thumbnailDataUrl: row.thumbnail_url ?? null,
           name: row.name ?? `Page ${row.page_number}`,
         })));
+        // Hydrate lastSaved from the most recent page update timestamp
+        const maxTs = data.reduce((acc, row) => {
+          const t = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+          return t > acc ? t : acc;
+        }, 0);
+        if (maxTs > 0) setLastSaved(new Date(maxTs));
       }
       setPagesLoaded(true);
     });
@@ -1132,18 +1139,23 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       });
 
       // Batch upsert all pages to Supabase (canvasJSON only — images are written on Publish)
+      // updated_at is set explicitly here because Postgres DEFAULT now() only fires on INSERT,
+      // not on UPDATE — without this, the timestamp would freeze at first insert.
+      const savedAt = new Date();
       const { error } = await upsertPages(
         freshPages.map((page, i) => ({
           issue_id:    issue.id,
           page_number: i + 1,
           source_type: 'template',
           template_data: { engine: 'designer-v1', canvasJSON: page.canvasJSON ?? null },
+          updated_at:  savedAt.toISOString(),
         }))
       );
       if (error) throw error;
 
       // Sync local state so further edits start from the saved snapshot
       setPages(freshPages);
+      setLastSaved(savedAt);
     } catch (e) {
       console.error('Save failed:', e);
       alert('Save failed: ' + (e.message || e));
@@ -1535,6 +1547,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         }}
         onSave={handleSave}
         saving={saving}
+        lastSaved={lastSaved}
         onExportDigital={handleExportDigital}
         exportingDigital={exportingDigital}
         onExportPrint={handleExportPrint}
