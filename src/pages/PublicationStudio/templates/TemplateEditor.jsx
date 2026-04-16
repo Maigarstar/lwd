@@ -1,7 +1,7 @@
 // ─── TemplateEditor.jsx ──────────────────────────────────────────────────────
 // Full-screen editor for a single template.
-// Left panel: live TemplateCanvas preview.
-// Right panel: scrollable form for all template fields.
+// Left panel: live TemplateCanvas preview with ruler/grid/zoom toolbar.
+// Right panel: scrollable form for all template fields + typography overrides.
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import TemplateCanvas from './TemplateCanvas';
@@ -11,6 +11,7 @@ import {
   upsertPage,
   fetchPages,
 } from '../../../services/magazinePageService';
+import { FONT_CATALOG, FONT_CATEGORIES, loadGoogleFont } from './fontCatalog';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const GOLD   = '#C9A84C';
@@ -68,6 +69,191 @@ function Lbl({ children, required }) {
     <div style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>
       {children}
       {required && <span style={{ color: 'rgba(201,168,76,0.7)', marginLeft: 4 }}>*</span>}
+    </div>
+  );
+}
+
+// ── Font Picker ───────────────────────────────────────────────────────────────
+function FontPicker({ value, onChange }) {
+  const grouped = FONT_CATEGORIES.reduce((acc, cat) => {
+    acc[cat] = FONT_CATALOG.filter(f => f.category === cat);
+    return acc;
+  }, {});
+
+  const handleChange = (e) => {
+    const family = e.target.value;
+    if (family) loadGoogleFont(family);
+    onChange(family);
+  };
+
+  // Load current font on mount
+  useEffect(() => {
+    if (value) loadGoogleFont(value);
+  }, [value]);
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <select
+        value={value || ''}
+        onChange={handleChange}
+        style={{ ...INPUT, flex: 1, cursor: 'pointer', fontSize: 12 }}
+      >
+        <option value="" style={{ background: '#1a1a18' }}>— inherit —</option>
+        {FONT_CATEGORIES.map(cat => (
+          <optgroup key={cat} label={cat} style={{ background: '#1a1a18' }}>
+            {(grouped[cat] || []).map(font => (
+              <option key={font.family} value={font.family} style={{ background: '#1a1a18' }}>
+                {font.family}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      {value && (
+        <div style={{
+          fontFamily: `'${value}', serif`,
+          fontSize: 18,
+          color: 'rgba(255,255,255,0.75)',
+          minWidth: 28,
+          textAlign: 'center',
+          flexShrink: 0,
+        }}>
+          Aa
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Typography Overrides Panel ────────────────────────────────────────────────
+const LETTER_SPACING_OPTIONS = [
+  { value: '',        label: '— none —' },
+  { value: '-0.03em', label: 'Tight' },
+  { value: '0',       label: 'Normal' },
+  { value: '0.06em',  label: 'Wide' },
+  { value: '0.12em',  label: 'Very Wide' },
+  { value: '0.2em',   label: 'Ultra Wide' },
+];
+
+const FONT_WEIGHT_OPTIONS = [300, 400, 500, 600, 700];
+
+function TypographyPanel({ fieldId, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const v = value || {};
+
+  const update = (key, val) => {
+    onChange({ ...v, [key]: val || undefined });
+  };
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontFamily: NU, fontSize: 9, color: MUTED, padding: 0,
+          letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 4,
+        }}
+      >
+        <span style={{ fontSize: 8 }}>{open ? '▾' : '▸'}</span>
+        Typography overrides (optional)
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 8, padding: '12px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, borderRadius: 3 }}>
+          {/* Font Family */}
+          <div style={{ marginBottom: 10 }}>
+            <Lbl>Font Family</Lbl>
+            <FontPicker
+              value={v.fontFamily || ''}
+              onChange={val => update('fontFamily', val)}
+            />
+          </div>
+
+          {/* Row: weight + size + italic */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            <div style={{ flex: 1 }}>
+              <Lbl>Weight</Lbl>
+              <select
+                value={v.fontWeight || ''}
+                onChange={e => update('fontWeight', e.target.value ? Number(e.target.value) : undefined)}
+                style={{ ...INPUT, cursor: 'pointer', fontSize: 12 }}
+              >
+                <option value="" style={{ background: '#1a1a18' }}>— inherit —</option>
+                {FONT_WEIGHT_OPTIONS.map(w => (
+                  <option key={w} value={w} style={{ background: '#1a1a18' }}>{w}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <Lbl>Size (pt)</Lbl>
+              <input
+                type="number"
+                min={6} max={120}
+                value={v.fontSize || ''}
+                onChange={e => update('fontSize', e.target.value ? Number(e.target.value) : undefined)}
+                placeholder="inherit"
+                style={{ ...INPUT, fontSize: 12 }}
+              />
+            </div>
+            <div style={{ flexShrink: 0, paddingTop: 18 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontFamily: NU, fontSize: 10, color: MUTED }}>
+                <input
+                  type="checkbox"
+                  checked={v.fontStyle === 'italic'}
+                  onChange={e => update('fontStyle', e.target.checked ? 'italic' : undefined)}
+                  style={{ accentColor: GOLD }}
+                />
+                Italic
+              </label>
+            </div>
+          </div>
+
+          {/* Row: colour + letter spacing */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+            <div style={{ flex: 1 }}>
+              <Lbl>Colour</Lbl>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  type="color"
+                  value={v.color || '#ffffff'}
+                  onChange={e => update('color', e.target.value)}
+                  style={{ width: 32, height: 28, border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
+                />
+                <input
+                  type="text"
+                  value={v.color || ''}
+                  onChange={e => update('color', e.target.value)}
+                  placeholder="inherit"
+                  style={{ ...INPUT, fontSize: 11 }}
+                />
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <Lbl>Letter Spacing</Lbl>
+              <select
+                value={v.letterSpacing || ''}
+                onChange={e => update('letterSpacing', e.target.value || undefined)}
+                style={{ ...INPUT, cursor: 'pointer', fontSize: 12 }}
+              >
+                {LETTER_SPACING_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value} style={{ background: '#1a1a18' }}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Reset */}
+          {Object.keys(v).filter(k => v[k] !== undefined).length > 0 && (
+            <button
+              onClick={() => onChange({})}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: NU, fontSize: 8, color: 'rgba(248,113,113,0.6)', padding: 0, marginTop: 6, letterSpacing: '0.06em' }}
+            >
+              ✕ Reset overrides
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -134,7 +320,7 @@ function AiGenerateBar({ fieldLabel, templateName, issueData, personaId, onAccep
 }
 
 // ── Field renderers ───────────────────────────────────────────────────────────
-function TextField({ field, value, onChange, templateName, issueData, personaId }) {
+function TextField({ field, value, onChange, templateName, issueData, personaId, typographyValue, onTypographyChange }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <Lbl required={field.required}>{field.label}</Lbl>
@@ -155,11 +341,12 @@ function TextField({ field, value, onChange, templateName, issueData, personaId 
         <div style={{ fontFamily: NU, fontSize: 9, color: MUTED, marginTop: 3 }}>{field.hint}</div>
       )}
       <AiGenerateBar fieldLabel={field.label} templateName={templateName} issueData={issueData} personaId={personaId} onAccept={onChange} />
+      <TypographyPanel fieldId={field.id} value={typographyValue} onChange={onTypographyChange} />
     </div>
   );
 }
 
-function TextareaField({ field, value, onChange, templateName, issueData, personaId }) {
+function TextareaField({ field, value, onChange, templateName, issueData, personaId, typographyValue, onTypographyChange }) {
   const rows = field.rows || 4;
   return (
     <div style={{ marginBottom: 16 }}>
@@ -175,6 +362,7 @@ function TextareaField({ field, value, onChange, templateName, issueData, person
         <div style={{ fontFamily: NU, fontSize: 9, color: MUTED, marginTop: 3 }}>{field.hint}</div>
       )}
       <AiGenerateBar fieldLabel={field.label} templateName={templateName} issueData={issueData} personaId={personaId} onAccept={onChange} />
+      <TypographyPanel fieldId={field.id} value={typographyValue} onChange={onTypographyChange} />
     </div>
   );
 }
@@ -211,18 +399,47 @@ function ImageField({ field, value, onChange }) {
 }
 
 function SelectField({ field, value, onChange }) {
+  // Support both string options arrays (legacy) and object options
+  const options = (field.options || []).map(opt =>
+    typeof opt === 'string' ? { value: opt, label: opt } : opt
+  );
+  const currentValue = value || field.default || (options[0]?.value || '');
+
   return (
     <div style={{ marginBottom: 16 }}>
       <Lbl>{field.label}</Lbl>
       <select
-        value={value || field.default || (field.options?.[0] || '')}
+        value={currentValue}
         onChange={e => onChange(e.target.value)}
         style={{ ...INPUT, cursor: 'pointer' }}
       >
-        {(field.options || []).map(opt => (
-          <option key={opt} value={opt} style={{ background: '#1a1a18' }}>{opt}</option>
+        {options.map(opt => (
+          <option key={opt.value} value={opt.value} style={{ background: '#1a1a18' }}>{opt.label}</option>
         ))}
       </select>
+    </div>
+  );
+}
+
+function ColorField({ field, value, onChange }) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <Lbl>{field.label}</Lbl>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input
+          type="color"
+          value={value || field.default || '#C9A96E'}
+          onChange={e => onChange(e.target.value)}
+          style={{ width: 36, height: 32, border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
+        />
+        <input
+          type="text"
+          value={value || field.default || ''}
+          onChange={e => onChange(e.target.value)}
+          placeholder={field.default || '#C9A96E'}
+          style={{ ...INPUT, flex: 1 }}
+        />
+      </div>
     </div>
   );
 }
@@ -256,6 +473,232 @@ function PersonaPills({ value, onChange }) {
   );
 }
 
+// ── Ruler components ──────────────────────────────────────────────────────────
+function HorizontalRuler({ width, zoom, pageSizeMm = 210 }) {
+  const mmToPx = (width / pageSizeMm);
+  const tickPx = mmToPx * 10; // 10mm per tick
+  const tickCount = Math.ceil(pageSizeMm / 10) + 1;
+
+  return (
+    <div style={{
+      height: 20,
+      width,
+      background: '#2A2520',
+      position: 'relative',
+      overflow: 'hidden',
+      flexShrink: 0,
+      borderBottom: '1px solid rgba(255,255,255,0.08)',
+    }}>
+      {Array.from({ length: tickCount }, (_, i) => {
+        const x = i * tickPx;
+        const isMajor = i % 5 === 0; // every 50mm
+        return (
+          <div key={i} style={{ position: 'absolute', left: x, top: 0 }}>
+            <div style={{
+              position: 'absolute',
+              left: 0,
+              top: isMajor ? 4 : 10,
+              width: 1,
+              height: isMajor ? 12 : 6,
+              background: 'rgba(255,255,255,0.35)',
+            }} />
+            {isMajor && i > 0 && (
+              <div style={{
+                position: 'absolute',
+                left: 2,
+                top: 4,
+                fontSize: 7,
+                fontFamily: "'Jost', sans-serif",
+                color: 'rgba(255,255,255,0.35)',
+                letterSpacing: '0.04em',
+                whiteSpace: 'nowrap',
+                lineHeight: 1,
+              }}>
+                {i * 10}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function VerticalRuler({ height, zoom, pageSizeMm = 297 }) {
+  const mmToPx = (height / pageSizeMm);
+  const tickPx = mmToPx * 10;
+  const tickCount = Math.ceil(pageSizeMm / 10) + 1;
+
+  return (
+    <div style={{
+      width: 20,
+      height,
+      background: '#2A2520',
+      position: 'relative',
+      overflow: 'hidden',
+      flexShrink: 0,
+      borderRight: '1px solid rgba(255,255,255,0.08)',
+    }}>
+      {Array.from({ length: tickCount }, (_, i) => {
+        const y = i * tickPx;
+        const isMajor = i % 5 === 0;
+        return (
+          <div key={i} style={{ position: 'absolute', top: y, left: 0 }}>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: isMajor ? 4 : 10,
+              height: 1,
+              width: isMajor ? 12 : 6,
+              background: 'rgba(255,255,255,0.35)',
+            }} />
+            {isMajor && i > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: 2,
+                left: 2,
+                fontSize: 7,
+                fontFamily: "'Jost', sans-serif",
+                color: 'rgba(255,255,255,0.35)',
+                letterSpacing: '0.04em',
+                whiteSpace: 'nowrap',
+                lineHeight: 1,
+                writingMode: 'vertical-rl',
+                textOrientation: 'mixed',
+                transform: 'rotate(180deg)',
+              }}>
+                {i * 10}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Grid overlay ──────────────────────────────────────────────────────────────
+function GridOverlay({ width, height }) {
+  const cellMm = 10; // 10mm grid (≈ 1cm)
+  const mmToPxW = width / 210;
+  const mmToPxH = height / 297;
+  const cellW = mmToPxW * cellMm;
+  const cellH = mmToPxH * cellMm;
+
+  const cols = Math.ceil(width / cellW);
+  const rows = Math.ceil(height / cellH);
+
+  const lines = [];
+
+  // Vertical lines
+  for (let i = 0; i <= cols; i++) {
+    const x = i * cellW;
+    const isMajor = i % 5 === 0;
+    lines.push(
+      <line key={`v${i}`} x1={x} y1={0} x2={x} y2={height}
+        stroke={isMajor ? 'rgba(201,168,76,0.15)' : 'rgba(201,168,76,0.07)'}
+        strokeWidth={isMajor ? 1 : 0.5}
+      />
+    );
+  }
+
+  // Horizontal lines
+  for (let i = 0; i <= rows; i++) {
+    const y = i * cellH;
+    const isMajor = i % 5 === 0;
+    lines.push(
+      <line key={`h${i}`} x1={0} y1={y} x2={width} y2={y}
+        stroke={isMajor ? 'rgba(201,168,76,0.15)' : 'rgba(201,168,76,0.07)'}
+        strokeWidth={isMajor ? 1 : 0.5}
+      />
+    );
+  }
+
+  return (
+    <svg
+      style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 10 }}
+      width={width}
+      height={height}
+    >
+      {lines}
+    </svg>
+  );
+}
+
+// ── Canvas Toolbar ────────────────────────────────────────────────────────────
+const ZOOM_PRESETS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+const ZOOM_LABELS  = ['50%', '75%', '100%', '125%', '150%', '200%'];
+
+function CanvasToolbar({ showRuler, onRuler, showGrid, onGrid, zoom, onZoom }) {
+  const btnStyle = (active) => ({
+    fontFamily: NU, fontSize: 9, fontWeight: 600, letterSpacing: '0.06em',
+    padding: '4px 10px', borderRadius: 2,
+    border: `1px solid ${active ? GOLD : BORDER}`,
+    background: active ? 'rgba(201,168,76,0.12)' : 'rgba(255,255,255,0.03)',
+    color: active ? GOLD : MUTED,
+    cursor: 'pointer', transition: 'all 0.12s',
+  });
+
+  const decZoom = () => {
+    const i = ZOOM_PRESETS.indexOf(zoom);
+    if (i > 0) onZoom(ZOOM_PRESETS[i - 1]);
+  };
+  const incZoom = () => {
+    const i = ZOOM_PRESETS.indexOf(zoom);
+    if (i < ZOOM_PRESETS.length - 1) onZoom(ZOOM_PRESETS[i + 1]);
+  };
+
+  return (
+    <div style={{
+      height: 34,
+      flexShrink: 0,
+      borderBottom: `1px solid ${BORDER}`,
+      background: '#0D0C0A',
+      display: 'flex',
+      alignItems: 'center',
+      padding: '0 14px',
+      gap: 8,
+    }}>
+      <button style={btnStyle(showRuler)} onClick={onRuler}>
+        📐 Ruler {showRuler ? '●' : '○'}
+      </button>
+      <button style={btnStyle(showGrid)} onClick={onGrid}>
+        ⊞ Grid {showGrid ? '●' : '○'}
+      </button>
+      <div style={{ width: 1, height: 16, background: BORDER, margin: '0 4px' }} />
+      {/* Zoom dropdown */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span style={{ fontFamily: NU, fontSize: 9, color: MUTED, letterSpacing: '0.06em' }}>Zoom:</span>
+        <select
+          value={zoom}
+          onChange={e => onZoom(Number(e.target.value))}
+          style={{
+            fontFamily: NU, fontSize: 9, background: 'rgba(255,255,255,0.05)',
+            border: `1px solid ${BORDER}`, borderRadius: 2, color: '#fff',
+            padding: '2px 4px', cursor: 'pointer', outline: 'none',
+          }}
+        >
+          {ZOOM_PRESETS.map((z, i) => (
+            <option key={z} value={z} style={{ background: '#1a1a18' }}>{ZOOM_LABELS[i]}</option>
+          ))}
+        </select>
+      </div>
+      <button
+        onClick={decZoom}
+        disabled={zoom <= ZOOM_PRESETS[0]}
+        style={{ ...btnStyle(false), padding: '3px 8px', opacity: zoom <= ZOOM_PRESETS[0] ? 0.3 : 1 }}
+        title="Zoom out"
+      >🔍−</button>
+      <button
+        onClick={incZoom}
+        disabled={zoom >= ZOOM_PRESETS[ZOOM_PRESETS.length - 1]}
+        style={{ ...btnStyle(false), padding: '3px 8px', opacity: zoom >= ZOOM_PRESETS[ZOOM_PRESETS.length - 1] ? 0.3 : 1 }}
+        title="Zoom in"
+      >🔍+</button>
+    </div>
+  );
+}
+
 // ── Main TemplateEditor ───────────────────────────────────────────────────────
 
 export default function TemplateEditor({ template, issueData, persona: initialPersona, onAdd, onClose }) {
@@ -265,15 +708,25 @@ export default function TemplateEditor({ template, issueData, persona: initialPe
     if (f.default !== undefined) defaultValues[f.id] = f.default;
   });
 
-  const [fieldValues, setFieldValues] = useState(defaultValues);
-  const [rendering,   setRendering]   = useState(false);
-  const [renderError, setRenderError] = useState('');
-  const [personaId,   setPersonaId]   = useState(initialPersona || 'luxury-editorial');
+  const [fieldValues,  setFieldValues]  = useState(defaultValues);
+  const [fieldStyles,  setFieldStyles]  = useState({});
+  const [rendering,    setRendering]    = useState(false);
+  const [renderError,  setRenderError]  = useState('');
+  const [personaId,    setPersonaId]    = useState(initialPersona || 'luxury-editorial');
+
+  // Canvas toolbar state
+  const [showRuler,  setShowRuler]  = useState(false);
+  const [showGrid,   setShowGrid]   = useState(false);
+  const [canvasZoom, setCanvasZoom] = useState(1.0);
 
   const canvasRef = useRef(null);
 
   const setField = useCallback((id, val) => {
     setFieldValues(prev => ({ ...prev, [id]: val }));
+  }, []);
+
+  const setFieldStyle = useCallback((id, val) => {
+    setFieldStyles(prev => ({ ...prev, [id]: val }));
   }, []);
 
   // Check if required fields are filled
@@ -310,7 +763,7 @@ export default function TemplateEditor({ template, issueData, persona: initialPe
         image_url:     publicUrl,
         storage_path:  storagePath,
         source_type:   'template',
-        template_data: { templateId: template.id, fields: fieldValues },
+        template_data: { templateId: template.id, fields: fieldValues, fieldStyles },
       });
       if (upsertErr) throw upsertErr;
 
@@ -322,20 +775,31 @@ export default function TemplateEditor({ template, issueData, persona: initialPe
     setRendering(false);
   };
 
-  // Preview width: fill left panel minus padding
-  // We'll use a container ref to size the canvas
-  const [previewWidth, setPreviewWidth] = useState(380);
+  // Preview width: fill left panel minus ruler and padding
+  const [previewWidth, setPreviewWidth] = useState(340);
   const previewPanelRef = useRef(null);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     if (!previewPanelRef.current) return;
     const observer = new ResizeObserver(entries => {
       const w = entries[0]?.contentRect?.width;
-      if (w) setPreviewWidth(Math.floor(w - 48));
+      if (w) {
+        const rulerSpace = showRuler ? 20 : 0;
+        setPreviewWidth(Math.floor(w - 48 - rulerSpace));
+      }
     });
     observer.observe(previewPanelRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [showRuler]);
+
+  // Page size mm for rulers
+  const pageSizeW = 210; // A4 width mm
+  const pageSizeH = 297; // A4 height mm
+
+  // Canvas height for ruler
+  const ratio = 1.4142;
+  const canvasH = Math.round(previewWidth * ratio);
 
   return (
     <div style={{
@@ -394,7 +858,7 @@ export default function TemplateEditor({ template, issueData, persona: initialPe
       {/* ── Body: left preview | right form ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-        {/* ── Left 58%: live preview ── */}
+        {/* ── Left 58%: canvas toolbar + live preview ── */}
         <div
           ref={previewPanelRef}
           style={{
@@ -402,29 +866,98 @@ export default function TemplateEditor({ template, issueData, persona: initialPe
             borderRight: `1px solid ${BORDER}`,
             background: '#0a0908',
             display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center',
-            padding: '24px',
             overflow: 'hidden',
           }}
         >
+          {/* Canvas Toolbar */}
+          <CanvasToolbar
+            showRuler={showRuler}
+            onRuler={() => setShowRuler(r => !r)}
+            showGrid={showGrid}
+            onGrid={() => setShowGrid(g => !g)}
+            zoom={canvasZoom}
+            onZoom={setCanvasZoom}
+          />
+
+          {/* Scrollable canvas area */}
           <div
-            ref={canvasRef}
+            ref={scrollRef}
             style={{
-              boxShadow: '0 16px 64px rgba(0,0,0,0.7)',
-              flexShrink: 0,
-              pointerEvents: 'none',
-              userSelect: 'none',
+              flex: 1,
+              overflow: 'auto',
+              display: 'flex',
+              alignItems: canvasZoom <= 1 ? 'center' : 'flex-start',
+              justifyContent: canvasZoom <= 1 ? 'center' : 'flex-start',
+              padding: '24px',
             }}
           >
-            <TemplateCanvas
-              templateId={template.id}
-              fields={fieldValues}
-              pageSize={issueData?.page_size || 'A4'}
-              width={previewWidth}
-            />
+            {/* Ruler + canvas wrapper */}
+            <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+              {/* Top horizontal ruler */}
+              {showRuler && (
+                <div style={{ display: 'flex', marginLeft: 20 }}>
+                  <HorizontalRuler width={previewWidth} zoom={canvasZoom} pageSizeMm={pageSizeW} />
+                </div>
+              )}
+
+              <div style={{ display: 'flex' }}>
+                {/* Left vertical ruler */}
+                {showRuler && (
+                  <VerticalRuler height={canvasH} zoom={canvasZoom} pageSizeMm={pageSizeH} />
+                )}
+
+                {/* Canvas: apply zoom via transform */}
+                <div
+                  style={{
+                    transform: `scale(${canvasZoom})`,
+                    transformOrigin: 'top left',
+                    flexShrink: 0,
+                    // Account for transformed size so scroll container knows actual dimensions
+                    width: previewWidth * canvasZoom,
+                    height: canvasH * canvasZoom,
+                    // The canvas itself is un-scaled inside
+                    position: 'relative',
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      transformOrigin: 'top left',
+                      transform: canvasZoom !== 1 ? `scale(${1 / canvasZoom}) scale(${canvasZoom})` : undefined,
+                    }}
+                  >
+                    <div
+                      ref={canvasRef}
+                      style={{
+                        boxShadow: '0 16px 64px rgba(0,0,0,0.7)',
+                        flexShrink: 0,
+                        pointerEvents: 'none',
+                        userSelect: 'none',
+                        position: 'relative',
+                      }}
+                    >
+                      <TemplateCanvas
+                        templateId={template.id}
+                        fields={fieldValues}
+                        pageSize={issueData?.page_size || 'A4'}
+                        width={previewWidth}
+                        fieldStyles={fieldStyles}
+                      />
+                      {/* Grid overlay — only in editor, not capture */}
+                      {showGrid && (
+                        <GridOverlay width={previewWidth} height={canvasH} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          {/* Template description below preview */}
-          <div style={{ marginTop: 14, fontFamily: NU, fontSize: 10, color: MUTED, textAlign: 'center', maxWidth: previewWidth }}>
+
+          {/* Template description below */}
+          <div style={{ padding: '0 24px 14px', fontFamily: NU, fontSize: 10, color: MUTED, textAlign: 'center' }}>
             {template.description}
           </div>
         </div>
@@ -445,19 +978,23 @@ export default function TemplateEditor({ template, issueData, persona: initialPe
 
           {/* Fields */}
           {(template.fields || []).map(field => {
-            const val = fieldValues[field.id];
+            const val    = fieldValues[field.id];
             const change = (v) => setField(field.id, v);
+            const typoVal    = fieldStyles[field.id];
+            const typoChange = (v) => setFieldStyle(field.id, v);
 
             switch (field.type) {
               case 'image':
                 return <ImageField key={field.id} field={field} value={val} onChange={change} />;
               case 'textarea':
-                return <TextareaField key={field.id} field={field} value={val} onChange={change} templateName={template.name} issueData={issueData} personaId={personaId} />;
+                return <TextareaField key={field.id} field={field} value={val} onChange={change} templateName={template.name} issueData={issueData} personaId={personaId} typographyValue={typoVal} onTypographyChange={typoChange} />;
               case 'select':
                 return <SelectField key={field.id} field={field} value={val} onChange={change} />;
+              case 'color':
+                return <ColorField key={field.id} field={field} value={val} onChange={change} />;
               case 'text':
               default:
-                return <TextField key={field.id} field={field} value={val} onChange={change} templateName={template.name} issueData={issueData} personaId={personaId} />;
+                return <TextField key={field.id} field={field} value={val} onChange={change} templateName={template.name} issueData={issueData} personaId={personaId} typographyValue={typoVal} onTypographyChange={typoChange} />;
             }
           })}
 

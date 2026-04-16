@@ -539,13 +539,808 @@ function TableOfContents({ f, s, W, H }) {
   );
 }
 
+// ── Templates 13–32 ─────────────────────────────────────────────────────────
+
+function TheMasthead({ f, s, palette, W, H }) {
+  const P = PALETTES.ivory;
+  const credits = [
+    { label: 'Editor in Chief',     value: f.editor },
+    { label: 'Creative Director',   value: f.creative_director },
+    { label: 'Photography',         value: f.photographer },
+    { label: 'Fashion & Styling',   value: f.stylist },
+    { label: 'Florals',             value: f.florist },
+    { label: 'Venue',               value: f.venue_credit },
+  ].filter(c => c.value);
+
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg, display: 'flex', flexDirection: 'column', padding: `${40 * s}px ${36 * s}px`, boxSizing: 'border-box' }}>
+      {/* Top: logo or publication name */}
+      <div style={{ textAlign: 'center', marginBottom: 6 * s }}>
+        {f.logo_url
+          ? <img src={f.logo_url} alt="" style={{ maxHeight: 40 * s, maxWidth: '60%', objectFit: 'contain', display: 'inline-block' }} />
+          : <div style={{ fontFamily: FONTS.display, fontSize: 22 * s, fontWeight: 700, letterSpacing: '0.25em', color: P.text, textTransform: 'uppercase' }}>{f.publication || 'LUXURY WEDDING DIRECTORY'}</div>
+        }
+      </div>
+
+      {/* Issue line */}
+      <div style={{ textAlign: 'center', fontFamily: FONTS.caption, fontSize: 8 * s, color: P.accent, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 24 * s }}>
+        {f.issue_line || 'Issue No. 01 · Spring 2026'}
+      </div>
+
+      {/* Full-width rule */}
+      <div style={{ width: '100%', height: 1, background: P.rule, marginBottom: 24 * s }} />
+
+      {/* Credits grid */}
+      <div style={{ columns: 2, columnGap: 24 * s, flex: 1 }}>
+        {credits.map((c, i) => (
+          <div key={i} style={{ breakInside: 'avoid', marginBottom: 14 * s }}>
+            <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.muted, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 * s }}>{c.label}</div>
+            <div style={{ fontFamily: FONTS.editorial, fontSize: 12 * s, fontStyle: 'italic', color: P.text }}>{c.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom rule + tagline */}
+      <div style={{ width: '100%', height: 1, background: P.rule, marginTop: 'auto', marginBottom: 14 * s }} />
+      <div style={{ fontFamily: FONTS.editorial, fontSize: 11 * s, fontStyle: 'italic', color: P.muted, textAlign: 'center' }}>
+        {f.tagline || 'Exceptional Weddings for Discerning Couples'}
+      </div>
+    </div>
+  );
+}
+
+function FloralSpread({ f, s, palette, W, H }) {
+  const P = PALETTES.blush;
+  const accent = f.accent_color || P.accent;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Full-bleed image */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #e8d8d0 0%, #d4bdb2 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 36 * s, opacity: 0.18, color: P.text, fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+      {/* Gradient overlay bottom */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%', background: `linear-gradient(to top, ${P.bg}dd 0%, transparent 100%)` }} />
+
+      {/* Text block bottom-left */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: `0 ${22 * s}px ${20 * s}px` }}>
+        <div style={{ width: 28 * s, height: 2, background: accent, marginBottom: 10 * s }} />
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 34 * s, fontStyle: 'italic', fontWeight: 300, color: P.text, lineHeight: 1.08, marginBottom: 8 * s }}>
+          {f.headline || 'In Full Bloom'}
+        </div>
+        {f.florist_name && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.text, letterSpacing: '0.12em', textTransform: 'uppercase', opacity: 0.7, marginBottom: 6 * s }}>
+            Florals: {f.florist_name}
+          </div>
+        )}
+        {f.description && (
+          <div style={{ fontFamily: FONTS.body, fontSize: 9 * s, color: P.muted, lineHeight: 1.6, maxWidth: '70%' }}>
+            {f.description}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReceptionTable({ f, s, palette, W, H }) {
+  const P = PALETTES.ivory;
+  const imgW = W * 0.58;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Left image panel */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', left: 0, top: 0, width: imgW, height: '100%', objectFit: 'cover' }} />
+        : <div style={{ position: 'absolute', left: 0, top: 0, width: imgW, height: '100%', background: '#E4DDD2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 28 * s, opacity: 0.18, color: P.text, fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+
+      {/* Right text panel */}
+      <div style={{ position: 'absolute', left: imgW, top: 0, right: 0, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: `${20 * s}px ${18 * s}px`, boxSizing: 'border-box' }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.accent, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10 * s }}>The Table</div>
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 20 * s, fontStyle: 'italic', color: P.text, lineHeight: 1.2, marginBottom: 14 * s }}>
+          {f.headline || 'Dressed to Perfection'}
+        </div>
+        <div style={{ width: 24 * s, height: 1, background: P.accent, marginBottom: 14 * s }} />
+        {f.venue && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.muted, letterSpacing: '0.08em', marginBottom: 5 * s }}>
+            <span style={{ color: P.accent }}>Venue</span> — {f.venue}
+          </div>
+        )}
+        {f.stylist && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.muted, letterSpacing: '0.08em', marginBottom: 10 * s }}>
+            <span style={{ color: P.accent }}>Styling</span> — {f.stylist}
+          </div>
+        )}
+        {f.caption && (
+          <div style={{ fontFamily: FONTS.body, fontSize: 9 * s, color: P.muted, lineHeight: 1.6, marginBottom: 12 * s }}>
+            {f.caption}
+          </div>
+        )}
+        {f.palette_note && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.accent, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 'auto' }}>
+            {f.palette_note}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CeremonyAisle({ f, s, palette, W, H }) {
+  const P = PALETTES.white;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#fff' }}>
+      {/* Image: top 65% */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '65%', width: '100%', objectFit: 'cover' }} />
+        : <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '65%', background: '#f0ede8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 32 * s, opacity: 0.15, color: '#555', fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+
+      {/* Thin gold rule at 65% */}
+      <div style={{ position: 'absolute', top: '65%', left: 0, right: 0, height: 1, background: '#C9A84C', opacity: 0.5 }} />
+
+      {/* Bottom text block */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '35%', padding: `${16 * s}px ${22 * s}px`, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        {f.venue && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: '#888', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 6 * s }}>{f.venue}</div>
+        )}
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 26 * s, fontStyle: 'italic', fontWeight: 300, color: '#111', lineHeight: 1.12, marginBottom: 6 * s }}>
+          {f.headline || 'The Walk to Forever'}
+        </div>
+        {f.subhead && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: '#555', letterSpacing: '0.1em', marginBottom: 8 * s }}>{f.subhead}</div>
+        )}
+        {f.story && (
+          <div style={{ fontFamily: FONTS.body, fontSize: 9 * s, color: '#555', lineHeight: 1.6, marginBottom: 6 * s }}>{f.story}</div>
+        )}
+        {f.photographer && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: '#aaa', letterSpacing: '0.06em', marginTop: 'auto' }}>Photography: {f.photographer}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CoupleStory({ f, s, palette, W, H }) {
+  const P = PALETTES.midnight;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Full-bleed image */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #1a2840 0%, #0b1525 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 36 * s, opacity: 0.15, color: '#fff', fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+      {/* Overlay */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(11,21,37,0.88) 0%, rgba(11,21,37,0.15) 55%)' }} />
+
+      {/* Bottom content */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: `0 ${22 * s}px ${24 * s}px` }}>
+        <div style={{ width: 32 * s, height: 1, background: P.accent, marginBottom: 14 * s, opacity: 0.7 }} />
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 30 * s, fontStyle: 'italic', fontWeight: 300, color: P.text, lineHeight: 1.1, marginBottom: 8 * s }}>
+          {f.couple_names || 'Sophia & James'}
+        </div>
+        {(f.date || f.location) && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.accent, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 10 * s }}>
+            {[f.date, f.location].filter(Boolean).join(' · ')}
+          </div>
+        )}
+        {f.story && (
+          <div style={{ fontFamily: FONTS.body, fontSize: 9 * s, color: P.muted, lineHeight: 1.65, maxWidth: '85%' }}>
+            {f.story}
+          </div>
+        )}
+        {f.photographer && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.muted, letterSpacing: '0.06em', marginTop: 10 * s, opacity: 0.6 }}>
+            Photography: {f.photographer}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BeautyEdit({ f, s, palette, W, H }) {
+  const P = PALETTES.blush;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Image: right 55%, full height */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', right: 0, top: 0, width: '55%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }} />
+        : <div style={{ position: 'absolute', right: 0, top: 0, width: '55%', height: '100%', background: '#e8d0c8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 28 * s, opacity: 0.18, color: P.text, fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+
+      {/* Left text panel */}
+      <div style={{ position: 'absolute', left: 0, top: 0, width: '45%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: `${20 * s}px ${18 * s}px`, boxSizing: 'border-box' }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.accent, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10 * s }}>Beauty</div>
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 18 * s, fontStyle: 'italic', color: P.text, lineHeight: 1.2, marginBottom: 14 * s }}>
+          {f.headline || 'The Art of Bridal Beauty'}
+        </div>
+        <div style={{ width: 20 * s, height: 1, background: P.accent, marginBottom: 14 * s }} />
+        {f.makeup_artist && (
+          <div style={{ marginBottom: 7 * s }}>
+            <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.muted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Makeup</div>
+            <div style={{ fontFamily: FONTS.editorial, fontSize: 11 * s, fontStyle: 'italic', color: P.text }}>{f.makeup_artist}</div>
+          </div>
+        )}
+        {f.hair_stylist && (
+          <div style={{ marginBottom: 7 * s }}>
+            <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.muted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Hair</div>
+            <div style={{ fontFamily: FONTS.editorial, fontSize: 11 * s, fontStyle: 'italic', color: P.text }}>{f.hair_stylist}</div>
+          </div>
+        )}
+        {f.products && (
+          <div style={{ fontFamily: FONTS.body, fontSize: 8.5 * s, color: P.muted, lineHeight: 1.6, marginTop: 8 * s }}>{f.products}</div>
+        )}
+        {f.model && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.muted, letterSpacing: '0.06em', marginTop: 'auto', opacity: 0.7 }}>Model: {f.model}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DressDetail({ f, s, palette, W, H }) {
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#fff', display: 'flex', flexDirection: 'column' }}>
+      {/* Image: top 72% */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ width: '100%', height: '72%', objectFit: 'cover', flexShrink: 0 }} />
+        : <div style={{ width: '100%', height: '72%', background: '#f0ede8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <span style={{ fontSize: 32 * s, opacity: 0.15, color: '#555', fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+
+      {/* Text block */}
+      <div style={{ flex: 1, padding: `${12 * s}px ${18 * s}px`, display: 'flex', flexDirection: 'column', justifyContent: 'center', borderTop: '1px solid rgba(0,0,0,0.07)' }}>
+        <div style={{ fontFamily: FONTS.display, fontSize: 14 * s, fontWeight: 700, letterSpacing: '0.15em', color: '#111', textTransform: 'uppercase', marginBottom: 4 * s }}>
+          {f.designer || 'The Designer'}
+        </div>
+        {f.collection && (
+          <div style={{ fontFamily: FONTS.editorial, fontSize: 11 * s, fontStyle: 'italic', color: '#555', marginBottom: 4 * s }}>{f.collection}</div>
+        )}
+        {f.detail_note && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: '#888', letterSpacing: '0.06em', marginBottom: 4 * s }}>{f.detail_note}</div>
+        )}
+        <div style={{ display: 'flex', gap: 16 * s, marginTop: 4 * s }}>
+          {f.price && <div style={{ fontFamily: FONTS.subhead, fontSize: 12 * s, color: '#111' }}>{f.price}</div>}
+          {f.stockist && <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: '#888', letterSpacing: '0.06em', alignSelf: 'center' }}>{f.stockist}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InvitationSuite({ f, s, palette, W, H }) {
+  const P = PALETTES.ivory;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Full-bleed image */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <div style={{ position: 'absolute', inset: 0, background: '#e8e2d8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 32 * s, opacity: 0.18, color: P.text, fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+      {/* Overlay — bottom third */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '38%', background: `linear-gradient(to top, ${P.bg} 0%, transparent 100%)` }} />
+
+      {/* Text block */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: `0 ${22 * s}px ${18 * s}px` }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.accent, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 8 * s }}>Stationery</div>
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 22 * s, fontStyle: 'italic', color: P.text, lineHeight: 1.15, marginBottom: 8 * s }}>
+          {f.headline || 'The Perfect First Impression'}
+        </div>
+        {f.designer && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.muted, letterSpacing: '0.08em', marginBottom: 4 * s }}>
+            <span style={{ color: P.accent }}>Design</span> — {f.designer}
+          </div>
+        )}
+        {f.paper_stock && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.muted, letterSpacing: '0.06em', marginBottom: 6 * s }}>{f.paper_stock}</div>
+        )}
+        {f.price_guide && (
+          <div style={{ fontFamily: FONTS.display, fontSize: 11 * s, color: P.accent, marginTop: 6 * s }}>{f.price_guide}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CakeMoment({ f, s, palette, W, H }) {
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#fff' }}>
+      {/* Image: full bleed */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <div style={{ position: 'absolute', inset: 0, background: '#f5f2ec', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 32 * s, opacity: 0.15, color: '#555', fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+      {/* Bottom overlay */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%', background: 'linear-gradient(to top, rgba(255,255,255,0.95) 0%, transparent 100%)' }} />
+
+      {/* Text */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: `0 ${22 * s}px ${18 * s}px` }}>
+        <div style={{ fontFamily: FONTS.display, fontSize: 24 * s, fontWeight: 400, color: '#111', letterSpacing: '0.08em', lineHeight: 1.1, marginBottom: 6 * s }}>
+          {f.headline || 'The Sweet Finale'}
+        </div>
+        {f.cake_designer && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: '#888', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 5 * s }}>{f.cake_designer}</div>
+        )}
+        {f.flavour && (
+          <div style={{ fontFamily: FONTS.editorial, fontSize: 10 * s, fontStyle: 'italic', color: '#555', marginBottom: 4 * s }}>{f.flavour}</div>
+        )}
+        {f.caption && (
+          <div style={{ fontFamily: FONTS.body, fontSize: 9 * s, color: '#888', lineHeight: 1.5 }}>{f.caption}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VenuePortrait({ f, s, palette, W, H }) {
+  const P = PALETTES.obsidian;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Full-bleed image */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #1a1208 0%, #080806 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 36 * s, opacity: 0.15, color: '#fff', fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+      {/* Gradient */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.08) 55%)' }} />
+
+      {/* Bottom text */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: `0 ${22 * s}px ${22 * s}px` }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.accent, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 6 * s }}>
+          {[f.location, f.style].filter(Boolean).join(' · ')}
+        </div>
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 28 * s, fontStyle: 'italic', fontWeight: 300, color: '#fff', lineHeight: 1.1, marginBottom: 4 * s }}>
+          {f.headline || 'Where Dreams Take Shape'}
+        </div>
+        <div style={{ fontFamily: FONTS.display, fontSize: 14 * s, fontWeight: 700, letterSpacing: '0.1em', color: P.text, textTransform: 'uppercase', marginBottom: 8 * s }}>
+          {f.venue_name || 'THE VENUE'}
+        </div>
+        {f.capacity && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.muted, letterSpacing: '0.08em', marginBottom: 8 * s }}>{f.capacity}</div>
+        )}
+        {f.body && (
+          <div style={{ fontFamily: FONTS.body, fontSize: 9 * s, color: P.muted, lineHeight: 1.6, maxWidth: '80%' }}>{f.body}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FashionPlate({ f, s, palette, W, H }) {
+  const P = PALETTES.midnight;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Full-bleed image */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }} />
+        : <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #1a2840 0%, #0b1525 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 36 * s, opacity: 0.15, color: '#fff', fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+      {/* Dark vignette bottom */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '45%', background: `linear-gradient(to top, rgba(11,21,37,0.9) 0%, transparent 100%)` }} />
+
+      {/* Look label top-left */}
+      <div style={{ position: 'absolute', top: 18 * s, left: 18 * s }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.accent, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+          {f.look_title || 'Look I'}
+        </div>
+      </div>
+
+      {/* Credits bottom */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: `0 ${18 * s}px ${18 * s}px` }}>
+        <div style={{ fontFamily: FONTS.display, fontSize: 18 * s, fontWeight: 700, letterSpacing: '0.12em', color: '#fff', textTransform: 'uppercase', marginBottom: 6 * s }}>
+          {f.dress || 'THE GOWN'}
+        </div>
+        {[f.shoes, f.jewellery].filter(Boolean).map((item, i) => (
+          <div key={i} style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.muted, letterSpacing: '0.08em', marginBottom: 3 * s }}>{item}</div>
+        ))}
+        {f.photographer && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.muted, letterSpacing: '0.06em', marginTop: 8 * s, opacity: 0.55 }}>Photography: {f.photographer}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function HoneymoonEdit({ f, s, palette, W, H }) {
+  const P = PALETTES.claret;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Image: top 62% */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '62%', width: '100%', objectFit: 'cover' }} />
+        : <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '62%', background: '#2e0e1c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 32 * s, opacity: 0.15, color: '#fff', fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+      {/* Gradient bleed */}
+      <div style={{ position: 'absolute', top: '48%', left: 0, right: 0, height: '20%', background: `linear-gradient(to bottom, transparent 0%, ${P.bg} 100%)` }} />
+
+      {/* Bottom text block */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%', padding: `${12 * s}px ${22 * s}px`, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{ fontFamily: FONTS.display, fontSize: 20 * s, fontWeight: 400, letterSpacing: '0.15em', color: P.accent, textTransform: 'uppercase', marginBottom: 6 * s }}>
+          {f.destination || 'The Maldives'}
+        </div>
+        {f.property && (
+          <div style={{ fontFamily: FONTS.editorial, fontSize: 12 * s, fontStyle: 'italic', color: P.muted, marginBottom: 6 * s }}>{f.property}</div>
+        )}
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 18 * s, fontStyle: 'italic', color: P.text, lineHeight: 1.2, marginBottom: 8 * s }}>
+          {f.headline || 'For Two, With Love'}
+        </div>
+        {f.intro && (
+          <div style={{ fontFamily: FONTS.body, fontSize: 9 * s, color: P.muted, lineHeight: 1.6, marginBottom: 6 * s }}>{f.intro}</div>
+        )}
+        {(f.price_guide || f.website) && (
+          <div style={{ display: 'flex', gap: 16 * s, marginTop: 'auto' }}>
+            {f.price_guide && <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.accent, letterSpacing: '0.08em' }}>{f.price_guide}</div>}
+            {f.website && <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.muted, letterSpacing: '0.06em' }}>{f.website}</div>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RingEdit({ f, s, palette, W, H }) {
+  const P = PALETTES.obsidian;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: `${32 * s}px` }}>
+      {/* Radial glow */}
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, rgba(201,168,76,0.06) 0%, transparent 70%)' }} />
+
+      {/* Image */}
+      <div style={{ width: '60%', height: H * 0.42, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 * s }}>
+        {f.image
+          ? <img src={f.image} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+          : <div style={{ width: '100%', height: '100%', border: '1px dashed rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 28 * s, opacity: 0.15, color: '#fff', fontFamily: 'sans-serif' }}>⊡</span>
+            </div>
+        }
+      </div>
+
+      {/* Decorative mark */}
+      <div style={{ fontFamily: FONTS.editorial, fontSize: 12 * s, color: P.accent, opacity: 0.5, marginBottom: 10 * s }}>◈</div>
+
+      {/* Headline */}
+      <div style={{ fontFamily: FONTS.editorial, fontSize: 18 * s, fontStyle: 'italic', color: P.text, textAlign: 'center', lineHeight: 1.2, marginBottom: 8 * s }}>
+        {f.headline || 'The Stone That Starts It All'}
+      </div>
+
+      {/* Rule */}
+      <div style={{ width: 36 * s, height: 1, background: P.accent, opacity: 0.5, marginBottom: 12 * s }} />
+
+      {/* Designer */}
+      <div style={{ fontFamily: FONTS.caption, fontSize: 10 * s, color: P.accent, letterSpacing: '0.14em', textTransform: 'uppercase', textAlign: 'center', marginBottom: 6 * s }}>
+        {f.designer || 'THE ATELIER'}
+      </div>
+
+      {/* Specs */}
+      {(f.metal || f.stone) && (
+        <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.muted, letterSpacing: '0.08em', textAlign: 'center', lineHeight: 1.7, marginBottom: 6 * s }}>
+          {[f.metal, f.stone].filter(Boolean).join('\n')}
+        </div>
+      )}
+
+      {/* Price */}
+      {f.price && (
+        <div style={{ fontFamily: FONTS.display, fontSize: 14 * s, color: P.text, marginTop: 6 * s, textAlign: 'center' }}>{f.price}</div>
+      )}
+
+      {/* Caption */}
+      {f.caption && (
+        <div style={{ fontFamily: FONTS.body, fontSize: 8.5 * s, color: P.muted, fontStyle: 'italic', textAlign: 'center', lineHeight: 1.6, marginTop: 10 * s, maxWidth: '80%' }}>{f.caption}</div>
+      )}
+    </div>
+  );
+}
+
+function TheInterview({ f, s, palette, W, H }) {
+  const P = PALETTES.ivory;
+  const imgW = W * 0.38;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg, display: 'flex' }}>
+      {/* Left image */}
+      <div style={{ width: imgW, flexShrink: 0, position: 'relative' }}>
+        {f.image
+          ? <img src={f.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center', display: 'block' }} />
+          : <div style={{ width: '100%', height: '100%', background: '#E4DDD2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 24 * s, opacity: 0.2, color: P.text, fontFamily: 'sans-serif' }}>⊡</span>
+            </div>
+        }
+      </div>
+
+      {/* Thin rule */}
+      <div style={{ width: 1, background: P.rule, flexShrink: 0 }} />
+
+      {/* Right text panel */}
+      <div style={{ flex: 1, overflow: 'hidden', padding: `${22 * s}px ${18 * s}px`, boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.accent, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 6 * s }}>Interview</div>
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 18 * s, fontStyle: 'italic', color: P.text, marginBottom: 2 * s }}>{f.subject_name || 'The Subject'}</div>
+        {f.subject_title && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.muted, letterSpacing: '0.08em', marginBottom: 12 * s }}>{f.subject_title}</div>
+        )}
+        <div style={{ width: '100%', height: 1, background: P.rule, marginBottom: 12 * s }} />
+
+        {f.question_1 && (
+          <div style={{ marginBottom: 10 * s }}>
+            <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, fontWeight: 700, color: P.text, letterSpacing: '0.04em', marginBottom: 3 * s }}>{f.question_1}</div>
+            {f.answer_1 && <div style={{ fontFamily: FONTS.body, fontSize: 9 * s, color: P.muted, lineHeight: 1.6 }}>{f.answer_1}</div>}
+          </div>
+        )}
+        {f.question_2 && (
+          <div style={{ marginBottom: 12 * s }}>
+            <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, fontWeight: 700, color: P.text, letterSpacing: '0.04em', marginBottom: 3 * s }}>{f.question_2}</div>
+            {f.answer_2 && <div style={{ fontFamily: FONTS.body, fontSize: 9 * s, color: P.muted, lineHeight: 1.6 }}>{f.answer_2}</div>}
+          </div>
+        )}
+
+        {/* Pull quote */}
+        {f.pull_quote && (
+          <div style={{ marginTop: 'auto', background: 'rgba(184,146,106,0.08)', borderLeft: `2px solid ${P.accent}`, padding: `${8 * s}px ${10 * s}px` }}>
+            <div style={{ fontFamily: FONTS.editorial, fontSize: 11 * s, fontStyle: 'italic', color: P.text, lineHeight: 1.5 }}>"{f.pull_quote}"</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DressFlatLay({ f, s, palette, W, H }) {
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#fff' }}>
+      {/* Image: top 68% */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '68%', width: '100%', objectFit: 'cover' }} />
+        : <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '68%', background: '#f5f2ec', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 32 * s, opacity: 0.15, color: '#555', fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+      <div style={{ position: 'absolute', top: '68%', left: 0, right: 0, height: 1, background: 'rgba(0,0,0,0.08)' }} />
+
+      {/* Credits grid — bottom 32% */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '32%', padding: `${10 * s}px ${18 * s}px`, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{ fontFamily: FONTS.display, fontSize: 13 * s, fontWeight: 700, letterSpacing: '0.12em', color: '#111', textTransform: 'uppercase', marginBottom: 6 * s }}>
+          {f.headline || 'The Complete Look'}
+        </div>
+        <div style={{ columns: 2, columnGap: 16 * s }}>
+          {[['Gown', f.gown], ['Veil', f.veil], ['Shoes', f.shoes], ['Jewellery', f.jewellery], ['Bouquet', f.bouquet]].filter(([, v]) => v).map(([label, value], i) => (
+            <div key={i} style={{ breakInside: 'avoid', marginBottom: 5 * s, display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontFamily: '"Josefin Sans", sans-serif', fontSize: 7 * s, color: '#aaa', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</span>
+              <span style={{ fontFamily: '"Libre Baskerville", Georgia, serif', fontSize: 8.5 * s, color: '#333', fontStyle: 'italic' }}>{value}</span>
+            </div>
+          ))}
+        </div>
+        {f.photographer && (
+          <div style={{ fontFamily: '"Josefin Sans", sans-serif', fontSize: 7 * s, color: '#aaa', letterSpacing: '0.06em', marginTop: 'auto' }}>Photography: {f.photographer}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AerialVenue({ f, s, palette, W, H }) {
+  const P = PALETTES.midnight;
+  const posMap = { 'top-left': { top: 20 * s, left: 20 * s }, 'top-right': { top: 20 * s, right: 20 * s }, 'bottom-left': { bottom: 24 * s, left: 20 * s }, 'bottom-right': { bottom: 24 * s, right: 20 * s }, 'center': { top: '50%', left: '50%', transform: 'translate(-50%,-50%)' } };
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Full-bleed aerial image */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, #0b1525 0%, #1a2840 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 36 * s, opacity: 0.15, color: '#fff', fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+      {/* Subtle dark overlay */}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.25)' }} />
+
+      {/* Text overlay — bottom left by default */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: `0 ${20 * s}px ${20 * s}px` }}>
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 32 * s, fontStyle: 'italic', fontWeight: 300, color: '#fff', lineHeight: 1.1, marginBottom: 6 * s }}>
+          {f.headline || 'From Above'}
+        </div>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 9 * s, color: P.accent, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 4 * s }}>
+          {f.location}
+        </div>
+        {f.subline && (
+          <div style={{ fontFamily: FONTS.editorial, fontSize: 10 * s, fontStyle: 'italic', color: P.muted }}>{f.subline}</div>
+        )}
+        {f.photographer && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.muted, opacity: 0.6, marginTop: 8 * s, letterSpacing: '0.06em' }}>Aerial photography: {f.photographer}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LuxGrid({ f, s, palette, W, H }) {
+  const P = PALETTES.obsidian;
+  const images = [f.image1, f.image2, f.image3, f.image4, f.image5, f.image6];
+  const gridH = H * 0.78;
+  const cellW = (W - 4) / 3;
+  const cellH = (gridH - 2) / 2;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg, display: 'flex', flexDirection: 'column' }}>
+      {/* 2×3 grid */}
+      <div style={{ width: W, height: gridH, display: 'grid', gridTemplateColumns: `repeat(3, ${cellW}px)`, gridTemplateRows: `repeat(2, ${cellH}px)`, gap: 2, flexShrink: 0 }}>
+        {images.map((img, i) => (
+          img
+            ? <img key={i} src={img} alt="" style={{ width: cellW, height: cellH, objectFit: 'cover', display: 'block' }} />
+            : <div key={i} style={{ width: cellW, height: cellH, background: i % 2 === 0 ? '#141210' : '#1a1712', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 16 * s, opacity: 0.12, color: '#fff', fontFamily: 'sans-serif' }}>⊡</span>
+              </div>
+        ))}
+      </div>
+
+      {/* Bottom bar */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: `${6 * s}px ${18 * s}px` }}>
+        <div style={{ width: 28 * s, height: 1, background: P.accent, opacity: 0.5, marginBottom: 8 * s }} />
+        <div style={{ fontFamily: FONTS.display, fontSize: 15 * s, fontWeight: 400, letterSpacing: '0.2em', color: P.text, textTransform: 'uppercase', textAlign: 'center', marginBottom: 4 * s }}>
+          {f.headline || 'The Edit'}
+        </div>
+        {f.caption && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.muted, letterSpacing: '0.08em', textAlign: 'center' }}>{f.caption}</div>
+        )}
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.muted, opacity: 0.4, letterSpacing: '0.12em', marginTop: 6 * s }}>LWD</div>
+      </div>
+    </div>
+  );
+}
+
+function FullBleed({ f, s, palette, W, H }) {
+  const pos = f.position || 'bottom-left';
+  const posStyle = {
+    'top-left':     { top: 22 * s, left: 22 * s },
+    'top-right':    { top: 22 * s, right: 22 * s, textAlign: 'right' },
+    'bottom-left':  { bottom: 22 * s, left: 22 * s },
+    'bottom-right': { bottom: 22 * s, right: 22 * s, textAlign: 'right' },
+    'center':       { top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center' },
+  }[pos] || { bottom: 22 * s, left: 22 * s };
+
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#000' }}>
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #1a1208 0%, #080806 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 40 * s, opacity: 0.12, color: '#fff', fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+
+      {/* Overlay */}
+      {f.text_overlay && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)' }} />}
+
+      {/* Text */}
+      {f.text_overlay && (
+        <div style={{ position: 'absolute', ...posStyle }}>
+          <div style={{ fontFamily: FONTS.editorial, fontSize: 24 * s, fontStyle: 'italic', fontWeight: 300, color: '#fff', lineHeight: 1.15, textShadow: '0 2px 12px rgba(0,0,0,0.5)' }}>
+            {f.text_overlay}
+          </div>
+        </div>
+      )}
+
+      {/* Credit */}
+      {f.credit && (
+        <div style={{ position: 'absolute', bottom: 8 * s, right: 12 * s, fontFamily: FONTS.caption, fontSize: 7 * s, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.06em' }}>
+          {f.credit}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VenueDirectory({ f, s, palette, W, H }) {
+  const P = PALETTES.ivory;
+  const venues = [
+    { name: f.venue1_name, location: f.venue1_location, image: f.venue1_image, desc: f.venue1_desc },
+    { name: f.venue2_name, location: f.venue2_location, image: f.venue2_image, desc: f.venue2_desc },
+    { name: f.venue3_name, location: f.venue3_location, image: f.venue3_image, desc: f.venue3_desc },
+  ].filter(v => v.name);
+  const imgH = H * 0.24;
+
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg, padding: `${22 * s}px ${20 * s}px`, boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.accent, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 4 * s }}>Venues</div>
+      <div style={{ fontFamily: FONTS.editorial, fontSize: 22 * s, fontStyle: 'italic', color: P.text, marginBottom: 8 * s }}>
+        {f.section_title || 'Venues of Distinction'}
+      </div>
+      <div style={{ width: '100%', height: 1, background: P.rule, marginBottom: 14 * s }} />
+
+      {/* Venue rows */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 * s, overflow: 'hidden' }}>
+        {venues.map((v, i) => (
+          <div key={i} style={{ display: 'flex', gap: 10 * s, alignItems: 'flex-start', overflow: 'hidden' }}>
+            <div style={{ width: W * 0.28, height: imgH, flexShrink: 0, borderRadius: 1 }}>
+              {v.image
+                ? <img src={v.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                : <div style={{ width: '100%', height: '100%', background: '#E4DDD2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 14 * s, opacity: 0.2, color: P.text, fontFamily: 'sans-serif' }}>⊡</span>
+                  </div>
+              }
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <div style={{ fontFamily: FONTS.subhead, fontSize: 11 * s, fontWeight: 700, color: P.text, lineHeight: 1.2, marginBottom: 2 * s }}>{v.name}</div>
+              {v.location && <div style={{ fontFamily: FONTS.caption, fontSize: 7.5 * s, color: P.accent, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 * s }}>{v.location}</div>}
+              {v.desc && <div style={{ fontFamily: FONTS.body, fontSize: 8.5 * s, color: P.muted, lineHeight: 1.55 }}>{v.desc}</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PlannerSpotlight({ f, s, palette, W, H }) {
+  const P = PALETTES.claret;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Image: top 50% */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '50%', width: '100%', objectFit: 'cover', objectPosition: 'top center' }} />
+        : <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '50%', background: '#2e0e1c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 32 * s, opacity: 0.15, color: '#fff', fontFamily: 'sans-serif' }}>⊡</span>
+          </div>
+      }
+      {/* Gradient bleed */}
+      <div style={{ position: 'absolute', top: '36%', left: 0, right: 0, height: '18%', background: `linear-gradient(to bottom, transparent 0%, ${P.bg} 100%)` }} />
+
+      {/* Bottom content */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '52%', padding: `${14 * s}px ${22 * s}px ${18 * s}px`, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.accent, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 6 * s }}>Planner Spotlight</div>
+        <div style={{ fontFamily: FONTS.display, fontSize: 20 * s, fontWeight: 700, letterSpacing: '0.06em', color: P.text, marginBottom: 2 * s }}>
+          {f.planner_name || 'The Planner'}
+        </div>
+        {(f.company || f.based) && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.muted, letterSpacing: '0.08em', marginBottom: 8 * s }}>
+            {[f.company, f.based].filter(Boolean).join(' · ')}
+          </div>
+        )}
+        <div style={{ width: 28 * s, height: 1, background: P.accent, opacity: 0.5, marginBottom: 10 * s }} />
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 13 * s, fontStyle: 'italic', color: P.text, lineHeight: 1.3, marginBottom: 8 * s }}>
+          {f.headline || 'The Architect of Extraordinary Days'}
+        </div>
+        {f.bio && (
+          <div style={{ fontFamily: FONTS.body, fontSize: 9 * s, color: P.muted, lineHeight: 1.6 }}>{f.bio}</div>
+        )}
+        {(f.signature_style || f.website) && (
+          <div style={{ marginTop: 'auto', display: 'flex', gap: 14 * s, flexWrap: 'wrap' }}>
+            {f.signature_style && <div style={{ fontFamily: FONTS.caption, fontSize: 7.5 * s, color: P.accent, letterSpacing: '0.08em' }}>{f.signature_style}</div>}
+            {f.website && <div style={{ fontFamily: FONTS.caption, fontSize: 7.5 * s, color: P.muted, letterSpacing: '0.06em' }}>{f.website}</div>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export default function TemplateCanvas({ templateId, fields = {}, pageSize = 'A4', width = 400, forCapture = false }) {
+export default function TemplateCanvas({ templateId, fields = {}, pageSize = 'A4', width = 400, forCapture = false, fieldStyles = {} }) {
   const ratio  = PAGE_RATIOS[pageSize] || 1.4142;
   const height = Math.round(width * ratio);
   const s      = width / 400;
-  const f      = fields;
+
+  // Merge fieldStyles overrides into fields for text rendering
+  // Each template renderer is responsible for applying fieldStyles[fieldId] on its own text elements
+  const f = fields;
 
   const container = {
     width,
@@ -558,7 +1353,7 @@ export default function TemplateCanvas({ templateId, fields = {}, pageSize = 'A4
   };
 
   function renderTemplate() {
-    const props = { f, s, W: width, H: height };
+    const props = { f, s, W: width, H: height, fieldStyles };
     switch (templateId) {
       case 'vogue-cover':        return <VogueCover        {...props} />;
       case 'the-gown':           return <TheGown           {...props} />;
@@ -572,6 +1367,26 @@ export default function TemplateCanvas({ templateId, fields = {}, pageSize = 'A4
       case 'product-page':       return <ProductPage       {...props} />;
       case 'the-hotel':          return <TheHotel          {...props} />;
       case 'table-of-contents':  return <TableOfContents   {...props} />;
+      case 'masthead':           return <TheMasthead       {...props} />;
+      case 'floral-spread':      return <FloralSpread      {...props} />;
+      case 'reception-table':    return <ReceptionTable    {...props} />;
+      case 'ceremony-aisle':     return <CeremonyAisle     {...props} />;
+      case 'couple-story':       return <CoupleStory       {...props} />;
+      case 'beauty-edit':        return <BeautyEdit        {...props} />;
+      case 'dress-detail':       return <DressDetail       {...props} />;
+      case 'invitation-suite':   return <InvitationSuite   {...props} />;
+      case 'cake-moment':        return <CakeMoment        {...props} />;
+      case 'venue-portrait':     return <VenuePortrait     {...props} />;
+      case 'fashion-plate':      return <FashionPlate      {...props} />;
+      case 'honeymoon-edit':     return <HoneymoonEdit     {...props} />;
+      case 'ring-edit':          return <RingEdit          {...props} />;
+      case 'the-interview':      return <TheInterview      {...props} />;
+      case 'dress-flat-lay':     return <DressFlatLay      {...props} />;
+      case 'aerial-venue':       return <AerialVenue       {...props} />;
+      case 'lux-grid':           return <LuxGrid           {...props} />;
+      case 'full-bleed':         return <FullBleed         {...props} />;
+      case 'venue-directory':    return <VenueDirectory    {...props} />;
+      case 'planner-spotlight':  return <PlannerSpotlight  {...props} />;
       default:
         return (
           <div style={{ ...container, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: 'sans-serif', fontSize: 14 * s }}>

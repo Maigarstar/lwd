@@ -164,6 +164,375 @@ export const TEMPLATES = [
       { id: 'subtitle',    type: 'text',     label: 'Issue Subtitle', placeholder: 'The Bridal Edition' },
     ],
   },
+
+  // ── Templates 13–32 ─────────────────────────────────────────────────────────
+
+  // 13 — The Masthead
+  {
+    id: 'masthead',
+    name: 'The Masthead',
+    category: 'Editorial',
+    palette: 'ivory',
+    description: 'Magazine masthead with editorial team credits and issue details',
+    fields: [
+      { id: 'publication',      type: 'text',  label: 'Publication Name',   default: 'LUXURY WEDDING DIRECTORY', required: true },
+      { id: 'issue_line',       type: 'text',  label: 'Issue Line',         default: 'Issue No. 01 · Spring 2026' },
+      { id: 'editor',           type: 'text',  label: 'Editor in Chief' },
+      { id: 'creative_director',type: 'text',  label: 'Creative Director' },
+      { id: 'photographer',     type: 'text',  label: 'Photography' },
+      { id: 'stylist',          type: 'text',  label: 'Fashion & Styling' },
+      { id: 'florist',          type: 'text',  label: 'Florals' },
+      { id: 'venue_credit',     type: 'text',  label: 'Venue' },
+      { id: 'tagline',          type: 'text',  label: 'Issue Tagline',      default: 'Exceptional Weddings for Discerning Couples' },
+      { id: 'logo_url',         type: 'image', label: 'Publication Logo' },
+    ],
+  },
+
+  // 14 — The Floral Spread
+  {
+    id: 'floral-spread',
+    name: 'The Floral Spread',
+    category: 'Florals',
+    palette: 'blush',
+    description: 'Full-bleed floral double-page with botanical detail',
+    fields: [
+      { id: 'image',        type: 'image',    label: 'Floral Image',   required: true },
+      { id: 'headline',     type: 'text',     label: 'Headline',       default: 'In Full Bloom' },
+      { id: 'florist_name', type: 'text',     label: 'Florist Name' },
+      { id: 'description',  type: 'textarea', label: 'Description',    maxLength: 200 },
+      { id: 'accent_color', type: 'color',    label: 'Accent Colour',  default: '#C9A96E' },
+    ],
+  },
+
+  // 15 — The Reception Table
+  {
+    id: 'reception-table',
+    name: 'The Reception Table',
+    category: 'Reception',
+    palette: 'ivory',
+    description: 'Elegant tablescape editorial with styling credits',
+    fields: [
+      { id: 'image',        type: 'image',    label: 'Table Setting Image', required: true },
+      { id: 'headline',     type: 'text',     label: 'Headline',            default: 'Dressed to Perfection' },
+      { id: 'venue',        type: 'text',     label: 'Venue Name' },
+      { id: 'stylist',      type: 'text',     label: 'Table Stylist' },
+      { id: 'caption',      type: 'textarea', label: 'Editorial Caption',   maxLength: 180 },
+      { id: 'palette_note', type: 'text',     label: 'Colour Palette Note', default: 'Ivory · Sage · Dusty Rose' },
+    ],
+  },
+
+  // 16 — The Ceremony Aisle
+  {
+    id: 'ceremony-aisle',
+    name: 'The Ceremony Aisle',
+    category: 'Ceremony',
+    palette: 'white',
+    description: 'Romantic ceremony scene with atmospheric editorial framing',
+    fields: [
+      { id: 'image',        type: 'image',    label: 'Ceremony Image',    required: true },
+      { id: 'venue',        type: 'text',     label: 'Ceremony Venue' },
+      { id: 'headline',     type: 'text',     label: 'Headline',          default: 'The Walk to Forever' },
+      { id: 'subhead',      type: 'text',     label: 'Subheading' },
+      { id: 'story',        type: 'textarea', label: 'Ceremony Story',    maxLength: 300 },
+      { id: 'photographer', type: 'text',     label: 'Photography Credit' },
+    ],
+  },
+
+  // 17 — The Couple Story
+  {
+    id: 'couple-story',
+    name: 'The Couple Story',
+    category: 'Couple',
+    palette: 'midnight',
+    description: 'Cinematic couple portrait with love story narrative',
+    fields: [
+      { id: 'image',        type: 'image',    label: 'Portrait Image', required: true },
+      { id: 'couple_names', type: 'text',     label: 'Couple Names',   default: 'Sophia & James' },
+      { id: 'date',         type: 'text',     label: 'Wedding Date' },
+      { id: 'location',     type: 'text',     label: 'Location' },
+      { id: 'story',        type: 'textarea', label: 'Love Story',     maxLength: 400 },
+      { id: 'photographer', type: 'text',     label: 'Photographer' },
+    ],
+  },
+
+  // 18 — The Beauty Edit
+  {
+    id: 'beauty-edit',
+    name: 'The Beauty Edit',
+    category: 'Beauty',
+    palette: 'blush',
+    description: 'Bridal beauty close-up with makeup and hair credits',
+    fields: [
+      { id: 'image',        type: 'image',    label: 'Beauty Image',                   required: true },
+      { id: 'headline',     type: 'text',     label: 'Headline',                        default: 'The Art of Bridal Beauty' },
+      { id: 'makeup_artist',type: 'text',     label: 'Makeup Artist' },
+      { id: 'hair_stylist', type: 'text',     label: 'Hair Stylist' },
+      { id: 'products',     type: 'textarea', label: 'Key Products / Look Description', maxLength: 220 },
+      { id: 'model',        type: 'text',     label: 'Model / Bride' },
+    ],
+  },
+
+  // 19 — The Dress Detail
+  {
+    id: 'dress-detail',
+    name: 'The Dress Detail',
+    category: 'Fashion',
+    palette: 'white',
+    description: 'Close-up couture detail — fabric, embroidery, lace',
+    fields: [
+      { id: 'image',       type: 'image', label: 'Detail Image',        required: true },
+      { id: 'designer',    type: 'text',  label: 'Designer / House',    required: true },
+      { id: 'collection',  type: 'text',  label: 'Collection Name' },
+      { id: 'detail_note', type: 'text',  label: 'Detail Description',  default: 'Hand-embroidered Chantilly lace' },
+      { id: 'price',       type: 'text',  label: 'Price / On Request' },
+      { id: 'stockist',    type: 'text',  label: 'Stockist / Contact' },
+    ],
+  },
+
+  // 20 — The Invitation Suite
+  {
+    id: 'invitation-suite',
+    name: 'The Invitation Suite',
+    category: 'Stationery',
+    palette: 'ivory',
+    description: 'Flat-lay stationery suite with supplier details',
+    fields: [
+      { id: 'image',       type: 'image',    label: 'Stationery Image',          required: true },
+      { id: 'headline',    type: 'text',     label: 'Headline',                   default: 'The Perfect First Impression' },
+      { id: 'designer',    type: 'text',     label: 'Stationery Designer' },
+      { id: 'paper_stock', type: 'text',     label: 'Paper / Printing Method',   default: 'Hot-press letterpress on cotton paper' },
+      { id: 'description', type: 'textarea', label: 'Suite Description',         maxLength: 200 },
+      { id: 'price_guide', type: 'text',     label: 'Price Guide' },
+    ],
+  },
+
+  // 21 — The Cake Moment
+  {
+    id: 'cake-moment',
+    name: 'The Cake Moment',
+    category: 'Food & Cake',
+    palette: 'white',
+    description: 'Wedding cake hero shot with patissier credit',
+    fields: [
+      { id: 'image',        type: 'image',    label: 'Cake Image',       required: true },
+      { id: 'headline',     type: 'text',     label: 'Headline',          default: 'The Sweet Finale' },
+      { id: 'cake_designer',type: 'text',     label: 'Cake Designer / Patissier' },
+      { id: 'flavour',      type: 'text',     label: 'Flavour Profile',   default: 'Champagne sponge, elderflower cream, gold leaf' },
+      { id: 'tiers',        type: 'text',     label: 'Tiers / Servings' },
+      { id: 'caption',      type: 'textarea', label: 'Editorial Note',    maxLength: 160 },
+    ],
+  },
+
+  // 22 — The Venue Portrait
+  {
+    id: 'venue-portrait',
+    name: 'The Venue Portrait',
+    category: 'Venue Portrait',
+    palette: 'obsidian',
+    description: 'Grand venue hero shot with architectural framing',
+    fields: [
+      { id: 'image',      type: 'image',    label: 'Venue Image',         required: true },
+      { id: 'venue_name', type: 'text',     label: 'Venue Name',          required: true },
+      { id: 'location',   type: 'text',     label: 'Location' },
+      { id: 'capacity',   type: 'text',     label: 'Capacity',            default: 'Up to 250 guests' },
+      { id: 'style',      type: 'text',     label: 'Venue Style',         default: 'Chateau · Formal · Garden' },
+      { id: 'headline',   type: 'text',     label: 'Editorial Headline',  default: 'Where Dreams Take Shape' },
+      { id: 'body',       type: 'textarea', label: 'Venue Description',   maxLength: 280 },
+    ],
+  },
+
+  // 23 — The Fashion Plate
+  {
+    id: 'fashion-plate',
+    name: 'The Fashion Plate',
+    category: 'Fashion',
+    palette: 'midnight',
+    description: 'Full-bleed fashion portrait in Vogue editorial style',
+    fields: [
+      { id: 'image',        type: 'image', label: 'Fashion Image', required: true },
+      { id: 'look_title',   type: 'text',  label: 'Look Title',    default: 'Look I' },
+      { id: 'dress',        type: 'text',  label: 'Gown',          required: true },
+      { id: 'shoes',        type: 'text',  label: 'Shoes' },
+      { id: 'jewellery',    type: 'text',  label: 'Jewellery' },
+      { id: 'photographer', type: 'text',  label: 'Photography' },
+      { id: 'model',        type: 'text',  label: 'Model' },
+    ],
+  },
+
+  // 24 — The Honeymoon Edit
+  {
+    id: 'honeymoon-edit',
+    name: 'The Honeymoon Edit',
+    category: 'Editorial',
+    palette: 'claret',
+    description: 'Luxury honeymoon destination editorial',
+    fields: [
+      { id: 'image',       type: 'image',    label: 'Destination Image', required: true },
+      { id: 'destination', type: 'text',     label: 'Destination',       required: true, default: 'The Maldives' },
+      { id: 'property',    type: 'text',     label: 'Property / Hotel' },
+      { id: 'headline',    type: 'text',     label: 'Headline',           default: 'For Two, With Love' },
+      { id: 'intro',       type: 'textarea', label: 'Destination Intro',  maxLength: 300 },
+      { id: 'price_guide', type: 'text',     label: 'Price Guide / From' },
+      { id: 'website',     type: 'text',     label: 'Website' },
+    ],
+  },
+
+  // 25 — The Ring Edit
+  {
+    id: 'ring-edit',
+    name: 'The Ring Edit',
+    category: 'Editorial',
+    palette: 'obsidian',
+    description: 'Jewellery close-up with goldsmith / atelier credits',
+    fields: [
+      { id: 'image',    type: 'image',    label: 'Jewellery Image',  required: true },
+      { id: 'headline', type: 'text',     label: 'Headline',          default: 'The Stone That Starts It All' },
+      { id: 'designer', type: 'text',     label: 'Jeweller / Atelier', required: true },
+      { id: 'metal',    type: 'text',     label: 'Metal',              default: '18ct White Gold' },
+      { id: 'stone',    type: 'text',     label: 'Stone',              default: '3ct Old European Cut Diamond' },
+      { id: 'price',    type: 'text',     label: 'Price / POA' },
+      { id: 'caption',  type: 'textarea', label: 'Editorial Note',    maxLength: 180 },
+    ],
+  },
+
+  // 26 — The Interview
+  {
+    id: 'the-interview',
+    name: 'The Interview',
+    category: 'Editorial',
+    palette: 'ivory',
+    description: 'Q&A editorial format with portrait and pull quotes',
+    fields: [
+      { id: 'image',         type: 'image',    label: 'Portrait Image',    required: true },
+      { id: 'subject_name',  type: 'text',     label: 'Subject Name',      required: true },
+      { id: 'subject_title', type: 'text',     label: 'Subject Title / Role' },
+      { id: 'question_1',    type: 'text',     label: 'Question 1' },
+      { id: 'answer_1',      type: 'textarea', label: 'Answer 1',          maxLength: 300 },
+      { id: 'question_2',    type: 'text',     label: 'Question 2' },
+      { id: 'answer_2',      type: 'textarea', label: 'Answer 2',          maxLength: 300 },
+      { id: 'pull_quote',    type: 'textarea', label: 'Pull Quote',        maxLength: 120 },
+    ],
+  },
+
+  // 27 — The Dress Flat Lay
+  {
+    id: 'dress-flat-lay',
+    name: 'The Dress Flat Lay',
+    category: 'Fashion',
+    palette: 'white',
+    description: 'Overhead flat-lay of gown with accessories arrangement',
+    fields: [
+      { id: 'image',        type: 'image', label: 'Flat Lay Image',  required: true },
+      { id: 'headline',     type: 'text',  label: 'Headline',         default: 'The Complete Look' },
+      { id: 'gown',         type: 'text',  label: 'Gown',             required: true },
+      { id: 'veil',         type: 'text',  label: 'Veil' },
+      { id: 'shoes',        type: 'text',  label: 'Shoes' },
+      { id: 'jewellery',    type: 'text',  label: 'Jewellery' },
+      { id: 'bouquet',      type: 'text',  label: 'Bouquet / Florist' },
+      { id: 'photographer', type: 'text',  label: 'Photography' },
+    ],
+  },
+
+  // 28 — The Aerial View
+  {
+    id: 'aerial-venue',
+    name: 'The Aerial View',
+    category: 'Venue Portrait',
+    palette: 'midnight',
+    description: 'Drone/aerial venue or landscape with minimal text overlay',
+    fields: [
+      { id: 'image',        type: 'image', label: 'Aerial Image',      required: true },
+      { id: 'location',     type: 'text',  label: 'Location',          required: true },
+      { id: 'headline',     type: 'text',  label: 'Headline',           default: 'From Above' },
+      { id: 'subline',      type: 'text',  label: 'Subline',            default: 'A new perspective on romance' },
+      { id: 'photographer', type: 'text',  label: 'Aerial Photography' },
+    ],
+  },
+
+  // 29 — The Lux Grid
+  {
+    id: 'lux-grid',
+    name: 'The Lux Grid',
+    category: 'Editorial',
+    palette: 'obsidian',
+    description: '6-image editorial grid for detail shots or product roundup',
+    fields: [
+      { id: 'image1',   type: 'image', label: 'Image 1', required: true },
+      { id: 'image2',   type: 'image', label: 'Image 2' },
+      { id: 'image3',   type: 'image', label: 'Image 3' },
+      { id: 'image4',   type: 'image', label: 'Image 4' },
+      { id: 'image5',   type: 'image', label: 'Image 5' },
+      { id: 'image6',   type: 'image', label: 'Image 6' },
+      { id: 'headline', type: 'text',  label: 'Section Headline', default: 'The Edit' },
+      { id: 'caption',  type: 'text',  label: 'Grid Caption' },
+    ],
+  },
+
+  // 30 — The Full Bleed
+  {
+    id: 'full-bleed',
+    name: 'The Full Bleed',
+    category: 'Editorial',
+    palette: 'obsidian',
+    description: 'Pure full-bleed image with minimal title overlay — maximum impact',
+    fields: [
+      { id: 'image',        type: 'image',  label: 'Full Bleed Image', required: true },
+      { id: 'text_overlay', type: 'text',   label: 'Minimal Text Overlay' },
+      { id: 'position',     type: 'select', label: 'Text Position',    default: 'bottom-left',
+        options: [
+          { value: 'top-left',     label: 'Top Left' },
+          { value: 'top-right',    label: 'Top Right' },
+          { value: 'bottom-left',  label: 'Bottom Left' },
+          { value: 'bottom-right', label: 'Bottom Right' },
+          { value: 'center',       label: 'Centred' },
+        ],
+      },
+      { id: 'credit', type: 'text', label: 'Photo Credit' },
+    ],
+  },
+
+  // 31 — The Venue Directory
+  {
+    id: 'venue-directory',
+    name: 'The Venue Directory',
+    category: 'Venue Portrait',
+    palette: 'ivory',
+    description: 'Directory-style venue listing page with 3 venues',
+    fields: [
+      { id: 'section_title',  type: 'text',  label: 'Section Title',      default: 'Venues of Distinction' },
+      { id: 'venue1_name',    type: 'text',  label: 'Venue 1 Name',       required: true },
+      { id: 'venue1_location',type: 'text',  label: 'Venue 1 Location' },
+      { id: 'venue1_image',   type: 'image', label: 'Venue 1 Image' },
+      { id: 'venue1_desc',    type: 'text',  label: 'Venue 1 Description' },
+      { id: 'venue2_name',    type: 'text',  label: 'Venue 2 Name' },
+      { id: 'venue2_location',type: 'text',  label: 'Venue 2 Location' },
+      { id: 'venue2_image',   type: 'image', label: 'Venue 2 Image' },
+      { id: 'venue2_desc',    type: 'text',  label: 'Venue 2 Description' },
+      { id: 'venue3_name',    type: 'text',  label: 'Venue 3 Name' },
+      { id: 'venue3_location',type: 'text',  label: 'Venue 3 Location' },
+      { id: 'venue3_image',   type: 'image', label: 'Venue 3 Image' },
+      { id: 'venue3_desc',    type: 'text',  label: 'Venue 3 Description' },
+    ],
+  },
+
+  // 32 — The Planner Spotlight
+  {
+    id: 'planner-spotlight',
+    name: 'The Planner Spotlight',
+    category: 'Editorial',
+    palette: 'claret',
+    description: 'Feature profile of a luxury wedding planner',
+    fields: [
+      { id: 'image',           type: 'image',    label: 'Planner Portrait',        required: true },
+      { id: 'planner_name',    type: 'text',     label: 'Planner Name',            required: true },
+      { id: 'company',         type: 'text',     label: 'Company / Studio' },
+      { id: 'based',           type: 'text',     label: 'Based In' },
+      { id: 'headline',        type: 'text',     label: 'Feature Headline',        default: 'The Architect of Extraordinary Days' },
+      { id: 'bio',             type: 'textarea', label: 'Profile Bio',             maxLength: 400 },
+      { id: 'signature_style', type: 'text',     label: 'Signature Style' },
+      { id: 'website',         type: 'text',     label: 'Website' },
+    ],
+  },
 ];
 
 export const CATEGORIES = [...new Set(TEMPLATES.map(t => t.category))];
