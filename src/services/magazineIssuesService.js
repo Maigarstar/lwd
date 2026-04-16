@@ -1,0 +1,300 @@
+/**
+ * magazineIssuesService.js
+ * CRUD + lifecycle operations for magazine_issues table.
+ * Storage: magazine-pdfs / magazine-covers buckets.
+ */
+
+import { supabase } from '../lib/supabaseClient';
+
+const ISSUES_TABLE  = 'magazine_issues';
+const PDF_BUCKET    = 'magazine-pdfs';
+const COVER_BUCKET  = 'magazine-covers';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function makeSlug(title, issueNumber, year) {
+  const base = title
+    ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+    : `issue-${issueNumber || 'new'}`;
+  const suffix = year ? `-${year}` : '';
+  return `${base}${suffix}`;
+}
+
+function uploadPath(bucket, issueId, filename) {
+  return `${issueId}/${filename}`;
+}
+
+// ── Fetch ─────────────────────────────────────────────────────────────────────
+
+/**
+ * List all issues ordered by created_at desc.
+ * @returns {{ data: Array, error: Error|null }}
+ */
+export async function fetchIssues() {
+  try {
+    const { data, error } = await supabase
+      .from(ISSUES_TABLE)
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return { data: data || [], error: null };
+  } catch (error) {
+    return { data: [], error };
+  }
+}
+
+/**
+ * Fetch a single issue by id.
+ * @returns {{ data: Object|null, error: Error|null }}
+ */
+export async function fetchIssueById(id) {
+  try {
+    const { data, error } = await supabase
+      .from(ISSUES_TABLE)
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+}
+
+/**
+ * Fetch a single issue by slug.
+ * @returns {{ data: Object|null, error: Error|null }}
+ */
+export async function fetchIssueBySlug(slug) {
+  try {
+    const { data, error } = await supabase
+      .from(ISSUES_TABLE)
+      .select('*')
+      .eq('slug', slug)
+      .single();
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+}
+
+// ── Create ────────────────────────────────────────────────────────────────────
+
+/**
+ * Create a new magazine issue.
+ * Auto-generates slug from title + year if not provided.
+ * @param {Object} fields - Partial issue fields
+ * @returns {{ data: Object|null, error: Error|null }}
+ */
+export async function createIssue(fields = {}) {
+  try {
+    const slug = fields.slug || makeSlug(fields.title, fields.issue_number, fields.year);
+    const payload = {
+      slug,
+      title:          fields.title          || '',
+      issue_number:   fields.issue_number   ?? null,
+      season:         fields.season         ?? null,
+      year:           fields.year           ?? new Date().getFullYear(),
+      intro:          fields.intro          ?? null,
+      editor_note:    fields.editor_note    ?? null,
+      status:         'draft',
+      processing_state: 'idle',
+      is_featured:    false,
+      slug_locked:    false,
+      render_version: 1,
+      page_count:     0,
+    };
+
+    const { data, error } = await supabase
+      .from(ISSUES_TABLE)
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+}
+
+// ── Update ────────────────────────────────────────────────────────────────────
+
+/**
+ * Update arbitrary fields on an issue.
+ * Slug is protected — only updatable when slug_locked is false.
+ * @param {string} id
+ * @param {Object} fields
+ * @returns {{ data: Object|null, error: Error|null }}
+ */
+export async function updateIssue(id, fields) {
+  try {
+    // Strip slug if it's a slug_locked issue (protect against accidental changes)
+    const safe = { ...fields };
+    delete safe.id;
+    delete safe.created_at;
+
+    const { data, error } = await supabase
+      .from(ISSUES_TABLE)
+      .update(safe)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+}
+
+/**
+ * Publish an issue: sets status=published, published_at=now(), slug_locked=true.
+ */
+export async function publishIssue(id) {
+  return updateIssue(id, {
+    status:      'published',
+    published_at: new Date().toISOString(),
+    slug_locked:  true,
+  });
+}
+
+/**
+ * Unpublish (revert to draft).
+ */
+export async function unpublishIssue(id) {
+  return updateIssue(id, { status: 'draft' });
+}
+
+/**
+ * Archive an issue.
+ */
+export async function archiveIssue(id) {
+  return updateIssue(id, { status: 'archived' });
+}
+
+/**
+ * Mark processing state.
+ */
+export async function setProcessingState(id, state, errorMsg = null) {
+  const fields = { processing_state: state };
+  if (state === 'ready')   fields.processed_at = new Date().toISOString();
+  if (state === 'failed')  fields.processing_error = errorMsg;
+  if (state === 'processing') fields.processing_error = null;
+  return updateIssue(id, fields);
+}
+
+/**
+ * Increment render_version (called before a reprocess).
+ */
+export async function bumpRenderVersion(id, currentVersion) {
+  return updateIssue(id, {
+    render_version:   currentVersion + 1,
+    processing_state: 'idle',
+    processing_error:  null,
+  });
+}
+
+/**
+ * Update page count (called after pages are inserted/deleted).
+ */
+export async function updatePageCount(id, count) {
+  return updateIssue(id, { page_count: count });
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+
+/**
+ * Delete an issue and its storage files (PDF + cover).
+ * Pages cascade-delete via FK.
+ */
+export async function deleteIssue(id) {
+  try {
+    // Delete PDF from storage (best-effort, don't fail if missing)
+    await supabase.storage.from(PDF_BUCKET).remove([`${id}/original.pdf`]).catch(() => {});
+
+    // Delete cover from storage (best-effort)
+    await supabase.storage.from(COVER_BUCKET).remove([`${id}/cover.jpg`]).catch(() => {});
+
+    const { error } = await supabase
+      .from(ISSUES_TABLE)
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return { error: null };
+  } catch (error) {
+    return { error };
+  }
+}
+
+// ── Storage ───────────────────────────────────────────────────────────────────
+
+/**
+ * Upload PDF to storage and update issue record with pdf_url + pdf_storage_path.
+ * @param {string} issueId
+ * @param {File} file
+ * @returns {{ publicUrl: string|null, storagePath: string|null, error: Error|null }}
+ */
+export async function uploadIssuePdf(issueId, file) {
+  try {
+    const path = uploadPath(PDF_BUCKET, issueId, 'original.pdf');
+
+    const { error: uploadErr } = await supabase.storage
+      .from(PDF_BUCKET)
+      .upload(path, file, {
+        upsert:       true,
+        cacheControl: '3600',
+        contentType:  'application/pdf',
+      });
+    if (uploadErr) throw uploadErr;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from(PDF_BUCKET)
+      .getPublicUrl(path);
+
+    // Update issue record
+    await updateIssue(issueId, {
+      pdf_url:          publicUrl,
+      pdf_storage_path: path,
+    });
+
+    return { publicUrl, storagePath: path, error: null };
+  } catch (error) {
+    return { publicUrl: null, storagePath: null, error };
+  }
+}
+
+/**
+ * Upload cover image to storage and update issue record.
+ * Accepts any image file; stored as cover.jpg (coerced via content-type).
+ * @param {string} issueId
+ * @param {File|Blob} file
+ * @returns {{ publicUrl: string|null, storagePath: string|null, error: Error|null }}
+ */
+export async function uploadIssueCover(issueId, file) {
+  try {
+    const ext  = file.type === 'image/png' ? 'png' : 'jpg';
+    const path = `${issueId}/cover.${ext}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from(COVER_BUCKET)
+      .upload(path, file, {
+        upsert:       true,
+        cacheControl: '31536000',
+        contentType:  file.type || 'image/jpeg',
+      });
+    if (uploadErr) throw uploadErr;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from(COVER_BUCKET)
+      .getPublicUrl(path);
+
+    await updateIssue(issueId, {
+      cover_image:         publicUrl,
+      cover_storage_path:  path,
+    });
+
+    return { publicUrl, storagePath: path, error: null };
+  } catch (error) {
+    return { publicUrl: null, storagePath: null, error };
+  }
+}

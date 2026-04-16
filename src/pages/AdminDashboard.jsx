@@ -63,6 +63,7 @@ import MarketIntelligenceModule from "./AdminModules/MarketIntelligenceModule";
 import EventsModule from "./AdminModules/EventsModule";
 import SiteContentModule from "./AdminModules/SiteContentModule";
 import ReverseProspectingModule from "./AdminModules/ReverseProspectingModule";
+import MagazineIssuesModule from "./AdminModules/MagazineIssuesModule";
 import CategoryPagePreview from "../components/admin/CategoryPagePreview";
 import { fetchClickSummary, fetchBatchClickCounts } from "../services/adminOutboundClicksService";
 import { fetchPostBySlug, fetchPosts, deletePost as deleteMagazinePost } from "../services/magazineService";
@@ -372,6 +373,7 @@ const NAV_SECTIONS = [
       { key: "page-studio",      label: "Page Studio",       icon: "⟡" },
       { key: "magazine",         label: "The Magazine",      icon: "◈" },
       { key: "magazine-studio",  label: "Magazine Studio",   icon: "✦" },
+      { key: "magazine-issues",  label: "Magazine Issues",   icon: "◈" },
       { key: "reusable-blocks",  label: "Reusable Blocks",   icon: "⊞" },
       { key: "site-content",     label: "Site Content",      icon: "≡" },
     ],
@@ -11725,7 +11727,8 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         if (action === 'magazine-studio') { setActiveTabState('magazine-studio'); }
         else onNavigate(action);
       }} />;
-      case "magazine-studio": return null; // Handled in main render logic
+      case "magazine-studio":  return null; // Handled in main render logic
+      case "magazine-issues":  return <MagazineIssuesModule C={C} />;
       case "social-studio":   return <SocialStudioModule C={C} />;
       case "reusable-blocks": return <ReusableBlocksModule C={C} NU={NU} GD={GD} />;
       case "branding":        return <MenuBranding C={C} />;
