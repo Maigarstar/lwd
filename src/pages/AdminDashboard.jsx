@@ -12509,7 +12509,7 @@ function MagazineAdminModule({ C, onNavigate }) {
               };
               const rowBg = isScheduled ? 'rgba(99,102,241,0.04)' : isDraft ? 'rgba(234,179,8,0.03)' : i % 2 === 0 ? 'transparent' : `${C.card}60`;
               return (
-              <div key={post.id || post.slug} style={{
+              <div key={post.id || post.slug || `post-row-${i}`} style={{
                 display: 'grid', gridTemplateColumns: '120px 1fr 110px 90px 60px 130px 130px 130px 120px',
                 padding: '10px 16px', alignItems: 'center',
                 borderBottom: i < filtered.length - 1 ? `1px solid ${C.border}` : 'none',
