@@ -13,6 +13,12 @@ import { trackIssueView, trackPageTurn, trackDownload } from '../services/public
 import SocialExportModal    from '../components/publications/SocialExportModal';
 import IssueSearchPanel     from '../components/publications/IssueSearchPanel';
 import TextModePanel        from '../components/publications/TextModePanel';
+import EmailGate            from './PublicationsReader/EmailGate';
+
+// ── Email gate config (Phase 3: lead capture) ────────────────────────────────
+const GATE_PAGE_TRIGGER     = 3;      // open gate when user reaches page 3
+const GATE_TIME_FALLBACK_MS = 25000;  // or after 25s of reading, whichever first
+const GATE_STORAGE_KEY      = 'lwd_pub_gate_unlocked';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const GOLD      = '#C9A84C';
@@ -1216,6 +1222,15 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   // Ref to prevent rapid-click during flip
   const flipLockRef = useRef(false);
 
+  // ── Email gate (Phase 3) ─────────────────────────────────────────────────────
+  const [gateUnlocked, setGateUnlocked] = useState(() => {
+    try { return typeof window !== 'undefined' && localStorage.getItem(GATE_STORAGE_KEY) === '1'; }
+    catch { return false; }
+  });
+  const [gateOpen,     setGateOpen]     = useState(false);
+  const [gateReason,   setGateReason]   = useState('page_threshold'); // or 'time_fallback'
+  const gateTriggeredRef = useRef(false); // fires once per session until unlock/skip
+
   // Drag-to-pan refs
   const dragging       = useRef(false);
   const dragStartX     = useRef(0);
@@ -1372,6 +1387,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
 
   const goPrev = useCallback(() => {
     if (!canPrev) return;
+    if (gateOpen && !gateUnlocked) return; // block nav while email gate is showing
     if (flipLockRef.current || isFlipping) return;
     if (zoom > 1) { goToPage(Math.max(1, currentPage - step)); return; }
     const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1389,10 +1405,11 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         flipLockRef.current = false;
       }, 300);
     }, 300);
-  }, [canPrev, currentPage, step, goToPage, isFlipping, zoom]);
+  }, [canPrev, currentPage, step, goToPage, isFlipping, zoom, gateOpen, gateUnlocked]);
 
   const goNext = useCallback(() => {
     if (!canNext || paywallBlocking) return;
+    if (gateOpen && !gateUnlocked) return; // block nav while email gate is showing
     if (flipLockRef.current || isFlipping) return;
     if (zoom > 1) { goToPage(Math.min(totalPages, currentPage + step)); return; }
     const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1410,7 +1427,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         flipLockRef.current = false;
       }, 300);
     }, 300);
-  }, [canNext, paywallBlocking, currentPage, step, totalPages, goToPage, isFlipping, zoom]);
+  }, [canNext, paywallBlocking, currentPage, step, totalPages, goToPage, isFlipping, zoom, gateOpen, gateUnlocked]);
 
   // ── URL sync on page change ──────────────────────────────────────────────────
   useEffect(() => {
@@ -1429,6 +1446,47 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       setDisplayedPage(currentPage);
     }
   }, [currentPage, isFlipping]);
+
+  // ── Email gate: page-threshold trigger ───────────────────────────────────────
+  // Opens after user reaches GATE_PAGE_TRIGGER. Never mid-flip. Fires once.
+  useEffect(() => {
+    if (gateUnlocked || gateOpen || gateTriggeredRef.current) return;
+    if (!issue || loading) return;
+    if (isFlipping) return;
+    if (currentPage >= GATE_PAGE_TRIGGER) {
+      gateTriggeredRef.current = true;
+      setGateReason('page_threshold');
+      setGateOpen(true);
+    }
+  }, [currentPage, isFlipping, gateUnlocked, gateOpen, issue, loading]);
+
+  // ── Email gate: time fallback trigger ────────────────────────────────────────
+  // If user lingers early in the issue without reaching page 3, open after 25s.
+  useEffect(() => {
+    if (gateUnlocked || gateOpen || gateTriggeredRef.current) return;
+    if (!issue || loading) return;
+    const t = setTimeout(() => {
+      if (gateUnlocked || gateOpen || gateTriggeredRef.current) return;
+      if (flipLockRef.current) return; // don't interrupt a flip
+      gateTriggeredRef.current = true;
+      setGateReason('time_fallback');
+      setGateOpen(true);
+    }, GATE_TIME_FALLBACK_MS);
+    return () => clearTimeout(t);
+  }, [issue, loading, gateUnlocked, gateOpen]);
+
+  // ── Email gate handlers ──────────────────────────────────────────────────────
+  const handleGateUnlock = useCallback(() => {
+    try { localStorage.setItem(GATE_STORAGE_KEY, '1'); } catch { /* ignore */ }
+    setGateUnlocked(true);
+    setGateOpen(false);
+  }, []);
+
+  const handleGateSkip = useCallback(() => {
+    // Soft close for this session only — no localStorage write.
+    // Won't re-open again this session (gateTriggeredRef stays true).
+    setGateOpen(false);
+  }, []);
 
   // ── Keyboard shortcuts ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -1744,6 +1802,18 @@ export default function PublicationsReaderPage({ slug, onBack }) {
             freePageCount={freePageCount}
             onBack={onBack}
             T={T}
+          />
+        )}
+
+        {/* Email gate — lead capture (Phase 3). Renders over pages, paywall takes priority. */}
+        {gateOpen && !gateUnlocked && !paywallBlocking && (
+          <EmailGate
+            issue={issue}
+            slug={slug}
+            currentPage={currentPage}
+            triggerReason={gateReason}
+            onUnlock={handleGateUnlock}
+            onSkip={handleGateSkip}
           />
         )}
       </div>
