@@ -60,6 +60,7 @@ function applyTemplate(fc, template, dims) {
     },
     'Fashion': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#0A0908', selectable: false });
+      bg.id = genId(); fc.add(bg);
       const colW = (W - 8) / 3;
       [0, 1, 2].forEach(i => {
         const col = new Rect({ left: i * (colW + 4), top: 0, width: colW, height: H * 0.78, fill: '#1A1612' });
@@ -109,6 +110,7 @@ function applyTemplate(fc, template, dims) {
     },
     'Detail': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      bg.id = genId(); fc.add(bg);
       const colW = (W - 2 * 40 - 2 * 8) / 3;
       ['The Bouquet', 'The Ring', 'The Veil'].forEach((cap, i) => {
         const x = 40 + i * (colW + 8);
@@ -123,10 +125,12 @@ function applyTemplate(fc, template, dims) {
     },
     'Navigation': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      bg.id = genId(); fc.add(bg);
       const rule = new Rect({ left: 40, top: 60, width: W - 80, height: 1, fill: GOLD_C });
       const issueLabel = new Textbox('I S S U E  0 1', { left: 40, top: 78, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 200, textAlign: 'center' });
       const rule2 = new Rect({ left: 40, top: 102, width: W - 80, height: 1, fill: 'rgba(201,168,76,0.3)' });
       const subtitle = new Textbox('The Bridal Edition', { left: 40, top: 118, width: W - 80, fontSize: 28, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', textAlign: 'center' });
+      [rule, issueLabel, rule2, subtitle].forEach(o => { o.id = genId(); fc.add(o); });
       // Contents entries as sample rows
       const entries = [
         '06  The Wedding Dress',
@@ -144,7 +148,6 @@ function applyTemplate(fc, template, dims) {
           divider.id = genId(); fc.add(divider);
         }
       });
-      [bg, rule, issueLabel, rule2, subtitle].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Venue': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#1A1B2E', selectable: false });
@@ -245,39 +248,9 @@ function applyTemplate(fc, template, dims) {
   const layoutFn = layouts[template.category] || defaultLayout;
   layoutFn();
 
-  // ── Adaptive scaling: fit reference-frame layout to actual page dims ────────
-  // Position scales non-uniformly (sx, sy) so the layout fills the page.
-  // Sizes scale uniformly by the smaller axis to preserve proportions
-  // (so text doesn't distort on landscape/square formats).
-  const sx = dims.w / TEMPLATE_REF_W;
-  const sy = dims.h / TEMPLATE_REF_H;
-  const sUniform = Math.min(sx, sy);
-
-  fc.getObjects().forEach(o => {
-    o.set({
-      left: (o.left || 0) * sx,
-      top:  (o.top  || 0) * sy,
-    });
-
-    if (o.type === 'textbox' || o.type === 'text' || o.type === 'i-text') {
-      if (o.fontSize) o.set('fontSize', o.fontSize * sUniform);
-      if (o.width)    o.set('width',    o.width * sx);
-    } else if (o.type === 'rect') {
-      if (o.width)  o.set('width',  o.width  * sx);
-      if (o.height) o.set('height', o.height * sy);
-    } else if (o.type === 'circle') {
-      if (o.radius) o.set('radius', o.radius * sUniform);
-    } else if (o.type === 'line') {
-      if (o.x1 != null) o.set('x1', o.x1 * sx);
-      if (o.x2 != null) o.set('x2', o.x2 * sx);
-      if (o.y1 != null) o.set('y1', o.y1 * sy);
-      if (o.y2 != null) o.set('y2', o.y2 * sy);
-    }
-
-    if (o.strokeWidth) o.set('strokeWidth', o.strokeWidth * sUniform);
-    o.setCoords();
-  });
-
+  // Templates are authored at A4 (794×1123) — the locked standard page size.
+  // No runtime scaling needed; objects render at their authored coordinates.
+  fc.getObjects().forEach(o => o.setCoords());
   fc.requestRenderAll();
 }
 

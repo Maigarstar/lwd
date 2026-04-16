@@ -219,28 +219,26 @@ export default function DesignerToolbar({
       {/* Right controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
 
-        {/* Page size + mm dimensions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <select
-            value={pageSize}
-            onChange={e => onPageSizeChange(e.target.value)}
+        {/* Page size — locked to A4 standard */}
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 5 }}
+          title="All pages are A4 (210×297mm) by design standard"
+        >
+          <span
             style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 3, color: '#fff',
-              fontFamily: NU, fontSize: 11,
-              padding: '3px 6px', outline: 'none', cursor: 'pointer',
+              background: 'rgba(201,169,110,0.08)',
+              border: '1px solid rgba(201,169,110,0.3)',
+              borderRadius: 3, color: '#C9A96E',
+              fontFamily: NU, fontSize: 11, fontWeight: 500,
+              padding: '3px 8px',
+              letterSpacing: '0.05em',
             }}
           >
-            {Object.entries(PAGE_SIZES).map(([key, val]) => (
-              <option key={key} value={key}>{val.label}</option>
-            ))}
-          </select>
-          {currentDims && (
-            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontFamily: "'Jost',sans-serif" }}>
-              {currentDims.mmW}×{currentDims.mmH}mm
-            </span>
-          )}
+            A4
+          </span>
+          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontFamily: "'Jost',sans-serif" }}>
+            210×297mm
+          </span>
         </div>
 
         {/* Page numbering popover */}
