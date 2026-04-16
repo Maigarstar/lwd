@@ -1,37 +1,59 @@
 // ─── src/pages/PublicationsReaderPage.jsx ────────────────────────────────────
-// Full-screen flipbook reader for a single published magazine issue.
+// Full-screen flipbook reader — Tier 1 Premium Reader
 // Route: /publications/[slug]
 //
-// Layout:
-//   Desktop: double-page spread (left + right pages side-by-side)
-//   Mobile:  single page, full-width
-//
-// Navigation: chevron buttons, keyboard ←/→ arrows, touch swipe
+// Features: zoom+pan, TOC panel, bookmarks, share, URL sync,
+//           reader mode (dark/sepia), cinematic intro, reading progress bar,
+//           enhanced page counter, keyboard shortcuts, pinch-to-zoom
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchIssueBySlug } from '../services/magazineIssuesService';
 import { fetchPages }       from '../services/magazinePageService';
 import { trackIssueView, trackPageTurn, trackDownload } from '../services/publicationsAnalyticsService';
 
+// ── Design tokens ──────────────────────────────────────────────────────────────
 const GOLD      = '#C9A84C';
 const GD        = "var(--font-heading-primary, 'Cormorant Garamond', Georgia, serif)";
 const NU        = "var(--font-body, 'Jost', sans-serif)";
-const BG        = '#080706';
+const BG_DARK   = '#080706';
+const BG_SEPIA  = '#16120C';
+const PAGE_DARK = '#0F0D0A';
+const PAGE_SEPIA= '#1E1810';
 const MUTED     = 'rgba(255,255,255,0.38)';
 const CTRL_BG   = 'rgba(0,0,0,0.55)';
 const CTRL_HOV  = 'rgba(201,168,76,0.18)';
+
+// ── Bookmark helpers ──────────────────────────────────────────────────────────
+function loadBookmarks(issueId) {
+  try {
+    const raw = localStorage.getItem(`lwd_bm_${issueId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+function saveBookmarks(issueId, bms) {
+  try { localStorage.setItem(`lwd_bm_${issueId}`, JSON.stringify(bms)); } catch {}
+}
+function toggleBookmark(issueId, pageNum, current) {
+  const updated = current.includes(pageNum)
+    ? current.filter(n => n !== pageNum)
+    : [...current, pageNum];
+  saveBookmarks(issueId, updated);
+  return updated;
+}
+
+// ── Touch distance helper ─────────────────────────────────────────────────────
+function getTouchDist(t0, t1) {
+  const dx = t0.clientX - t1.clientX;
+  const dy = t0.clientY - t1.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 
 // ── Loading spinner ───────────────────────────────────────────────────────────
 function Spinner() {
   return (
     <div style={{
-      display:        'flex',
-      flexDirection:  'column',
-      alignItems:     'center',
-      justifyContent: 'center',
-      height:         '100vh',
-      background:     BG,
-      gap:            20,
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', height: '100vh', background: BG_DARK, gap: 20,
     }}>
       <div style={{ fontSize: 32, opacity: 0.3, animation: 'spin 2s linear infinite' }}>◈</div>
       <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
@@ -46,33 +68,19 @@ function Spinner() {
 function ErrorScreen({ message, onBack }) {
   return (
     <div style={{
-      display:        'flex',
-      flexDirection:  'column',
-      alignItems:     'center',
-      justifyContent: 'center',
-      height:         '100vh',
-      background:     BG,
-      gap:            16,
-      padding:        24,
-      textAlign:      'center',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', height: '100vh', background: BG_DARK,
+      gap: 16, padding: 24, textAlign: 'center',
     }}>
       <span style={{ fontSize: 36, opacity: 0.25 }}>◈</span>
       <p style={{ fontFamily: NU, fontSize: 14, color: MUTED, maxWidth: 320 }}>{message}</p>
       <button
         onClick={onBack}
         style={{
-          fontFamily:    NU,
-          fontSize:      11,
-          fontWeight:    600,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-          color:         GOLD,
-          background:    'none',
-          border:        `1px solid ${GOLD}`,
-          padding:       '9px 20px',
-          borderRadius:  1,
-          cursor:        'pointer',
-          marginTop:     8,
+          fontFamily: NU, fontSize: 11, fontWeight: 600, letterSpacing: '0.1em',
+          textTransform: 'uppercase', color: GOLD, background: 'none',
+          border: `1px solid ${GOLD}`, padding: '9px 20px', borderRadius: 1,
+          cursor: 'pointer', marginTop: 8,
         }}
       >
         Back to Publications
@@ -81,41 +89,320 @@ function ErrorScreen({ message, onBack }) {
   );
 }
 
-// ── Top bar ───────────────────────────────────────────────────────────────────
-function TopBar({ issue, onBack, onDownload }) {
-  const [dlHover, setDlHover] = useState(false);
+// ── Cinematic intro overlay ───────────────────────────────────────────────────
+function IntroOverlay({ issue, onDismiss }) {
+  const [fading, setFading] = useState(false);
+  const coverUrl = issue.cover_image_url || issue.cover_url || null;
+
+  const dismiss = useCallback(() => {
+    if (fading) return;
+    setFading(true);
+    setTimeout(() => onDismiss(), 500);
+  }, [fading, onDismiss]);
+
+  useEffect(() => {
+    const onKey = () => dismiss();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dismiss]);
+
   return (
     <div style={{
-      position:       'fixed',
-      top:            0,
-      left:           0,
-      right:          0,
-      zIndex:         100,
-      height:         52,
-      background:     'linear-gradient(to bottom, rgba(8,7,6,0.96) 0%, rgba(8,7,6,0) 100%)',
-      display:        'flex',
-      alignItems:     'center',
-      padding:        '0 20px',
-      gap:            16,
+      position: 'fixed', inset: 0, zIndex: 500,
+      background: '#030201',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column',
+      opacity: fading ? 0 : 1,
+      transition: 'opacity 0.5s ease',
     }}>
-      {/* Back button */}
+      {/* Blurred backdrop */}
+      {coverUrl && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `url(${coverUrl})`,
+          backgroundSize: 'cover', backgroundPosition: 'center',
+          filter: 'blur(40px) brightness(0.25)',
+        }} />
+      )}
+      {/* Foreground */}
+      <div style={{
+        position: 'relative', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', gap: 24,
+      }}>
+        {coverUrl && (
+          <img
+            src={coverUrl}
+            alt={issue.title}
+            style={{
+              maxHeight: '65vh',
+              maxWidth: 'min(85vw, 380px)',
+              objectFit: 'contain',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.8)',
+              animation: 'introReveal 0.9s ease forwards',
+            }}
+          />
+        )}
+        <style>{`
+          @keyframes introReveal {
+            from { opacity: 0; transform: scale(1.04); }
+            to   { opacity: 1; transform: scale(1); }
+          }
+        `}</style>
+        <div style={{
+          fontFamily: NU, fontSize: 9, color: GOLD,
+          letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 20,
+          textAlign: 'center',
+        }}>
+          {[issue.issue_number && `Issue ${issue.issue_number}`, issue.season, issue.year]
+            .filter(Boolean).join(' · ')}
+        </div>
+        <div style={{
+          fontFamily: GD, fontStyle: 'italic', fontSize: 28,
+          color: '#F0EBE0', textAlign: 'center', maxWidth: 340,
+          padding: '0 16px',
+        }}>
+          {issue.title || 'Untitled Issue'}
+        </div>
+        <button
+          onClick={dismiss}
+          style={{
+            fontFamily: NU, fontSize: 10, fontWeight: 600,
+            letterSpacing: '0.14em', textTransform: 'uppercase',
+            color: GOLD, background: 'transparent',
+            border: `1px solid ${GOLD}`,
+            padding: '11px 32px', borderRadius: 1, cursor: 'pointer',
+            marginTop: 8,
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(201,168,76,0.12)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        >
+          Open Issue →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Reading progress bar ──────────────────────────────────────────────────────
+function ProgressBar({ currentPage, totalPages }) {
+  const pct = totalPages > 0 ? (currentPage / totalPages) * 100 : 0;
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0,
+      zIndex: 200, height: 3, background: 'rgba(255,255,255,0.06)',
+    }}>
+      <div style={{
+        height: '100%',
+        width: `${pct}%`,
+        background: GOLD,
+        transition: 'width 0.3s ease',
+      }} />
+    </div>
+  );
+}
+
+// ── Toast notification ────────────────────────────────────────────────────────
+function Toast({ message, visible }) {
+  return (
+    <div style={{
+      position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 300,
+      background: 'rgba(201,168,76,0.15)',
+      border: '1px solid rgba(201,168,76,0.4)',
+      color: GOLD,
+      padding: '8px 20px', borderRadius: 20,
+      fontFamily: NU, fontSize: 11,
+      letterSpacing: '0.06em',
+      opacity: visible ? 1 : 0,
+      transition: 'opacity 0.3s ease',
+      pointerEvents: 'none',
+      whiteSpace: 'nowrap',
+    }}>
+      {message}
+    </div>
+  );
+}
+
+// ── TOC Panel ────────────────────────────────────────────────────────────────
+function TOCPanel({ open, onClose, pages, currentPage, onJump, bookmarks, onToggleBookmark }) {
+  const listRef  = useRef(null);
+  const activeRef = useRef(null);
+
+  // Auto-scroll to current page
+  useEffect(() => {
+    if (open && activeRef.current && listRef.current) {
+      activeRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [open, currentPage]);
+
+  return (
+    <>
+      {/* Backdrop */}
+      {open && (
+        <div
+          onClick={onClose}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 190,
+            background: 'rgba(0,0,0,0.4)',
+          }}
+        />
+      )}
+      {/* Panel */}
+      <div style={{
+        position: 'fixed', top: 0, left: 0, bottom: 0,
+        width: 280, zIndex: 195,
+        background: 'rgba(8,7,6,0.97)',
+        backdropFilter: 'blur(12px)',
+        borderRight: '1px solid rgba(255,255,255,0.08)',
+        display: 'flex', flexDirection: 'column',
+        transform: open ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.28s ease',
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '18px 16px 14px',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
+          flexShrink: 0,
+        }}>
+          <span style={{
+            fontFamily: NU, fontSize: 10, fontWeight: 700,
+            color: GOLD, letterSpacing: '0.18em', textTransform: 'uppercase',
+          }}>
+            Contents
+          </span>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none', border: 'none', color: MUTED,
+              cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 4,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+        {/* List */}
+        <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+          {pages.map(p => {
+            const isCurrent = p.page_number === currentPage;
+            const isBookmarked = bookmarks.includes(p.page_number);
+            const thumbSrc = p.thumbnail_url || p.image_url || null;
+            return (
+              <div
+                key={p.page_number}
+                ref={isCurrent ? activeRef : null}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '6px 12px 6px 0',
+                  borderLeft: isCurrent ? `3px solid ${GOLD}` : '3px solid transparent',
+                  paddingLeft: isCurrent ? 13 : 16,
+                  cursor: 'pointer',
+                  background: isCurrent ? 'rgba(201,168,76,0.06)' : 'transparent',
+                  transition: 'background 0.15s',
+                }}
+                onClick={() => { onJump(p.page_number); onClose(); }}
+                onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
+              >
+                {/* Thumbnail */}
+                <div style={{
+                  width: 48, height: 68, flexShrink: 0,
+                  background: PAGE_DARK, borderRadius: 1, overflow: 'hidden',
+                  border: `1px solid ${isCurrent ? 'rgba(201,168,76,0.4)' : 'rgba(255,255,255,0.07)'}`,
+                }}>
+                  {thumbSrc
+                    ? <img src={thumbSrc} alt={`p${p.page_number}`}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    : <div style={{
+                        width: '100%', height: '100%', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center',
+                        fontFamily: NU, fontSize: 9, color: MUTED,
+                      }}>{p.page_number}</div>
+                  }
+                </div>
+                {/* Page number */}
+                <span style={{
+                  fontFamily: NU, fontSize: 10,
+                  color: isCurrent ? 'rgba(255,255,255,0.85)' : MUTED,
+                  flex: 1,
+                  letterSpacing: '0.04em',
+                }}>
+                  Page {p.page_number}
+                </span>
+                {/* Bookmark toggle */}
+                <button
+                  onClick={e => { e.stopPropagation(); onToggleBookmark(p.page_number); }}
+                  title={isBookmarked ? 'Remove bookmark' : 'Bookmark this page'}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: isBookmarked ? GOLD : 'rgba(255,255,255,0.25)',
+                    fontSize: 13, padding: '4px 8px', flexShrink: 0,
+                    transition: 'color 0.15s',
+                  }}
+                >
+                  {isBookmarked ? '✦' : '◇'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Top bar ───────────────────────────────────────────────────────────────────
+function TopBar({
+  issue, onBack, onDownload,
+  showTOC, onToggleTOC,
+  bookmarked, onToggleBookmark,
+  onShare,
+  readerMode, onToggleMode,
+}) {
+  const btnStyle = {
+    background:    CTRL_BG,
+    border:        '1px solid rgba(255,255,255,0.1)',
+    borderRadius:  2,
+    padding:       '6px 12px',
+    color:         'rgba(255,255,255,0.6)',
+    fontFamily:    NU,
+    fontSize:      9,
+    fontWeight:    600,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    cursor:        'pointer',
+    flexShrink:    0,
+    transition:    'all 0.15s',
+    display:       'flex',
+    alignItems:    'center',
+    gap:           5,
+    whiteSpace:    'nowrap',
+  };
+
+  return (
+    <div style={{
+      position:   'fixed',
+      top:        3, // below 3px progress bar
+      left:       0,
+      right:      0,
+      zIndex:     100,
+      height:     52,
+      background: 'linear-gradient(to bottom, rgba(8,7,6,0.96) 0%, rgba(8,7,6,0) 100%)',
+      display:    'flex',
+      alignItems: 'center',
+      padding:    '0 20px',
+      gap:        10,
+    }}>
+      {/* Back */}
       <button
         onClick={onBack}
         title="Back to publications"
         style={{
-          background:    CTRL_BG,
-          border:        '1px solid rgba(255,255,255,0.1)',
-          borderRadius:  2,
-          color:         'rgba(255,255,255,0.7)',
-          width:         36,
-          height:        36,
-          display:       'flex',
-          alignItems:    'center',
-          justifyContent:'center',
-          cursor:        'pointer',
-          flexShrink:    0,
-          fontSize:      16,
-          transition:    'background 0.15s',
+          ...btnStyle,
+          width: 36, height: 36, padding: 0,
+          justifyContent: 'center',
+          borderRadius: '50%',
+          fontSize: 16,
         }}
       >
         ←
@@ -124,69 +411,82 @@ function TopBar({ issue, onBack, onDownload }) {
       {/* Issue info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontFamily:    NU,
-          fontSize:      9,
-          fontWeight:    600,
-          color:         GOLD,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
-          marginBottom:  2,
+          fontFamily: NU, fontSize: 9, fontWeight: 600, color: GOLD,
+          letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2,
         }}>
           {[issue.issue_number && `Issue ${issue.issue_number}`, issue.season, issue.year]
             .filter(Boolean).join(' · ')}
         </div>
         <div style={{
-          fontFamily:  GD,
-          fontSize:    16,
-          fontWeight:  400,
-          color:       '#fff',
-          whiteSpace:  'nowrap',
-          overflow:    'hidden',
-          textOverflow:'ellipsis',
+          fontFamily: GD, fontSize: 16, fontWeight: 400, color: '#fff',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
           {issue.title || 'Untitled Issue'}
         </div>
       </div>
 
-      {/* LWD logotype */}
-      <div style={{
-        fontFamily:    GD,
-        fontSize:      14,
-        fontWeight:    400,
-        fontStyle:     'italic',
-        color:         GOLD,
-        letterSpacing: '0.04em',
-        flexShrink:    0,
-        display:       'none',
-      }}
+      {/* TOC toggle */}
+      <button
+        onClick={onToggleTOC}
+        style={{
+          ...btnStyle,
+          color: showTOC ? GOLD : 'rgba(255,255,255,0.6)',
+          border: showTOC ? `1px solid rgba(201,168,76,0.45)` : '1px solid rgba(255,255,255,0.1)',
+        }}
+      >
+        ☰ Contents
+      </button>
+
+      {/* Bookmark current page */}
+      <button
+        onClick={onToggleBookmark}
+        style={{
+          ...btnStyle,
+          color: bookmarked ? GOLD : 'rgba(255,255,255,0.6)',
+          border: bookmarked ? `1px solid rgba(201,168,76,0.45)` : '1px solid rgba(255,255,255,0.1)',
+        }}
+        title={bookmarked ? 'Remove bookmark' : 'Bookmark this page'}
+      >
+        {bookmarked ? '✦ Saved' : '◇ Save'}
+      </button>
+
+      {/* Share (desktop) */}
+      <button
+        onClick={onShare}
+        style={{ ...btnStyle, display: 'none' }}
+        className="pub-reader-share"
+        title="Copy share link"
+      >
+        ↗ Share
+      </button>
+
+      {/* Reader mode (desktop) */}
+      <button
+        onClick={onToggleMode}
+        style={{ ...btnStyle, display: 'none' }}
+        className="pub-reader-mode"
+        title="Toggle reader mode"
+      >
+        {readerMode === 'dark' ? '◐ Sepia' : '◑ Dark'}
+      </button>
+
+      {/* LWD brand (desktop) */}
+      <div
+        style={{
+          fontFamily: GD, fontSize: 14, fontWeight: 400, fontStyle: 'italic',
+          color: GOLD, letterSpacing: '0.04em', flexShrink: 0, display: 'none',
+        }}
         className="pub-reader-brand"
       >
         LWD
       </div>
 
-      {/* PDF download button (only if issue has a PDF) */}
+      {/* PDF download (desktop) */}
       {issue.pdf_url && onDownload && (
         <button
           onClick={onDownload}
-          onMouseEnter={() => setDlHover(true)}
-          onMouseLeave={() => setDlHover(false)}
           title="Download PDF"
-          style={{
-            background:    dlHover ? 'rgba(201,168,76,0.15)' : CTRL_BG,
-            border:        `1px solid ${dlHover ? 'rgba(201,168,76,0.5)' : 'rgba(255,255,255,0.1)'}`,
-            borderRadius:  2,
-            color:         dlHover ? GOLD : 'rgba(255,255,255,0.6)',
-            fontFamily:    NU,
-            fontSize:      9,
-            fontWeight:    600,
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            padding:       '7px 14px',
-            cursor:        'pointer',
-            flexShrink:    0,
-            transition:    'all 0.15s',
-            display:       'none',
-          }}
+          style={{ ...btnStyle, display: 'none' }}
           className="pub-reader-dl"
         >
           ↓ PDF
@@ -195,8 +495,10 @@ function TopBar({ issue, onBack, onDownload }) {
 
       <style>{`
         @media (min-width: 640px) {
-          .pub-reader-brand { display: block !important; }
-          .pub-reader-dl    { display: block !important; }
+          .pub-reader-brand  { display: block !important; }
+          .pub-reader-dl     { display: flex !important; }
+          .pub-reader-share  { display: flex !important; }
+          .pub-reader-mode   { display: flex !important; }
         }
       `}</style>
     </div>
@@ -204,36 +506,17 @@ function TopBar({ issue, onBack, onDownload }) {
 }
 
 // ── Page image ────────────────────────────────────────────────────────────────
-function PageImage({ page, side }) {
+function PageImage({ page, side, pageBg }) {
   const [loaded, setLoaded] = useState(false);
-
   if (!page) {
-    // Blank page (e.g. even spread when there's no matching partner)
-    return (
-      <div style={{
-        flex:       1,
-        background: '#0F0D0A',
-        border:     side === 'left'
-          ? '1px solid rgba(255,255,255,0.04)'
-          : '1px solid rgba(255,255,255,0.04)',
-      }} />
-    );
+    return <div style={{ flex: 1, background: pageBg, border: '1px solid rgba(255,255,255,0.04)' }} />;
   }
-
   return (
-    <div style={{
-      flex:       1,
-      position:   'relative',
-      background: '#0F0D0A',
-      overflow:   'hidden',
-    }}>
+    <div style={{ flex: 1, position: 'relative', background: pageBg, overflow: 'hidden' }}>
       {!loaded && (
         <div style={{
-          position:       'absolute',
-          inset:          0,
-          display:        'flex',
-          alignItems:     'center',
-          justifyContent: 'center',
+          position: 'absolute', inset: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <span style={{ fontSize: 20, opacity: 0.15 }}>◈</span>
         </div>
@@ -242,13 +525,12 @@ function PageImage({ page, side }) {
         src={page.image_url}
         alt={`Page ${page.page_number}`}
         onLoad={() => setLoaded(true)}
+        draggable={false}
         style={{
-          width:      '100%',
-          height:     '100%',
-          objectFit:  'contain',
-          display:    'block',
-          opacity:    loaded ? 1 : 0,
-          transition: 'opacity 0.25s',
+          width: '100%', height: '100%', objectFit: 'contain',
+          display: 'block',
+          opacity: loaded ? 1 : 0, transition: 'opacity 0.25s',
+          userSelect: 'none', pointerEvents: 'none',
         }}
       />
     </div>
@@ -265,24 +547,16 @@ function NavButton({ direction, onClick, disabled }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        position:       'absolute',
-        top:            '50%',
-        transform:      'translateY(-50%)',
+        position: 'absolute', top: '50%', transform: 'translateY(-50%)',
         [direction === 'prev' ? 'left' : 'right']: 16,
-        zIndex:         50,
-        width:          48,
-        height:         48,
-        borderRadius:   '50%',
-        background:     hovered ? CTRL_HOV : CTRL_BG,
-        border:         `1px solid ${hovered ? 'rgba(201,168,76,0.45)' : 'rgba(255,255,255,0.1)'}`,
-        color:          disabled ? 'rgba(255,255,255,0.15)' : (hovered ? GOLD : 'rgba(255,255,255,0.7)'),
-        display:        'flex',
-        alignItems:     'center',
-        justifyContent: 'center',
-        cursor:         disabled ? 'default' : 'pointer',
-        fontSize:       20,
-        transition:     'all 0.15s',
-        userSelect:     'none',
+        zIndex: 50,
+        width: 48, height: 48, borderRadius: '50%',
+        background: hovered ? CTRL_HOV : CTRL_BG,
+        border: `1px solid ${hovered ? 'rgba(201,168,76,0.45)' : 'rgba(255,255,255,0.1)'}`,
+        color: disabled ? 'rgba(255,255,255,0.15)' : (hovered ? GOLD : 'rgba(255,255,255,0.7)'),
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: disabled ? 'default' : 'pointer',
+        fontSize: 20, transition: 'all 0.15s', userSelect: 'none',
       }}
     >
       {direction === 'prev' ? '‹' : '›'}
@@ -291,43 +565,34 @@ function NavButton({ direction, onClick, disabled }) {
 }
 
 // ── Page counter ──────────────────────────────────────────────────────────────
-function PageCounter({ currentPage, totalPages, isDouble, onJump }) {
+function PageCounter({ currentPage, totalPages, isDouble, bookmarks }) {
   const end = isDouble ? Math.min(currentPage + 1, totalPages) : currentPage;
-  const label = isDouble && end > currentPage
-    ? `${currentPage} – ${end}`
-    : `${currentPage}`;
+  const pct = totalPages > 0 ? Math.round((currentPage / totalPages) * 100) : 0;
+  const isBookmarked = bookmarks.includes(currentPage);
 
   return (
     <div style={{
-      position:       'fixed',
-      bottom:         20,
-      left:           '50%',
-      transform:      'translateX(-50%)',
-      zIndex:         100,
-      background:     CTRL_BG,
-      border:         '1px solid rgba(255,255,255,0.1)',
-      borderRadius:   20,
-      padding:        '6px 18px',
-      display:        'flex',
-      alignItems:     'center',
-      gap:            8,
+      position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 100,
+      background: CTRL_BG,
+      border: '1px solid rgba(255,255,255,0.1)',
+      borderRadius: 20,
+      padding: '6px 18px',
+      display: 'flex', alignItems: 'center', gap: 8,
     }}>
-      <span style={{
-        fontFamily: NU,
-        fontSize:   11,
-        color:      'rgba(255,255,255,0.7)',
-        letterSpacing: '0.04em',
-      }}>
-        {label}
+      {isBookmarked && (
+        <span style={{ color: GOLD, fontSize: 10, marginRight: 2 }}>✦</span>
+      )}
+      <span style={{ fontFamily: NU, fontSize: 11, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.04em' }}>
+        Page {isDouble && end > currentPage ? `${currentPage} – ${end}` : currentPage}
       </span>
       <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>/</span>
-      <span style={{
-        fontFamily: NU,
-        fontSize:   11,
-        color:      MUTED,
-        letterSpacing: '0.04em',
-      }}>
+      <span style={{ fontFamily: NU, fontSize: 11, color: MUTED, letterSpacing: '0.04em' }}>
         {totalPages}
+      </span>
+      <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>·</span>
+      <span style={{ fontFamily: NU, fontSize: 11, color: MUTED, letterSpacing: '0.04em' }}>
+        {pct}%
       </span>
     </div>
   );
@@ -336,50 +601,27 @@ function PageCounter({ currentPage, totalPages, isDouble, onJump }) {
 // ── Thumbnail strip ───────────────────────────────────────────────────────────
 function ThumbnailStrip({ pages, currentPage, onJump, isDesktop }) {
   const [open, setOpen] = useState(false);
-
   if (!isDesktop) return null;
-
   return (
     <>
-      {/* Toggle button */}
       <button
         onClick={() => setOpen(o => !o)}
         style={{
-          position:    'fixed',
-          bottom:      20,
-          right:       20,
-          zIndex:      110,
-          background:  CTRL_BG,
-          border:      '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 2,
-          color:       open ? GOLD : 'rgba(255,255,255,0.6)',
-          fontFamily:  NU,
-          fontSize:    9,
-          fontWeight:  600,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-          padding:     '7px 14px',
-          cursor:      'pointer',
-          transition:  'color 0.15s',
+          position: 'fixed', bottom: 20, right: 20, zIndex: 110,
+          background: CTRL_BG, border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 2, color: open ? GOLD : 'rgba(255,255,255,0.6)',
+          fontFamily: NU, fontSize: 9, fontWeight: 600,
+          letterSpacing: '0.1em', textTransform: 'uppercase',
+          padding: '7px 14px', cursor: 'pointer', transition: 'color 0.15s',
         }}
       >
         {open ? '✕ Close' : '⊞ Pages'}
       </button>
-
-      {/* Strip */}
       {open && (
         <div style={{
-          position:   'fixed',
-          bottom:     60,
-          left:       0,
-          right:      0,
-          zIndex:     105,
-          background: 'rgba(8,7,6,0.96)',
-          borderTop:  '1px solid rgba(255,255,255,0.08)',
-          padding:    '12px 20px',
-          display:    'flex',
-          gap:        8,
-          overflowX:  'auto',
+          position: 'fixed', bottom: 60, left: 0, right: 0, zIndex: 105,
+          background: 'rgba(8,7,6,0.96)', borderTop: '1px solid rgba(255,255,255,0.08)',
+          padding: '12px 20px', display: 'flex', gap: 8, overflowX: 'auto',
         }}>
           {pages.map(p => (
             <button
@@ -387,50 +629,25 @@ function ThumbnailStrip({ pages, currentPage, onJump, isDesktop }) {
               onClick={() => { onJump(p.page_number); setOpen(false); }}
               title={`Page ${p.page_number}`}
               style={{
-                flexShrink:  0,
-                width:       52,
-                height:      74, // A4 ≈ 1.414
-                background:  '#1A1612',
-                border:      `1px solid ${p.page_number === currentPage ? GOLD : 'rgba(255,255,255,0.08)'}`,
-                borderRadius: 1,
-                overflow:    'hidden',
-                cursor:      'pointer',
-                padding:     0,
-                position:    'relative',
+                flexShrink: 0, width: 52, height: 74, background: '#1A1612',
+                border: `1px solid ${p.page_number === currentPage ? GOLD : 'rgba(255,255,255,0.08)'}`,
+                borderRadius: 1, overflow: 'hidden', cursor: 'pointer',
+                padding: 0, position: 'relative',
               }}
             >
-              {p.thumbnail_url ? (
-                <img
-                  src={p.thumbnail_url}
-                  alt={`p${p.page_number}`}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                />
-              ) : (
-                <div style={{
-                  width:      '100%',
-                  height:     '100%',
-                  display:    'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: NU,
-                  fontSize:   9,
-                  color:      MUTED,
-                }}>
-                  {p.page_number}
-                </div>
-              )}
-              {/* Page number label */}
+              {p.thumbnail_url
+                ? <img src={p.thumbnail_url} alt={`p${p.page_number}`}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                : <div style={{
+                    width: '100%', height: '100%', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    fontFamily: NU, fontSize: 9, color: MUTED,
+                  }}>{p.page_number}</div>
+              }
               <div style={{
-                position:  'absolute',
-                bottom:    0,
-                left:      0,
-                right:     0,
-                background:'rgba(0,0,0,0.7)',
-                textAlign: 'center',
-                fontFamily: NU,
-                fontSize:  8,
-                color:     'rgba(255,255,255,0.6)',
-                padding:   '2px 0',
+                position: 'absolute', bottom: 0, left: 0, right: 0,
+                background: 'rgba(0,0,0,0.7)', textAlign: 'center',
+                fontFamily: NU, fontSize: 8, color: 'rgba(255,255,255,0.6)', padding: '2px 0',
               }}>
                 {p.page_number}
               </div>
@@ -442,6 +659,30 @@ function ThumbnailStrip({ pages, currentPage, onJump, isDesktop }) {
   );
 }
 
+// ── Zoom reset pill ───────────────────────────────────────────────────────────
+function ZoomPill({ zoom, onReset }) {
+  if (zoom === 1) return null;
+  return (
+    <button
+      onClick={onReset}
+      style={{
+        position: 'fixed', bottom: 20, left: 20, zIndex: 110,
+        background: CTRL_BG, border: '1px solid rgba(255,255,255,0.15)',
+        borderRadius: 20, padding: '6px 14px',
+        color: 'rgba(255,255,255,0.75)', fontFamily: NU, fontSize: 10,
+        fontWeight: 600, letterSpacing: '0.08em', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s',
+      }}
+      onMouseEnter={e => e.currentTarget.style.background = CTRL_HOV}
+      onMouseLeave={e => e.currentTarget.style.background = CTRL_BG}
+    >
+      {Math.round(zoom * 100)}%
+      <span style={{ opacity: 0.5 }}>·</span>
+      <span style={{ opacity: 0.7 }}>✕ Reset</span>
+    </button>
+  );
+}
+
 // ── Main reader component ─────────────────────────────────────────────────────
 export default function PublicationsReaderPage({ slug, onBack }) {
   const [issue,   setIssue]   = useState(null);
@@ -449,32 +690,54 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
 
-  // currentPage is 1-based; refers to the left page of a spread on desktop
   const [currentPage, setCurrentPage] = useState(1);
   const [isDesktop,   setIsDesktop]   = useState(() => window.innerWidth >= 900);
 
-  // Touch tracking refs
-  const touchStartX  = useRef(null);
-  const touchStartY  = useRef(null);
-  // Analytics: track when current page was entered (for dwell time)
+  // ── Tier 1 state ─────────────────────────────────────────────────────────────
+  const [zoom,      setZoom]      = useState(1);
+  const [panX,      setPanX]      = useState(0);
+  const [panY,      setPanY]      = useState(0);
+  const [readerMode,setReaderMode]= useState('dark');
+  const [showTOC,   setShowTOC]   = useState(false);
+  const [bookmarks, setBookmarks] = useState([]);
+  const [showIntro, setShowIntro] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastTimer = useRef(null);
+
+  // Drag-to-pan refs
+  const dragging       = useRef(false);
+  const dragStartX     = useRef(0);
+  const dragStartY     = useRef(0);
+  const dragPanStartX  = useRef(0);
+  const dragPanStartY  = useRef(0);
+
+  // Pinch refs
+  const pinchActive   = useRef(false);
+  const initialDist   = useRef(0);
+  const initialZoom   = useRef(1);
+  const touchStartX   = useRef(null);
+  const touchStartY   = useRef(null);
+
+  // Analytics
   const pageEnteredAt = useRef(null);
   const prevPageRef   = useRef(null);
 
-  // ── Responsive ─────────────────────────────────────────────────────────────
+  // Derived
+  const BG       = readerMode === 'dark' ? BG_DARK   : BG_SEPIA;
+  const PAGE_BG  = readerMode === 'dark' ? PAGE_DARK : PAGE_SEPIA;
+
+  // ── Responsive ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const onResize = () => setIsDesktop(window.innerWidth >= 900);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // ── Load data ───────────────────────────────────────────────────────────────
+  // ── Load data ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!slug) return;
     let cancelled = false;
-
-    setLoading(true);
-    setError(null);
-    setCurrentPage(1);
+    setLoading(true); setError(null); setCurrentPage(1);
 
     (async () => {
       const { data: issueData, error: issErr } = await fetchIssueBySlug(slug);
@@ -491,191 +754,344 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       setPages(pagesData || []);
       setLoading(false);
 
-      // Track issue view (fire-and-forget)
-      trackIssueView(
-        issueData.id,
-        window.innerWidth >= 900 ? 'spread' : 'single',
-      );
+      // Load bookmarks
+      setBookmarks(loadBookmarks(issueData.id));
+
+      // Cinematic intro
+      const introKey = `lwd_intro_${issueData.id}`;
+      if (!sessionStorage.getItem(introKey)) {
+        setShowIntro(true);
+      }
+
+      // URL sync: read page param
+      const sp = new URLSearchParams(window.location.search);
+      const pageParam = sp.get('page');
+      if (pageParam) {
+        const n = parseInt(pageParam, 10);
+        if (!isNaN(n) && n >= 1) {
+          setCurrentPage(Math.min(n, (pagesData || []).length));
+        }
+      }
+
+      trackIssueView(issueData.id, window.innerWidth >= 900 ? 'spread' : 'single');
       pageEnteredAt.current = Date.now();
-      prevPageRef.current   = 1;
+      prevPageRef.current = 1;
     })();
 
     return () => { cancelled = true; };
   }, [slug]);
 
-  // ── Navigation helpers ──────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────────
   const totalPages = pages.length;
-
-  /**
-   * On desktop, step is 2 (spread); on mobile, step is 1.
-   * Page 1 is always shown alone.
-   */
   const step = isDesktop ? 2 : 1;
-
   const canPrev = currentPage > 1;
   const canNext = currentPage + (isDesktop ? 1 : 0) < totalPages;
 
-  // Analytics helper: fire page_turn + dwell when navigating
+  const resetZoom = useCallback(() => {
+    setZoom(1); setPanX(0); setPanY(0);
+  }, []);
+
   const firePageTurn = useCallback((newPage) => {
     if (!issue) return;
-    const now      = Date.now();
-    const dwell    = pageEnteredAt.current ? now - pageEnteredAt.current : 0;
-    const prev     = prevPageRef.current;
-    const mode     = isDesktop ? 'spread' : 'single';
-    trackPageTurn(issue.id, newPage, mode, dwell, prev);
+    const now   = Date.now();
+    const dwell = pageEnteredAt.current ? now - pageEnteredAt.current : 0;
+    const prev  = prevPageRef.current;
+    trackPageTurn(issue.id, newPage, isDesktop ? 'spread' : 'single', dwell, prev);
     pageEnteredAt.current = now;
     prevPageRef.current   = newPage;
   }, [issue, isDesktop]);
-
-  const goPrev = useCallback(() => {
-    if (!canPrev) return;
-    setCurrentPage(p => {
-      const next = Math.max(1, p - step);
-      firePageTurn(next);
-      return next;
-    });
-  }, [canPrev, step, firePageTurn]);
-
-  const goNext = useCallback(() => {
-    if (!canNext) return;
-    setCurrentPage(p => {
-      const next = Math.min(totalPages, p + step);
-      firePageTurn(next);
-      return next;
-    });
-  }, [canNext, step, totalPages, firePageTurn]);
 
   const goToPage = useCallback((n) => {
     const clamped = Math.max(1, Math.min(totalPages, n));
     firePageTurn(clamped);
     setCurrentPage(clamped);
-  }, [totalPages, firePageTurn]);
+    resetZoom();
+    // URL sync
+    if (slug) {
+      window.history.replaceState({}, '', `/publications/${slug}?page=${clamped}`);
+    }
+  }, [totalPages, firePageTurn, resetZoom, slug]);
 
-  // ── Keyboard navigation ─────────────────────────────────────────────────────
+  const goPrev = useCallback(() => {
+    if (!canPrev) return;
+    const next = Math.max(1, currentPage - step);
+    goToPage(next);
+  }, [canPrev, currentPage, step, goToPage]);
+
+  const goNext = useCallback(() => {
+    if (!canNext) return;
+    const next = Math.min(totalPages, currentPage + step);
+    goToPage(next);
+  }, [canNext, currentPage, step, totalPages, goToPage]);
+
+  // ── URL sync on page change ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!slug || !issue) return;
+    window.history.replaceState({}, '', `/publications/${slug}?page=${currentPage}`);
+  }, [currentPage, slug, issue]);
+
+  // ── Keyboard shortcuts ───────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e) => {
+      // Don't intercept when typing in inputs
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
       if (e.key === 'ArrowRight') goNext();
       if (e.key === 'ArrowLeft')  goPrev();
       if (e.key === 'Escape')     onBack?.();
+      if (e.key === 'b' || e.key === 'B') {
+        if (issue) {
+          setBookmarks(bms => toggleBookmark(issue.id, currentPage, bms));
+        }
+      }
+      if (e.key === 't' || e.key === 'T') setShowTOC(o => !o);
+      if (e.key === 'z' || e.key === 'Z') resetZoom();
+      if (e.key === 'm' || e.key === 'M') setReaderMode(m => m === 'dark' ? 'sepia' : 'dark');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [goNext, goPrev, onBack]);
+  }, [goNext, goPrev, onBack, issue, currentPage, resetZoom]);
 
-  // ── Touch/swipe ─────────────────────────────────────────────────────────────
-  const onTouchStart = (e) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-  };
+  // ── Wheel zoom ───────────────────────────────────────────────────────────────
+  const onWheel = useCallback((e) => {
+    e.preventDefault();
+    setZoom(z => Math.max(0.75, Math.min(3.5, z + e.deltaY * -0.001)));
+  }, []);
 
-  const onTouchEnd = (e) => {
+  // ── Mouse drag-to-pan ────────────────────────────────────────────────────────
+  const onMouseDown = useCallback((e) => {
+    if (zoom <= 1) return;
+    dragging.current    = true;
+    dragStartX.current  = e.clientX;
+    dragStartY.current  = e.clientY;
+    dragPanStartX.current = panX;
+    dragPanStartY.current = panY;
+    e.preventDefault();
+  }, [zoom, panX, panY]);
+
+  const onMouseMove = useCallback((e) => {
+    if (!dragging.current) return;
+    const dx = e.clientX - dragStartX.current;
+    const dy = e.clientY - dragStartY.current;
+    setPanX(dragPanStartX.current + dx);
+    setPanY(dragPanStartY.current + dy);
+  }, []);
+
+  const onMouseUp = useCallback(() => { dragging.current = false; }, []);
+
+  // ── Double-click zoom toggle ─────────────────────────────────────────────────
+  const onDoubleClick = useCallback(() => {
+    if (zoom !== 1) {
+      resetZoom();
+    } else {
+      setZoom(2);
+    }
+  }, [zoom, resetZoom]);
+
+  // ── Touch handlers ───────────────────────────────────────────────────────────
+  const onTouchStart = useCallback((e) => {
+    if (e.touches.length === 2) {
+      pinchActive.current  = true;
+      initialDist.current  = getTouchDist(e.touches[0], e.touches[1]);
+      initialZoom.current  = zoom;
+    } else if (e.touches.length === 1) {
+      touchStartX.current = e.touches[0].clientX;
+      touchStartY.current = e.touches[0].clientY;
+    }
+  }, [zoom]);
+
+  const onTouchMove = useCallback((e) => {
+    if (pinchActive.current && e.touches.length === 2) {
+      e.preventDefault();
+      const newDist = getTouchDist(e.touches[0], e.touches[1]);
+      const newZoom = Math.max(0.75, Math.min(3.5, initialZoom.current * (newDist / initialDist.current)));
+      setZoom(newZoom);
+    } else if (e.touches.length === 1 && zoom > 1) {
+      // pan
+      const dx = e.touches[0].clientX - (touchStartX.current || e.touches[0].clientX);
+      const dy = e.touches[0].clientY - (touchStartY.current || e.touches[0].clientY);
+      setPanX(p => p + dx);
+      setPanY(p => p + dy);
+      touchStartX.current = e.touches[0].clientX;
+      touchStartY.current = e.touches[0].clientY;
+    }
+  }, [zoom]);
+
+  const onTouchEnd = useCallback((e) => {
+    if (pinchActive.current) {
+      pinchActive.current = false;
+      return;
+    }
+    if (zoom > 1) return; // was panning, not swiping
     if (touchStartX.current === null) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
-    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    const dy = e.changedTouches[0].clientY - (touchStartY.current || 0);
     touchStartX.current = null;
     touchStartY.current = null;
-    // Only count horizontal swipes (dx > dy threshold)
     if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
-    if (dx < 0) goNext(); // swipe left → next
-    else        goPrev(); // swipe right → prev
-  };
+    if (dx < 0) goNext();
+    else        goPrev();
+  }, [zoom, goNext, goPrev]);
 
-  // ── PDF download ───────────────────────────────────────────────────────────
+  // ── Share ─────────────────────────────────────────────────────────────────────
+  const handleShare = useCallback(() => {
+    if (!slug) return;
+    const url = `${window.location.origin}/publications/${slug}?page=${currentPage}`;
+    navigator.clipboard.writeText(url).catch(() => {});
+    setToastVisible(true);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToastVisible(false), 2500);
+  }, [slug, currentPage]);
+
+  // ── Bookmark current page ────────────────────────────────────────────────────
+  const handleToggleBookmarkCurrent = useCallback(() => {
+    if (!issue) return;
+    setBookmarks(bms => toggleBookmark(issue.id, currentPage, bms));
+  }, [issue, currentPage]);
+
+  const handleToggleBookmarkPage = useCallback((pageNum) => {
+    if (!issue) return;
+    setBookmarks(bms => toggleBookmark(issue.id, pageNum, bms));
+  }, [issue]);
+
+  // ── Intro dismiss ────────────────────────────────────────────────────────────
+  const handleIntroDismiss = useCallback(() => {
+    if (issue) sessionStorage.setItem(`lwd_intro_${issue.id}`, '1');
+    setShowIntro(false);
+  }, [issue]);
+
+  // ── PDF download ──────────────────────────────────────────────────────────────
   const handleDownload = useCallback(() => {
     if (!issue?.pdf_url) return;
     trackDownload(issue.id);
-    // Open PDF in new tab (browser will offer download or inline view)
     window.open(issue.pdf_url, '_blank', 'noreferrer');
   }, [issue]);
 
-  // ── Derive current pages to display ────────────────────────────────────────
-  // Pages array is ordered by page_number (1-based)
+  // ── Derive spread pages ──────────────────────────────────────────────────────
   const pageByNum = (n) => pages.find(p => p.page_number === n) || null;
-
   const leftPage  = isDesktop && currentPage > 1 ? pageByNum(currentPage)     : null;
   const rightPage = isDesktop
     ? (currentPage === 1 ? pageByNum(1) : pageByNum(currentPage + 1))
     : pageByNum(currentPage);
 
-  // ── Renders ─────────────────────────────────────────────────────────────────
+  const isDoubleSpread = isDesktop && currentPage > 1;
+
+  // ── Render ───────────────────────────────────────────────────────────────────
   if (loading) return <Spinner />;
   if (error)   return <ErrorScreen message={error} onBack={onBack} />;
   if (!issue)  return <ErrorScreen message="Issue not found." onBack={onBack} />;
   if (pages.length === 0) {
-    return (
-      <ErrorScreen
-        message="This issue has no pages yet. Check back soon."
-        onBack={onBack}
-      />
-    );
+    return <ErrorScreen message="This issue has no pages yet. Check back soon." onBack={onBack} />;
   }
+
+  const isBookmarkedCurrent = bookmarks.includes(currentPage);
 
   return (
     <div
       style={{
-        position:   'fixed',
-        inset:      0,
+        position: 'fixed', inset: 0,
         background: BG,
-        display:    'flex',
-        flexDirection: 'column',
-        overflow:   'hidden',
-        userSelect: 'none',
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden', userSelect: 'none',
+        transition: 'background 0.4s ease',
       }}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseUp}
     >
+      {/* ① Reading progress bar */}
+      <ProgressBar currentPage={currentPage} totalPages={totalPages} />
+
       {/* Top bar */}
-      <TopBar issue={issue} onBack={onBack} onDownload={issue.pdf_url ? handleDownload : null} />
+      <TopBar
+        issue={issue}
+        onBack={onBack}
+        onDownload={issue.pdf_url ? handleDownload : null}
+        showTOC={showTOC}
+        onToggleTOC={() => setShowTOC(o => !o)}
+        bookmarked={isBookmarkedCurrent}
+        onToggleBookmark={handleToggleBookmarkCurrent}
+        onShare={handleShare}
+        readerMode={readerMode}
+        onToggleMode={() => setReaderMode(m => m === 'dark' ? 'sepia' : 'dark')}
+      />
 
-      {/* Main viewer area */}
-      <div style={{
-        flex:           1,
-        display:        'flex',
-        alignItems:     'center',
-        justifyContent: 'center',
-        padding:        isDesktop ? '60px 80px 60px' : '56px 0 48px',
-        position:       'relative',
-        overflow:       'hidden',
-      }}>
-        {/* Spread container */}
+      {/* ③ TOC Panel */}
+      <TOCPanel
+        open={showTOC}
+        onClose={() => setShowTOC(false)}
+        pages={pages}
+        currentPage={currentPage}
+        onJump={goToPage}
+        bookmarks={bookmarks}
+        onToggleBookmark={handleToggleBookmarkPage}
+      />
+
+      {/* Main viewer */}
+      <div
+        style={{
+          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: isDesktop ? '60px 80px 60px' : '56px 0 48px',
+          position: 'relative', overflow: 'hidden',
+          cursor: zoom > 1 ? (dragging.current ? 'grabbing' : 'grab') : 'default',
+        }}
+        onWheel={onWheel}
+        onMouseDown={onMouseDown}
+        onDoubleClick={onDoubleClick}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {/* ② Spread wrapper with zoom + pan transform */}
         <div style={{
-          display:        'flex',
-          height:         '100%',
-          maxHeight:      '100%',
-          width:          isDesktop ? (currentPage === 1 ? '50%' : '100%') : '100%',
-          maxWidth:       isDesktop ? 1400 : 700,
-          gap:            isDesktop && currentPage > 1 ? 2 : 0,
-          boxShadow:      '0 8px 48px rgba(0,0,0,0.6)',
-          background:     '#0F0D0A',
+          display: 'flex',
+          height: '100%', maxHeight: '100%',
+          width: isDesktop ? (currentPage === 1 ? '50%' : '100%') : '100%',
+          maxWidth: isDesktop ? 1400 : 700,
+          gap: isDoubleSpread ? 2 : 0,
+          boxShadow: '0 8px 48px rgba(0,0,0,0.6)',
+          background: PAGE_BG,
+          transform: `scale(${zoom}) translate(${panX / zoom}px, ${panY / zoom}px)`,
+          transformOrigin: 'center center',
+          transition: dragging.current ? 'none' : 'transform 0.1s ease',
         }}>
-          {/* Desktop: left page (not shown on page 1 — the cover is alone) */}
           {isDesktop && currentPage > 1 && (
-            <PageImage page={leftPage} side="left" />
+            <PageImage page={leftPage} side="left" pageBg={PAGE_BG} />
           )}
-
-          {/* Right page (or single page on mobile) */}
-          <PageImage page={rightPage} side="right" />
+          <PageImage page={rightPage} side="right" pageBg={PAGE_BG} />
         </div>
 
-        {/* Navigation buttons */}
+        {/* Nav buttons */}
         <NavButton direction="prev" onClick={goPrev} disabled={!canPrev} />
         <NavButton direction="next" onClick={goNext} disabled={!canNext} />
       </div>
 
-      {/* Page counter */}
+      {/* ② Zoom reset pill */}
+      <ZoomPill zoom={zoom} onReset={resetZoom} />
+
+      {/* Enhanced page counter */}
       <PageCounter
         currentPage={currentPage}
         totalPages={totalPages}
-        isDouble={isDesktop && currentPage > 1}
+        isDouble={isDoubleSpread}
+        bookmarks={bookmarks}
       />
 
-      {/* Thumbnail strip (desktop only) */}
+      {/* Thumbnail strip (desktop, secondary) */}
       <ThumbnailStrip
         pages={pages}
         currentPage={currentPage}
         onJump={goToPage}
         isDesktop={isDesktop}
       />
+
+      {/* ⑤ Share toast */}
+      <Toast message="Link copied!" visible={toastVisible} />
+
+      {/* ⑧ Cinematic intro */}
+      {showIntro && (
+        <IntroOverlay issue={issue} onDismiss={handleIntroDismiss} />
+      )}
     </div>
   );
 }
