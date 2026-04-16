@@ -169,6 +169,31 @@ export function mapListingFromDb(rawListing: any): Listing {
     listing.videoUrl = buildCardVideoUrl(listing.mediaItems) ?? undefined;
   }
 
+  // Fallback: pull video URL from card_settings JSONB if no video from media_items
+  if (!listing.videoUrl && listing.cardSettings && typeof listing.cardSettings === 'object') {
+    const cs = listing.cardSettings as Record<string, any>;
+    for (const type of ['venue', 'vendor', 'gcard']) {
+      const entry = cs[type];
+      if (!entry) continue;
+      const mt = entry.media_type;
+      // YouTube / Vimeo → use media_url embed link
+      if (entry.media_url && (mt === 'youtube' || mt === 'vimeo')) {
+        listing.videoUrl = entry.media_url;
+        break;
+      }
+      // Native video files → first non-empty from video_urls
+      if (mt === 'video' && Array.isArray(entry.video_urls)) {
+        const url = entry.video_urls.find((u: string) => u && u.trim());
+        if (url) { listing.videoUrl = url.trim(); break; }
+      }
+      // Reel / story videos → first non-empty from reel_urls
+      if (mt === 'reel' && Array.isArray(entry.reel_urls)) {
+        const url = entry.reel_urls.find((u: string) => u && u.trim());
+        if (url) { listing.videoUrl = url.trim(); break; }
+      }
+    }
+  }
+
   return listing;
 }
 
@@ -324,6 +349,31 @@ function transformSupabaseListingForUI(listing: any): any {
         is_featured: h.featured ?? i === 0,
         sort_order:  i,
       }));
+  }
+
+  // Fallback: pull video URL from card_settings JSONB if no video from media_items
+  if (!transformed.videoUrl && transformed.cardSettings && typeof transformed.cardSettings === 'object') {
+    const cs = transformed.cardSettings as Record<string, any>;
+    for (const type of ['venue', 'vendor', 'gcard']) {
+      const entry = cs[type];
+      if (!entry) continue;
+      const mt = entry.media_type;
+      // YouTube / Vimeo → use media_url embed link
+      if (entry.media_url && (mt === 'youtube' || mt === 'vimeo')) {
+        transformed.videoUrl = entry.media_url;
+        break;
+      }
+      // Native video files → first non-empty from video_urls
+      if (mt === 'video' && Array.isArray(entry.video_urls)) {
+        const url = entry.video_urls.find((u: string) => u && u.trim());
+        if (url) { transformed.videoUrl = url.trim(); break; }
+      }
+      // Reel / story videos → first non-empty from reel_urls
+      if (mt === 'reel' && Array.isArray(entry.reel_urls)) {
+        const url = entry.reel_urls.find((u: string) => u && u.trim());
+        if (url) { transformed.videoUrl = url.trim(); break; }
+      }
+    }
   }
 
   return transformed
@@ -566,6 +616,7 @@ function mapFormToDatabaseFields(data: any): any {
     'accessibilityNotes': 'accessibility_notes',
     'heroMediaRole': 'hero_media_role',
     'cardMediaRole': 'card_media_role',
+    'cardSettings': 'card_settings',
     'galleryMediaRole': 'gallery_media_role',
     'seoTitle': 'seo_title',
     'seoDescription': 'seo_description',

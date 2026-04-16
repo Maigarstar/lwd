@@ -758,6 +758,22 @@ function HeroCinematic({ venue, onEnquire, onBack }) {
             {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.55)" }}>({venue.reviews} reviews)</span>}</> }
             {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>✓ LWD Verified</span>}
           </div>
+          {/* Published / Updated date — WordPress-style editorial timestamp */}
+          {venue.publishedAt && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+              <span style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: "0.3px" }}>
+                Published {new Date(venue.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </span>
+              {venue.updatedAt && new Date(venue.updatedAt) > new Date(venue.publishedAt || 0) && (
+                <>
+                  <span style={{ width: 1, height: 10, background: "rgba(255,255,255,0.15)" }} />
+                  <span style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.3px" }}>
+                    Updated {new Date(venue.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </span>
+                </>
+              )}
+            </div>
+          )}
           {/* Urgency signal — social proof before the CTA */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
             <span style={{
@@ -878,7 +894,22 @@ function HeroSplit({ venue, onEnquire }) {
           {venue.categories.map(cat => <Pill key={cat} color="gold">{cat}</Pill>)}
         </div>
         <h1 style={{ fontFamily: FD, fontSize: isMobile ? 32 : "clamp(30px, 3.5vw, 52px)", fontWeight: 400, color: C.text, lineHeight: 1.05, marginBottom: 8 }}>{venue.name}</h1>
-        <p style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: isMobile ? 14 : 20, lineHeight: 1.6 }}>{venue.flag} {venue.location}</p>
+        <p style={{ fontFamily: FB, fontSize: 13, color: C.textLight, marginBottom: 8, lineHeight: 1.6 }}>{venue.flag} {venue.location}</p>
+        {venue.publishedAt && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: isMobile ? 14 : 20 }}>
+            <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.3px" }}>
+              Published {new Date(venue.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
+            {venue.updatedAt && new Date(venue.updatedAt) > new Date(venue.publishedAt) && (
+              <>
+                <span style={{ width: 1, height: 10, background: C.border }} />
+                <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.3px" }}>
+                  Updated {new Date(venue.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </span>
+              </>
+            )}
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: isMobile ? 16 : 24, flexWrap: "wrap" }}>
           {venue.rating != null && venue.rating > 0 && <><Stars rating={venue.rating} size={14} />
           <span style={{ fontFamily: FB, fontSize: 14, fontWeight: 700, color: C.text }}>{venue.rating}</span>
@@ -949,6 +980,14 @@ function HeroMagazine({ venue, onEnquire }) {
               <span style={{ fontFamily: FB, fontSize: 13, fontWeight: 700, color: C.text }}>{venue.rating}</span>
               {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>({venue.reviews} reviews)</span>}</> }
               {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: C.green, fontWeight: 700 }}>✓ LWD Verified</span>}
+              {venue.publishedAt && (
+                <>
+                  <span style={{ width: 1, height: 12, background: C.border2 }} />
+                  <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.3px" }}>
+                    Published {new Date(venue.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </span>
+                </>
+              )}
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
@@ -991,19 +1030,86 @@ function HeroMagazine({ venue, onEnquire }) {
 // ─── HERO STYLE 4: VIDEO (YouTube / Vimeo) ───────────────────────────────────
 function HeroVideo({ venue, onEnquire }) {
   const C = useT();
-  const [filmOpen, setFilmOpen] = useState(false);
-  const { type, heroId, filmId } = venue.video || {};
+  const [muted, setMuted] = useState(true);
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const iframeRef = useRef(null);
+  const { type, heroId } = venue.video || {};
 
+  // No valid video → render Cinematic as fallback
+  if (!type || !heroId) return <HeroCinematic venue={venue} onEnquire={onEnquire} />;
+
+  // Hero image shown first while the video loads
+  const posterImg = venue.imgs?.[0] || '';
+
+  // YouTube needs enablejsapi=1 for postMessage mute/unmute control.
+  // Vimeo background mode force-mutes; we switch to normal embed when unmuted.
   const embedUrl = type === "youtube"
-    ? `https://www.youtube-nocookie.com/embed/${heroId}?autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&loop=1&playlist=${heroId}&showinfo=0&iv_load_policy=3&disablekb=1&playsinline=1`
-    : `https://player.vimeo.com/video/${heroId}?autoplay=1&loop=1&muted=1&background=1`;
+    ? `https://www.youtube-nocookie.com/embed/${heroId}?autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&loop=1&playlist=${heroId}&showinfo=0&iv_load_policy=3&disablekb=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`
+    : muted
+      ? `https://player.vimeo.com/video/${heroId}?autoplay=1&loop=1&muted=1&background=1`
+      : `https://player.vimeo.com/video/${heroId}?autoplay=1&loop=1&muted=0&controls=0&background=0&transparent=0`;
 
-  const filmUrl = type === "youtube"
-    ? `https://www.youtube-nocookie.com/embed/${filmId}?autoplay=1&rel=0&modestbranding=1`
-    : `https://player.vimeo.com/video/${filmId}?autoplay=1`;
+  // Listen for YouTube API "onReady" / first state-change so we know playback
+  // has started. For Vimeo, the iframe onLoad is close enough.
+  useEffect(() => {
+    if (type !== "youtube") return;
+    const handler = (e) => {
+      try {
+        const data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+        // YouTube fires { event: "onStateChange", info: 1 } when playing
+        if (data?.event === "onStateChange" && data?.info === 1) {
+          setVideoReady(true);
+        }
+        // Also accept onReady as a signal
+        if (data?.event === "onReady") {
+          setVideoReady(true);
+        }
+      } catch { /* ignore non-JSON messages */ }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [type]);
+
+  // Fallback: if YouTube never fires the playing message, reveal after 3s.
+  // If nothing loads at all after 8s, mark as failed so poster stays.
+  useEffect(() => {
+    if (videoReady || videoFailed) return;
+    const reveal = setTimeout(() => setVideoReady(true), 3000);
+    const fail   = setTimeout(() => { if (!videoReady) setVideoFailed(true); }, 8000);
+    return () => { clearTimeout(reveal); clearTimeout(fail); };
+  }, [videoReady, videoFailed]);
+
+  const toggleSound = () => {
+    const iframe = iframeRef.current;
+    if (type === "youtube" && iframe?.contentWindow) {
+      const cmd = muted ? "unMute" : "mute";
+      iframe.contentWindow.postMessage(
+        JSON.stringify({ event: "command", func: cmd, args: [] }),
+        "*"
+      );
+    }
+    setMuted(m => !m);
+  };
 
   return (
     <div style={{ position: "relative", height: "62vh", overflow: "hidden", background: "#111" }}>
+      {/* Poster image — visible immediately, fades out once video plays */}
+      {posterImg && (
+        <img
+          src={posterImg}
+          alt={venue.name || ""}
+          style={{
+            position: "absolute", inset: 0, width: "100%", height: "100%",
+            objectFit: "cover",
+            opacity: videoReady ? 0 : 1,
+            transition: "opacity 1.2s ease",
+            zIndex: 1,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
       {/* iframe scaled 120% to hide YouTube edge UI */}
       <div style={{
         position: "absolute",
@@ -1013,10 +1119,12 @@ function HeroVideo({ venue, onEnquire }) {
         pointerEvents: "none",
       }}>
         <iframe
+          ref={iframeRef}
           src={embedUrl}
           style={{ width: "100%", height: "100%", border: "none" }}
           allow="autoplay; fullscreen; picture-in-picture"
           title="Venue hero video"
+          onLoad={() => { if (type !== "youtube") setVideoReady(true); }}
         />
       </div>
 
@@ -1026,6 +1134,37 @@ function HeroVideo({ venue, onEnquire }) {
         background: "linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.04) 40%, rgba(0,0,0,0.72) 100%)",
         pointerEvents: "none",
       }} />
+
+      {/* Sound on/off toggle — only visible when video is playing */}
+      {videoReady && !videoFailed && <button
+        onClick={toggleSound}
+        title={muted ? "Turn sound on" : "Turn sound off"}
+        style={{
+          position: "absolute", bottom: 56, right: 40, zIndex: 10,
+          width: 44, height: 44, borderRadius: "50%",
+          background: "rgba(0,0,0,0.45)", backdropFilter: "blur(8px)",
+          border: "1px solid rgba(255,255,255,0.2)",
+          color: "#fff", cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "background 0.2s, transform 0.15s",
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,0,0,0.65)"; e.currentTarget.style.transform = "scale(1.08)"; }}
+        onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,0.45)"; e.currentTarget.style.transform = "scale(1)"; }}
+      >
+        {muted ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <line x1="23" y1="9" x2="17" y2="15" />
+            <line x1="17" y1="9" x2="23" y2="15" />
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+          </svg>
+        )}
+      </button>}
 
       {/* Content, same layout as Cinematic */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 40px 52px", animation: "fadeUp 0.8s ease both" }}>
@@ -1043,6 +1182,22 @@ function HeroVideo({ venue, onEnquire }) {
           {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>({venue.reviews} reviews)</span>}
           {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>✓ LWD Verified</span>}
         </div>
+        {/* Published / Updated date — WordPress-style editorial timestamp */}
+        {venue.publishedAt && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+            <span style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.45)", letterSpacing: "0.3px" }}>
+              Published {new Date(venue.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
+            {venue.updatedAt && new Date(venue.updatedAt) > new Date(venue.publishedAt) && (
+              <>
+                <span style={{ width: 1, height: 10, background: "rgba(255,255,255,0.15)" }} />
+                <span style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.3px" }}>
+                  Updated {new Date(venue.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </span>
+              </>
+            )}
+          </div>
+        )}
         {/* Hero CTAs */}
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <button onClick={onEnquire} style={{
@@ -1053,51 +1208,8 @@ function HeroVideo({ venue, onEnquire }) {
             onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
             onMouseLeave={e => e.currentTarget.style.opacity = "1"}
           >Begin Your Enquiry →</button>
-          {/* Watch film CTA */}
-          <button onClick={() => setFilmOpen(true)} style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            padding: "9px 20px",
-            background: "rgba(255,255,255,0.12)",
-            backdropFilter: "blur(10px)",
-            border: "1px solid rgba(255,255,255,0.32)",
-            borderRadius: "var(--lwd-radius-input)",
-            color: "#fff", fontFamily: FB, fontSize: 12, fontWeight: 700,
-            letterSpacing: "0.6px", textTransform: "uppercase", cursor: "pointer",
-            transition: "all 0.2s",
-          }}
-            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.22)"}
-            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.12)"}
-          >
-            <span style={{ fontSize: 14 }}>▶</span> Watch the film
-          </button>
         </div>
       </div>
-
-      {/* Film lightbox */}
-      {filmOpen && (
-        <div onClick={() => setFilmOpen(false)} style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.94)", zIndex: 2000,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <div onClick={e => e.stopPropagation()} style={{ position: "relative", width: "90vw", maxWidth: 1024 }}>
-            <div style={{ position: "relative", paddingTop: "56.25%" }}>
-              <iframe
-                src={filmUrl}
-                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
-                allow="autoplay; fullscreen; picture-in-picture"
-                allowFullScreen
-                title="Venue film"
-              />
-            </div>
-            <button onClick={() => setFilmOpen(false)} style={{
-              position: "absolute", top: -48, right: 0,
-              background: "none", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "var(--lwd-radius-input)",
-              color: "rgba(255,255,255,0.7)", fontSize: 22, width: 40, height: 40,
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            }}>✕</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -8579,6 +8691,9 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
           })(),
           estateEnabled: listing.estateEnabled !== false,
           nearbyEnabled: listing.nearbyEnabled !== false,
+          // Publishing dates — WordPress-style editorial timestamp
+          publishedAt: listing.publishedAt || null,
+          updatedAt:   listing.updatedAt   || null,
         };
         // ── Fetch approved reviews and map to testimonials format ─────────────
         let testimonials = [];

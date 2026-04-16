@@ -73,6 +73,10 @@ function listingToCard(listing) {
                        ? listing.amenities.split(',').map(s => s.trim()).filter(Boolean)
                        : (listing.tags || [])),
     specialties: Array.isArray(listing.tags)      ? listing.tags      : [],
+    // Dates — used for sort (latest updated/published first)
+    updatedAt:   listing.updatedAt   || listing.updated_at   || null,
+    publishedAt: listing.publishedAt || listing.published_at || null,
+    createdAt:   listing.createdAt   || listing.created_at   || null,
   };
 }
 

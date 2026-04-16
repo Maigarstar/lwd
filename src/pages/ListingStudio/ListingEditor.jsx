@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useListingForm } from './hooks/useListingForm';
 import useListingPreview from './hooks/useListingPreview';
 import ListingLivePreview from './preview/ListingLivePreview';
@@ -86,6 +86,7 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
   const { formData, handleChange, handleSave, handleSaveDraft, handlePublish, loading, uploadProgress, error, hasChanges } = useListingForm(listingId);
   const previewData = useListingPreview(formData);
   const [saveStatus, setSaveStatus] = useState(null);
+  const [showPublishPanel, setShowPublishPanel] = useState(false);
   const [showAITools,    setShowAITools]    = useState(false);
   const [showAIImport,   setShowAIImport]   = useState(false);
   const [importToast,    setImportToast]    = useState(null); // { count: n }
@@ -112,6 +113,19 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
 
   // Determine which sections to show based on listing type
   const { showFeatures, showCommercial } = getSectionVisibility(formData.listing_type);
+
+  // Close publish panel when clicking outside
+  const publishPanelRef = useRef(null);
+  useEffect(() => {
+    if (!showPublishPanel) return;
+    const handler = (e) => {
+      if (publishPanelRef.current && !publishPanelRef.current.contains(e.target)) {
+        setShowPublishPanel(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPublishPanel]);
 
   // Load view mode preference from localStorage on mount
   useEffect(() => {
@@ -407,6 +421,122 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
               Live
             </span>
           )}
+
+          {/* ── WordPress-style publish date panel ── */}
+          <div ref={publishPanelRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowPublishPanel(p => !p)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '5px 10px', fontSize: 11, fontWeight: 600,
+                letterSpacing: '0.04em',
+                color: darkMode ? '#ccc' : '#555',
+                backgroundColor: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                border: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                borderRadius: 6, cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              {formData.published_at
+                ? new Date(formData.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                : formData.status === 'published' ? 'Set date' : 'Immediately'
+              }
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {showPublishPanel && (
+              <div
+                style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: 6,
+                  width: 280, padding: 16,
+                  background: darkMode ? '#1e1e1e' : '#fff',
+                  border: `1px solid ${darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'}`,
+                  borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                  zIndex: 100,
+                }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: darkMode ? '#888' : '#999', marginBottom: 12 }}>
+                  Publishing
+                </div>
+
+                {/* Status */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span style={{ fontSize: 12, color: darkMode ? '#aaa' : '#666' }}>Status</span>
+                  <span style={{
+                    fontSize: 12, fontWeight: 600,
+                    color: formData.status === 'published' ? '#1aa84a' : (darkMode ? '#ccc' : '#333'),
+                  }}>
+                    {formData.status === 'published' ? 'Published' : formData.status === 'draft' ? 'Draft' : (formData.status || 'Draft')}
+                  </span>
+                </div>
+
+                {/* Publish date */}
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ display: 'block', fontSize: 12, color: darkMode ? '#aaa' : '#666', marginBottom: 4 }}>
+                    Publish date
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formData.published_at ? new Date(formData.published_at).toISOString().slice(0, 16) : ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      handleChange('published_at', val ? new Date(val).toISOString() : null);
+                    }}
+                    style={{
+                      width: '100%', padding: '6px 8px', fontSize: 12,
+                      background: darkMode ? '#2a2a2a' : '#f5f5f5',
+                      border: `1px solid ${darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'}`,
+                      borderRadius: 4, color: darkMode ? '#ddd' : '#333',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                </div>
+
+                {/* Quick set buttons */}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('published_at', new Date().toISOString())}
+                    style={{
+                      flex: 1, padding: '5px 8px', fontSize: 10, fontWeight: 600,
+                      color: darkMode ? '#ccc' : '#555',
+                      background: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                      border: `1px solid ${darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+                      borderRadius: 4, cursor: 'pointer',
+                    }}
+                  >
+                    Now
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('published_at', null)}
+                    style={{
+                      flex: 1, padding: '5px 8px', fontSize: 10, fontWeight: 600,
+                      color: darkMode ? '#ccc' : '#555',
+                      background: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                      border: `1px solid ${darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+                      borderRadius: 4, cursor: 'pointer',
+                    }}
+                  >
+                    Clear
+                  </button>
+                </div>
+
+                {/* Last modified info */}
+                {formData.updated_at && (
+                  <div style={{ fontSize: 11, color: darkMode ? '#666' : '#999', borderTop: `1px solid ${darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`, paddingTop: 8 }}>
+                    Last modified: {new Date(formData.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={handleDiscardClick}

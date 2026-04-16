@@ -150,6 +150,9 @@ export const useListingForm = (listingId = null) => {
     // cinematic = default (5-image luxury fade transition)
     hero_layout: 'cinematic',
     hero_video_url: '',   // YouTube or Vimeo URL, required when hero_layout === 'video'
+    // ── Card settings (JSONB) — per-card-type media, title, badges etc. ──────
+    // Keyed by card type: { venue: {...}, vendor: {...}, gcard: {...} }
+    card_settings: {},
     seo_title: '',
     seo_description: '',
     seo_keywords: [],   // max 8, used for meta keywords + AI search indexing
@@ -381,8 +384,24 @@ export const useListingForm = (listingId = null) => {
             member_since:    listing.memberSince    || '',
             status: listing.status || 'draft',
             published_at: listing.publishedAt || null,
+            updated_at: listing.updatedAt || null,
             visibility: listing.isHidden ? 'private' : (listing.visibility || 'public'),
             // ── Editorial Content Layer (Phase 3) ─────────────────────────────────────
+            // Card settings — all per-card-type config (media, title, badges)
+            card_settings: (listing.cardSettings && typeof listing.cardSettings === 'object') ? listing.cardSettings : {},
+            // Hydrate flat card_venue_*, card_vendor_*, card_gcard_* fields from cardSettings JSONB
+            ...(() => {
+              const cs = listing.cardSettings;
+              if (!cs || typeof cs !== 'object') return {};
+              const flat = {};
+              for (const [type, fields] of Object.entries(cs)) {
+                if (!fields || typeof fields !== 'object') continue;
+                for (const [key, val] of Object.entries(fields)) {
+                  flat[`card_${type}_${key}`] = val;
+                }
+              }
+              return flat;
+            })(),
             hero_summary: listing.heroSummary || null,
             section_intros: (listing.sectionIntros && typeof listing.sectionIntros === 'object') ? listing.sectionIntros : { overview: '', spaces: '', dining: '', rooms: '', art: '', weddings: '' },
             editorial_approved: listing.editorialApproved ?? false,
@@ -760,6 +779,32 @@ export const useListingForm = (listingId = null) => {
         // Full rich media_items array (File objects stripped), stored as JSONB.
         // Also consumed by sync-media-ai-index edge function after save.
         mediaItems: cleanMediaItems,
+        // Card settings — per-card-type media, title, badges, CTA etc.
+        // Collect all card_venue_*, card_vendor_*, card_gcard_* fields into
+        // a single JSONB object keyed by card type.
+        cardSettings: (() => {
+          const settings = {};
+          const TYPES = ['venue', 'vendor', 'gcard'];
+          for (const t of TYPES) {
+            const prefix = `card_${t}_`;
+            const entry = {};
+            let hasData = false;
+            for (const key in formData) {
+              if (key.startsWith(prefix)) {
+                const field = key.slice(prefix.length);
+                // Strip File objects from images before saving
+                if (field === 'images' && Array.isArray(formData[key])) {
+                  entry[field] = formData[key].map(({ file: _f, ...rest }) => rest);
+                } else {
+                  entry[field] = formData[key];
+                }
+                hasData = true;
+              }
+            }
+            if (hasData) settings[t] = entry;
+          }
+          return Object.keys(settings).length > 0 ? settings : (formData.card_settings || {});
+        })(),
         // Editorial Content Layer (Phase 3)
         heroSummary: formData.hero_summary || null,
         sectionIntros: formData.section_intros || {},
@@ -778,9 +823,9 @@ export const useListingForm = (listingId = null) => {
       );
       listingPayload.contentQualityScore = contentQualityScore;
 
-      // Add published_at if publishing
+      // Add published_at if publishing — use user-selected date or fall back to now
       if (publishStatus === 'published') {
-        listingPayload.publishedAt = new Date().toISOString();
+        listingPayload.publishedAt = formData.published_at || new Date().toISOString();
       }
 
       let result;
