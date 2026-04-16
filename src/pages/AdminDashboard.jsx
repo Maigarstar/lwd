@@ -59,6 +59,7 @@ import PlatformIntelligenceModule from "./AdminModules/PlatformIntelligenceModul
 import PlatformMediaIntelligenceModule from "./AdminModules/PlatformMediaIntelligenceModule";
 import LiveStatsModule from "./AdminModules/LiveStatsModule";
 import ReportingHubModule from "./AdminModules/ReportingHubModule";
+import UnifiedAnalyticsDashboard from "./AdminModules/UnifiedAnalyticsDashboard";
 import MarketIntelligenceModule from "./AdminModules/MarketIntelligenceModule";
 import EventsModule from "./AdminModules/EventsModule";
 import SiteContentModule from "./AdminModules/SiteContentModule";
@@ -347,6 +348,7 @@ const NAV_SECTIONS = [
     group: "Intelligence",
     items: [
       { key: "live-stats",             label: "Live Stats",             icon: "◉" },
+      { key: "analytics",              label: "Analytics",              icon: "◈" },
       { key: "aura",                   label: "Aura Analytics",         icon: "✧" },
       { key: "api",                    label: "API Management",         icon: "⟐" },
       { key: "ai-settings",           label: "AI Settings",            icon: "⚙" },
@@ -11708,6 +11710,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "ai-settings":     return <AISettingsPage C={C} />;
       case "connected-data":          return <ConnectedDataModule C={C} NU={NU} GD={GD} />;
       case "live-stats":             return <LiveStatsModule C={C} />;
+      case "analytics":              return <UnifiedAnalyticsDashboard C={C} />;
       case "platform-intelligence":  return <PlatformIntelligenceModule C={C} />;
       case "media-intelligence":     return <PlatformMediaIntelligenceModule C={C} />;
       case "market-intelligence":    return <MarketIntelligenceModule C={C} darkMode={darkMode} />;
