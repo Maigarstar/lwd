@@ -17,12 +17,22 @@ function genId() {
 }
 
 // ── Template layout engine ────────────────────────────────────────────────────
+// Templates are authored against a reference page (A4 portrait, 794×1123).
+// All coordinates, fontSizes and margins assume that frame. After the layout
+// function runs, every object is scaled proportionally to fit the actual
+// page dims. This is what keeps a template looking right on A5 / Tabloid /
+// Square pages instead of rendering the same absolute pixels on a bigger
+// canvas (which made text look too small and sit too close to the edge).
+const TEMPLATE_REF_W = 794;
+const TEMPLATE_REF_H = 1123;
+
 function applyTemplate(fc, template, dims) {
   fc.clear();
   fc.backgroundColor = '#ffffff';
 
-  const W = dims.w;
-  const H = dims.h;
+  // Render template at the reference frame — post-scale does the adaptation.
+  const W = TEMPLATE_REF_W;
+  const H = TEMPLATE_REF_H;
   const GOLD_C = '#C9A84C';
   const DARK_C = '#18120A';
   const MUTED_C = 'rgba(24,18,10,0.5)';
@@ -234,6 +244,40 @@ function applyTemplate(fc, template, dims) {
 
   const layoutFn = layouts[template.category] || defaultLayout;
   layoutFn();
+
+  // ── Adaptive scaling: fit reference-frame layout to actual page dims ────────
+  // Position scales non-uniformly (sx, sy) so the layout fills the page.
+  // Sizes scale uniformly by the smaller axis to preserve proportions
+  // (so text doesn't distort on landscape/square formats).
+  const sx = dims.w / TEMPLATE_REF_W;
+  const sy = dims.h / TEMPLATE_REF_H;
+  const sUniform = Math.min(sx, sy);
+
+  fc.getObjects().forEach(o => {
+    o.set({
+      left: (o.left || 0) * sx,
+      top:  (o.top  || 0) * sy,
+    });
+
+    if (o.type === 'textbox' || o.type === 'text' || o.type === 'i-text') {
+      if (o.fontSize) o.set('fontSize', o.fontSize * sUniform);
+      if (o.width)    o.set('width',    o.width * sx);
+    } else if (o.type === 'rect') {
+      if (o.width)  o.set('width',  o.width  * sx);
+      if (o.height) o.set('height', o.height * sy);
+    } else if (o.type === 'circle') {
+      if (o.radius) o.set('radius', o.radius * sUniform);
+    } else if (o.type === 'line') {
+      if (o.x1 != null) o.set('x1', o.x1 * sx);
+      if (o.x2 != null) o.set('x2', o.x2 * sx);
+      if (o.y1 != null) o.set('y1', o.y1 * sy);
+      if (o.y2 != null) o.set('y2', o.y2 * sy);
+    }
+
+    if (o.strokeWidth) o.set('strokeWidth', o.strokeWidth * sUniform);
+    o.setCoords();
+  });
+
   fc.requestRenderAll();
 }
 
