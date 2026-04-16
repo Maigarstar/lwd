@@ -39,6 +39,7 @@ import HotspotEditor    from './PublicationStudio/HotspotEditor';
 import TemplatePicker  from './PublicationStudio/templates/TemplatePicker';
 import TemplateEditor  from './PublicationStudio/templates/TemplateEditor';
 import MonetizationTab        from './PublicationStudio/MonetizationTab';
+import PageDesigner           from './PublicationStudio/PageDesigner';
 import HeatmapPanel            from './PublicationStudio/HeatmapPanel';
 import PageCommentsPanel       from './PublicationStudio/PageCommentsPanel';
 import EditorialCalendarPanel  from './PublicationStudio/EditorialCalendarPanel';
@@ -1239,6 +1240,7 @@ function AnalyticsTab({ issueId, issue }) {
 // ── Issue editor (main content area) ─────────────────────────────────────────
 
 const TABS = [
+  { key: 'design',     label: '✦ Design'   },
   { key: 'overview',   label: 'Overview'   },
   { key: 'pages',      label: 'Pages'      },
   { key: 'pdf',        label: 'PDF'        },
@@ -1524,7 +1526,11 @@ function IssueWorkspace({ issueId, onDelete }) {
       </div>
 
       {/* ── Tab content ── */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+        {tab === 'design' && (
+          <PageDesigner issue={issue} onIssueUpdate={handleIssueUpdate} />
+        )}
+
         {tab === 'overview' && (
           <OverviewTab
             data={formData}
