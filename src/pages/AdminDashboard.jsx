@@ -366,14 +366,19 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    group: "Publications",
+    items: [
+      { key: "magazine-issues",  label: "Issues",            icon: "◈" },
+      { key: "magazine",         label: "The Magazine",      icon: "✦" },
+      { key: "magazine-studio",  label: "Article Studio",    icon: "✎" },
+    ],
+  },
+  {
     group: "Content",
     items: [
       { key: "homepage-manager", label: "Homepage Manager",  icon: "⌂" },
       { key: "social-studio",    label: "Social Studio",     icon: "◉" },
       { key: "page-studio",      label: "Page Studio",       icon: "⟡" },
-      { key: "magazine",         label: "The Magazine",      icon: "◈" },
-      { key: "magazine-studio",  label: "Magazine Studio",   icon: "✦" },
-      { key: "magazine-issues",  label: "Magazine Issues",   icon: "◈" },
       { key: "reusable-blocks",  label: "Reusable Blocks",   icon: "⊞" },
       { key: "site-content",     label: "Site Content",      icon: "≡" },
     ],
@@ -400,6 +405,7 @@ const GROUP_ICON_PATHS = {
   Engagement:         'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z',
   Intelligence:       'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
   Design:             'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
+  Publications:       'M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z',
   Content:            'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6',
   Settings:           'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z',
 };
