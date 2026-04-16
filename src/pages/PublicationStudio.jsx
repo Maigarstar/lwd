@@ -36,6 +36,8 @@ import { sendEmail, fetchNewsletterSubscribers } from '../services/emailSendServ
 import PageGrid       from './AdminModules/components/PageGrid';
 import PdfUploader    from './AdminModules/components/PdfUploader';
 import HotspotEditor  from './PublicationStudio/HotspotEditor';
+import TemplatePicker from './PublicationStudio/templates/TemplatePicker';
+import TemplateEditor from './PublicationStudio/templates/TemplateEditor';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const GOLD   = '#C9A84C';
@@ -1058,8 +1060,10 @@ function IssueWorkspace({ issueId, onDelete }) {
   const [backCoverUploading, setBackCoverUploading] = useState(false);
   const [persona,          setPersona]          = useState('luxury-editorial');
   const [reprocessing, setReprocessing] = useState(false);
-  const [pages,       setPages]        = useState([]);
-  const [hotspotPage, setHotspotPage]  = useState(null);
+  const [pages,              setPages]              = useState([]);
+  const [hotspotPage,        setHotspotPage]        = useState(null);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [activeTemplate,     setActiveTemplate]     = useState(null);
 
   // load issue
   useEffect(() => {
@@ -1304,6 +1308,23 @@ function IssueWorkspace({ issueId, onDelete }) {
 
         {tab === 'pages' && (
           <div style={{ padding: '20px 32px' }}>
+
+            {/* ── Add page from template ── */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+              <button
+                onClick={() => setTemplatePickerOpen(true)}
+                style={{
+                  fontFamily: NU, fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.1em', textTransform: 'uppercase',
+                  background: 'rgba(201,168,76,0.1)',
+                  border: '1px solid rgba(201,168,76,0.35)',
+                  color: GOLD, padding: '8px 18px', borderRadius: 3, cursor: 'pointer',
+                }}
+              >
+                ✦ Add Page from Template
+              </button>
+            </div>
+
             <PageGrid
               issueId={issueId}
               issue={issue}
@@ -1347,6 +1368,28 @@ function IssueWorkspace({ issueId, onDelete }) {
               setHotspotPage(null);
             }}
             onClose={() => setHotspotPage(null)}
+          />
+        )}
+
+        {/* TemplatePicker overlay */}
+        {templatePickerOpen && !activeTemplate && (
+          <TemplatePicker
+            onSelect={(tpl) => { setActiveTemplate(tpl); setTemplatePickerOpen(false); }}
+            onClose={() => setTemplatePickerOpen(false)}
+          />
+        )}
+
+        {/* TemplateEditor overlay */}
+        {activeTemplate && (
+          <TemplateEditor
+            template={activeTemplate}
+            issueData={issue}
+            persona={persona}
+            onAdd={(newPage) => {
+              setPages(prev => [...prev, newPage].sort((a, b) => a.page_number - b.page_number));
+              setActiveTemplate(null);
+            }}
+            onClose={() => { setActiveTemplate(null); setTemplatePickerOpen(true); }}
           />
         )}
 
