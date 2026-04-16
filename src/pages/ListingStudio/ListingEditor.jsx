@@ -161,6 +161,10 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
   }, []);
 
   // Handle save (preserve current status)
+  // CRITICAL: always clear saveStatus on failure — without the else branch
+  // the button stays stuck on "Saving…" forever when the underlying save
+  // throws (eg. missing DB column, RLS error, network timeout). The error
+  // banner from useListingForm.error tells the user what went wrong.
   const handleSaveClick = useCallback(async () => {
     setSaveStatus('saving');
     const savedId = await handleSave(formData.status || 'draft');
@@ -169,6 +173,8 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
       setTimeout(() => setSaveStatus(null), 3000);
       // Pass the real saved listing ID (important for new listings)
       if (onSaveComplete) onSaveComplete(typeof savedId === 'string' ? savedId : listingId);
+    } else {
+      setSaveStatus(null);
     }
   }, [handleSave, formData.status, listingId, onSaveComplete]);
 
@@ -181,6 +187,8 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
       setTimeout(() => setSaveStatus(null), 3000);
       // Pass the real saved listing ID (important for new listings)
       if (onSaveComplete) onSaveComplete(typeof savedId === 'string' ? savedId : listingId);
+    } else {
+      setSaveStatus(null);
     }
   }, [handleSaveDraft, listingId, onSaveComplete]);
 
@@ -193,6 +201,8 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
       setTimeout(() => setSaveStatus(null), 3000);
       // Pass the real saved listing ID (important for new listings)
       if (onSaveComplete) onSaveComplete(typeof savedId === 'string' ? savedId : listingId);
+    } else {
+      setSaveStatus(null);
     }
   }, [handlePublish, listingId, onSaveComplete]);
 
@@ -462,6 +472,18 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
               : (formData.status === 'published' ? 'Update Live' : 'Publish')}
           </button>
         </div>
+
+        {/* Inline save-error indicator — visible right next to the save buttons
+            so the user can't miss it when scrolled down into a section. */}
+        {error && !saveStatus && (
+          <span style={{
+            fontSize: 11, fontWeight: 600, color: LUX.red, maxWidth: 260,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            order: 2,
+          }} title={error}>
+            ⚠ Save failed
+          </span>
+        )}
 
         {/* View mode text links, order:3 so they wrap to row 2 on mobile */}
         <div className="ls-toolbar-vm" style={{ display: 'flex', gap: 16, alignItems: 'center', order: 3 }}>

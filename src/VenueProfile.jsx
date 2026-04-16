@@ -36,6 +36,23 @@ const toAbsoluteUrl = (url) => {
   return `https://${url}`;
 };
 
+// Parse a YouTube or Vimeo URL into the { type, heroId } shape that
+// HeroVideo expects. Returns null for unrecognised URLs.
+const parseHeroVideoUrl = (url) => {
+  if (!url) return null;
+  // YouTube: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID
+  const ytMatch = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/
+  );
+  if (ytMatch) return { type: 'youtube', heroId: ytMatch[1] };
+  // Vimeo: vimeo.com/ID, player.vimeo.com/video/ID
+  const vmMatch = url.match(
+    /(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/
+  );
+  if (vmMatch) return { type: 'vimeo', heroId: vmMatch[1] };
+  return null;
+};
+
 function useIsMobile(bp = 768) {
   const [mobile, setMobile] = useState(() => window.innerWidth <= bp);
   useEffect(() => {
@@ -8194,6 +8211,19 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
   const [venueEvents, setVenueEvents] = useState([]);
   const [drawerEvent, setDrawerEvent] = useState(null);
 
+  // Sync heroStyle from saved hero_layout once DB data arrives.
+  // Falls back to 'cinematic' when the chosen layout is 'video' but no
+  // video URL was configured (prevents a blank hero).
+  useEffect(() => {
+    if (!dbVenue?.heroLayout) return;
+    const saved = dbVenue.heroLayout;
+    if (saved === 'video' && !dbVenue.video?.type) {
+      setHeroStyle('cinematic');
+    } else {
+      setHeroStyle(saved);
+    }
+  }, [dbVenue?.heroLayout, dbVenue?.video?.type]);
+
   const C = darkMode ? DARK : LIGHT;
   const VV = dbVenue ? { ...VENUE, ...dbVenue } : VENUE;
 
@@ -8502,6 +8532,10 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
             ? listing.sectionIntros
             : {},
           heroSummary: listing.heroSummary || null,
+          // Hero layout style chosen in Listing Studio (cinematic | split | magazine | video)
+          heroLayout: listing.heroLayout || 'cinematic',
+          // Parsed video embed for HeroVideo component ({ type, heroId } or null)
+          video: parseHeroVideoUrl(listing.heroVideoUrl),
           // Wedding Packages — structured multi-day offerings (max 5) saved by
           // the Listing Studio's PackagesSection. Without this read the
           // dedicated section on the public listing would silently stay empty.
