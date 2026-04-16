@@ -195,6 +195,94 @@ function SidebarPostRow({ post, onClick, light = false }) {
   );
 }
 
+// ─── Gallery Split Hero ───────────────────────────────────────────────────────
+function GallerySplitHero({ post }) {
+  const gallery = Array.isArray(post.galleryImages) ? post.galleryImages : [];
+  const allImages = [post.coverImage, ...gallery].filter(Boolean);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const leftImg = allImages[activeIdx] || post.coverImage || null;
+  const rightImg = gallery[0] || null;
+  const caption = post.heroCaption || '';
+
+  const metaRow = (
+    <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginTop: 16 }}>
+      {post.author && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {post.author.avatar && <img src={post.author.avatar} alt={post.author.name} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />}
+          <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.55)' }}>{post.author.name}</span>
+        </div>
+      )}
+      <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.4)' }}>{formatDate(post.date)}</span>
+      {post.readingTime && <span style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.4)' }}>{post.readingTime} min read</span>}
+    </div>
+  );
+
+  return (
+    <header style={{ background: '#0a0a0a' }}>
+      {/* Title block */}
+      <div style={{ padding: 'clamp(64px, 8vw, 100px) clamp(24px, 6vw, 80px) clamp(24px, 3vw, 40px)', maxWidth: 1280, margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+          <div style={{ width: 20, height: 1, background: GOLD }} />
+          <span style={{ fontFamily: FU, fontSize: 8, fontWeight: 700, letterSpacing: '0.24em', textTransform: 'uppercase', color: GOLD }}>
+            {post.categoryLabel}
+          </span>
+        </div>
+        <h1 style={{ fontFamily: FD, fontSize: 'clamp(28px, 4.5vw, 64px)', fontWeight: 400, color: CREAM, margin: '0 0 14px', lineHeight: 1.06, maxWidth: 900 }}>
+          {post.title}
+        </h1>
+        {post.standfirst && (
+          <p style={{ fontFamily: FD, fontSize: 'clamp(15px, 1.5vw, 20px)', fontStyle: 'italic', color: 'rgba(245,240,232,0.65)', margin: 0, lineHeight: 1.6, maxWidth: 700 }}>
+            {post.standfirst}
+          </p>
+        )}
+        {metaRow}
+      </div>
+
+      {/* Split image area */}
+      <div style={{ display: 'flex', gap: 3, height: 'clamp(300px, 48svh, 580px)', overflow: 'hidden', margin: '0 clamp(24px, 6vw, 80px)' }}>
+        {/* Left: large, cycles with thumbnails */}
+        <div style={{ flex: '2 1 0%', position: 'relative', overflow: 'hidden', borderRadius: '2px 0 0 0' }}>
+          {leftImg
+            ? <img src={leftImg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 0.35s' }} />
+            : <div style={{ position: 'absolute', inset: 0, background: '#1a1a16' }} />
+          }
+          {caption && (
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '10px 18px', background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)' }}>
+              <span style={{ fontFamily: FD, fontSize: 12, fontStyle: 'italic', color: 'rgba(245,240,232,0.72)', letterSpacing: '0.02em' }}>{caption}</span>
+            </div>
+          )}
+        </div>
+        {/* Right: fixed on gallery[0] */}
+        {rightImg ? (
+          <div style={{ flex: '1 1 0%', position: 'relative', overflow: 'hidden', borderRadius: '0 2px 0 0' }}>
+            <img src={rightImg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+        ) : null}
+      </div>
+
+      {/* Thumbnail strip */}
+      {allImages.length > 1 && (
+        <div style={{ display: 'flex', gap: 6, padding: '10px clamp(24px, 6vw, 80px)', overflowX: 'auto', background: '#0a0a0a' }}>
+          {allImages.slice(0, 8).map((src, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveIdx(i)}
+              style={{
+                width: 68, height: 46, borderRadius: 2, overflow: 'hidden',
+                flexShrink: 0, padding: 0, cursor: 'pointer', background: 'none',
+                border: activeIdx === i ? `2px solid ${GOLD}` : '2px solid rgba(255,255,255,0.12)',
+                transition: 'border-color 0.15s',
+              }}
+            >
+              <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </button>
+          ))}
+        </div>
+      )}
+    </header>
+  );
+}
+
 // ─── Layout A: Full-Width Editorial ──────────────────────────────────────────
 function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, onEdit, isLight, onToggleLight, footerNav }) {
   const T = getMagTheme(isLight);
@@ -215,7 +303,10 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
         topOffset={60}
       />
 
-      {/* Hero */}
+      {/* Hero — switches on post.heroStyle */}
+      {post.heroStyle === 'gallery-split' ? (
+        <GallerySplitHero post={post} />
+      ) : (
       <header style={{ position: 'relative', overflow: 'hidden' }}>
         <div style={{
           height: 'clamp(440px, 65svh, 720px)',
@@ -268,6 +359,7 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
           </div>
         </div>
       </header>
+      )}
 
       {/* Article body */}
       <article style={{ padding: 'clamp(56px, 8vw, 96px) clamp(24px, 8vw, 140px)' }}>
@@ -327,11 +419,12 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
         topOffset={60}
       />
 
-      {/* Hero, narrower, left-aligned for sidebar layout */}
+      {/* Hero — switches on post.heroStyle */}
+      {post.heroStyle === 'gallery-split' && <GallerySplitHero post={post} />}
       <header style={{
         position: 'relative', overflow: 'hidden',
         background: '#0a0a0a',
-        padding: 'clamp(64px, 10vw, 120px) clamp(24px, 6vw, 80px) 0',
+        padding: post.heroStyle === 'gallery-split' ? '0 clamp(24px, 6vw, 80px) 0' : 'clamp(64px, 10vw, 120px) clamp(24px, 6vw, 80px) 0',
       }}>
         <div style={{ maxWidth: 1280, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
