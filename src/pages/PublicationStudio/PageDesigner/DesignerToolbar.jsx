@@ -50,6 +50,8 @@ export default function DesignerToolbar({
   onToggleRuler,
   showBleed,
   onToggleBleed,
+  lightsOff,
+  onToggleLightsOff,
   spreadView,
   onToggleSpread,
   onSave,
@@ -138,6 +140,15 @@ export default function DesignerToolbar({
 
         {/* Bleed + safe zone guides */}
         <ToolBtn onClick={onToggleBleed} active={showBleed} title="Toggle bleed and safe zone guides">⊞ Bleed</ToolBtn>
+
+        {/* Lights off — focus mode */}
+        <ToolBtn
+          onClick={onToggleLightsOff}
+          active={lightsOff}
+          title={lightsOff ? 'Lights On — restore panels' : 'Lights Off — focus on canvas'}
+        >
+          {lightsOff ? '◉ Lights On' : '◎ Lights Off'}
+        </ToolBtn>
 
         {/* Spread view toggle */}
         <ToolBtn onClick={onToggleSpread} active={spreadView} title="Toggle double-page spread view">⊠ Spread</ToolBtn>

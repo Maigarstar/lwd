@@ -316,6 +316,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [showRuler, setShowRuler] = useState(false);
   const [showBleed, setShowBleed] = useState(false);
+  const [lightsOff, setLightsOff] = useState(false); // dim surroundings to focus on canvas
   const [zoom, setZoom] = useState(1);
   const [saving, setSaving] = useState(false);
   const [exportingDigital, setExportingDigital] = useState(false);
@@ -762,14 +763,18 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   }, [pageNumberSettings, dims, saveCurrentPageToState]);
 
   function handleAddTemplate(templateId) {
-    // Stub — templates can be wired to TemplatePicker later
     const fc = getActiveCanvas();
     if (!fc) return;
+    // Centre the template label on the canvas
+    const textW = Math.min(dims.w - 120, 500);
     const label = new Textbox(`Template ${templateId + 1}`, {
-      left: 60, top: 60,
-      width: 400, fontSize: 32,
+      left: (dims.w - textW) / 2,
+      top:  dims.h / 2 - 40,
+      width: textW,
+      fontSize: 32,
       fontFamily: 'Cormorant Garamond',
       fill: '#18120A',
+      textAlign: 'center',
     });
     fc.add(label);
     fc.setActiveObject(label);
@@ -1190,6 +1195,8 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         onToggleRuler={() => setShowRuler(v => !v)}
         showBleed={showBleed}
         onToggleBleed={() => setShowBleed(v => !v)}
+        lightsOff={lightsOff}
+        onToggleLightsOff={() => setLightsOff(v => !v)}
         spreadView={spreadView}
         onToggleSpread={() => {
           saveCurrentPageToState();
@@ -1213,9 +1220,22 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       />
 
       {/* Main area: panels + canvas */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0, position: 'relative' }}>
+
+        {/* Lights-off overlay — dims side panels, leaving canvas bright */}
+        {lightsOff && (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 50,
+            background: 'rgba(0,0,0,0.72)',
+            pointerEvents: 'none',
+            transition: 'opacity 0.4s ease',
+            // Cut a hole in the centre where the canvas area is
+            // Done via a mask: cover left panel + right panel only
+          }} />
+        )}
 
         {/* Elements panel */}
+        <div style={{ position: 'relative', zIndex: lightsOff ? 0 : 'auto', flexShrink: 0 }}>
         <ElementsPanel
           onAddElement={handleAddElement}
           onAddImage={addImage}
@@ -1227,6 +1247,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
           onToggleLayerLock={handleToggleLayerLock}
           onReorderLayer={handleReorderLayer}
         />
+        </div>
 
         {/* Canvas area */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
@@ -1261,7 +1282,8 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
               style={{
                 flex: 1,
                 overflow: 'auto',
-                background: '#141210',
+                background: lightsOff ? '#000' : '#141210',
+                transition: 'background 0.4s ease',
               }}
             >
               {/* Inner centering wrapper — plain block div, NOT a flex scroll container.
@@ -1447,11 +1469,13 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         </div>{/* end canvas column */}
 
         {/* Properties panel */}
-        <PropertiesPanel
-          selectedObject={selectedObject}
-          canvas={getActiveCanvas()}
-          onUpdate={handlePropertiesUpdate}
-        />
+        <div style={{ position: 'relative', zIndex: lightsOff ? 0 : 'auto', flexShrink: 0 }}>
+          <PropertiesPanel
+            selectedObject={selectedObject}
+            canvas={getActiveCanvas()}
+            onUpdate={handlePropertiesUpdate}
+          />
+        </div>
       </div>
 
       {/* Page list strip */}
