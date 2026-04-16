@@ -58,7 +58,7 @@ function GridOverlay({ width, height, cellPx = 40 }) {
 }
 
 // ── Ruler ─────────────────────────────────────────────────────────────────────
-function Ruler({ length, isVertical, scale = 1 }) {
+function Ruler({ length, isVertical, scale = 1, onDragGuide }) {
   const TICK_EVERY = 40; // px
   const RULER_SIZE = 20;
   const ticks = [];
@@ -118,7 +118,13 @@ function Ruler({ length, isVertical, scale = 1 }) {
       <svg
         width={RULER_SIZE}
         height={length}
-        style={{ flexShrink: 0, background: '#111' }}
+        style={{
+          flexShrink: 0,
+          background: '#111',
+          cursor: onDragGuide ? 'ew-resize' : 'default',
+          userSelect: 'none',
+        }}
+        onMouseDown={onDragGuide ? (e) => { e.preventDefault(); onDragGuide(e.clientX); } : undefined}
       >
         {ticks}
       </svg>
@@ -128,10 +134,73 @@ function Ruler({ length, isVertical, scale = 1 }) {
     <svg
       width={length}
       height={RULER_SIZE}
-      style={{ flexShrink: 0, background: '#111' }}
+      style={{
+        flexShrink: 0,
+        background: '#111',
+        cursor: onDragGuide ? 'ns-resize' : 'default',
+        userSelect: 'none',
+      }}
+      onMouseDown={onDragGuide ? (e) => { e.preventDefault(); onDragGuide(e.clientY); } : undefined}
     >
       {ticks}
     </svg>
+  );
+}
+
+// ── Guide lines overlay ───────────────────────────────────────────────────────
+function GuideLines({ guides, onMoveGuide }) {
+  return (
+    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 10 }}>
+      {guides.h.map((y, i) => (
+        <div
+          key={`h-${i}`}
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: y,
+            height: 1,
+            background: 'rgba(0,168,255,0.7)',
+            pointerEvents: 'auto',
+            cursor: 'ns-resize',
+            // Extend hit area
+            paddingTop: 3,
+            paddingBottom: 3,
+            marginTop: -3,
+            marginBottom: -3,
+            boxSizing: 'content-box',
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            onMoveGuide('h', i, e);
+          }}
+        />
+      ))}
+      {guides.v.map((x, i) => (
+        <div
+          key={`v-${i}`}
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: x,
+            width: 1,
+            background: 'rgba(0,168,255,0.7)',
+            pointerEvents: 'auto',
+            cursor: 'ew-resize',
+            paddingLeft: 3,
+            paddingRight: 3,
+            marginLeft: -3,
+            marginRight: -3,
+            boxSizing: 'content-box',
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            onMoveGuide('v', i, e);
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -144,6 +213,9 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   // Fabric instance refs
   const fabricRef     = useRef(null); // right / single
   const fabricRefLeft = useRef(null); // left (spread view only)
+
+  // Canvas container ref (for guide coordinate calculations)
+  const canvasContainerRef = useRef(null);
 
   const initRef = useRef(false);
 
@@ -169,6 +241,10 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   // Spread view state
   const [spreadView, setSpreadView] = useState(false);
   const [activeSpreadSide, setActiveSpreadSide] = useState('right'); // 'left' | 'right'
+
+  // Guide rails state
+  const [guides, setGuides] = useState({ h: [], v: [] });
+  const [draftGuide, setDraftGuide] = useState(null); // null | { axis: 'h'|'v', pos: number }
 
   const dims = PAGE_SIZES[pageSize] || PAGE_SIZES.A4;
 
@@ -660,6 +736,91 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     }
   }
 
+  // ── Guide rails ─────────────────────────────────────────────────────────────
+
+  // Create horizontal guide by dragging from horizontal ruler
+  const handleCreateHGuide = useCallback((startClientY) => {
+    const onMove = (e) => {
+      setDraftGuide({ axis: 'h', pos: e.clientY });
+    };
+    const onUp = (e) => {
+      const canvasContainer = canvasContainerRef.current;
+      if (canvasContainer) {
+        const rect = canvasContainer.getBoundingClientRect();
+        const y = (e.clientY - rect.top) / zoom;
+        if (y > 0 && y < dims.h) {
+          setGuides(g => ({ ...g, h: [...g.h, Math.round(y)] }));
+        }
+      }
+      setDraftGuide(null);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [zoom, dims]);
+
+  // Create vertical guide by dragging from vertical ruler
+  const handleCreateVGuide = useCallback((startClientX) => {
+    const onMove = (e) => setDraftGuide({ axis: 'v', pos: e.clientX });
+    const onUp = (e) => {
+      const canvasContainer = canvasContainerRef.current;
+      if (canvasContainer) {
+        const rect = canvasContainer.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / zoom;
+        if (x > 0 && x < dims.w) {
+          setGuides(g => ({ ...g, v: [...g.v, Math.round(x)] }));
+        }
+      }
+      setDraftGuide(null);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [zoom, dims]);
+
+  // Move or delete an existing guide
+  const handleMoveGuide = useCallback((axis, index, e) => {
+    e.preventDefault();
+    const canvasContainer = canvasContainerRef.current;
+    const onMove = (ev) => {
+      if (!canvasContainer) return;
+      const rect = canvasContainer.getBoundingClientRect();
+      const pos = axis === 'h'
+        ? (ev.clientY - rect.top) / zoom
+        : (ev.clientX - rect.left) / zoom;
+      const maxPos = axis === 'h' ? dims.h : dims.w;
+      const clamped = Math.max(0, Math.min(maxPos, Math.round(pos)));
+      setGuides(g => {
+        const arr = [...g[axis]];
+        arr[index] = clamped;
+        return { ...g, [axis]: arr };
+      });
+    };
+    const onUp = (ev) => {
+      // If dragged outside canvas bounds, delete the guide
+      if (canvasContainer) {
+        const rect = canvasContainer.getBoundingClientRect();
+        const outX = ev.clientX < rect.left || ev.clientX > rect.right;
+        const outY = ev.clientY < rect.top  || ev.clientY > rect.bottom;
+        if ((axis === 'h' && outY) || (axis === 'v' && outX)) {
+          setGuides(g => {
+            const arr = g[axis].filter((_, i) => i !== index);
+            return { ...g, [axis]: arr };
+          });
+        }
+      }
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [zoom, dims]);
+
+  // Clear all guides
+  const handleClearGuides = useCallback(() => setGuides({ h: [], v: [] }), []);
+
   const RULER_SIZE = showRuler ? 20 : 0;
 
   // Compute spread indices for render
@@ -704,6 +865,8 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         exportingPrint={exportingPrint}
         pageSize={pageSize}
         onPageSizeChange={handlePageSizeChange}
+        hasGuides={guides.h.length > 0 || guides.v.length > 0}
+        onClearGuides={handleClearGuides}
       />
 
       {/* Main area: panels + canvas */}
@@ -724,14 +887,24 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
           {showRuler && (
             <div style={{ display: 'flex', flexShrink: 0 }}>
               <div style={{ width: RULER_SIZE, height: RULER_SIZE, background: '#0D0C0A', flexShrink: 0 }} />
-              <Ruler length={dims.w * zoom + 200} isVertical={false} scale={zoom} />
+              <Ruler
+                length={dims.w * zoom + 200}
+                isVertical={false}
+                scale={zoom}
+                onDragGuide={handleCreateHGuide}
+              />
             </div>
           )}
 
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
             {/* Ruler left */}
             {showRuler && (
-              <Ruler length={dims.h * zoom + 200} isVertical scale={zoom} />
+              <Ruler
+                length={dims.h * zoom + 200}
+                isVertical
+                scale={zoom}
+                onDragGuide={handleCreateVGuide}
+              />
             )}
 
             {/* Scrollable canvas container */}
@@ -835,13 +1008,16 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
                 </div>
               ) : (
                 // ── SINGLE PAGE VIEW ─────────────────────────────────────────────
-                <div style={{
-                  position: 'relative',
-                  flexShrink: 0,
-                  transform: `scale(${zoom})`,
-                  transformOrigin: 'top center',
-                  boxShadow: '0 12px 48px rgba(0,0,0,0.6)',
-                }}>
+                <div
+                  ref={canvasContainerRef}
+                  style={{
+                    position: 'relative',
+                    flexShrink: 0,
+                    transform: `scale(${zoom})`,
+                    transformOrigin: 'top center',
+                    boxShadow: '0 12px 48px rgba(0,0,0,0.6)',
+                  }}
+                >
                   <canvas ref={canvasElRef} />
                   {showGrid && (
                     <GridOverlay
@@ -849,6 +1025,11 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
                       height={dims.h * zoom}
                     />
                   )}
+                  {/* Guide lines overlay */}
+                  <GuideLines
+                    guides={guides}
+                    onMoveGuide={handleMoveGuide}
+                  />
                 </div>
               )}
             </div>
@@ -873,6 +1054,19 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         onDuplicatePage={handleDuplicatePage}
         onReorderPage={handleReorderPage}
       />
+
+      {/* Draft guide preview (fixed overlay while dragging from ruler) */}
+      {draftGuide && (
+        <div style={{
+          position: 'fixed',
+          ...(draftGuide.axis === 'h'
+            ? { left: 0, right: 0, top: draftGuide.pos, height: 1 }
+            : { top: 0, bottom: 0, left: draftGuide.pos, width: 1 }),
+          background: 'rgba(0,168,255,0.5)',
+          pointerEvents: 'none',
+          zIndex: 9999,
+        }} />
+      )}
     </div>
   );
 }

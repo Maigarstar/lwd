@@ -1,6 +1,156 @@
 import { useState, useRef } from 'react';
 import { GOLD, BORDER, MUTED, NU } from './designerConstants';
 
+// ── Build page groups: cover, spreads, back cover ────────────────────────────
+function buildPageGroups(pages) {
+  if (pages.length === 0) return [];
+  const groups = [];
+
+  // Cover (page index 0)
+  groups.push({ type: 'cover', key: 'cover', indices: [0] });
+
+  // Spreads (pairs starting from index 1)
+  let i = 1;
+  while (i < pages.length) {
+    if (i + 1 < pages.length) {
+      groups.push({ type: 'spread', key: `spread-${i}`, indices: [i, i + 1] });
+      i += 2;
+    } else {
+      // Odd last page = back cover
+      groups.push({ type: 'backcover', key: 'backcover', indices: [i] });
+      i++;
+    }
+  }
+
+  return groups;
+}
+
+// ── Single page tile (cover / back cover) ────────────────────────────────────
+function SinglePageTile({ page, index, isActive, label, onSelectPage, onContextMenu }) {
+  return (
+    <div
+      onClick={() => onSelectPage(index)}
+      onContextMenu={e => onContextMenu(e, index)}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        cursor: 'pointer',
+        gap: 4,
+        flexShrink: 0,
+        userSelect: 'none',
+      }}
+    >
+      <div style={{
+        width: 56,
+        height: 80,
+        background: '#2A2520',
+        border: `1.5px solid ${isActive ? GOLD : '#3A3530'}`,
+        borderRadius: 2,
+        overflow: 'hidden',
+        boxShadow: isActive ? `0 0 0 1px ${GOLD}` : 'none',
+        backgroundImage: page?.thumbnailDataUrl ? `url(${page.thumbnailDataUrl})` : 'none',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        display: page?.thumbnailDataUrl ? 'block' : 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'rgba(255,255,255,0.15)',
+        fontFamily: NU,
+        fontSize: 10,
+      }}>
+        {!page?.thumbnailDataUrl && (index + 1)}
+      </div>
+      <span style={{
+        fontSize: 8,
+        fontFamily: `'Jost', ${NU}, sans-serif`,
+        fontWeight: 700,
+        letterSpacing: '0.1em',
+        color: isActive ? GOLD : 'rgba(255,255,255,0.35)',
+        textTransform: 'uppercase',
+      }}>{label}</span>
+    </div>
+  );
+}
+
+// ── Spread tile (two pages side by side) ─────────────────────────────────────
+function SpreadTile({ leftPage, rightPage, leftIdx, rightIdx, currentPageIndex, spreadNum, onSelectPage, onContextMenu }) {
+  const isActive = currentPageIndex === leftIdx || currentPageIndex === rightIdx;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        cursor: 'pointer',
+        gap: 4,
+        flexShrink: 0,
+        userSelect: 'none',
+      }}
+    >
+      <div style={{ display: 'flex', gap: 1 }}>
+        {/* Left page thumbnail */}
+        <div
+          onClick={() => onSelectPage(leftIdx)}
+          onContextMenu={e => onContextMenu(e, leftIdx)}
+          style={{
+            width: 50,
+            height: 70,
+            background: '#2A2520',
+            border: `1.5px solid ${currentPageIndex === leftIdx ? GOLD : (isActive ? 'rgba(201,169,110,0.3)' : '#3A3530')}`,
+            borderRadius: '2px 0 0 2px',
+            overflow: 'hidden',
+            backgroundImage: leftPage?.thumbnailDataUrl ? `url(${leftPage.thumbnailDataUrl})` : 'none',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            display: leftPage?.thumbnailDataUrl ? 'block' : 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'rgba(255,255,255,0.15)',
+            fontFamily: NU,
+            fontSize: 9,
+          }}
+        >
+          {!leftPage?.thumbnailDataUrl && (leftIdx + 1)}
+        </div>
+        {/* Right page thumbnail */}
+        <div
+          onClick={() => onSelectPage(rightIdx)}
+          onContextMenu={e => onContextMenu(e, rightIdx)}
+          style={{
+            width: 50,
+            height: 70,
+            background: '#2A2520',
+            border: `1.5px solid ${currentPageIndex === rightIdx ? GOLD : (isActive ? 'rgba(201,169,110,0.3)' : '#3A3530')}`,
+            borderRadius: '0 2px 2px 0',
+            overflow: 'hidden',
+            backgroundImage: rightPage?.thumbnailDataUrl ? `url(${rightPage.thumbnailDataUrl})` : 'none',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            display: rightPage?.thumbnailDataUrl ? 'block' : 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'rgba(255,255,255,0.15)',
+            fontFamily: NU,
+            fontSize: 9,
+          }}
+        >
+          {!rightPage?.thumbnailDataUrl && (rightIdx + 1)}
+        </div>
+      </div>
+      <span style={{
+        fontSize: 8,
+        fontFamily: `'Jost', ${NU}, sans-serif`,
+        fontWeight: 600,
+        letterSpacing: '0.08em',
+        color: isActive ? GOLD : 'rgba(255,255,255,0.3)',
+        textTransform: 'uppercase',
+      }}>Spread {spreadNum}</span>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function PageListPanel({
   pages,
   currentPageIndex,
@@ -11,8 +161,6 @@ export default function PageListPanel({
   onReorderPage,
 }) {
   const [contextMenu, setContextMenu] = useState(null); // { index, x, y }
-  const [dragIndex, setDragIndex] = useState(null);
-  const [dragOverIndex, setDragOverIndex] = useState(null);
   const stripRef = useRef(null);
 
   function handleContextMenu(e, i) {
@@ -24,30 +172,10 @@ export default function PageListPanel({
     setContextMenu(null);
   }
 
-  function handleDragStart(e, i) {
-    setDragIndex(i);
-    e.dataTransfer.effectAllowed = 'move';
-  }
+  const groups = buildPageGroups(pages);
 
-  function handleDragOver(e, i) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverIndex(i);
-  }
-
-  function handleDrop(e, i) {
-    e.preventDefault();
-    if (dragIndex !== null && dragIndex !== i) {
-      onReorderPage?.(dragIndex, i);
-    }
-    setDragIndex(null);
-    setDragOverIndex(null);
-  }
-
-  function handleDragEnd() {
-    setDragIndex(null);
-    setDragOverIndex(null);
-  }
+  // Spread number counter (for labelling)
+  let spreadCounter = 0;
 
   return (
     <div
@@ -60,79 +188,65 @@ export default function PageListPanel({
         alignItems: 'center',
         overflowX: 'auto',
         overflowY: 'hidden',
-        gap: 8,
-        padding: '0 12px',
+        gap: 12,
+        padding: '0 16px',
         position: 'relative',
       }}
       onClick={closeContext}
       ref={stripRef}
     >
-      {pages.map((page, i) => (
-        <div
-          key={page.id}
-          draggable
-          onDragStart={e => handleDragStart(e, i)}
-          onDragOver={e => handleDragOver(e, i)}
-          onDrop={e => handleDrop(e, i)}
-          onDragEnd={handleDragEnd}
-          onClick={() => onSelectPage(i)}
-          onContextMenu={e => handleContextMenu(e, i)}
-          style={{
-            flexShrink: 0,
-            width: 80,
-            height: 90,
-            position: 'relative',
-            cursor: 'pointer',
-            border: i === currentPageIndex
-              ? `2px solid ${GOLD}`
-              : dragOverIndex === i
-              ? `2px solid rgba(201,169,110,0.4)`
-              : '2px solid rgba(255,255,255,0.08)',
-            borderRadius: 3,
-            background: '#1a1712',
-            overflow: 'hidden',
-            transition: 'border-color 0.15s, transform 0.1s',
-            transform: dragIndex === i ? 'scale(0.95)' : 'scale(1)',
-            opacity: dragIndex === i ? 0.5 : 1,
-          }}
-        >
-          {/* Thumbnail */}
-          {page.thumbnailDataUrl ? (
-            <img
-              src={page.thumbnailDataUrl}
-              alt={`Page ${page.pageNumber}`}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+      {groups.map((group) => {
+        if (group.type === 'cover') {
+          const idx = group.indices[0];
+          const page = pages[idx];
+          return (
+            <SinglePageTile
+              key={group.key}
+              page={page}
+              index={idx}
+              isActive={currentPageIndex === idx}
+              label="Cover"
+              onSelectPage={onSelectPage}
+              onContextMenu={handleContextMenu}
             />
-          ) : (
-            <div style={{
-              width: '100%', height: '100%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'rgba(255,255,255,0.15)',
-              fontFamily: NU, fontSize: 10,
-            }}>
-              {i + 1}
-            </div>
-          )}
+          );
+        }
 
-          {/* Page number badge */}
-          <div style={{
-            position: 'absolute',
-            bottom: 3,
-            left: 0,
-            right: 0,
-            textAlign: 'center',
-            fontFamily: NU,
-            fontSize: 9,
-            fontWeight: 700,
-            color: i === currentPageIndex ? GOLD : 'rgba(255,255,255,0.4)',
-            letterSpacing: '0.05em',
-            textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-            pointerEvents: 'none',
-          }}>
-            {page.name || `Page ${i + 1}`}
-          </div>
-        </div>
-      ))}
+        if (group.type === 'backcover') {
+          const idx = group.indices[0];
+          const page = pages[idx];
+          return (
+            <SinglePageTile
+              key={group.key}
+              page={page}
+              index={idx}
+              isActive={currentPageIndex === idx}
+              label="Back"
+              onSelectPage={onSelectPage}
+              onContextMenu={handleContextMenu}
+            />
+          );
+        }
+
+        // Spread
+        spreadCounter += 1;
+        const [leftIdx, rightIdx] = group.indices;
+        const leftPage  = pages[leftIdx];
+        const rightPage = pages[rightIdx];
+        return (
+          <SpreadTile
+            key={group.key}
+            leftPage={leftPage}
+            rightPage={rightPage}
+            leftIdx={leftIdx}
+            rightIdx={rightIdx}
+            currentPageIndex={currentPageIndex}
+            spreadNum={spreadCounter}
+            onSelectPage={onSelectPage}
+            onContextMenu={handleContextMenu}
+          />
+        );
+      })}
 
       {/* Add page button */}
       <button
@@ -184,7 +298,7 @@ export default function PageListPanel({
         >
           {[
             { label: 'Duplicate', action: () => { onDuplicatePage?.(contextMenu.index); closeContext(); } },
-            { label: 'Move Left', action: () => { if (contextMenu.index > 0) onReorderPage?.(contextMenu.index, contextMenu.index - 1); closeContext(); }, disabled: contextMenu.index === 0 },
+            { label: 'Move Left',  action: () => { if (contextMenu.index > 0) onReorderPage?.(contextMenu.index, contextMenu.index - 1); closeContext(); }, disabled: contextMenu.index === 0 },
             { label: 'Move Right', action: () => { if (contextMenu.index < pages.length - 1) onReorderPage?.(contextMenu.index, contextMenu.index + 1); closeContext(); }, disabled: contextMenu.index === pages.length - 1 },
             { label: 'Delete', action: () => { onDeletePage?.(contextMenu.index); closeContext(); }, danger: true, disabled: pages.length <= 1 },
           ].map(item => (

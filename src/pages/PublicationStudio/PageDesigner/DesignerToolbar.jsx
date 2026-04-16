@@ -28,6 +28,8 @@ export default function DesignerToolbar({
   exportingPrint,
   pageSize,
   onPageSizeChange,
+  hasGuides,
+  onClearGuides,
 }) {
   const [printConfirm, setPrintConfirm] = useState(false);
 
@@ -90,6 +92,11 @@ export default function DesignerToolbar({
 
         {/* Spread view toggle */}
         <ToolBtn onClick={onToggleSpread} active={spreadView} title="Toggle double-page spread view">⊠ Spread</ToolBtn>
+
+        {/* Clear guides */}
+        {onClearGuides && (
+          <ToolBtn onClick={onClearGuides} disabled={!hasGuides} title="Clear all guide lines">⊘ Guides</ToolBtn>
+        )}
 
         <Sep />
 
