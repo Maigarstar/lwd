@@ -7,7 +7,7 @@ import PropertiesPanel from './PageDesigner/PropertiesPanel';
 import PageListPanel from './PageDesigner/PageListPanel';
 import DesignerToolbar from './PageDesigner/DesignerToolbar';
 import { canvasToJpegBlob, canvasToPrintJpegBlob, generatePrintPDF, downloadPDF } from './PageDesigner/exportUtils';
-import { upsertPage, uploadPageImage, uploadThumbImage } from '../../services/magazinePageService';
+import { upsertPages, upsertPage, fetchPages, uploadPageImage, uploadThumbImage } from '../../services/magazinePageService';
 
 function genId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID
@@ -311,6 +311,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const [selectedObject, setSelectedObject] = useState(null);
   const [pageSize, setPageSize] = useState(issue?.page_size || 'A4');
   const [layers, setLayers] = useState([]);
+  const [pagesLoaded, setPagesLoaded] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [showRuler, setShowRuler] = useState(false);
@@ -445,8 +446,25 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     return fc;
   }, [dims.w, dims.h]);
 
+  // ── Load saved pages from Supabase on mount ──────────────────────────────────
+  useEffect(() => {
+    if (!issue?.id) { setPagesLoaded(true); return; }
+    fetchPages(issue.id).then(({ data, error }) => {
+      if (!error && data?.length) {
+        setPages(data.map(row => ({
+          pageNumber: row.page_number,
+          canvasJSON: row.template_data?.canvasJSON ?? null,
+          thumbnailDataUrl: row.thumbnail_url ?? null,
+          name: row.name ?? `Page ${row.page_number}`,
+        })));
+      }
+      setPagesLoaded(true);
+    });
+  }, [issue?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Canvas init ─────────────────────────────────────────────────────────────
   useEffect(() => {
+    if (!pagesLoaded) return; // wait until DB pages are loaded
     if (!spreadView) {
       // ── Single page mode ──
       if (!canvasElRef.current) return;
@@ -527,7 +545,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spreadView, pageSize, currentPageIndex]);
+  }, [spreadView, pageSize, currentPageIndex, pagesLoaded]);
 
   // ── Sync selectedObject when active spread side changes ────────────────────
   useEffect(() => {
@@ -781,11 +799,45 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
 
   // ── Save ────────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
+    if (!issue?.id) return;
     setSaving(true);
-    saveCurrentPageToState();
-    await new Promise(r => setTimeout(r, 80));
-    setSaving(false);
-  }, [saveCurrentPageToState]);
+    try {
+      // Build a fresh snapshot: read live canvas JSON for currently-open page(s),
+      // use cached canvasJSON for all other pages (they haven't changed).
+      const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pages.length);
+      const freshPages = pages.map((page, i) => {
+        if (!spreadView && i === currentPageIndex && fabricRef.current) {
+          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom']) };
+        }
+        if (spreadView && i === leftIndex && fabricRefLeft.current) {
+          return { ...page, canvasJSON: fabricRefLeft.current.toJSON(['id', 'name', 'custom']) };
+        }
+        if (spreadView && i === rightIndex && fabricRef.current) {
+          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom']) };
+        }
+        return page;
+      });
+
+      // Batch upsert all pages to Supabase (canvasJSON only — images are written on Publish)
+      const { error } = await upsertPages(
+        freshPages.map((page, i) => ({
+          issue_id:    issue.id,
+          page_number: i + 1,
+          source_type: 'template',
+          template_data: { engine: 'designer-v1', canvasJSON: page.canvasJSON ?? null },
+        }))
+      );
+      if (error) throw error;
+
+      // Sync local state so further edits start from the saved snapshot
+      setPages(freshPages);
+    } catch (e) {
+      console.error('Save failed:', e);
+      alert('Save failed: ' + (e.message || e));
+    } finally {
+      setSaving(false);
+    }
+  }, [issue, pages, spreadView, currentPageIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Digital Export ──────────────────────────────────────────────────────────
   const handleExportDigital = useCallback(async () => {
