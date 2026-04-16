@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { GOLD, DARK, CARD, BORDER, MUTED, GD, NU } from './designerConstants';
+import { TEMPLATES } from '../templates/definitions';
 
 const SECTION_STYLE = {
   fontFamily: NU,
@@ -248,12 +249,6 @@ export default function ElementsPanel({ onAddElement, onAddImage, onAddTemplate,
     setUrlOpen(false);
   }
 
-  const TEMPLATES = [
-    'Editorial Spread', 'Cover Page', 'Full Bleed Photo', 'Two Column Text',
-    'Pull Quote Feature', 'Venue Showcase', 'Vendor Profile', 'Photo Grid 2x2',
-    'Photo Grid 3x3', 'Article Opener', 'Section Divider', 'Contents Page',
-    'Contact Details', 'Map Feature', 'Timeline', 'Stats Strip',
-  ];
 
   return (
     <div style={{
@@ -471,23 +466,49 @@ export default function ElementsPanel({ onAddElement, onAddImage, onAddTemplate,
 
           {/* Templates */}
           <div style={SECTION_STYLE}>Templates</div>
-          {TEMPLATES.map((name, i) => (
-            <ElemButton
-              key={i}
-              label={name}
-              preview={
-                <div style={{
-                  width: 28, height: 20,
-                  background: 'rgba(201,169,110,0.15)',
-                  border: `1px solid rgba(201,169,110,0.3)`,
-                  borderRadius: 2,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <span style={{ fontFamily: NU, fontSize: 7, color: GOLD }}>{i + 1}</span>
-                </div>
-              }
+          {TEMPLATES.map((template, i) => (
+            <button
+              key={template.id}
+              title={template.description || template.name}
               onClick={() => onAddTemplate && onAddTemplate(i)}
-            />
+              style={{
+                width: '100%',
+                background: 'none',
+                border: 'none',
+                borderBottom: `1px solid rgba(255,255,255,0.04)`,
+                color: '#fff',
+                cursor: 'pointer',
+                padding: '8px 16px',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                transition: 'background 0.1s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(201,169,110,0.07)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+            >
+              {/* Thumbnail */}
+              <div style={{
+                width: 28, height: 20,
+                background: 'rgba(201,169,110,0.15)',
+                border: `1px solid rgba(201,169,110,0.3)`,
+                borderRadius: 2,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <span style={{ fontFamily: NU, fontSize: 7, color: GOLD }}>{i + 1}</span>
+              </div>
+              {/* Name + category */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: NU, fontSize: 12, color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {template.name}
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 9, color: GOLD, letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: 1 }}>
+                  {template.category}
+                </div>
+              </div>
+            </button>
           ))}
 
           <div style={{ height: 20 }} />

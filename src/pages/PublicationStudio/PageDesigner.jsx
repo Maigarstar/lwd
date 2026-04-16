@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Canvas, Textbox, FabricImage, Rect, Circle, Line } from 'fabric';
 import { loadGoogleFont } from './templates/fontCatalog';
 import { PAGE_SIZES, ELEMENT_DEFAULTS, GOLD, DARK, CARD, BORDER, MUTED, NU, GD } from './PageDesigner/designerConstants';
+import { TEMPLATES } from './templates/definitions';
 import ElementsPanel from './PageDesigner/ElementsPanel';
 import PropertiesPanel from './PageDesigner/PropertiesPanel';
 import PageListPanel from './PageDesigner/PageListPanel';
@@ -13,6 +14,227 @@ function genId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+// ── Template layout engine ────────────────────────────────────────────────────
+function applyTemplate(fc, template, dims) {
+  fc.clear();
+  fc.backgroundColor = '#ffffff';
+
+  const W = dims.w;
+  const H = dims.h;
+  const GOLD_C = '#C9A84C';
+  const DARK_C = '#18120A';
+  const MUTED_C = 'rgba(24,18,10,0.5)';
+
+  const layouts = {
+    'Cover': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#0A0908', selectable: false });
+      const rule = new Rect({ left: 40, top: 60, width: W - 80, height: 1, fill: GOLD_C });
+      const masthead = new Textbox('LWD', { left: 40, top: 80, width: W - 80, fontSize: 72, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontWeight: '300', fontStyle: 'italic', textAlign: 'center' });
+      const issueLabel = new Textbox('ISSUE 01 · SPRING 2026', { left: 40, top: 170, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 200, textAlign: 'center' });
+      const title = new Textbox('THE BRIDAL\nEDITION', { left: 40, top: H * 0.55, width: W - 80, fontSize: 48, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontWeight: '300', fontStyle: 'italic', lineHeight: 1.1, textAlign: 'center' });
+      const rule2 = new Rect({ left: 40, top: H - 80, width: W - 80, height: 1, fill: GOLD_C });
+      const credits = new Textbox('Vera Wang · Elie Saab · Marchesa', { left: 40, top: H - 65, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.5)', textAlign: 'center' });
+      [bg, rule, masthead, issueLabel, title, rule2, credits].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Editorial': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#ffffff', selectable: false });
+      const imgPlaceholder = new Rect({ left: 0, top: 0, width: W * 0.5, height: H, fill: '#E8E3D8' });
+      const imgLabel = new Textbox('IMAGE', { left: W * 0.1, top: H * 0.47, width: W * 0.3, fontSize: 10, fontFamily: 'Jost', fill: MUTED_C, textAlign: 'center', charSpacing: 150 });
+      const headline = new Textbox('YOUR\nHEADLINE\nHERE', { left: W * 0.54, top: 80, width: W * 0.42, fontSize: 36, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontWeight: '300', fontStyle: 'italic', lineHeight: 1.1 });
+      const rule = new Rect({ left: W * 0.54, top: 240, width: W * 0.42, height: 1, fill: GOLD_C });
+      const body = new Textbox('Your editorial copy goes here. Write about the beautiful details, the venue, the couple — whatever makes this spread sing.', { left: W * 0.54, top: 254, width: W * 0.42, fontSize: 12, fontFamily: 'Jost', fill: DARK_C, lineHeight: 1.6 });
+      const byline = new Textbox('Photography: Studio Name', { left: W * 0.54, top: H - 60, width: W * 0.42, fontSize: 9, fontFamily: 'Jost', fill: MUTED_C });
+      [bg, imgPlaceholder, imgLabel, headline, rule, body, byline].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Fashion': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#0A0908', selectable: false });
+      const colW = (W - 8) / 3;
+      [0, 1, 2].forEach(i => {
+        const col = new Rect({ left: i * (colW + 4), top: 0, width: colW, height: H * 0.78, fill: '#1A1612' });
+        col.id = genId(); fc.add(col);
+      });
+      const rule = new Rect({ left: 40, top: H * 0.82, width: W - 80, height: 1, fill: GOLD_C });
+      const heading = new Textbox('SPRING / SUMMER 2026', { left: 40, top: H * 0.85, width: W - 80, fontSize: 22, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', textAlign: 'center' });
+      const designers = new Textbox('Elie Saab · Marchesa · Jenny Packham', { left: 40, top: H * 0.92, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: 'rgba(201,168,76,0.7)', textAlign: 'center', charSpacing: 100 });
+      [rule, heading, designers].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Travel': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#1A1B2E', selectable: false });
+      const imgPh = new Rect({ left: 0, top: 0, width: W, height: H * 0.65, fill: '#2A2B3E' });
+      const gradient = new Rect({ left: 0, top: H * 0.45, width: W, height: H * 0.2, fill: 'rgba(26,27,46,0.8)' });
+      const location = new Textbox('TUSCANY, ITALY', { left: 40, top: H * 0.68, width: W - 80, fontSize: 48, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', fontWeight: '300', lineHeight: 1 });
+      const tagline = new Textbox('Where rolling hills meet eternal love.', { left: 40, top: H * 0.82, width: W - 80, fontSize: 14, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.6)', lineHeight: 1.5 });
+      [bg, imgPh, gradient, location, tagline].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Bridal': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      const imgPh = new Rect({ left: W * 0.35, top: 0, width: W * 0.65, height: H, fill: '#EDE8E0' });
+      const rule = new Rect({ left: 40, top: 80, width: 2, height: 60, fill: GOLD_C });
+      const dressName = new Textbox('THE MADELEINE', { left: 60, top: 80, width: W * 0.3, fontSize: 28, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.1 });
+      const designer = new Textbox('Vera Wang', { left: 60, top: 158, width: W * 0.3, fontSize: 12, fontFamily: 'Jost', fill: MUTED_C, charSpacing: 100 });
+      const details = new Textbox('Duchess satin · bespoke\nmade to measure', { left: 60, top: 200, width: W * 0.3, fontSize: 11, fontFamily: 'Jost', fill: DARK_C, lineHeight: 1.6 });
+      const price = new Textbox('POA', { left: 60, top: H - 80, width: 120, fontSize: 14, fontFamily: 'Cormorant Garamond', fill: GOLD_C, fontStyle: 'italic' });
+      [bg, imgPh, rule, dressName, designer, details, price].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Jewellery': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#1A0A0F', selectable: false });
+      const circle = new Circle({ left: W / 2 - 180, top: H * 0.1, radius: 180, fill: '#2A1520', stroke: 'rgba(201,168,76,0.3)', strokeWidth: 1 });
+      const name = new Textbox('THE MADELEINE RING', { left: 40, top: H * 0.65, width: W - 80, fontSize: 24, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', textAlign: 'center', charSpacing: 50 });
+      const rule = new Rect({ left: W / 2 - 40, top: H * 0.73, width: 80, height: 1, fill: GOLD_C });
+      const details = new Textbox('18ct white gold · 3.2ct round brilliant', { left: 40, top: H * 0.76, width: W - 80, fontSize: 11, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.55)', textAlign: 'center', charSpacing: 80 });
+      const brand = new Textbox('Graff, London', { left: 40, top: H * 0.82, width: W - 80, fontSize: 13, fontFamily: 'Cormorant Garamond', fill: GOLD_C, textAlign: 'center', fontStyle: 'italic' });
+      const price = new Textbox('£48,000', { left: 40, top: H * 0.88, width: W - 80, fontSize: 16, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', textAlign: 'center', fontStyle: 'italic' });
+      [bg, circle, name, rule, details, brand, price].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Real Wedding': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#18120A', selectable: false });
+      const imgPh = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#2A2016' });
+      const overlay = new Rect({ left: 0, top: H * 0.6, width: W, height: H * 0.4, fill: 'rgba(24,18,10,0.75)' });
+      const names = new Textbox('Isabella & James', { left: 40, top: H * 0.65, width: W - 80, fontSize: 42, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', fontWeight: '300', textAlign: 'center' });
+      const location = new Textbox('MARRIED IN TUSCANY', { left: 40, top: H * 0.78, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 200, textAlign: 'center' });
+      const date = new Textbox('June 14 · 2026', { left: 40, top: H * 0.85, width: W - 80, fontSize: 11, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.5)', textAlign: 'center' });
+      [bg, imgPh, overlay, names, location, date].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Detail': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      const colW = (W - 2 * 40 - 2 * 8) / 3;
+      ['The Bouquet', 'The Ring', 'The Veil'].forEach((cap, i) => {
+        const x = 40 + i * (colW + 8);
+        const imgPh = new Rect({ left: x, top: 60, width: colW, height: H * 0.72, fill: '#EDE8E0' });
+        imgPh.id = genId(); fc.add(imgPh);
+        const capText = new Textbox(cap, { left: x, top: 60 + H * 0.72 + 12, width: colW, fontSize: 10, fontFamily: 'Jost', fill: MUTED_C, textAlign: 'center', charSpacing: 80 });
+        capText.id = genId(); fc.add(capText);
+      });
+      const rule = new Rect({ left: 40, top: H - 50, width: W - 80, height: 1, fill: 'rgba(201,168,76,0.3)' });
+      const credit = new Textbox('Photography: Studio Name', { left: 40, top: H - 35, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: MUTED_C });
+      [rule, credit].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Navigation': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      const rule = new Rect({ left: 40, top: 60, width: W - 80, height: 1, fill: GOLD_C });
+      const issueLabel = new Textbox('I S S U E  0 1', { left: 40, top: 78, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 200, textAlign: 'center' });
+      const rule2 = new Rect({ left: 40, top: 102, width: W - 80, height: 1, fill: 'rgba(201,168,76,0.3)' });
+      const subtitle = new Textbox('The Bridal Edition', { left: 40, top: 118, width: W - 80, fontSize: 28, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', textAlign: 'center' });
+      // Contents entries as sample rows
+      const entries = [
+        '06  The Wedding Dress',
+        '14  Jewellery Stories',
+        '22  Venues of the Season',
+        '34  Real Wedding: Isabella',
+        '44  The Bridal Beauty Edit',
+        '52  Destination: Tuscany',
+      ];
+      entries.forEach((entry, i) => {
+        const row = new Textbox(entry, { left: 40, top: 200 + i * 52, width: W - 80, fontSize: 14, fontFamily: 'Cormorant Garamond', fill: DARK_C });
+        row.id = genId(); fc.add(row);
+        if (i < entries.length - 1) {
+          const divider = new Rect({ left: 40, top: 200 + i * 52 + 28, width: W - 80, height: 1, fill: 'rgba(24,18,10,0.1)' });
+          divider.id = genId(); fc.add(divider);
+        }
+      });
+      [bg, rule, issueLabel, rule2, subtitle].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Venue': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#1A1B2E', selectable: false });
+      const imgPh = new Rect({ left: 0, top: 0, width: W * 0.52, height: H, fill: '#2A2B3E' });
+      const rule = new Rect({ left: W * 0.56, top: 60, width: 2, height: 60, fill: GOLD_C });
+      const venueName = new Textbox('HOTEL CIPRIANI', { left: W * 0.58, top: 60, width: W * 0.38, fontSize: 28, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', lineHeight: 1.1 });
+      const location = new Textbox('Venice, Italy', { left: W * 0.58, top: 148, width: W * 0.38, fontSize: 11, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 80 });
+      const desc = new Textbox('A palazzo suspended above the Grand Canal, where time slows to the pace of gondolas and wedding bells.', { left: W * 0.58, top: 190, width: W * 0.38, fontSize: 12, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.7)', lineHeight: 1.6 });
+      const features = new Textbox('Private canal entrance\nIn-house floral studio\nDedicated wedding concierge', { left: W * 0.58, top: H * 0.6, width: W * 0.38, fontSize: 11, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.55)', lineHeight: 1.7 });
+      [bg, imgPh, rule, venueName, location, desc, features].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Venue Portrait': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#0A0908', selectable: false });
+      const imgPh = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#1A1612' });
+      const overlay = new Rect({ left: 0, top: H * 0.55, width: W, height: H * 0.45, fill: 'rgba(10,9,8,0.8)' });
+      const headline = new Textbox('Where Dreams Take Shape', { left: 40, top: H * 0.6, width: W - 80, fontSize: 36, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', fontWeight: '300', lineHeight: 1.15 });
+      const venueName = new Textbox('VENUE NAME', { left: 40, top: H * 0.75, width: W - 80, fontSize: 11, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 150 });
+      const location = new Textbox('Location · Up to 250 guests', { left: 40, top: H * 0.83, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.5)' });
+      [bg, imgPh, overlay, headline, venueName, location].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Couple': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#1A1B2E', selectable: false });
+      const imgPh = new Rect({ left: 0, top: 0, width: W, height: H * 0.55, fill: '#2A2B3E' });
+      const rule = new Rect({ left: 40, top: H * 0.58, width: W - 80, height: 1, fill: GOLD_C });
+      const names = new Textbox('Sophia & James', { left: 40, top: H * 0.62, width: W - 80, fontSize: 36, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', fontWeight: '300' });
+      const date = new Textbox('Wedding Date · Location', { left: 40, top: H * 0.74, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 100 });
+      const story = new Textbox('Their love story begins here. Add your couple\'s narrative — the journey, the proposal, the day itself.', { left: 40, top: H * 0.81, width: W - 80, fontSize: 12, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.65)', lineHeight: 1.6 });
+      [bg, imgPh, rule, names, date, story].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Beauty': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      const imgPh = new Rect({ left: W * 0.4, top: 0, width: W * 0.6, height: H, fill: '#EDE8E0' });
+      const rule = new Rect({ left: 40, top: 60, width: 2, height: 50, fill: GOLD_C });
+      const headline = new Textbox('The Art of\nBridal Beauty', { left: 60, top: 60, width: W * 0.32, fontSize: 28, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.15 });
+      const divider = new Rect({ left: 40, top: 160, width: W * 0.35, height: 1, fill: 'rgba(201,168,76,0.3)' });
+      const credits = new Textbox('Makeup Artist: Name\nHair Stylist: Name\nModel / Bride: Name', { left: 40, top: 178, width: W * 0.35, fontSize: 11, fontFamily: 'Jost', fill: DARK_C, lineHeight: 1.8 });
+      const products = new Textbox('Key look description and products used. Add the details that make this beauty edit stand out.', { left: 40, top: H * 0.55, width: W * 0.35, fontSize: 11, fontFamily: 'Jost', fill: MUTED_C, lineHeight: 1.6 });
+      [bg, imgPh, rule, headline, divider, credits, products].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Florals': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      const imgPh = new Rect({ left: 0, top: 0, width: W, height: H * 0.68, fill: '#EDE8E0' });
+      const overlay = new Rect({ left: 0, top: H * 0.5, width: W, height: H * 0.18, fill: 'rgba(250,248,245,0.7)' });
+      const headline = new Textbox('In Full Bloom', { left: 40, top: H * 0.72, width: W - 80, fontSize: 36, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', fontWeight: '300', textAlign: 'center' });
+      const rule = new Rect({ left: W / 2 - 40, top: H * 0.82, width: 80, height: 1, fill: GOLD_C });
+      const florist = new Textbox('Florist Name · description of arrangement', { left: 40, top: H * 0.85, width: W - 80, fontSize: 11, fontFamily: 'Jost', fill: MUTED_C, textAlign: 'center' });
+      [bg, imgPh, overlay, headline, rule, florist].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Reception': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      const imgPh = new Rect({ left: 0, top: 0, width: W, height: H * 0.6, fill: '#EDE8E0' });
+      const rule = new Rect({ left: 40, top: H * 0.63, width: W - 80, height: 1, fill: GOLD_C });
+      const headline = new Textbox('Dressed to Perfection', { left: 40, top: H * 0.66, width: W - 80, fontSize: 32, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.15 });
+      const credits = new Textbox('Venue: Name  ·  Table Stylist: Name  ·  Colour Palette: Ivory · Sage · Dusty Rose', { left: 40, top: H * 0.77, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: MUTED_C });
+      const caption = new Textbox('Editorial caption describing the tablescape, the inspiration, and the styling choices that made this reception unforgettable.', { left: 40, top: H * 0.83, width: W - 80, fontSize: 12, fontFamily: 'Jost', fill: DARK_C, lineHeight: 1.6 });
+      [bg, imgPh, rule, headline, credits, caption].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Ceremony': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#ffffff', selectable: false });
+      const imgPh = new Rect({ left: 0, top: 0, width: W, height: H * 0.62, fill: '#EDE8E0' });
+      const headline = new Textbox('The Walk to\nForever', { left: 40, top: H * 0.65, width: W * 0.55, fontSize: 36, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.1 });
+      const rule = new Rect({ left: W * 0.58, top: H * 0.65, width: 1, height: H * 0.28, fill: 'rgba(201,168,76,0.4)' });
+      const story = new Textbox('Ceremony story goes here. The venue, the atmosphere, the emotional walk down the aisle.', { left: W * 0.62, top: H * 0.65, width: W * 0.34, fontSize: 11, fontFamily: 'Jost', fill: MUTED_C, lineHeight: 1.65 });
+      const credit = new Textbox('Photography: Studio Name', { left: 40, top: H - 40, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: MUTED_C });
+      [bg, imgPh, headline, rule, story, credit].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Stationery': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      const imgPh = new Rect({ left: W * 0.38, top: 0, width: W * 0.62, height: H, fill: '#EDE8E0' });
+      const rule = new Rect({ left: 40, top: 60, width: W * 0.32, height: 1, fill: GOLD_C });
+      const headline = new Textbox('The Perfect\nFirst Impression', { left: 40, top: 76, width: W * 0.32, fontSize: 28, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.15 });
+      const designer = new Textbox('Stationery Designer: Name', { left: 40, top: 178, width: W * 0.32, fontSize: 10, fontFamily: 'Jost', fill: MUTED_C, charSpacing: 60 });
+      const paper = new Textbox('Hot-press letterpress on cotton paper', { left: 40, top: 200, width: W * 0.32, fontSize: 11, fontFamily: 'Jost', fill: DARK_C });
+      const desc = new Textbox('Suite description — the design concept, the paper choice, the printing technique.', { left: 40, top: H * 0.55, width: W * 0.32, fontSize: 11, fontFamily: 'Jost', fill: MUTED_C, lineHeight: 1.6 });
+      [bg, imgPh, rule, headline, designer, paper, desc].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Food & Cake': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#ffffff', selectable: false });
+      const imgPh = new Rect({ left: W * 0.1, top: H * 0.1, width: W * 0.8, height: H * 0.55, fill: '#F0EBE0' });
+      const rule = new Rect({ left: W / 2 - 60, top: H * 0.68, width: 120, height: 1, fill: GOLD_C });
+      const headline = new Textbox('The Sweet Finale', { left: 40, top: H * 0.72, width: W - 80, fontSize: 32, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', textAlign: 'center' });
+      const details = new Textbox('Cake Designer: Name  ·  Champagne sponge, elderflower cream, gold leaf', { left: 40, top: H * 0.82, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: MUTED_C, textAlign: 'center' });
+      [bg, imgPh, rule, headline, details].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+  };
+
+  const defaultLayout = () => {
+    const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#ffffff', selectable: false });
+    const categoryLabel = new Textbox(template.category.toUpperCase(), { left: 40, top: 48, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 200 });
+    const rule = new Rect({ left: 40, top: 70, width: W - 80, height: 1, fill: 'rgba(201,168,76,0.3)' });
+    const titleObj = new Textbox(template.name, { left: 40, top: 90, width: W - 80, fontSize: 40, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', fontWeight: '300', lineHeight: 1.15 });
+    const desc = new Textbox(template.description || 'Add your content here', { left: 40, top: 200, width: W - 80, fontSize: 13, fontFamily: 'Jost', fill: 'rgba(24,18,10,0.6)', lineHeight: 1.65 });
+    const imgPh = new Rect({ left: 40, top: 290, width: W - 80, height: H * 0.45, fill: '#F0EBE0' });
+    const imgLabel = new Textbox('+ ADD IMAGE', { left: 40, top: 290 + (H * 0.45) / 2 - 10, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: MUTED_C, textAlign: 'center', charSpacing: 150 });
+    [bg, categoryLabel, rule, titleObj, desc, imgPh, imgLabel].forEach(o => { o.id = genId(); fc.add(o); });
+  };
+
+  const layoutFn = layouts[template.category] || defaultLayout;
+  layoutFn();
+  fc.requestRenderAll();
 }
 
 // ── Spread pairing logic ──────────────────────────────────────────────────────
@@ -859,23 +1081,12 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     }));
   }, [pageNumberSettings, dims, saveCurrentPageToState]);
 
-  function handleAddTemplate(templateId) {
+  function handleAddTemplate(templateIndex) {
     const fc = getActiveCanvas();
     if (!fc) return;
-    // Centre the template label on the canvas
-    const textW = Math.min(dims.w - 120, 500);
-    const label = new Textbox(`Template ${templateId + 1}`, {
-      left: (dims.w - textW) / 2,
-      top:  dims.h / 2 - 40,
-      width: textW,
-      fontSize: 32,
-      fontFamily: 'Cormorant Garamond',
-      fill: '#18120A',
-      textAlign: 'center',
-    });
-    fc.add(label);
-    fc.setActiveObject(label);
-    fc.renderAll();
+    const template = TEMPLATES[templateIndex];
+    if (!template) return;
+    applyTemplate(fc, template, dims);
     pushUndo();
   }
 
