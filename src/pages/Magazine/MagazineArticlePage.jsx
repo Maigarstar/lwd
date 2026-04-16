@@ -197,18 +197,18 @@ function SidebarPostRow({ post, onClick, light = false }) {
 
 // ─── Gallery Split Hero ───────────────────────────────────────────────────────
 function GallerySplitHero({ post, isLight = true }) {
-  // ── Image data ──────────────────────────────────────────────────────────────
+  // ── Image datasets — SEPARATED, never overlap ───────────────────────────────
   const gallery   = Array.isArray(post.galleryImages) ? post.galleryImages : [];
-  const allImages = [post.coverImage, ...gallery].filter(Boolean); // all left-panel images
-  const rightImg  = gallery[0] || null;                            // FIXED right panel
+  // LEFT:  gallery[activeIndex]  — only gallery images cycle here
+  // RIGHT: coverImage (fixed anchor) — completely separate, never changes
+  const rightImg  = post.coverImage || null;
   const caption   = post.heroCaption || '';
-  const count     = allImages.length;
 
   // ── State ────────────────────────────────────────────────────────────────────
-  const [activeIdx, setActiveIdx] = useState(0);
-  const thumbStripRef             = useRef(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const thumbStripRef = useRef(null);
 
-  // Responsive viewport
+  // Viewport
   const getVp = () => typeof window !== 'undefined'
     ? (window.innerWidth < 768 ? 'mobile' : window.innerWidth < 1024 ? 'tablet' : 'desktop')
     : 'desktop';
@@ -219,54 +219,57 @@ function GallerySplitHero({ post, isLight = true }) {
     return () => window.removeEventListener('resize', h);
   }, []);
 
-  // Inject fade + hover CSS once
+  // Inject CSS once — fade on left image + thumb hover
   useEffect(() => {
     if (document.getElementById('gs-hero-css')) return;
     const s = document.createElement('style');
     s.id = 'gs-hero-css';
     s.textContent = `
-      @keyframes gsFadeIn { 0% { opacity:0 } 100% { opacity:1 } }
-      .gs-left-img { animation: gsFadeIn 0.32s ease forwards; }
-      .gs-thumb { transition: opacity 0.18s ease, transform 0.15s ease, border-color 0.18s ease; }
+      @keyframes gsFadeIn { from { opacity:0 } to { opacity:1 } }
+      .gs-left-img  { animation: gsFadeIn 0.32s ease forwards; }
+      .gs-thumb     { transition: opacity 0.18s ease, transform 0.15s ease, border-color 0.18s ease; }
       .gs-thumb:hover { opacity: 0.88 !important; transform: translateY(-1px); }
       .gs-strip::-webkit-scrollbar { display: none; }
     `;
     document.head.appendChild(s);
   }, []);
 
-  // ── Derived layout flags ────────────────────────────────────────────────────
-  // 0 images → render nothing
-  if (count === 0) return null;
-  const isMobile    = vp === 'mobile';
-  const isTablet    = vp === 'tablet';
-  const hasSplit    = count >= 2 && rightImg;   // need right image for split
-  const showThumbs  = count >= 3;               // 3+ images → strip appears
+  // ── Layout flags ─────────────────────────────────────────────────────────────
+  const isMobile  = vp === 'mobile';
+  const isTablet  = vp === 'tablet';
+  // split requires: at least 1 gallery image (left) AND a coverImage (right)
+  const hasSplit  = gallery.length >= 1 && !!rightImg;
+  // thumbs only when there are 2+ gallery images to cycle between
+  const showThumbs = gallery.length >= 2;
 
-  // Thumbnail dimensions per breakpoint
-  const thumbW  = isMobile ? 120 : isTablet ? 140 : 160;
-  const thumbH  = isMobile ?  80 : isTablet ?  95 : 110;
-  const thumbGp = isMobile ?  10 : 14;
+  // Safe activeIndex (guard against stale value if gallery shrinks)
+  const safeIdx = Math.min(activeIndex, Math.max(0, gallery.length - 1));
+
+  // Thumbnail dimensions
+  const thumbW = isMobile ? 120 : isTablet ? 140 : 160;
+  const thumbH = isMobile ?  80 : isTablet ?  95 : 110;
+  const thumbGp= isMobile ?  10 : 14;
+
+  const scrollThumbs = (dir) =>
+    thumbStripRef.current?.scrollBy({ left: dir * (thumbW + thumbGp) * 3, behavior: 'smooth' });
 
   // ── Palette ──────────────────────────────────────────────────────────────────
-  const bg       = isLight ? '#ffffff'             : '#0f0f0d';
-  const titleClr = isLight ? '#141414'             : '#f5f0e8';
-  const mutedClr = isLight ? 'rgba(20,20,20,0.48)' : 'rgba(245,240,232,0.50)';
-  const borderClr= isLight ? 'rgba(20,20,20,0.10)' : 'rgba(245,240,232,0.08)';
-  const stripBg  = isLight ? '#f7f5f2'             : '#111110';
-  const arrowClr = isLight ? 'rgba(20,20,20,0.50)' : 'rgba(245,240,232,0.50)';
+  const bg       = isLight ? '#ffffff'              : '#0f0f0d';
+  const titleClr = isLight ? '#141414'              : '#f5f0e8';
+  const mutedClr = isLight ? 'rgba(20,20,20,0.48)'  : 'rgba(245,240,232,0.50)';
+  const borderClr= isLight ? 'rgba(20,20,20,0.10)'  : 'rgba(245,240,232,0.08)';
+  const stripBg  = isLight ? '#f7f5f2'              : '#111110';
+  const arrowClr = isLight ? 'rgba(20,20,20,0.50)'  : 'rgba(245,240,232,0.50)';
 
-  const scrollThumbs = (dir) => {
-    thumbStripRef.current?.scrollBy({ left: dir * (thumbW + thumbGp) * 3, behavior: 'smooth' });
-  };
+  // Nothing to show at all
+  if (!rightImg && gallery.length === 0) return null;
 
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <header style={{ background: bg }}>
 
-      {/* ── 1. Title block ── centred, white bg ─────────────────────────────── */}
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: 'clamp(48px,6vw,80px) clamp(24px,5vw,72px) clamp(24px,3vw,36px)' }}>
+      {/* ── 1. Title block ── centred editorial ─────────────────────────────── */}
+      <div style={{ maxWidth:1280, margin:'0 auto', padding:'clamp(48px,6vw,80px) clamp(24px,5vw,72px) clamp(24px,3vw,36px)' }}>
 
-        {/* Category */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:14, marginBottom:20 }}>
           <div style={{ width:40, height:1, background:GOLD, opacity:0.45 }} />
           <span style={{ fontFamily:FU, fontSize:10, fontWeight:700, letterSpacing:'0.22em', textTransform:'uppercase', color:GOLD }}>
@@ -275,22 +278,18 @@ function GallerySplitHero({ post, isLight = true }) {
           <div style={{ width:40, height:1, background:GOLD, opacity:0.45 }} />
         </div>
 
-        {/* H1 */}
         <h1 style={{ fontFamily:FD, fontSize:'clamp(30px,4.5vw,62px)', fontWeight:400, color:titleClr, margin:'0 auto 14px', lineHeight:1.1, letterSpacing:'-0.01em', maxWidth:860, textAlign:'center' }}>
           {post.title}
         </h1>
 
-        {/* Standfirst */}
         {post.standfirst && (
           <p style={{ fontFamily:FD, fontSize:'clamp(15px,1.4vw,20px)', fontStyle:'italic', color:mutedClr, margin:'0 auto 18px', lineHeight:1.65, maxWidth:640, textAlign:'center' }}>
             {post.standfirst}
           </p>
         )}
 
-        {/* Divider */}
         <div style={{ width:48, height:1, background:borderClr, margin:'0 auto 16px' }} />
 
-        {/* Meta */}
         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', justifyContent:'center' }}>
           {post.author && <>
             {post.author.avatar && <img src={post.author.avatar} alt={post.author.name} style={{ width:28, height:28, borderRadius:'50%', objectFit:'cover', flexShrink:0 }} />}
@@ -306,42 +305,25 @@ function GallerySplitHero({ post, isLight = true }) {
       </div>
 
       {/* ── 2. Image area ───────────────────────────────────────────────────── */}
-      <div style={{ maxWidth:1280, margin:'0 auto', padding:`0 clamp(24px,5vw,72px)` }}>
+      <div style={{ maxWidth:1280, margin:'0 auto', padding:'0 clamp(24px,5vw,72px)' }}>
 
-        {/* ─ Fallback: 1 image → full width ─ */}
-        {!hasSplit && (
+        {/* Fallback: no gallery images — show coverImage full width */}
+        {!hasSplit && rightImg && (
           <div style={{ position:'relative', height:560, overflow:'hidden', borderRadius:3 }}>
-            <img
-              key={activeIdx}
-              src={allImages[0]}
-              alt=""
-              className="gs-left-img"
-              style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }}
-            />
+            <img src={rightImg} alt="" style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }} />
             {caption && <GsCaption caption={caption} />}
           </div>
         )}
 
-        {/* ─ Split: 65 / 35 ─ */}
+        {/* Split layout: left 65% cycles, right 35% FIXED */}
         {hasSplit && (
-          <div style={{
-            display: 'flex',
-            flexDirection: isMobile ? 'column' : 'row',
-            gap: 4,
-            height: isMobile ? 'auto' : 560,
-            overflow: 'hidden',
-            borderRadius: 3,
-          }}>
-            {/* LEFT 65%: fades on thumbnail click */}
-            <div style={{
-              position: 'relative',
-              overflow: 'hidden',
-              flex: isMobile ? 'none' : '65 1 0%',
-              height: isMobile ? 'clamp(220px,52vw,380px)' : '100%',
-            }}>
+          <div style={{ display:'flex', flexDirection: isMobile ? 'column' : 'row', gap:4, height: isMobile ? 'auto' : 560, overflow:'hidden', borderRadius:3 }}>
+
+            {/* LEFT 65% — gallery[activeIndex], fades on change */}
+            <div style={{ position:'relative', overflow:'hidden', flex: isMobile ? 'none' : '65 1 0%', height: isMobile ? 'clamp(220px,52vw,360px)' : '100%' }}>
               <img
-                key={activeIdx}
-                src={allImages[activeIdx]}
+                key={safeIdx}
+                src={gallery[safeIdx]}
                 alt=""
                 className="gs-left-img"
                 style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }}
@@ -349,13 +331,8 @@ function GallerySplitHero({ post, isLight = true }) {
               {caption && <GsCaption caption={caption} />}
             </div>
 
-            {/* RIGHT 35%: ALWAYS gallery[0], never changes */}
-            <div style={{
-              position: 'relative',
-              overflow: 'hidden',
-              flex: isMobile ? 'none' : '35 1 0%',
-              height: isMobile ? 'clamp(180px,40vw,280px)' : '100%',
-            }}>
+            {/* RIGHT 35% — coverImage, static, NEVER changes */}
+            <div style={{ position:'relative', overflow:'hidden', flex: isMobile ? 'none' : '35 1 0%', height: isMobile ? 'clamp(160px,36vw,260px)' : '100%' }}>
               <img
                 src={rightImg}
                 alt=""
@@ -366,54 +343,39 @@ function GallerySplitHero({ post, isLight = true }) {
         )}
       </div>
 
-      {/* ── 3. Thumbnail strip ── 3+ images only ────────────────────────────── */}
-      {showThumbs && (
-        <div style={{ maxWidth:1280, margin:'0 auto', padding:`0 clamp(24px,5vw,72px)` }}>
+      {/* ── 3. Thumbnail strip — only when 2+ gallery images ────────────────── */}
+      {hasSplit && showThumbs && (
+        <div style={{ maxWidth:1280, margin:'0 auto', padding:'0 clamp(24px,5vw,72px)' }}>
           <div style={{ position:'relative', background:stripBg, borderRadius:'0 0 3px 3px' }}>
 
-            {/* Left arrow — desktop/tablet only */}
             {!isMobile && (
-              <button onClick={() => scrollThumbs(-1)} aria-label="Previous images" style={{ position:'absolute', left:0, top:0, bottom:0, zIndex:2, background:`linear-gradient(to right,${stripBg} 60%,transparent)`, border:'none', cursor:'pointer', padding:'0 16px 0 10px', color:arrowClr, fontSize:22, lineHeight:1, display:'flex', alignItems:'center' }}>
-                ‹
-              </button>
+              <button onClick={() => scrollThumbs(-1)} aria-label="Previous" style={{ position:'absolute', left:0, top:0, bottom:0, zIndex:2, background:`linear-gradient(to right,${stripBg} 60%,transparent)`, border:'none', cursor:'pointer', padding:'0 16px 0 10px', color:arrowClr, fontSize:22, display:'flex', alignItems:'center' }}>‹</button>
             )}
 
-            {/* Strip */}
-            <div
-              ref={thumbStripRef}
-              className="gs-strip"
-              style={{ display:'flex', gap:thumbGp, overflowX:'auto', scrollbarWidth:'none', padding: isMobile ? `14px 16px` : `15px 44px`, alignItems:'center' }}
-            >
-              {allImages.map((src, i) => (
+            <div ref={thumbStripRef} className="gs-strip"
+              style={{ display:'flex', gap:thumbGp, overflowX:'auto', scrollbarWidth:'none', padding: isMobile ? '14px 16px' : '15px 44px', alignItems:'center' }}>
+              {gallery.map((src, i) => (
                 <button
                   key={i}
-                  onClick={() => setActiveIdx(i)}
+                  onClick={() => setActiveIndex(i)}
                   className="gs-thumb"
                   title={`Image ${i + 1}`}
-                  style={{
-                    width: thumbW, height: thumbH,
-                    borderRadius: 2, overflow:'hidden',
-                    flexShrink: 0, padding: 0, cursor:'pointer', background:'none',
-                    border: activeIdx === i ? `2.5px solid ${GOLD}` : `2px solid ${borderClr}`,
-                    opacity: activeIdx === i ? 1 : 0.55,
-                  }}
+                  style={{ width:thumbW, height:thumbH, borderRadius:2, overflow:'hidden', flexShrink:0, padding:0, cursor:'pointer', background:'none',
+                    border: safeIdx === i ? `2.5px solid ${GOLD}` : `2px solid ${borderClr}`,
+                    opacity: safeIdx === i ? 1 : 0.55 }}
                 >
                   <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
                 </button>
               ))}
             </div>
 
-            {/* Right arrow — desktop/tablet only */}
             {!isMobile && (
-              <button onClick={() => scrollThumbs(1)} aria-label="Next images" style={{ position:'absolute', right:0, top:0, bottom:0, zIndex:2, background:`linear-gradient(to left,${stripBg} 60%,transparent)`, border:'none', cursor:'pointer', padding:'0 10px 0 16px', color:arrowClr, fontSize:22, lineHeight:1, display:'flex', alignItems:'center' }}>
-                ›
-              </button>
+              <button onClick={() => scrollThumbs(1)} aria-label="Next" style={{ position:'absolute', right:0, top:0, bottom:0, zIndex:2, background:`linear-gradient(to left,${stripBg} 60%,transparent)`, border:'none', cursor:'pointer', padding:'0 10px 0 16px', color:arrowClr, fontSize:22, display:'flex', alignItems:'center' }}>›</button>
             )}
           </div>
         </div>
       )}
 
-      {/* Bottom spacing */}
       <div style={{ height:'clamp(32px,4vw,56px)', background:bg }} />
     </header>
   );
