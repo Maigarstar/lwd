@@ -19,7 +19,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 
 const DEFAULT_BUCKET = 'magazine';
-const UNSPLASH_KEY = import.meta.env?.VITE_UNSPLASH_KEY || '';
+// Use the same env var as the rest of the admin (VITE_UNSPLASH_ACCESS_KEY)
+const UNSPLASH_KEY = import.meta.env?.VITE_UNSPLASH_ACCESS_KEY || import.meta.env?.VITE_UNSPLASH_KEY || '';
 const UNSPLASH_API = 'https://api.unsplash.com';
 const GOLD = '#c9a96e';
 const FU   = 'Futura,"Century Gothic",sans-serif';
@@ -126,7 +127,13 @@ async function loadAllImages(bucket) {
 // Timeout guard: if compression takes > 15s, fall through with original file.
 const COMPRESS_TIMEOUT_MS = 15_000;
 
+function isVideo(file) {
+  return file.type.startsWith('video/');
+}
+
 async function compressImage(file) {
+  // Videos are never compressed — upload as-is
+  if (isVideo(file)) return file;
   if (file.type === 'image/gif' || file.size < 120 * 1024) return file;
 
   const compressionPromise = new Promise((resolve, reject) => {
@@ -167,18 +174,21 @@ async function compressImage(file) {
 
 async function uploadFile(file, bucket) {
   const compressed = await compressImage(file);
-  const ext  = compressed.type === 'image/webp' ? 'webp' : (file.name.split('.').pop()?.toLowerCase() || 'jpg');
+  const ext  = isVideo(file)
+    ? (file.name.split('.').pop()?.toLowerCase() || 'mp4')
+    : compressed.type === 'image/webp' ? 'webp' : (file.name.split('.').pop()?.toLowerCase() || 'jpg');
   const now  = new Date();
   const yyyy = now.getFullYear();
   const mm   = String(now.getMonth() + 1).padStart(2, '0');
-  const id   = `mag_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const prefix = isVideo(file) ? 'vid' : 'mag';
+  const id   = `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const path = `${yyyy}/${mm}/${id}.${ext}`;
   const { error } = await supabase.storage.from(bucket).upload(path, compressed, {
-    cacheControl: '31536000', upsert: false, contentType: compressed.type || 'image/webp',
+    cacheControl: '31536000', upsert: false, contentType: compressed.type || file.type || 'image/webp',
   });
   if (error) throw new Error(error.message);
   const url = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
-  return { path, url, originalSize: file.size, compressedSize: compressed.size, yyyy, mm };
+  return { path, url, originalSize: file.size, compressedSize: compressed.size, yyyy, mm, isVideo: isVideo(file) };
 }
 
 // ── Grid item ─────────────────────────────────────────────────────────────────
@@ -412,6 +422,107 @@ function UnsplashPanel({ onSelect, multiple, selected, onToggle }) {
   );
 }
 
+// ── URL import panel ─────────────────────────────────────────────────────────
+// Paste any publicly accessible image or video URL → add directly to selection.
+// Nothing is uploaded to Supabase; the URL is used as-is.
+function UrlPanel({ onSelect, multiple, selected, onToggle }) {
+  const [url,   setUrl]   = useState('');
+  const [title, setTitle] = useState('');
+  const [alt,   setAlt]   = useState('');
+  const [error, setError] = useState('');
+  const [added, setAdded] = useState(false);
+
+  const isVideoUrl = (u) => /\.(mp4|webm|mov|avi)(\?.*)?$/i.test(u);
+
+  const handleAdd = () => {
+    setError('');
+    const trimmed = url.trim();
+    if (!trimmed) { setError('Paste a URL first.'); return; }
+    try { new URL(trimmed); } catch { setError('That doesn\'t look like a valid URL.'); return; }
+
+    const item = {
+      url:     trimmed,
+      path:    trimmed,
+      name:    title || trimmed.split('/').pop()?.split('?')[0] || 'media',
+      title:   title,
+      alt:     alt,
+      caption: '',
+      credit:  '',
+      focal:   'center',
+      isVideo: isVideoUrl(trimmed),
+      _fromUrl: true,
+    };
+
+    if (!multiple) {
+      onSelect(item);
+    } else {
+      onToggle(item);
+    }
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+    setUrl(''); setTitle(''); setAlt('');
+  };
+
+  const inp = {
+    width: '100%', boxSizing: 'border-box',
+    background: 'rgba(245,240,232,0.05)',
+    border: '1px solid rgba(245,240,232,0.12)',
+    borderRadius: 3, color: '#f5f0e8',
+    fontFamily: FU, fontSize: 12,
+    padding: '8px 10px', outline: 'none',
+  };
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', gap: 0 }}>
+      <div style={{ width: '100%', maxWidth: 480 }}>
+        <div style={{ fontFamily: FD, fontSize: 20, color: '#f5f0e8', marginBottom: 6 }}>Add from URL</div>
+        <div style={{ fontFamily: FU, fontSize: 10, color: 'rgba(245,240,232,0.35)', marginBottom: 28, lineHeight: 1.6 }}>
+          Paste any publicly accessible image or video URL. Works with CDN links, hosted media, and direct file links.
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(245,240,232,0.5)', marginBottom: 5, textTransform: 'uppercase' }}>URL *</div>
+          <input
+            value={url}
+            onChange={e => { setUrl(e.target.value); setError(''); setAdded(false); }}
+            onKeyDown={e => e.key === 'Enter' && handleAdd()}
+            placeholder="https://example.com/photo.jpg"
+            autoFocus
+            style={inp}
+          />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div>
+            <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(245,240,232,0.5)', marginBottom: 5, textTransform: 'uppercase' }}>Title (optional)</div>
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="My photo" style={inp} />
+          </div>
+          <div>
+            <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(245,240,232,0.5)', marginBottom: 5, textTransform: 'uppercase' }}>Alt text (optional)</div>
+            <input value={alt} onChange={e => setAlt(e.target.value)} placeholder="Describe the image" style={inp} />
+          </div>
+        </div>
+
+        {error && <div style={{ fontFamily: FU, fontSize: 10, color: '#e05555', marginBottom: 10 }}>{error}</div>}
+
+        <button
+          onClick={handleAdd}
+          style={{
+            fontFamily: FU, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+            textTransform: 'uppercase', padding: '9px 24px', borderRadius: 2, cursor: 'pointer',
+            background: added ? 'rgba(90,170,100,0.2)' : `${GOLD}18`,
+            border: `1px solid ${added ? '#5aaa64' : GOLD}`,
+            color: added ? '#5aaa64' : GOLD,
+            transition: 'all 0.2s',
+          }}
+        >
+          {added ? '✓ Added' : '+ Add Media'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function MediaLibrary({ open, onClose, onSelect, onSelectMany, multiple = false, preSelected = [], bucket = DEFAULT_BUCKET, initialTab = 'library' }) {
   const [tab, setTab]           = useState(initialTab); // 'library' | 'unsplash' | 'upload'
@@ -602,7 +713,8 @@ export default function MediaLibrary({ open, onClose, onSelect, onSelectMany, mu
             {[
               { id: 'library',  label: items.length ? `Library (${items.length})` : 'Library' },
               { id: 'unsplash', label: '✦ Unsplash' },
-              { id: 'upload',   label: 'Upload' },
+              { id: 'url',      label: '⊕ URL' },
+              { id: 'upload',   label: '↑ Upload' },
             ].map(({ id, label }) => (
               <button key={id} onClick={() => setTab(id)}
                 style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '4px 12px', borderRadius: 2, cursor: 'pointer', background: tab === id ? `${GOLD}18` : 'none', border: `1px solid ${tab === id ? GOLD : 'rgba(245,240,232,0.1)'}`, color: tab === id ? GOLD : 'rgba(245,240,232,0.45)' }}>
@@ -699,6 +811,20 @@ export default function MediaLibrary({ open, onClose, onSelect, onSelectMany, mu
             />
           )}
 
+          {tab === 'url' && (
+            <UrlPanel
+              selected={selected}
+              multiple={multiple}
+              onSelect={item => { setSelected([item]); setActiveItem(item); }}
+              onToggle={item => {
+                if (!multiple) { setSelected([item]); setActiveItem(item); return; }
+                const idx = selected.findIndex(s => s.url === item.url);
+                const next = idx !== -1 ? selected.filter((_, i) => i !== idx) : [...selected, item];
+                setSelected(next); setActiveItem(next[next.length - 1] || null);
+              }}
+            />
+          )}
+
           {tab === 'upload' && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, gap: 20 }}>
               <div
@@ -708,15 +834,17 @@ export default function MediaLibrary({ open, onClose, onSelect, onSelectMany, mu
                 onClick={() => fileRef.current?.click()}
                 style={{ width: '100%', maxWidth: 480, padding: '60px 40px', borderRadius: 6, cursor: 'pointer', textAlign: 'center', border: `2px dashed ${dragging ? GOLD : 'rgba(245,240,232,0.15)'}`, background: dragging ? `${GOLD}06` : 'rgba(245,240,232,0.02)', transition: 'border-color 0.15s, background 0.15s' }}
               >
-                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple style={{ display: 'none' }}
+                <input ref={fileRef} type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                  multiple style={{ display: 'none' }}
                   onChange={e => { const f = e.target.files; if (f?.length) { handleFileUpload(f); e.target.value = ''; } }} />
                 {uploading ? (
                   <div style={{ fontFamily: FU, fontSize: 13, color: GOLD }}>Uploading…</div>
                 ) : (
                   <>
                     <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>⬆</div>
-                    <div style={{ fontFamily: FD, fontSize: 18, color: '#f5f0e8', marginBottom: 8 }}>Drop images here</div>
-                    <div style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.4)' }}>or click to browse — JPG, PNG, WebP, GIF</div>
+                    <div style={{ fontFamily: FD, fontSize: 18, color: '#f5f0e8', marginBottom: 8 }}>Drop files here</div>
+                    <div style={{ fontFamily: FU, fontSize: 11, color: 'rgba(245,240,232,0.4)' }}>Images (JPG, PNG, WebP, GIF) · Video (MP4, WebM, MOV)</div>
                   </>
                 )}
               </div>
