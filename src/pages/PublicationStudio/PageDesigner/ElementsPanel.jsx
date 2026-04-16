@@ -171,7 +171,7 @@ function LayersPanel({ layers, onSelectLayer, onToggleLayerVisibility, onToggleL
   };
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
       {layers.map((layer) => (
         <LayerRow
           key={layer.id}
@@ -294,7 +294,7 @@ export default function ElementsPanel({ onAddElement, onAddImage, onAddTemplate,
 
       {/* Elements tab */}
       {panelTab === 'elements' && (
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
           {/* Text elements */}
           <div style={SECTION_STYLE}>Text</div>
           <ElemButton
