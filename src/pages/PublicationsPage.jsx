@@ -569,6 +569,48 @@ export default function PublicationsPage({ onRead, onBack, footerNav }) {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
+  // Inject structured data for the magazine collection
+  useEffect(() => {
+    if (!issues.length) return;
+    const schema = {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      "name": "Luxury Wedding Directory — The Magazine",
+      "description": "Immersive editorial — curated for couples planning exceptional celebrations.",
+      "url": "https://www.luxuryweddingdirectory.co.uk/publications",
+      "publisher": {
+        "@type": "Organization",
+        "name": "Luxury Wedding Directory",
+        "url": "https://www.luxuryweddingdirectory.co.uk",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://www.luxuryweddingdirectory.co.uk/logo.png"
+        }
+      },
+      "hasPart": issues.map(issue => ({
+        "@type": "PublicationIssue",
+        "name": issue.title || "Luxury Wedding Directory Magazine",
+        "url": `https://www.luxuryweddingdirectory.co.uk/publications/${issue.slug}`,
+        "issueNumber": issue.issue_number?.toString(),
+        "datePublished": issue.published_at,
+        "image": issue.cover_image || undefined,
+        "description": issue.intro || issue.excerpt || undefined,
+      })).filter(Boolean),
+    };
+
+    const el = document.createElement("script");
+    el.type = "application/ld+json";
+    el.id = "publications-schema";
+    el.textContent = JSON.stringify(schema);
+    // Remove old if exists
+    document.getElementById("publications-schema")?.remove();
+    document.head.appendChild(el);
+
+    return () => {
+      document.getElementById("publications-schema")?.remove();
+    };
+  }, [issues]);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);

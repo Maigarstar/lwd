@@ -1247,6 +1247,51 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     return () => { cancelled = true; };
   }, [slug]);
 
+  // ── Structured data (JSON-LD) for this specific issue ────────────────────────
+  useEffect(() => {
+    if (!issue) return;
+    const schema = {
+      "@context": "https://schema.org",
+      "@type": "PublicationIssue",
+      "name": issue.title || "Luxury Wedding Directory Magazine",
+      "url": `https://www.luxuryweddingdirectory.co.uk/publications/${issue.slug}`,
+      "issueNumber": issue.issue_number?.toString(),
+      "datePublished": issue.published_at,
+      "image": issue.cover_image || undefined,
+      "description": issue.intro || issue.excerpt || undefined,
+      "isPartOf": {
+        "@type": "Periodical",
+        "name": "Luxury Wedding Directory Magazine",
+        "url": "https://www.luxuryweddingdirectory.co.uk/publications",
+        "publisher": {
+          "@type": "Organization",
+          "name": "Luxury Wedding Directory",
+          "url": "https://www.luxuryweddingdirectory.co.uk"
+        }
+      },
+      "pageCount": issue.page_count || undefined,
+    };
+
+    const el = document.createElement("script");
+    el.type = "application/ld+json";
+    el.id = "issue-schema";
+    el.textContent = JSON.stringify(schema, (_, v) => v === undefined ? undefined : v);
+    document.getElementById("issue-schema")?.remove();
+    document.head.appendChild(el);
+
+    return () => {
+      document.getElementById("issue-schema")?.remove();
+    };
+  }, [issue?.id]);
+
+  // ── Document title for this issue ────────────────────────────────────────────
+  useEffect(() => {
+    if (!issue) return;
+    const parts = [issue.title, "The Magazine", "Luxury Wedding Directory"].filter(Boolean);
+    document.title = parts.join(" · ");
+    return () => { document.title = "Luxury Wedding Directory"; };
+  }, [issue?.title]);
+
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const totalPages = pages.length;
   const step = useDoubleSpread ? 2 : 1;
