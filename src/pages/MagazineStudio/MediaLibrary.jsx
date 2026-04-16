@@ -123,9 +123,13 @@ async function loadAllImages(bucket) {
 }
 
 // ── Image compression ─────────────────────────────────────────────────────────
+// Timeout guard: if compression takes > 15s, fall through with original file.
+const COMPRESS_TIMEOUT_MS = 15_000;
+
 async function compressImage(file) {
   if (file.type === 'image/gif' || file.size < 120 * 1024) return file;
-  return new Promise(resolve => {
+
+  const compressionPromise = new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
@@ -145,9 +149,20 @@ async function compressImage(file) {
         resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), { type: 'image/webp' }));
       }, 'image/webp', q);
     };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image decode failed')); };
     img.src = url;
   });
+
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Compression timeout')), COMPRESS_TIMEOUT_MS)
+  );
+
+  try {
+    return await Promise.race([compressionPromise, timeoutPromise]);
+  } catch {
+    // Compression failed or timed out — upload original
+    return file;
+  }
 }
 
 async function uploadFile(file, bucket) {
@@ -512,14 +527,28 @@ export default function MediaLibrary({ open, onClose, onSelect, onSelectMany, mu
     setSelected([]);
   };
 
+  const UPLOAD_TIMEOUT_MS = 30_000; // 30s per file — kills hung Supabase requests
+
   const handleFileUpload = async (files) => {
     setUploading(true); setUploadErr('');
-    setUploadProg(Array.from(files).map(f => ({ name: f.name, status: 'optimising' })));
+    const fileArr = Array.from(files);
+    setUploadProg(fileArr.map(f => ({ name: f.name, status: 'optimising' })));
+
+    // Upload all files concurrently (max 4 at once to avoid overwhelming the browser)
+    const CONCURRENCY = 4;
     const results = [];
-    for (const file of Array.from(files)) {
+
+    const uploadOne = async (file) => {
       try {
         setUploadProg(prev => prev.map(p => p.name === file.name ? { ...p, status: 'uploading' } : p));
-        const { url, originalSize, compressedSize, yyyy, mm } = await uploadFile(file, bucket);
+
+        // Race the upload against a 30s timeout
+        const uploadPromise = uploadFile(file, bucket);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Upload timed out — check connection and try again')), UPLOAD_TIMEOUT_MS)
+        );
+        const { url, originalSize, compressedSize, yyyy, mm } = await Promise.race([uploadPromise, timeoutPromise]);
+
         const savings = originalSize && compressedSize && originalSize > compressedSize
           ? Math.round((1 - compressedSize / originalSize) * 100) : 0;
         const ym = `${yyyy}/${String(mm).padStart(2,'0')}`;
@@ -534,7 +563,14 @@ export default function MediaLibrary({ open, onClose, onSelect, onSelectMany, mu
       } catch (err) {
         setUploadProg(prev => prev.map(p => p.name === file.name ? { ...p, status: 'error', msg: err.message } : p));
       }
+    };
+
+    // Process in batches of CONCURRENCY
+    for (let i = 0; i < fileArr.length; i += CONCURRENCY) {
+      const batch = fileArr.slice(i, i + CONCURRENCY);
+      await Promise.allSettled(batch.map(uploadOne));
     }
+
     if (results.length) {
       setItems(prev => [...results, ...prev]);
       setSelected(results);
