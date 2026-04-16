@@ -15,6 +15,51 @@ const NU   = "var(--font-body, 'Jost', sans-serif)";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// ── Destination personalisation ──────────────────────────────────────────────
+// Detect a destination from the issue title and tailor the headline.
+// Order matters: specific regions/cities before their country.
+const DESTINATIONS = [
+  // Italy — regions & cities first
+  { match: /amalfi/i,          label: 'Amalfi',        headline: 'Continue your Amalfi editorial' },
+  { match: /lake\s*como|como/i,label: 'Lake Como',     headline: 'Continue your Lake Como editorial' },
+  { match: /tuscany|tuscan/i,  label: 'Tuscany',       headline: 'Unlock the full Tuscany wedding collection' },
+  { match: /puglia/i,          label: 'Puglia',        headline: 'Unlock the full Puglia wedding collection' },
+  { match: /sicily|sicilian/i, label: 'Sicily',        headline: 'Unlock the full Sicily wedding collection' },
+  { match: /venice|venetian/i, label: 'Venice',        headline: 'Continue your Venice editorial' },
+  { match: /capri/i,           label: 'Capri',         headline: 'Continue your Capri editorial' },
+  { match: /rome|roman/i,      label: 'Rome',          headline: 'Continue your Rome editorial' },
+  { match: /italy|italian/i,   label: 'Italy',         headline: 'Unlock the full Italy wedding collection' },
+  // France
+  { match: /paris|parisian/i,  label: 'Paris',         headline: 'Continue your Paris editorial' },
+  { match: /provence/i,        label: 'Provence',      headline: 'Unlock the full Provence wedding collection' },
+  { match: /cote d.?azur|riviera|c[oô]te/i, label: 'Côte d’Azur', headline: 'Continue your Côte d’Azur editorial' },
+  { match: /france|french/i,   label: 'France',        headline: 'Unlock the full France wedding collection' },
+  // Greece
+  { match: /santorini/i,       label: 'Santorini',     headline: 'Continue your Santorini editorial' },
+  { match: /mykonos/i,         label: 'Mykonos',       headline: 'Continue your Mykonos editorial' },
+  { match: /greece|greek/i,    label: 'Greece',        headline: 'Unlock the full Greece wedding collection' },
+  // Spain
+  { match: /ibiza/i,           label: 'Ibiza',         headline: 'Continue your Ibiza editorial' },
+  { match: /mallorca|majorca/i,label: 'Mallorca',      headline: 'Continue your Mallorca editorial' },
+  { match: /spain|spanish/i,   label: 'Spain',         headline: 'Unlock the full Spain wedding collection' },
+  // UK
+  { match: /cotswolds/i,       label: 'Cotswolds',     headline: 'Unlock the full Cotswolds wedding collection' },
+  { match: /london/i,          label: 'London',        headline: 'Continue your London editorial' },
+  // Others
+  { match: /marrakech|morocco/i,label: 'Morocco',      headline: 'Continue your Morocco editorial' },
+  { match: /bali/i,            label: 'Bali',          headline: 'Continue your Bali editorial' },
+  { match: /hamptons/i,        label: 'Hamptons',      headline: 'Continue your Hamptons editorial' },
+];
+
+function personaliseFromIssue(issue) {
+  const hay = `${issue?.title || ''} ${issue?.subtitle || ''}`;
+  if (!hay.trim()) return null;
+  for (const d of DESTINATIONS) {
+    if (d.match.test(hay)) return d;
+  }
+  return null;
+}
+
 export default function EmailGate({
   issue,
   slug,
@@ -29,6 +74,10 @@ export default function EmailGate({
   const [errorMsg,  setErrorMsg]  = useState('');
 
   const canSubmit = firstName.trim().length >= 2 && EMAIL_RE.test(email.trim()) && !submitting;
+
+  // Destination-aware headline (falls back to default)
+  const destination = personaliseFromIssue(issue);
+  const headline    = destination?.headline || 'Continue your private viewing';
 
   async function handleSubmit(e) {
     e?.preventDefault?.();
@@ -45,15 +94,17 @@ export default function EmailGate({
         firstName:   firstName.trim(),
         email:       email.trim().toLowerCase(),
         requirementsJson: {
-          issue_id:       issue?.id ?? null,
-          issue_slug:     slug ?? null,
-          issue_title:    issue?.title ?? null,
-          page_at_trigger: currentPage ?? null,
-          triggered_by:   triggerReason,
+          issue_id:         issue?.id ?? null,
+          issue_slug:       slug ?? null,
+          issue_title:      issue?.title ?? null,
+          page_at_trigger:  currentPage ?? null,
+          triggered_by:     triggerReason,
+          destination:      destination?.label ?? null,
         },
         tagsJson: [
           'publication_reader',
           slug ? `issue:${slug}` : null,
+          destination?.label ? `destination:${destination.label.toLowerCase().replace(/\s+/g, '_')}` : null,
         ].filter(Boolean),
         consentMarketing:      true,
         consentDataProcessing: true,
@@ -111,17 +162,16 @@ export default function EmailGate({
           letterSpacing: '0.02em', lineHeight: 1.15,
         }}
       >
-        Continue reading the issue
+        {headline}
       </h2>
 
       {/* Sub */}
       <p style={{
         fontFamily: NU, fontSize: 13, color: 'rgba(255,255,255,0.6)',
-        margin: '0 0 24px', maxWidth: 380, lineHeight: 1.6,
+        margin: '0 0 24px', maxWidth: 400, lineHeight: 1.65,
       }}>
-        Enter your name and email to keep reading{' '}
-        {issue?.title ? <em style={{ color: 'rgba(255,255,255,0.82)' }}>{issue.title}</em> : 'this issue'}
-        {' '}— plus get early access to future editions.
+        Enter your details to unlock the full issue and discover venues, planners,
+        and destinations curated for luxury weddings.
       </p>
 
       {/* Form */}

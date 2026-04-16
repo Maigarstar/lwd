@@ -1228,8 +1228,9 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     catch { return false; }
   });
   const [gateOpen,     setGateOpen]     = useState(false);
-  const [gateReason,   setGateReason]   = useState('page_threshold'); // or 'time_fallback'
+  const [gateReason,   setGateReason]   = useState('page_threshold'); // page_threshold | time_fallback | intent_nav | intent_rapid
   const gateTriggeredRef = useRef(false); // fires once per session until unlock/skip
+  const rapidClicksRef   = useRef([]);    // timestamps of recent next-clicks for rapid-click detection
 
   // Drag-to-pan refs
   const dragging       = useRef(false);
@@ -1411,6 +1412,17 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     if (!canNext || paywallBlocking) return;
     if (gateOpen && !gateUnlocked) return; // block nav while email gate is showing
     if (flipLockRef.current || isFlipping) return;
+
+    // Intent trigger: 4+ next-clicks within 3 seconds = rapid skim = high intent
+    if (!gateUnlocked && !gateTriggeredRef.current) {
+      const now = Date.now();
+      rapidClicksRef.current = [...rapidClicksRef.current, now].filter(t => now - t <= 3000);
+      if (rapidClicksRef.current.length >= 4) {
+        rapidClicksRef.current = [];
+        triggerGateByIntent('intent_rapid');
+        return;
+      }
+    }
     if (zoom > 1) { goToPage(Math.min(totalPages, currentPage + step)); return; }
     const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReduced) { goToPage(Math.min(totalPages, currentPage + step)); return; }
@@ -1427,7 +1439,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         flipLockRef.current = false;
       }, 300);
     }, 300);
-  }, [canNext, paywallBlocking, currentPage, step, totalPages, goToPage, isFlipping, zoom, gateOpen, gateUnlocked]);
+  }, [canNext, paywallBlocking, currentPage, step, totalPages, goToPage, isFlipping, zoom, gateOpen, gateUnlocked, triggerGateByIntent]);
 
   // ── URL sync on page change ──────────────────────────────────────────────────
   useEffect(() => {
@@ -1474,6 +1486,18 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     }, GATE_TIME_FALLBACK_MS);
     return () => clearTimeout(t);
   }, [issue, loading, gateUnlocked, gateOpen]);
+
+  // ── Email gate: intent trigger helper ────────────────────────────────────────
+  // Called by high-intent actions (TOC open, thumbnail jump, rapid clicking).
+  // No-op if gate already triggered, unlocked, or loading.
+  const triggerGateByIntent = useCallback((reason) => {
+    if (gateUnlocked || gateOpen || gateTriggeredRef.current) return;
+    if (!issue || loading) return;
+    if (isFlipping) return;
+    gateTriggeredRef.current = true;
+    setGateReason(reason);
+    setGateOpen(true);
+  }, [gateUnlocked, gateOpen, issue, loading, isFlipping]);
 
   // ── Email gate handlers ──────────────────────────────────────────────────────
   const handleGateUnlock = useCallback(() => {
@@ -1700,7 +1724,14 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         onBack={onBack}
         onDownload={issue.pdf_url ? handleDownload : null}
         showTOC={showTOC}
-        onToggleTOC={() => setShowTOC(o => !o)}
+        onToggleTOC={() => {
+          // Intent trigger: opening TOC before unlock = "I want to find something" = high intent
+          if (!showTOC && !gateUnlocked && !gateTriggeredRef.current) {
+            triggerGateByIntent('intent_nav');
+            return;
+          }
+          setShowTOC(o => !o);
+        }}
         bookmarked={isBookmarkedCurrent}
         onToggleBookmark={handleToggleBookmarkCurrent}
         onShare={handleShare}
@@ -1834,7 +1865,14 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       <ThumbnailStrip
         pages={pages}
         currentPage={currentPage}
-        onJump={goToPage}
+        onJump={(n) => {
+          // Intent trigger: jumping via thumbnails before unlock = high intent
+          if (!gateUnlocked && !gateTriggeredRef.current) {
+            triggerGateByIntent('intent_nav');
+            return;
+          }
+          goToPage(n);
+        }}
         isDesktop={isDesktop}
         T={T}
       />
