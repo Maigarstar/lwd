@@ -680,16 +680,146 @@ function OverviewTab({ data, onChange, slugLocked, saving, onSave, coverUrl, onC
 
 // ── Settings tab ──────────────────────────────────────────────────────────────
 
-function SettingsTab({ issue, onPublish, onUnpublish, onArchive, onDelete, publishing, archiving, deleting }) {
-  const [confirmDelete, setConfirmDelete] = useState(false);
+// ── Pre-flight checklist ──────────────────────────────────────────────────────
+
+function runPreflight(issue, pages) {
+  const pg = pages?.length || 0;
+  return [
+    {
+      id: 'pages',
+      label: 'Has at least one page',
+      critical: true,
+      pass: pg >= 1,
+      detail: pg === 0 ? 'Upload a PDF or add pages in the Pages tab' : `${pg} page${pg !== 1 ? 's' : ''} ready`,
+    },
+    {
+      id: 'processing',
+      label: 'Pages processed and ready',
+      critical: true,
+      pass: issue?.processing_state === 'ready',
+      detail: issue?.processing_state === 'processing' ? 'PDF is still processing…'
+            : issue?.processing_state === 'failed'     ? 'Processing failed — re-upload PDF'
+            : issue?.processing_state === 'idle'       ? 'No PDF processed yet'
+            : 'Ready ✓',
+    },
+    {
+      id: 'slug',
+      label: 'URL slug is valid',
+      critical: true,
+      pass: /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(issue?.slug || ''),
+      detail: issue?.slug ? `/publications/${issue.slug}` : 'No slug — set one in Overview',
+    },
+    {
+      id: 'title',
+      label: 'Issue title set',
+      critical: false,
+      pass: !!(issue?.title?.trim()),
+      detail: issue?.title?.trim() || 'Set a title in the Overview tab',
+    },
+    {
+      id: 'cover',
+      label: 'Cover image uploaded',
+      critical: false,
+      pass: !!issue?.cover_image,
+      detail: issue?.cover_image ? 'Cover ready ✓' : 'No cover — upload in Overview tab',
+    },
+    {
+      id: 'seo_desc',
+      label: 'SEO description filled',
+      critical: false,
+      pass: !!(issue?.seo_description?.trim()),
+      detail: issue?.seo_description ? `${issue.seo_description.length} / 155 chars` : 'Add in Overview → SEO section',
+    },
+    {
+      id: 'min_pages',
+      label: '5+ pages for a complete issue',
+      critical: false,
+      pass: pg >= 5,
+      detail: pg < 5 ? `Only ${pg} page${pg !== 1 ? 's' : ''} — readers expect more content` : `${pg} pages ✓`,
+    },
+    {
+      id: 'intro',
+      label: 'Introduction text added',
+      critical: false,
+      pass: !!(issue?.intro?.trim()),
+      detail: issue?.intro?.trim() ? 'Intro ready ✓' : 'Add in Overview → Editorial Content',
+    },
+  ];
+}
+
+function PreflightPanel({ issue, pages }) {
+  const checks = runPreflight(issue, pages);
+  const criticalFails = checks.filter(c => c.critical && !c.pass);
+  const warnFails     = checks.filter(c => !c.critical && !c.pass);
+  const allPass       = checks.every(c => c.pass);
+
+  const statusColor = criticalFails.length > 0 ? '#f87171'
+                    : warnFails.length > 0      ? '#fbbf24'
+                    : '#34d399';
+  const statusLabel = criticalFails.length > 0 ? `${criticalFails.length} critical issue${criticalFails.length > 1 ? 's' : ''} — cannot publish`
+                    : warnFails.length > 0      ? `${warnFails.length} warning${warnFails.length > 1 ? 's' : ''} — publish with caution`
+                    : 'All checks passed — ready to publish';
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 560 }}>
-      <SectionHead>Publishing</SectionHead>
+    <div style={{ marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <SectionHead>Pre-flight Checklist</SectionHead>
+        <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: statusColor, background: `${statusColor}18`, border: `1px solid ${statusColor}40`, borderRadius: 10, padding: '3px 10px', whiteSpace: 'nowrap', marginBottom: 14 }}>
+          {statusLabel}
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {checks.map(c => (
+          <div key={c.id} style={{
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+            padding: '9px 12px', borderRadius: 4,
+            background: c.pass ? 'rgba(52,211,153,0.04)' : c.critical ? 'rgba(248,113,113,0.06)' : 'rgba(251,191,36,0.05)',
+            border: `1px solid ${c.pass ? 'rgba(52,211,153,0.15)' : c.critical ? 'rgba(248,113,113,0.2)' : 'rgba(251,191,36,0.18)'}`,
+          }}>
+            <span style={{ fontSize: 12, flexShrink: 0, marginTop: 1 }}>
+              {c.pass ? '✓' : c.critical ? '✕' : '⚠'}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: c.pass ? '#34d399' : c.critical ? '#f87171' : '#fbbf24', marginBottom: 2 }}>
+                {c.label}{c.critical && !c.pass && <span style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, marginLeft: 6, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.8 }}>REQUIRED</span>}
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 10, color: MUTED }}>{c.detail}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 28 }}>
+function SettingsTab({ issue, pages, onPublish, onUnpublish, onArchive, onDelete, publishing, archiving, deleting, onSchedule, onPageFormat }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [scheduleDate, setScheduleDate]   = useState(issue?.scheduled_publish_at ? new Date(issue.scheduled_publish_at).toISOString().slice(0, 16) : '');
+  const [scheduling, setScheduling]       = useState(false);
+
+  const preflight      = runPreflight(issue, pages);
+  const criticalFails  = preflight.filter(c => c.critical && !c.pass);
+  const canPublish     = criticalFails.length === 0;
+
+  const handleSchedule = async () => {
+    if (!scheduleDate || !onSchedule) return;
+    setScheduling(true);
+    await onSchedule(scheduleDate);
+    setScheduling(false);
+  };
+
+  return (
+    <div style={{ padding: '28px 32px', maxWidth: 600 }}>
+
+      {/* Pre-flight */}
+      <PreflightPanel issue={issue} pages={pages} />
+
+      <Hr />
+      <SectionHead>Publish Now</SectionHead>
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
         {issue?.status !== 'published' && (
-          <Btn gold onClick={onPublish} disabled={publishing || issue?.processing_state !== 'ready'}>
+          <Btn gold onClick={onPublish} disabled={publishing || !canPublish}>
             {publishing ? 'Publishing…' : '↑ Publish Issue'}
           </Btn>
         )}
@@ -705,11 +835,93 @@ function SettingsTab({ issue, onPublish, onUnpublish, onArchive, onDelete, publi
         )}
       </div>
 
-      {issue?.status !== 'published' && issue?.processing_state !== 'ready' && (
-        <div style={{ fontFamily: NU, fontSize: 11, color: 'rgba(248,197,105,0.7)', marginBottom: 24, background: 'rgba(248,197,105,0.06)', border: '1px solid rgba(248,197,105,0.15)', borderRadius: 4, padding: '8px 12px' }}>
-          ⚠ Upload and process a PDF (or add pages manually) before publishing.
+      {!canPublish && (
+        <div style={{ fontFamily: NU, fontSize: 11, color: 'rgba(248,113,113,0.8)', marginBottom: 8, background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.15)', borderRadius: 4, padding: '8px 12px' }}>
+          Fix the critical issues above before publishing.
         </div>
       )}
+
+      <Hr />
+      <SectionHead>Schedule Publish</SectionHead>
+      <div style={{ fontFamily: NU, fontSize: 11, color: MUTED, marginBottom: 12, lineHeight: 1.6 }}>
+        Set a future date and time. The issue will go live automatically and send the launch email to subscribers.
+      </div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+        <input
+          type="datetime-local"
+          value={scheduleDate}
+          min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+          onChange={e => setScheduleDate(e.target.value)}
+          style={{ ...INPUT, width: 'auto', flex: 1, colorScheme: 'dark' }}
+        />
+        <Btn gold onClick={handleSchedule} disabled={!scheduleDate || scheduling || !canPublish}>
+          {scheduling ? 'Scheduling…' : '⏱ Schedule'}
+        </Btn>
+        {issue?.scheduled_publish_at && (
+          <Btn onClick={() => { setScheduleDate(''); onSchedule(null); }} disabled={scheduling}>Clear</Btn>
+        )}
+      </div>
+      {issue?.scheduled_publish_at && (
+        <div style={{ fontFamily: NU, fontSize: 10, color: GOLD }}>
+          Scheduled: {new Date(issue.scheduled_publish_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+        </div>
+      )}
+
+      <Hr />
+      <SectionHead>Page Format</SectionHead>
+      <div style={{ fontFamily: NU, fontSize: 11, color: MUTED, marginBottom: 12, lineHeight: 1.6 }}>
+        Set the physical page size and how pages appear in the reader. Applied to all pages in this issue.
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 8 }}>
+        <Field label="Page Size">
+          <select
+            value={issue?.page_size || 'A4'}
+            onChange={e => onSchedule && onPageFormat?.({ page_size: e.target.value })}
+            style={{ ...INPUT, cursor: 'pointer' }}
+          >
+            {[
+              { v: 'A4',        l: 'A4  — 210 × 297 mm  (standard)' },
+              { v: 'A5',        l: 'A5  — 148 × 210 mm  (compact)' },
+              { v: 'US_LETTER', l: 'US Letter — 8.5 × 11 in' },
+              { v: 'SQUARE',    l: 'Square — 210 × 210 mm' },
+              { v: 'TABLOID',   l: 'Tabloid — 11 × 17 in  (large format)' },
+            ].map(o => <option key={o.v} value={o.v} style={{ background: '#1a1a18' }}>{o.l}</option>)}
+          </select>
+        </Field>
+        <Field label="Reader Layout">
+          <select
+            value={issue?.spread_layout || 'double'}
+            onChange={e => onPageFormat?.({ spread_layout: e.target.value })}
+            style={{ ...INPUT, cursor: 'pointer' }}
+          >
+            <option value="double" style={{ background: '#1a1a18' }}>Double spread — left + right pages</option>
+            <option value="single" style={{ background: '#1a1a18' }}>Single page — one at a time</option>
+          </select>
+        </Field>
+      </div>
+      {/* Page size visual hint */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 4 }}>
+        {[
+          { id: 'A4',    ratio: 1.414, label: 'A4' },
+          { id: 'A5',    ratio: 1.414, label: 'A5' },
+          { id: 'SQUARE',ratio: 1.0,   label: '■' },
+          { id: 'US_LETTER', ratio: 1.294, label: 'Letter' },
+          { id: 'TABLOID',   ratio: 1.545, label: 'Tabloid' },
+        ].map(s => (
+          <div key={s.id} onClick={() => onPageFormat?.({ page_size: s.id })}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, cursor: 'pointer',
+            }}>
+            <div style={{
+              width: 28, height: 28 * s.ratio,
+              border: `2px solid ${(issue?.page_size || 'A4') === s.id ? GOLD : 'rgba(255,255,255,0.15)'}`,
+              background: (issue?.page_size || 'A4') === s.id ? 'rgba(201,168,76,0.1)' : 'transparent',
+              borderRadius: 2, transition: 'all 0.15s',
+            }} />
+            <span style={{ fontFamily: NU, fontSize: 8, color: (issue?.page_size || 'A4') === s.id ? GOLD : MUTED }}>{s.label}</span>
+          </div>
+        ))}
+      </div>
 
       <Hr />
       <SectionHead>Danger Zone</SectionHead>
@@ -965,6 +1177,18 @@ function IssueWorkspace({ issueId, onDelete }) {
     setPublishing(false);
   };
 
+  const handleSchedule = useCallback(async (isoDateOrNull) => {
+    const { data, error } = await updateIssue(issueId, {
+      scheduled_publish_at: isoDateOrNull ? new Date(isoDateOrNull).toISOString() : null,
+    });
+    if (!error && data) { setIssue(data); setFormData(data); }
+  }, [issueId]);
+
+  const handlePageFormat = useCallback(async (patch) => {
+    const { data, error } = await updateIssue(issueId, patch);
+    if (!error && data) { setIssue(data); setFormData(data); }
+  }, [issueId]);
+
   const handleUnpublish = async () => {
     setPublishing(true);
     const { data, error } = await unpublishIssue(issueId);
@@ -1161,10 +1385,13 @@ function IssueWorkspace({ issueId, onDelete }) {
         {tab === 'settings' && (
           <SettingsTab
             issue={issue}
+            pages={pages}
             onPublish={handlePublish}
             onUnpublish={handleUnpublish}
             onArchive={handleArchive}
             onDelete={handleDelete}
+            onSchedule={handleSchedule}
+            onPageFormat={handlePageFormat}
             publishing={publishing}
             archiving={archiving}
             deleting={deleting}

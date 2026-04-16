@@ -1008,9 +1008,9 @@ export default function PublicationsReaderPage({ slug, onBack }) {
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const totalPages = pages.length;
-  const step = isDesktop ? 2 : 1;
+  const step = useDoubleSpread ? 2 : 1;
   const canPrev = currentPage > 1;
-  const canNext = currentPage + (isDesktop ? 1 : 0) < totalPages;
+  const canNext = currentPage + (useDoubleSpread ? 1 : 0) < totalPages;
 
   const resetZoom = useCallback(() => {
     setZoom(1); setPanX(0); setPanY(0);
@@ -1206,14 +1206,23 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     }
   }, []);
 
+  // ── Page size → aspect ratio ─────────────────────────────────────────────────
+  // Used to set correct proportions when no image is loaded yet
+  const PAGE_RATIOS = { A4: 1.414, A5: 1.414, US_LETTER: 1.294, SQUARE: 1.0, TABLOID: 1.545 };
+  const pageAspect = PAGE_RATIOS[issue?.page_size || 'A4'] || 1.414;
+
+  // ── Spread mode: double unless issue sets single, or mobile ──────────────────
+  const forceSpread   = issue?.spread_layout !== 'single';
+  const useDoubleSpread = isDesktop && forceSpread;
+
   // ── Derive spread pages ──────────────────────────────────────────────────────
   const pageByNum = (n) => pages.find(p => p.page_number === n) || null;
-  const leftPage  = isDesktop && currentPage > 1 ? pageByNum(currentPage)     : null;
-  const rightPage = isDesktop
+  const leftPage  = useDoubleSpread && currentPage > 1 ? pageByNum(currentPage)     : null;
+  const rightPage = useDoubleSpread
     ? (currentPage === 1 ? pageByNum(1) : pageByNum(currentPage + 1))
     : pageByNum(currentPage);
 
-  const isDoubleSpread = isDesktop && currentPage > 1;
+  const isDoubleSpread = useDoubleSpread && currentPage > 1;
 
   // ── Spread credits ───────────────────────────────────────────────────────────
   const spreadCredits = useMemo(() => {
@@ -1295,8 +1304,8 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         <div style={{
           display: 'flex',
           height: '100%', maxHeight: '100%',
-          width: isDesktop ? (currentPage === 1 ? '50%' : '100%') : '100%',
-          maxWidth: isDesktop ? 1400 : 700,
+          width: useDoubleSpread ? (currentPage === 1 ? '50%' : '100%') : 'auto',
+          maxWidth: useDoubleSpread ? 1400 : `calc(100vh * ${1 / pageAspect})`,
           gap: isDoubleSpread ? 2 : 0,
           boxShadow: T.pageShad,
           background: T.pageBg,
@@ -1304,7 +1313,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
           transformOrigin: 'center center',
           transition: dragging.current ? 'none' : 'transform 0.1s ease',
         }}>
-          {isDesktop && currentPage > 1 && (
+          {useDoubleSpread && currentPage > 1 && (
             <PageImage page={leftPage} side="left" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
           )}
           <PageImage page={rightPage} side="right" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
