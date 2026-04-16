@@ -42,6 +42,7 @@ import MonetizationTab        from './PublicationStudio/MonetizationTab';
 import HeatmapPanel            from './PublicationStudio/HeatmapPanel';
 import PageCommentsPanel       from './PublicationStudio/PageCommentsPanel';
 import EditorialCalendarPanel  from './PublicationStudio/EditorialCalendarPanel';
+import BrandKitPanel           from './PublicationStudio/BrandKitPanel';
 import { uploadIssueAltCover, fetchRenderHistory } from '../services/magazineIssuesService';
 import { fetchCommentCountsByPage } from '../services/magazineCommentsService';
 
@@ -1772,6 +1773,7 @@ export default function PublicationStudio({ onBack }) {
   const [showCreate,      setShowCreate]      = useState(false);
   const [filter,          setFilter]          = useState('all'); // all | draft | published | archived
   const [showCalendar,    setShowCalendar]    = useState(false);
+  const [showBrandKit,    setShowBrandKit]    = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1811,6 +1813,10 @@ export default function PublicationStudio({ onBack }) {
           ✦ LWD
         </div>
         <div style={{ flex: 1 }} />
+        <button onClick={() => setShowBrandKit(true)}
+          style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'none', border: `1px solid ${BORDER}`, borderRadius: 3, color: MUTED, padding: '7px 14px', cursor: 'pointer' }}>
+          ✦ Brand Kit
+        </button>
         <button onClick={() => setShowCalendar(true)}
           style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'none', border: `1px solid ${BORDER}`, borderRadius: 3, color: MUTED, padding: '7px 14px', cursor: 'pointer' }}>
           📅 Calendar
@@ -1943,6 +1949,10 @@ export default function PublicationStudio({ onBack }) {
           }}
           onClose={() => setShowCalendar(false)}
         />
+      )}
+
+      {showBrandKit && (
+        <BrandKitPanel onClose={() => setShowBrandKit(false)} />
       )}
     </div>
   );

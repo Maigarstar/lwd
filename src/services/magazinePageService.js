@@ -277,3 +277,23 @@ export async function updatePageCredits(pageId, credits) {
     return { data: null, error };
   }
 }
+
+/**
+ * Save video settings for a page.
+ * @param {string} pageId    - UUID of magazine_issue_pages row
+ * @param {Object} videoData - { video_url, video_autoplay, video_muted }
+ */
+export async function updatePageVideo(pageId, videoData) {
+  try {
+    const { data, error } = await supabase
+      .from(PAGES_TABLE)
+      .update(videoData)
+      .eq('id', pageId)
+      .select()
+      .single();
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+}

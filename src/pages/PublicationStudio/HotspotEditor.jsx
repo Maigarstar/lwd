@@ -8,7 +8,7 @@
 //   onClose  () => void
 
 import { useState, useRef, useCallback } from 'react';
-import { updatePageHotspots, updatePageCredits } from '../../services/magazinePageService';
+import { updatePageHotspots, updatePageCredits, updatePageVideo } from '../../services/magazinePageService';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const GOLD   = '#C9A84C';
@@ -137,10 +137,17 @@ function CreditForm({ credit, onSave, onCancel }) {
 export default function HotspotEditor({ page, onSave, onClose }) {
   const [hotspots,       setHotspots]       = useState(page.link_targets  || []);
   const [credits,        setCredits]        = useState(page.vendor_credits || []);
-  const [activeTab,      setActiveTab]      = useState('hotspots'); // 'hotspots' | 'credits'
+  const [activeTab,      setActiveTab]      = useState('hotspots'); // 'hotspots' | 'credits' | 'video'
   const [editingHotspot, setEditingHotspot] = useState(null); // hotspot id or null
   const [editingCredit,  setEditingCredit]  = useState(null); // credit id or null
   const [addingCredit,   setAddingCredit]   = useState(false);
+
+  // Video state
+  const [videoUrl,      setVideoUrl]      = useState(page.video_url      || '');
+  const [videoAutoplay, setVideoAutoplay] = useState(page.video_autoplay ?? false);
+  const [videoMuted,    setVideoMuted]    = useState(page.video_muted    ?? true);
+  const [videoSaving,   setVideoSaving]   = useState(false);
+  const [videoSaveMsg,  setVideoSaveMsg]  = useState('');
 
   // Drawing state
   const [drawing,      setDrawing]      = useState(false);
@@ -240,7 +247,7 @@ export default function HotspotEditor({ page, onSave, onClose }) {
     if (editingCredit === id) setEditingCredit(null);
   }, [editingCredit]);
 
-  // ── Save ──────────────────────────────────────────────────────────────────────
+  // ── Save hotspots + credits ───────────────────────────────────────────────────
   const handleSave = async () => {
     setSaving(true);
     setSaveMsg('');
@@ -257,6 +264,41 @@ export default function HotspotEditor({ page, onSave, onClose }) {
     setSaving(false);
     onSave({ ...page, link_targets: hotspots, vendor_credits: credits });
   };
+
+  // ── Save video ────────────────────────────────────────────────────────────────
+  const handleSaveVideo = async () => {
+    setVideoSaving(true);
+    setVideoSaveMsg('');
+    const { error } = await updatePageVideo(page.id, {
+      video_url:      videoUrl || null,
+      video_autoplay: videoAutoplay,
+      video_muted:    videoAutoplay ? true : videoMuted, // autoplay forces muted
+    });
+    if (error) {
+      setVideoSaveMsg('Save failed');
+    } else {
+      setVideoSaveMsg('Saved ✓');
+      setTimeout(() => setVideoSaveMsg(''), 2500);
+      onSave({ ...page, video_url: videoUrl || null, video_autoplay: videoAutoplay, video_muted: videoMuted });
+    }
+    setVideoSaving(false);
+  };
+
+  // Helper: build an embed preview URL for YouTube/Vimeo
+  const getPreviewEmbed = (url) => {
+    if (!url) return null;
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      const id = url.match(/(?:v=|youtu\.be\/)([^&?]+)/)?.[1];
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (url.includes('vimeo.com')) {
+      const id = url.match(/vimeo\.com\/(\d+)/)?.[1];
+      return id ? `https://player.vimeo.com/video/${id}` : null;
+    }
+    return null;
+  };
+
+  const previewEmbed = getPreviewEmbed(videoUrl);
 
   // ── Draw preview rect ─────────────────────────────────────────────────────────
   const drawRect = drawing && drawStart && drawCurrent ? {
@@ -438,18 +480,22 @@ export default function HotspotEditor({ page, onSave, onClose }) {
 
           {/* Tab bar */}
           <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
-            {['hotspots', 'credits'].map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)} style={{
+            {[
+              { key: 'hotspots', label: `Hotspots (${hotspots.length})` },
+              { key: 'credits',  label: `Credits (${credits.length})`   },
+              { key: 'video',    label: 'Video'                          },
+            ].map(t => (
+              <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
                 flex: 1, padding: '12px 0',
                 fontFamily: NU, fontSize: 10, fontWeight: 700,
                 letterSpacing: '0.08em', textTransform: 'capitalize',
                 border: 'none', cursor: 'pointer',
-                background: activeTab === tab ? 'rgba(201,168,76,0.08)' : 'none',
-                borderBottom: `2px solid ${activeTab === tab ? GOLD : 'transparent'}`,
-                color: activeTab === tab ? GOLD : MUTED,
+                background: activeTab === t.key ? 'rgba(201,168,76,0.08)' : 'none',
+                borderBottom: `2px solid ${activeTab === t.key ? GOLD : 'transparent'}`,
+                color: activeTab === t.key ? GOLD : MUTED,
                 transition: 'all 0.15s',
               }}>
-                {tab === 'hotspots' ? `Hotspots (${hotspots.length})` : `Credits (${credits.length})`}
+                {t.label}
               </button>
             ))}
           </div>
@@ -577,6 +623,115 @@ export default function HotspotEditor({ page, onSave, onClose }) {
                     + Add Credit
                   </button>
                 )}
+              </div>
+            )}
+
+            {/* ── Video tab ── */}
+            {activeTab === 'video' && (
+              <div>
+                <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, marginBottom: 16, lineHeight: 1.6 }}>
+                  Add a video to this page. Readers see a "Watch Video" button overlaid on the page.
+                </div>
+
+                <FormField label="Video URL (YouTube, Vimeo, or MP4)">
+                  <input
+                    type="url"
+                    value={videoUrl}
+                    onChange={e => setVideoUrl(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=..."
+                    spellCheck={false}
+                    style={INPUT_STYLE}
+                  />
+                </FormField>
+
+                {/* Auto-play toggle */}
+                <FormField label="Auto-play">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                    <div
+                      onClick={() => {
+                        const next = !videoAutoplay;
+                        setVideoAutoplay(next);
+                        if (next) setVideoMuted(true); // autoplay requires muted
+                      }}
+                      style={{
+                        width: 36, height: 20, borderRadius: 10,
+                        background: videoAutoplay ? GOLD : 'rgba(255,255,255,0.15)',
+                        position: 'relative', transition: 'background 0.2s', cursor: 'pointer', flexShrink: 0,
+                      }}
+                    >
+                      <div style={{ position: 'absolute', top: 3, left: videoAutoplay ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
+                    </div>
+                    <span style={{ fontFamily: NU, fontSize: 11, color: MUTED }}>Auto-play when page is reached</span>
+                  </label>
+                </FormField>
+
+                {/* Muted toggle */}
+                <FormField label="Muted">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: videoAutoplay ? 'default' : 'pointer', opacity: videoAutoplay ? 0.5 : 1 }}>
+                    <div
+                      onClick={() => { if (!videoAutoplay) setVideoMuted(v => !v); }}
+                      style={{
+                        width: 36, height: 20, borderRadius: 10,
+                        background: videoMuted ? GOLD : 'rgba(255,255,255,0.15)',
+                        position: 'relative', transition: 'background 0.2s', cursor: videoAutoplay ? 'default' : 'pointer', flexShrink: 0,
+                      }}
+                    >
+                      <div style={{ position: 'absolute', top: 3, left: videoMuted ? 19 : 3, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
+                    </div>
+                    <span style={{ fontFamily: NU, fontSize: 11, color: MUTED }}>
+                      {videoAutoplay ? 'Muted (required for auto-play)' : 'Muted by default'}
+                    </span>
+                  </label>
+                </FormField>
+
+                {/* Preview */}
+                {previewEmbed && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: MUTED, marginBottom: 8 }}>Preview</div>
+                    <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: 3, border: `1px solid ${BORDER}` }}>
+                      <iframe
+                        src={previewEmbed}
+                        title="Video preview"
+                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                        allow="fullscreen"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Save */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+                  <button
+                    onClick={handleSaveVideo}
+                    disabled={videoSaving}
+                    style={{
+                      fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+                      textTransform: 'uppercase', background: videoSaving ? 'rgba(201,168,76,0.5)' : GOLD,
+                      border: 'none', color: '#0A0908', padding: '7px 18px', borderRadius: 2,
+                      cursor: videoSaving ? 'default' : 'pointer',
+                    }}
+                  >
+                    {videoSaving ? 'Saving…' : 'Save Video'}
+                  </button>
+                  {videoSaveMsg && (
+                    <span style={{ fontFamily: NU, fontSize: 10, color: videoSaveMsg.includes('✓') ? '#34d399' : '#f87171' }}>
+                      {videoSaveMsg}
+                    </span>
+                  )}
+                  {videoUrl && (
+                    <button
+                      onClick={() => { setVideoUrl(''); }}
+                      style={{
+                        fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+                        textTransform: 'uppercase', background: 'none',
+                        border: `1px solid rgba(248,113,113,0.3)`, color: 'rgba(248,113,113,0.7)',
+                        padding: '7px 14px', borderRadius: 2, cursor: 'pointer',
+                      }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>

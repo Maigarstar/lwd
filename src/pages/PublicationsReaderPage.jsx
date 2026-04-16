@@ -614,6 +614,78 @@ function HotspotOverlay({ hotspot, onClick }) {
   );
 }
 
+// ── Page video overlay ────────────────────────────────────────────────────────
+function PageVideoOverlay({ page }) {
+  const [playing, setPlaying] = useState(false);
+  const url = page?.video_url;
+  if (!url) return null;
+
+  const isYT    = url.includes('youtube.com') || url.includes('youtu.be');
+  const isVimeo = url.includes('vimeo.com');
+
+  if (!playing) {
+    return (
+      <button
+        onClick={() => setPlaying(true)}
+        style={{
+          position: 'absolute', bottom: 16, right: 16, zIndex: 60,
+          background: 'rgba(0,0,0,0.7)', border: `1px solid ${GOLD}`,
+          borderRadius: 2, color: GOLD, padding: '7px 14px',
+          fontFamily: NU, fontSize: 9, fontWeight: 600,
+          letterSpacing: '0.1em', textTransform: 'uppercase',
+          cursor: 'pointer',
+        }}
+      >
+        ▶ Watch Video
+      </button>
+    );
+  }
+
+  // Build embed URL
+  let embedUrl = url;
+  if (isYT) {
+    const id = url.match(/(?:v=|youtu\.be\/)([^&?]+)/)?.[1];
+    embedUrl = `https://www.youtube.com/embed/${id}?autoplay=1&muted=1`;
+  } else if (isVimeo) {
+    const id = url.match(/vimeo\.com\/(\d+)/)?.[1];
+    embedUrl = `https://player.vimeo.com/video/${id}?autoplay=1&muted=1`;
+  }
+
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 60,
+      background: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column',
+    }}>
+      <button
+        onClick={() => setPlaying(false)}
+        style={{
+          position: 'absolute', top: 8, right: 8, zIndex: 61,
+          background: 'none', border: 'none', color: 'white',
+          fontSize: 20, cursor: 'pointer', padding: 8,
+        }}
+      >
+        ✕
+      </button>
+      {(isYT || isVimeo) ? (
+        <iframe
+          src={embedUrl}
+          style={{ flex: 1, border: 'none' }}
+          allow="autoplay; fullscreen"
+          title="Page video"
+        />
+      ) : (
+        <video
+          src={url}
+          autoPlay
+          muted={page.video_muted !== false}
+          controls
+          style={{ flex: 1, objectFit: 'contain' }}
+        />
+      )}
+    </div>
+  );
+}
+
 // ── Page image ────────────────────────────────────────────────────────────────
 function PageImage({ page, side, pageBg, onHotspotClick }) {
   const [loaded, setLoaded] = useState(false);
@@ -651,6 +723,8 @@ function PageImage({ page, side, pageBg, onHotspotClick }) {
           onClick={() => onHotspotClick?.(hs)}
         />
       ))}
+      {/* Video overlay */}
+      <PageVideoOverlay page={page} />
     </div>
   );
 }
@@ -1066,6 +1140,9 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const [showSearch,   setShowSearch]   = useState(false);
   const [showTextMode, setShowTextMode] = useState(false);
 
+  // ── Tier 8: page flip animation state ────────────────────────────────────────
+  const [pageFlip, setPageFlip] = useState(null); // 'next' | 'prev' | null
+
   // Drag-to-pan refs
   const dragging       = useRef(false);
   const dragStartX     = useRef(0);
@@ -1177,15 +1254,23 @@ export default function PublicationsReaderPage({ slug, onBack }) {
 
   const goPrev = useCallback(() => {
     if (!canPrev) return;
-    const next = Math.max(1, currentPage - step);
-    goToPage(next);
+    setPageFlip('prev');
+    setTimeout(() => {
+      const next = Math.max(1, currentPage - step);
+      goToPage(next);
+      setTimeout(() => setPageFlip(null), 120);
+    }, 80);
   }, [canPrev, currentPage, step, goToPage]);
 
   const goNext = useCallback(() => {
-    if (!canNext) return;
-    const next = Math.min(totalPages, currentPage + step);
-    goToPage(next);
-  }, [canNext, currentPage, step, totalPages, goToPage]);
+    if (!canNext || paywallBlocking) return;
+    setPageFlip('next');
+    setTimeout(() => {
+      const next = Math.min(totalPages, currentPage + step);
+      goToPage(next);
+      setTimeout(() => setPageFlip(null), 120);
+    }, 80);
+  }, [canNext, paywallBlocking, currentPage, step, totalPages, goToPage]);
 
   // ── URL sync on page change ──────────────────────────────────────────────────
   useEffect(() => {
@@ -1461,6 +1546,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
           padding: isDesktop ? '60px 80px 60px' : '56px 0 48px',
           position: 'relative', overflow: 'hidden',
           cursor: zoom > 1 ? (dragging.current ? 'grabbing' : 'grab') : 'default',
+          perspective: '1200px',
         }}
         onWheel={onWheel}
         onMouseDown={onMouseDown}
@@ -1469,7 +1555,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
-        {/* ② Spread wrapper with zoom + pan transform */}
+        {/* ② Spread wrapper with zoom + pan transform + page flip */}
         <div style={{
           display: 'flex',
           height: '100%', maxHeight: '100%',
@@ -1478,9 +1564,10 @@ export default function PublicationsReaderPage({ slug, onBack }) {
           gap: isDoubleSpread ? 2 : 0,
           boxShadow: T.pageShad,
           background: T.pageBg,
-          transform: `scale(${zoom}) translate(${panX / zoom}px, ${panY / zoom}px)`,
+          transform: `scale(${zoom}) translate(${panX / zoom}px, ${panY / zoom}px) rotateY(${pageFlip === 'next' ? -15 : pageFlip === 'prev' ? 15 : 0}deg)`,
           transformOrigin: 'center center',
-          transition: dragging.current ? 'none' : 'transform 0.1s ease',
+          opacity: pageFlip ? 0.93 : 1,
+          transition: dragging.current ? 'none' : `transform 0.12s ease-in-out, opacity 0.12s ease`,
         }}>
           {useDoubleSpread && currentPage > 1 && (
             <PageImage page={leftPage} side="left" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
