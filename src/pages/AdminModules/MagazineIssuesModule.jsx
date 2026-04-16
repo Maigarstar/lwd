@@ -241,10 +241,10 @@ export default function MagazineIssuesModule({ C }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
         <div>
           <div style={{ fontFamily: GD, fontSize: 28, color: '#fff', lineHeight: 1.2 }}>
-            Magazine Issues
+            Publications
           </div>
           <div style={{ fontFamily: NU, fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
-            PDF-based print magazine publishing · {counts.all} issue{counts.all !== 1 ? 's' : ''}
+            PDF flipbook issues · {counts.all} issue{counts.all !== 1 ? 's' : ''} · public at /publications
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>

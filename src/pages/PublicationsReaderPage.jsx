@@ -11,6 +11,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchIssueBySlug } from '../services/magazineIssuesService';
 import { fetchPages }       from '../services/magazinePageService';
+import { trackIssueView, trackPageTurn, trackDownload } from '../services/publicationsAnalyticsService';
 
 const GOLD      = '#C9A84C';
 const GD        = "var(--font-heading-primary, 'Cormorant Garamond', Georgia, serif)";
@@ -81,7 +82,8 @@ function ErrorScreen({ message, onBack }) {
 }
 
 // ── Top bar ───────────────────────────────────────────────────────────────────
-function TopBar({ issue, onBack }) {
+function TopBar({ issue, onBack, onDownload }) {
+  const [dlHover, setDlHover] = useState(false);
   return (
     <div style={{
       position:       'fixed',
@@ -155,15 +157,47 @@ function TopBar({ issue, onBack }) {
         color:         GOLD,
         letterSpacing: '0.04em',
         flexShrink:    0,
-        display:       'none', // hidden on mobile, shown via media query below
+        display:       'none',
       }}
         className="pub-reader-brand"
       >
         LWD
       </div>
 
+      {/* PDF download button (only if issue has a PDF) */}
+      {issue.pdf_url && onDownload && (
+        <button
+          onClick={onDownload}
+          onMouseEnter={() => setDlHover(true)}
+          onMouseLeave={() => setDlHover(false)}
+          title="Download PDF"
+          style={{
+            background:    dlHover ? 'rgba(201,168,76,0.15)' : CTRL_BG,
+            border:        `1px solid ${dlHover ? 'rgba(201,168,76,0.5)' : 'rgba(255,255,255,0.1)'}`,
+            borderRadius:  2,
+            color:         dlHover ? GOLD : 'rgba(255,255,255,0.6)',
+            fontFamily:    NU,
+            fontSize:      9,
+            fontWeight:    600,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            padding:       '7px 14px',
+            cursor:        'pointer',
+            flexShrink:    0,
+            transition:    'all 0.15s',
+            display:       'none',
+          }}
+          className="pub-reader-dl"
+        >
+          ↓ PDF
+        </button>
+      )}
+
       <style>{`
-        @media (min-width: 640px) { .pub-reader-brand { display: block !important; } }
+        @media (min-width: 640px) {
+          .pub-reader-brand { display: block !important; }
+          .pub-reader-dl    { display: block !important; }
+        }
       `}</style>
     </div>
   );
@@ -420,8 +454,11 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const [isDesktop,   setIsDesktop]   = useState(() => window.innerWidth >= 900);
 
   // Touch tracking refs
-  const touchStartX = useRef(null);
-  const touchStartY = useRef(null);
+  const touchStartX  = useRef(null);
+  const touchStartY  = useRef(null);
+  // Analytics: track when current page was entered (for dwell time)
+  const pageEnteredAt = useRef(null);
+  const prevPageRef   = useRef(null);
 
   // ── Responsive ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -453,6 +490,14 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       if (cancelled) return;
       setPages(pagesData || []);
       setLoading(false);
+
+      // Track issue view (fire-and-forget)
+      trackIssueView(
+        issueData.id,
+        window.innerWidth >= 900 ? 'spread' : 'single',
+      );
+      pageEnteredAt.current = Date.now();
+      prevPageRef.current   = 1;
     })();
 
     return () => { cancelled = true; };
@@ -470,23 +515,41 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const canPrev = currentPage > 1;
   const canNext = currentPage + (isDesktop ? 1 : 0) < totalPages;
 
+  // Analytics helper: fire page_turn + dwell when navigating
+  const firePageTurn = useCallback((newPage) => {
+    if (!issue) return;
+    const now      = Date.now();
+    const dwell    = pageEnteredAt.current ? now - pageEnteredAt.current : 0;
+    const prev     = prevPageRef.current;
+    const mode     = isDesktop ? 'spread' : 'single';
+    trackPageTurn(issue.id, newPage, mode, dwell, prev);
+    pageEnteredAt.current = now;
+    prevPageRef.current   = newPage;
+  }, [issue, isDesktop]);
+
   const goPrev = useCallback(() => {
     if (!canPrev) return;
-    setCurrentPage(p => Math.max(1, p - step));
-  }, [canPrev, step]);
+    setCurrentPage(p => {
+      const next = Math.max(1, p - step);
+      firePageTurn(next);
+      return next;
+    });
+  }, [canPrev, step, firePageTurn]);
 
   const goNext = useCallback(() => {
     if (!canNext) return;
     setCurrentPage(p => {
-      const next = p + step;
-      return Math.min(totalPages, next);
+      const next = Math.min(totalPages, p + step);
+      firePageTurn(next);
+      return next;
     });
-  }, [canNext, step, totalPages]);
+  }, [canNext, step, totalPages, firePageTurn]);
 
   const goToPage = useCallback((n) => {
     const clamped = Math.max(1, Math.min(totalPages, n));
+    firePageTurn(clamped);
     setCurrentPage(clamped);
-  }, [totalPages]);
+  }, [totalPages, firePageTurn]);
 
   // ── Keyboard navigation ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -516,6 +579,14 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     if (dx < 0) goNext(); // swipe left → next
     else        goPrev(); // swipe right → prev
   };
+
+  // ── PDF download ───────────────────────────────────────────────────────────
+  const handleDownload = useCallback(() => {
+    if (!issue?.pdf_url) return;
+    trackDownload(issue.id);
+    // Open PDF in new tab (browser will offer download or inline view)
+    window.open(issue.pdf_url, '_blank', 'noreferrer');
+  }, [issue]);
 
   // ── Derive current pages to display ────────────────────────────────────────
   // Pages array is ordered by page_number (1-based)
@@ -554,7 +625,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       onTouchEnd={onTouchEnd}
     >
       {/* Top bar */}
-      <TopBar issue={issue} onBack={onBack} />
+      <TopBar issue={issue} onBack={onBack} onDownload={issue.pdf_url ? handleDownload : null} />
 
       {/* Main viewer area */}
       <div style={{
