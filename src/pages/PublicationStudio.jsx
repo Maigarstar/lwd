@@ -2047,7 +2047,7 @@ export default function PublicationStudio({ onBack }) {
           </div>
 
           {/* Issue list */}
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             {loading && (
               <div style={{ padding: '24px 16px', fontFamily: NU, fontSize: 11, color: MUTED, textAlign: 'center' }}>Loading…</div>
             )}
