@@ -792,11 +792,19 @@ export const useListingForm = (listingId = null) => {
         contactProfile: (() => {
           if (!formData.contact_profile) return {};
           const cp = { ...formData.contact_profile, photo_file: undefined, photo_url: contactPhotoUrl };
-          // Flatten social sub-object to top-level keys for DB compatibility
-          // DB stores contact_profile as JSONB with flat keys (instagram, facebook, etc.)
+          // Write social links both as flat keys (backward compat) AND as nested
+          // social object (used by VenueProfile.jsx to render social icons)
           if (cp.social && typeof cp.social === 'object') {
-            Object.assign(cp, cp.social);
-            delete cp.social;
+            const s = cp.social;
+            // Flat keys for backward compat
+            if (s.instagram) cp.instagram = s.instagram;
+            if (s.facebook)  cp.facebook  = s.facebook;
+            if (s.linkedin)  cp.linkedin  = s.linkedin;
+            if (s.tiktok)    cp.tiktok    = s.tiktok;
+            if (s.twitter)   cp.twitter   = s.twitter;
+            if (s.pinterest) cp.pinterest = s.pinterest;
+            if (s.youtube)   cp.youtube   = s.youtube;
+            // Keep the social sub-object for VenueProfile to read
           }
           return cp;
         })(),

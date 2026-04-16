@@ -8591,7 +8591,13 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
               phone:       cp.phone   || listing.phone   || null,
               whatsapp:    cp.whatsapp || null,
               website:     cp.website  || listing.website || null,
-              social:      cp.social   || null,
+              social:      cp.social   || (() => {
+                const s = {};
+                ['instagram','facebook','linkedin','tiktok','twitter','pinterest','youtube'].forEach(k => {
+                  if (cp[k]) s[k] = cp[k];
+                });
+                return Object.keys(s).length ? s : null;
+              })(),
               isFallback:  !hasNamedContact,
             };
           })(),
@@ -8606,7 +8612,16 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
             phone:   listing.phone   || listing.contactProfile?.phone   || null,
             email:   listing.email   || listing.contactProfile?.email   || null,
             website: listing.website || listing.contactProfile?.website || null,
-            social:  listing.contactProfile?.social || null,
+            social:  listing.contactProfile?.social || (() => {
+              // Fallback: build social from flat keys on contact_profile (legacy data)
+              const cp = listing.contactProfile;
+              if (!cp) return null;
+              const s = {};
+              ['instagram','facebook','linkedin','tiktok','twitter','pinterest','youtube'].forEach(k => {
+                if (cp[k]) s[k] = cp[k];
+              });
+              return Object.keys(s).length ? s : null;
+            })(),
             responseMetrics: {
               averageResponseHours: null,
               responseRatePercent:  null,
