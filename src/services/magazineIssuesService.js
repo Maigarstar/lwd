@@ -300,6 +300,27 @@ export async function uploadIssueCover(issueId, file) {
 }
 
 /**
+ * Fetch published issues ordered by published_at desc.
+ * Used by the RSS feed, sitemap, and any public discovery surface.
+ * @param {number} limit - Max issues to return (default 20)
+ * @returns {{ data: Array, error: Error|null }}
+ */
+export async function fetchPublishedIssues(limit = 20) {
+  try {
+    const { data, error } = await supabase
+      .from(ISSUES_TABLE)
+      .select('id, slug, title, issue_number, season, year, cover_image, og_image_url, pdf_url, seo_description, intro, published_at')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return { data: data || [], error: null };
+  } catch (error) {
+    return { data: [], error };
+  }
+}
+
+/**
  * Upload the back cover image for a magazine issue.
  * Stores at magazine-covers/[issueId]/back-cover.[ext]
  * Updates back_cover_image + back_cover_storage_path on the issue.

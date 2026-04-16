@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { fetchIssueBySlug } from '../services/magazineIssuesService';
 import { fetchPages }       from '../services/magazinePageService';
 import { trackIssueView, trackPageTurn, trackDownload } from '../services/publicationsAnalyticsService';
+import SocialExportModal    from '../components/publications/SocialExportModal';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const GOLD      = '#C9A84C';
@@ -383,6 +384,7 @@ function TopBar({
   showTOC, onToggleTOC,
   bookmarked, onToggleBookmark,
   onShare,
+  onExport,
   readerMode, onToggleMode,
   T,
 }) {
@@ -487,6 +489,16 @@ function TopBar({
         ↗ Share
       </button>
 
+      {/* Export for social (desktop) */}
+      <button
+        onClick={onExport}
+        style={{ ...btnStyle, display: 'none' }}
+        className="pub-reader-export"
+        title="Export page for social media"
+      >
+        ⬇ Export
+      </button>
+
       {/* Reader mode toggle (desktop) */}
       <button
         onClick={onToggleMode}
@@ -525,6 +537,7 @@ function TopBar({
           .pub-reader-brand  { display: block !important; }
           .pub-reader-dl     { display: flex !important; }
           .pub-reader-share  { display: flex !important; }
+          .pub-reader-export { display: flex !important; }
           .pub-reader-mode   { display: flex !important; }
         }
       `}</style>
@@ -1008,14 +1021,15 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const [isDesktop,   setIsDesktop]   = useState(() => window.innerWidth >= 900);
 
   // ── Tier 1 state ─────────────────────────────────────────────────────────────
-  const [zoom,      setZoom]      = useState(1);
-  const [panX,      setPanX]      = useState(0);
-  const [panY,      setPanY]      = useState(0);
-  const [readerMode,setReaderMode]= useState('dark');
-  const [showTOC,   setShowTOC]   = useState(false);
-  const [bookmarks, setBookmarks] = useState([]);
-  const [showIntro, setShowIntro] = useState(false);
-  const [toastVisible, setToastVisible] = useState(false);
+  const [zoom,           setZoom]           = useState(1);
+  const [panX,           setPanX]           = useState(0);
+  const [panY,           setPanY]           = useState(0);
+  const [readerMode,     setReaderMode]     = useState('dark');
+  const [showTOC,        setShowTOC]        = useState(false);
+  const [bookmarks,      setBookmarks]      = useState([]);
+  const [showIntro,      setShowIntro]      = useState(false);
+  const [toastVisible,   setToastVisible]   = useState(false);
+  const [showExportModal,setShowExportModal] = useState(false);
   const toastTimer = useRef(null);
 
   // ── Tier 2: hotspots + credits state ─────────────────────────────────────────
@@ -1367,6 +1381,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         bookmarked={isBookmarkedCurrent}
         onToggleBookmark={handleToggleBookmarkCurrent}
         onShare={handleShare}
+        onExport={() => setShowExportModal(true)}
         readerMode={readerMode}
         onToggleMode={() => setReaderMode(m => m === 'dark' ? 'light' : 'dark')}
         T={T}
@@ -1478,6 +1493,15 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         <InReaderEnquiryModal
           hotspot={activeHotspot}
           onClose={() => setActiveHotspot(null)}
+        />
+      )}
+
+      {/* Social export modal */}
+      {showExportModal && (
+        <SocialExportModal
+          page={rightPage || pages[0]}
+          issue={issue}
+          onClose={() => setShowExportModal(false)}
         />
       )}
 
