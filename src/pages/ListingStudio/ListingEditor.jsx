@@ -528,6 +528,32 @@ const ListingEditor = ({ listingId = null, darkMode = false, onCancel = null, on
                   </button>
                 </div>
 
+                {/* Featured & Verified toggles */}
+                <div style={{ borderTop: `1px solid ${darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`, paddingTop: 10, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: darkMode ? '#ccc' : '#444' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!formData.is_featured}
+                      onChange={(e) => handleChange('is_featured', e.target.checked)}
+                      style={{ accentColor: '#C9A84C', width: 14, height: 14 }}
+                    />
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ color: '#C9A84C', fontSize: 11 }}>★</span> Editor's Pick
+                    </span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, color: darkMode ? '#ccc' : '#444' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!formData.is_verified}
+                      onChange={(e) => handleChange('is_verified', e.target.checked)}
+                      style={{ accentColor: '#10b981', width: 14, height: 14 }}
+                    />
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ color: '#10b981', fontSize: 11 }}>✓</span> Verified
+                    </span>
+                  </label>
+                </div>
+
                 {/* Last modified info */}
                 {formData.updated_at && (
                   <div style={{ fontSize: 11, color: darkMode ? '#666' : '#999', borderTop: `1px solid ${darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`, paddingTop: 8 }}>

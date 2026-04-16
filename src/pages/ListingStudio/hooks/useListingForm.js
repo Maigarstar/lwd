@@ -382,6 +382,8 @@ export const useListingForm = (listingId = null) => {
               : { photo_file: null, photo_url: '', name: '', title: '', bio: '', email: '', phone: '', whatsapp: '', response_time: '', response_rate: '', instagram: '', website: '' },
             weddings_hosted: listing.weddingsHosted != null ? String(listing.weddingsHosted) : '',
             member_since:    listing.memberSince    || '',
+            is_featured: listing.isFeatured ?? false,
+            is_verified: listing.isVerified ?? false,
             status: listing.status || 'draft',
             published_at: listing.publishedAt || null,
             updated_at: listing.updatedAt || null,
@@ -655,6 +657,8 @@ export const useListingForm = (listingId = null) => {
         seoTitle: formData.seo_title,
         seoDescription: formData.seo_description,
         seoKeywords: formData.seo_keywords || [],
+        isFeatured: formData.is_featured ?? false,
+        isVerified: formData.is_verified ?? false,
         showcaseEnabled: formData.showcase_enabled ?? false,
         showcaseCategory: formData.showcase_category || 'venue',
         // Exclusive Use block
