@@ -692,6 +692,32 @@ function PageImage({ page, side, pageBg, onHotspotClick }) {
   if (!page) {
     return <div style={{ flex: 1, background: pageBg, border: '1px solid rgba(255,255,255,0.04)' }} />;
   }
+
+  // Page was designed in PageDesigner but not yet published via "▶ Publish Digital"
+  const hasCanvas = page.template_data?.canvasJSON;
+  const hasImage  = !!page.image_url;
+  if (!hasImage && hasCanvas) {
+    return (
+      <div style={{
+        flex: 1, position: 'relative', background: pageBg,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        gap: 12,
+      }}>
+        <span style={{ fontSize: 28, opacity: 0.2 }}>◈</span>
+        <div style={{
+          fontFamily: "'Jost',sans-serif", fontSize: 10,
+          color: 'rgba(255,255,255,0.3)', textAlign: 'center',
+          letterSpacing: '0.1em', textTransform: 'uppercase', lineHeight: 1.6,
+          maxWidth: 180,
+        }}>
+          Page {page.page_number}<br />
+          <span style={{ color: '#C9A84C', opacity: 0.7 }}>Click ▶ Publish Digital<br />in the studio to render</span>
+        </div>
+      </div>
+    );
+  }
+
   const hotspots = page?.link_targets || [];
   return (
     <div style={{ flex: 1, position: 'relative', background: pageBg, overflow: 'hidden' }}>

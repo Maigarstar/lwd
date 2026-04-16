@@ -1158,23 +1158,42 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     setExportingDigital(true);
     try {
       saveCurrentPageToState();
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 150));
 
       const renderVersion = (issue.render_version || 1) + 1;
-      // Use right canvas (single canvas) for export iteration
-      const fc = fabricRef.current;
+
+      // Create a fresh off-screen Fabric canvas at true 1:1 scale for rendering.
+      // We CANNOT reuse fabricRef.current because it is zoomed (e.g. 0.6×) and
+      // would produce undersized images. An off-screen canvas always renders at
+      // the real page dimensions regardless of the designer's current zoom level.
+      const { Canvas: FabricCanvas } = await import('fabric');
+      const offscreenEl = document.createElement('canvas');
+      offscreenEl.width  = dims.w;
+      offscreenEl.height = dims.h;
+      const offscreen = new FabricCanvas(offscreenEl, {
+        width: dims.w,
+        height: dims.h,
+        backgroundColor: '#ffffff',
+        enableRetinaScaling: false,
+      });
 
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
-        if (!fc) break;
 
+        // Clear and reload this page's canvas JSON
+        offscreen.clear();
+        offscreen.backgroundColor = '#ffffff';
         if (page.canvasJSON) {
-          await fc.loadFromJSON(page.canvasJSON);
-          fc.renderAll();
+          await offscreen.loadFromJSON(page.canvasJSON);
         }
+        offscreen.renderAll();
+        // Small settle time so fonts / images finish drawing
+        await new Promise(r => setTimeout(r, 60));
+        offscreen.renderAll();
 
-        const pageBlob = await canvasToJpegBlob(fc, 3);
-        const thumbBlob = await canvasToJpegBlob(fc, 0.5);
+        // Export at true size (multiplier:1 because canvas is already full-res)
+        const pageBlob  = await canvasToJpegBlob(offscreen, 1);
+        const thumbBlob = await canvasToJpegBlob(offscreen, 0.35);
 
         const { publicUrl: imageUrl, storagePath: imagePath } = await uploadPageImage(issue.id, renderVersion, i + 1, pageBlob);
         const { publicUrl: thumbUrl, storagePath: thumbPath } = await uploadThumbImage(issue.id, renderVersion, i + 1, thumbBlob);
@@ -1192,15 +1211,18 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         });
       }
 
+      // Clean up off-screen canvas
+      offscreen.dispose();
+
       onIssueUpdate?.({ render_version: renderVersion, page_count: pages.length, processing_state: 'ready' });
-      alert(`\u2713 ${pages.length} page${pages.length !== 1 ? 's' : ''} published to reader`);
+      alert(`✓ ${pages.length} page${pages.length !== 1 ? 's' : ''} published to reader`);
     } catch (e) {
       console.error(e);
       alert('Export failed: ' + e.message);
     } finally {
       setExportingDigital(false);
     }
-  }, [issue, pages, saveCurrentPageToState, onIssueUpdate]);
+  }, [issue, pages, dims, saveCurrentPageToState, onIssueUpdate]);
 
   // ── Print Export ────────────────────────────────────────────────────────────
   const handleExportPrint = useCallback(async () => {
