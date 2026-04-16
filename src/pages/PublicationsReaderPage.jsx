@@ -11,6 +11,8 @@ import { fetchIssueBySlug } from '../services/magazineIssuesService';
 import { fetchPages }       from '../services/magazinePageService';
 import { trackIssueView, trackPageTurn, trackDownload } from '../services/publicationsAnalyticsService';
 import SocialExportModal    from '../components/publications/SocialExportModal';
+import IssueSearchPanel     from '../components/publications/IssueSearchPanel';
+import TextModePanel        from '../components/publications/TextModePanel';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const GOLD      = '#C9A84C';
@@ -385,6 +387,8 @@ function TopBar({
   bookmarked, onToggleBookmark,
   onShare,
   onExport,
+  onSearch,
+  onTextMode,
   readerMode, onToggleMode,
   T,
 }) {
@@ -499,6 +503,26 @@ function TopBar({
         ⬇ Export
       </button>
 
+      {/* Search (desktop) */}
+      <button
+        onClick={onSearch}
+        style={{ ...btnStyle, display: 'none' }}
+        className="pub-reader-search"
+        title="Search issue (press /)"
+      >
+        🔍 Search
+      </button>
+
+      {/* Text / Accessibility mode (desktop) */}
+      <button
+        onClick={onTextMode}
+        style={{ ...btnStyle, display: 'none' }}
+        className="pub-reader-textmode"
+        title="Accessibility text mode (press A)"
+      >
+        Aa Text
+      </button>
+
       {/* Reader mode toggle (desktop) */}
       <button
         onClick={onToggleMode}
@@ -534,11 +558,13 @@ function TopBar({
 
       <style>{`
         @media (min-width: 640px) {
-          .pub-reader-brand  { display: block !important; }
-          .pub-reader-dl     { display: flex !important; }
-          .pub-reader-share  { display: flex !important; }
-          .pub-reader-export { display: flex !important; }
-          .pub-reader-mode   { display: flex !important; }
+          .pub-reader-brand    { display: block !important; }
+          .pub-reader-dl       { display: flex !important; }
+          .pub-reader-share    { display: flex !important; }
+          .pub-reader-export   { display: flex !important; }
+          .pub-reader-search   { display: flex !important; }
+          .pub-reader-textmode { display: flex !important; }
+          .pub-reader-mode     { display: flex !important; }
         }
       `}</style>
     </div>
@@ -1036,6 +1062,10 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const [activeHotspot, setActiveHotspot] = useState(null);
   const [creditsOpen,   setCreditsOpen]   = useState(false);
 
+  // ── Tier 6: search + text mode state ─────────────────────────────────────────
+  const [showSearch,   setShowSearch]   = useState(false);
+  const [showTextMode, setShowTextMode] = useState(false);
+
   // Drag-to-pan refs
   const dragging       = useRef(false);
   const dragStartX     = useRef(0);
@@ -1185,6 +1215,8 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       if (e.key === 't' || e.key === 'T') setShowTOC(o => !o);
       if (e.key === 'z' || e.key === 'Z') resetZoom();
       if (e.key === 'm' || e.key === 'M') setReaderMode(m => m === 'dark' ? 'light' : 'dark');
+      if (e.key === '/') { e.preventDefault(); setShowSearch(o => !o); }
+      if (e.key === 'a' || e.key === 'A') setShowTextMode(o => !o);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1382,6 +1414,8 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         onToggleBookmark={handleToggleBookmarkCurrent}
         onShare={handleShare}
         onExport={() => setShowExportModal(true)}
+        onSearch={() => setShowSearch(o => !o)}
+        onTextMode={() => setShowTextMode(o => !o)}
         readerMode={readerMode}
         onToggleMode={() => setReaderMode(m => m === 'dark' ? 'light' : 'dark')}
         T={T}
@@ -1398,6 +1432,27 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         onToggleBookmark={handleToggleBookmarkPage}
         T={T}
       />
+
+      {/* ⑥ In-reader Search Panel */}
+      {showSearch && (
+        <IssueSearchPanel
+          pages={pages}
+          currentPage={currentPage}
+          onJump={(n) => { goToPage(n); setShowSearch(false); }}
+          onClose={() => setShowSearch(false)}
+          T={T}
+        />
+      )}
+
+      {/* ⑥ Text / Accessibility Mode */}
+      {showTextMode && (
+        <TextModePanel
+          pages={pages}
+          issue={issue}
+          onClose={() => setShowTextMode(false)}
+          T={T}
+        />
+      )}
 
       {/* Main viewer */}
       <div

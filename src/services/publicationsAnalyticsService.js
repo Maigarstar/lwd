@@ -112,6 +112,36 @@ export function trackPageTurn(issueId, pageNumber, readerMode, durationMs, prevP
 }
 
 /**
+ * Fetch per-page average dwell time for a heatmap.
+ * Groups dwell events by page_number and computes avg duration_ms.
+ * @param {string} issueId
+ * @returns {{ data: Array<{page_number, avg_dwell_ms, views}>, error }}
+ */
+export async function fetchPageHeatmap(issueId) {
+  const { data, error } = await supabase
+    .from(ANALYTICS_TABLE)
+    .select('page_number, duration_ms')
+    .eq('issue_id', issueId)
+    .eq('event_type', 'dwell')
+    .not('page_number', 'is', null);
+  if (error) return { data: [], error };
+
+  // Aggregate: avg dwell per page
+  const map = {};
+  (data || []).forEach(r => {
+    if (!map[r.page_number]) map[r.page_number] = { total: 0, count: 0 };
+    map[r.page_number].total += r.duration_ms;
+    map[r.page_number].count++;
+  });
+  const result = Object.entries(map).map(([page, v]) => ({
+    page_number:  parseInt(page),
+    avg_dwell_ms: Math.round(v.total / v.count),
+    views:        v.count,
+  })).sort((a, b) => b.avg_dwell_ms - a.avg_dwell_ms);
+  return { data: result, error: null };
+}
+
+/**
  * Call when the user triggers a PDF download.
  * Inserts a 'download' event and increments download_count.
  */

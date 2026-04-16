@@ -353,3 +353,76 @@ export async function uploadIssueBackCover(issueId, file) {
     return { publicUrl: null, storagePath: null, error };
   }
 }
+
+// ── A/B Cover Testing ─────────────────────────────────────────────────────────
+
+/**
+ * Upload the alternate (variant B) cover image for A/B testing.
+ * Stores at magazine-covers/[issueId]/alt-cover.[ext]
+ * Updates alt_cover_image + alt_cover_storage_path on the issue.
+ */
+export async function uploadIssueAltCover(issueId, file) {
+  try {
+    const ext  = file.type === 'image/png' ? 'png' : 'jpg';
+    const path = `${issueId}/alt-cover.${ext}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from(COVER_BUCKET)
+      .upload(path, file, {
+        upsert:       true,
+        cacheControl: '31536000',
+        contentType:  file.type || 'image/jpeg',
+      });
+    if (uploadErr) throw uploadErr;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from(COVER_BUCKET)
+      .getPublicUrl(path);
+
+    await updateIssue(issueId, {
+      alt_cover_image:         publicUrl,
+      alt_cover_storage_path:  path,
+    });
+
+    return { publicUrl, storagePath: path, error: null };
+  } catch (error) {
+    return { publicUrl: null, storagePath: null, error };
+  }
+}
+
+/**
+ * Returns 'a' or 'b' for A/B variant assignment.
+ * Consistent within a browser session per issue (stored in sessionStorage).
+ * @param {string} issueId
+ * @returns {'a'|'b'}
+ */
+export function getAbVariant(issueId) {
+  const key    = `lwd_ab_${issueId}`;
+  const stored = sessionStorage.getItem(key);
+  if (stored === 'a' || stored === 'b') return stored;
+  const variant = Math.random() < 0.5 ? 'a' : 'b';
+  try { sessionStorage.setItem(key, variant); } catch {}
+  return variant;
+}
+
+/**
+ * Fire-and-forget: track an impression for the given variant.
+ * @param {string} issueId
+ * @param {'a'|'b'} variant
+ */
+export async function trackAbImpression(issueId, variant) {
+  await supabase
+    .rpc('increment_ab_stat', { p_issue_id: issueId, p_variant: variant, p_field: 'impressions' })
+    .catch(() => {});
+}
+
+/**
+ * Fire-and-forget: track a click (cover click / open) for the given variant.
+ * @param {string} issueId
+ * @param {'a'|'b'} variant
+ */
+export async function trackAbClick(issueId, variant) {
+  await supabase
+    .rpc('increment_ab_stat', { p_issue_id: issueId, p_variant: variant, p_field: 'clicks' })
+    .catch(() => {});
+}

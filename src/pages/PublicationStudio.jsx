@@ -39,6 +39,8 @@ import HotspotEditor    from './PublicationStudio/HotspotEditor';
 import TemplatePicker  from './PublicationStudio/templates/TemplatePicker';
 import TemplateEditor  from './PublicationStudio/templates/TemplateEditor';
 import MonetizationTab from './PublicationStudio/MonetizationTab';
+import HeatmapPanel    from './PublicationStudio/HeatmapPanel';
+import { uploadIssueAltCover } from '../services/magazineIssuesService';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const GOLD   = '#C9A84C';
@@ -452,10 +454,11 @@ function AIInputField({ label, hint, value, onChange, placeholder, field, issueD
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ data, onChange, slugLocked, saving, onSave, coverUrl, onCoverUpload, coverUploading, backCoverUrl, onBackCoverUpload, backCoverUploading, persona, onPersonaChange }) {
+function OverviewTab({ data, onChange, slugLocked, saving, onSave, coverUrl, onCoverUpload, coverUploading, backCoverUrl, onBackCoverUpload, backCoverUploading, altCoverUrl, onAltCoverUpload, altCoverUploading, persona, onPersonaChange }) {
   const [slugTouched, setSlugTouched] = useState(false);
   const coverRef     = useRef(null);
   const backCoverRef = useRef(null);
+  const altCoverRef  = useRef(null);
 
   // Auto-slug from title
   useEffect(() => {
@@ -656,6 +659,100 @@ function OverviewTab({ data, onChange, slugLocked, saving, onSave, coverUrl, onC
               style={{ marginTop: 8, width: '100%', fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'none', border: `1px solid ${BORDER}`, color: MUTED, padding: '6px 0', borderRadius: 3, cursor: 'pointer' }}>
               Replace back cover
             </button>
+          )}
+        </div>
+
+        {/* A/B Test Cover */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <SectionHead>✦ A/B Test Cover</SectionHead>
+            {/* Toggle */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 14 }}>
+              <div
+                onClick={() => onChange('ab_test_active', !f.ab_test_active)}
+                style={{
+                  width: 32, height: 18, borderRadius: 9,
+                  background: f.ab_test_active ? GOLD : 'rgba(255,255,255,0.15)',
+                  position: 'relative', transition: 'background 0.2s', cursor: 'pointer', flexShrink: 0,
+                }}
+              >
+                <div style={{ position: 'absolute', top: 2, left: f.ab_test_active ? 16 : 2, width: 14, height: 14, borderRadius: '50%', background: '#fff', transition: 'left 0.2s' }} />
+              </div>
+              <span style={{ fontFamily: NU, fontSize: 10, color: f.ab_test_active ? GOLD : MUTED }}>
+                {f.ab_test_active ? 'Active' : 'Off'}
+              </span>
+            </label>
+          </div>
+
+          {f.ab_test_active && (
+            <>
+              {/* Alt cover upload */}
+              <div
+                onClick={() => !altCoverUploading && altCoverRef.current?.click()}
+                style={{
+                  cursor: altCoverUploading ? 'default' : 'pointer',
+                  borderRadius: 4, overflow: 'hidden',
+                  border: `1px solid ${GOLD}40`,
+                  background: '#1A1612',
+                  paddingBottom: '141.4%',
+                  position: 'relative',
+                  transition: 'border-color 0.2s',
+                }}
+              >
+                {altCoverUrl
+                  ? <img src={altCoverUrl} alt="Variant B Cover" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 22, opacity: 0.2 }}>◈</span>
+                      <span style={{ fontFamily: NU, fontSize: 9, color: MUTED, textAlign: 'center', padding: '0 8px' }}>
+                        {altCoverUploading ? 'Uploading…' : 'Click to upload Variant B cover'}
+                      </span>
+                    </div>
+                }
+                {altCoverUploading && (
+                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontFamily: NU, fontSize: 11, color: GOLD }}>Uploading…</span>
+                  </div>
+                )}
+              </div>
+              <input ref={altCoverRef} type="file" accept="image/*" style={{ display: 'none' }}
+                onChange={e => { const file = e.target.files?.[0]; if (file) { onAltCoverUpload(file); e.target.value = ''; } }} />
+              {altCoverUrl && (
+                <button onClick={() => altCoverRef.current?.click()}
+                  style={{ marginTop: 6, width: '100%', fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'none', border: `1px solid ${BORDER}`, color: MUTED, padding: '6px 0', borderRadius: 3, cursor: 'pointer' }}>
+                  Replace Variant B
+                </button>
+              )}
+
+              {/* A/B Stats */}
+              {(f.ab_variant_impressions || f.ab_variant_clicks) && (() => {
+                const impr = f.ab_variant_impressions || { a: 0, b: 0 };
+                const clks = f.ab_variant_clicks      || { a: 0, b: 0 };
+                const ctrA = impr.a > 0 ? Math.round((clks.a / impr.a) * 100) : 0;
+                const ctrB = impr.b > 0 ? Math.round((clks.b / impr.b) * 100) : 0;
+                return (
+                  <div style={{ marginTop: 10, background: 'rgba(201,168,76,0.05)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '10px 12px' }}>
+                    <div style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>A/B Stats</div>
+                    {[
+                      { label: 'Variant A (original)', impr: impr.a || 0, clicks: clks.a || 0, ctr: ctrA },
+                      { label: 'Variant B (alt cover)', impr: impr.b || 0, clicks: clks.b || 0, ctr: ctrB },
+                    ].map(v => (
+                      <div key={v.label} style={{ marginBottom: 6 }}>
+                        <div style={{ fontFamily: NU, fontSize: 9, color: MUTED, marginBottom: 2 }}>{v.label}</div>
+                        <div style={{ fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>
+                          {v.impr} impressions · {v.clicks} clicks · <span style={{ color: GOLD }}>{v.ctr}% CTR</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </>
+          )}
+
+          {!f.ab_test_active && (
+            <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, lineHeight: 1.6 }}>
+              Enable to test two cover images. 50% of visitors see the alternate cover (Variant B).
+            </div>
           )}
         </div>
 
@@ -1058,8 +1155,9 @@ function IssueWorkspace({ issueId, onDelete }) {
   const [publishing,  setPublishing]  = useState(false);
   const [archiving,   setArchiving]   = useState(false);
   const [deleting,    setDeleting]    = useState(false);
-  const [coverUp,          setCoverUp]          = useState(false);
+  const [coverUp,           setCoverUp]           = useState(false);
   const [backCoverUploading, setBackCoverUploading] = useState(false);
+  const [altCoverUploading,  setAltCoverUploading]  = useState(false);
   const [persona,          setPersona]          = useState('luxury-editorial');
   const [reprocessing, setReprocessing] = useState(false);
   const [pages,              setPages]              = useState([]);
@@ -1075,9 +1173,9 @@ function IssueWorkspace({ issueId, onDelete }) {
     });
   }, [issueId]);
 
-  // load pages when pages tab is active
+  // load pages when pages or analytics tab is active
   useEffect(() => {
-    if (tab !== 'pages' || !issueId) return;
+    if ((tab !== 'pages' && tab !== 'analytics') || !issueId) return;
     fetchPages(issueId).then(({ data }) => {
       if (data) setPages(data);
     });
@@ -1125,6 +1223,17 @@ function IssueWorkspace({ issueId, onDelete }) {
       setFormData(prev => ({ ...prev, back_cover_image: publicUrl, back_cover_storage_path: `${issue.id}/back-cover.jpg` }));
     }
     setBackCoverUploading(false);
+  }, [issue?.id]);
+
+  const handleAltCoverUpload = useCallback(async (file) => {
+    if (!issue?.id) return;
+    setAltCoverUploading(true);
+    const { publicUrl, error } = await uploadIssueAltCover(issue.id, file);
+    if (!error && publicUrl) {
+      setIssue(prev => ({ ...prev, alt_cover_image: publicUrl }));
+      setFormData(prev => ({ ...prev, alt_cover_image: publicUrl }));
+    }
+    setAltCoverUploading(false);
   }, [issue?.id]);
 
   const sendIssueEmail = useCallback(async (publishedIssue) => {
@@ -1309,6 +1418,9 @@ function IssueWorkspace({ issueId, onDelete }) {
             backCoverUrl={formData.back_cover_image}
             onBackCoverUpload={handleBackCoverUpload}
             backCoverUploading={backCoverUploading}
+            altCoverUrl={formData.alt_cover_image}
+            onAltCoverUpload={handleAltCoverUpload}
+            altCoverUploading={altCoverUploading}
             persona={persona}
             onPersonaChange={setPersona}
           />
@@ -1430,7 +1542,11 @@ function IssueWorkspace({ issueId, onDelete }) {
         )}
 
         {tab === 'analytics' && (
-          <AnalyticsTab issueId={issueId} issue={issue} />
+          <>
+            <AnalyticsTab issueId={issueId} issue={issue} />
+            <div style={{ padding: '0 0 8px', borderTop: `1px solid ${BORDER}` }} />
+            <HeatmapPanel issue={issue} pages={pages} />
+          </>
         )}
 
         {tab === 'monetize' && (
