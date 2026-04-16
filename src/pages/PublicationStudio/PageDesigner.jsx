@@ -9,6 +9,7 @@ import PageListPanel from './PageDesigner/PageListPanel';
 import DesignerToolbar from './PageDesigner/DesignerToolbar';
 import { canvasToJpegBlob, canvasToPrintJpegBlob, generatePrintPDF, downloadPDF } from './PageDesigner/exportUtils';
 import { upsertPages, upsertPage, fetchPages, uploadPageImage, uploadThumbImage } from '../../services/magazinePageService';
+import ImagePickerModal from './PageDesigner/ImagePickerModal';
 
 function genId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID
@@ -26,6 +27,110 @@ function genId() {
 const TEMPLATE_REF_W = 794;
 const TEMPLATE_REF_H = 1123;
 
+// ── Curated Unsplash image set ────────────────────────────────────────────────
+// High-res editorial photography used as default placeholder imagery for each
+// template. All URLs use the same pattern so resolution can be tuned centrally.
+const UNSPLASH = (id, w = 1600) => `https://images.unsplash.com/photo-${id}?w=${w}&q=80&auto=format&fit=crop`;
+const IMG = {
+  bridePortrait:  UNSPLASH('1519741497674-611481863552'),
+  coupleCeremony: UNSPLASH('1606216794074-735e91aa2c92'),
+  venueInterior: UNSPLASH('1519167758481-83f550bb49b3'),
+  florals:        UNSPLASH('1519225421980-715cb0215aed'),
+  ring:           UNSPLASH('1605100804763-247f67b3557e'),
+  tuscany:        UNSPLASH('1523531294919-4bcd7c65e216'),
+  venetianPalazzo:UNSPLASH('1534445867742-43195f401b6c'),
+  dressDetail:    UNSPLASH('1511285560929-80b456fea0bc'),
+  beauty:         UNSPLASH('1487412720507-e7ab37603c6f'),
+  cake:           UNSPLASH('1535254973040-607b474cb50d'),
+  receptionTable: UNSPLASH('1465495976277-4387d4b0e4a6'),
+  bouquet:        UNSPLASH('1587271636175-90d58cdad458'),
+  stationery:     UNSPLASH('1606216794074-735e91aa2c92'),
+  fashionEditorial: UNSPLASH('1523359346063-d879354c0ea5'),
+};
+
+// ── L-bracket corner markers ──────────────────────────────────────────────────
+// Draws 4 gold L-shaped crop markers around an image placeholder Rect, so users
+// can visually identify which objects are replaceable image slots. Each marker
+// is tagged isPlaceholderMarker:true so they round-trip through save/load.
+function buildPlaceholderMarkers(fc, rectLeft, rectTop, rectW, rectH) {
+  const arm = 16;
+  const stroke = 'rgba(201,169,110,0.6)';
+  const strokeWidth = 1.5;
+  const mkLine = (x1, y1, x2, y2) => new Line([x1, y1, x2, y2], {
+    stroke, strokeWidth,
+    selectable: false, evented: false,
+  });
+
+  const L = rectLeft;
+  const T = rectTop;
+  const R = rectLeft + rectW;
+  const B = rectTop + rectH;
+
+  const markers = [
+    // Top-left ⌐
+    mkLine(L, T, L + arm, T),
+    mkLine(L, T, L, T + arm),
+    // Top-right ¬
+    mkLine(R - arm, T, R, T),
+    mkLine(R, T, R, T + arm),
+    // Bottom-left ⌊
+    mkLine(L, B, L, B - arm),
+    mkLine(L, B, L + arm, B),
+    // Bottom-right ⌋
+    mkLine(R - arm, B, R, B),
+    mkLine(R, B - arm, R, B),
+  ];
+  markers.forEach(m => {
+    m.set({ isPlaceholderMarker: true });
+    m.id = genId();
+    fc.add(m);
+  });
+}
+
+// ── Image placeholder helper ──────────────────────────────────────────────────
+// Creates a Rect backdrop + gold L-bracket markers + async Unsplash image.
+// The Rect and FabricImage are both tagged isImagePlaceholder:true so the
+// double-click handler can pick either up. The Rect is kept behind the image
+// so when the image is swapped via the picker there is still a backdrop.
+function addImagePlaceholder(fc, { left, top, width, height, imageUrl, fill = '#E8E3D8' }) {
+  const rect = new Rect({
+    left, top, width, height, fill,
+    selectable: true,
+  });
+  rect.set({ isImagePlaceholder: true });
+  rect.id = genId();
+  fc.add(rect);
+
+  buildPlaceholderMarkers(fc, left, top, width, height);
+
+  if (imageUrl) {
+    FabricImage.fromURL(imageUrl, { crossOrigin: 'anonymous' })
+      .then(img => {
+        if (!img) return;
+        const scale = Math.max(width / img.width, height / img.height);
+        img.set({
+          left,
+          top,
+          scaleX: scale,
+          scaleY: scale,
+          // Crop to placeholder bounds
+          clipPath: new Rect({
+            left: left,
+            top: top,
+            width,
+            height,
+            absolutePositioned: true,
+          }),
+        });
+        img.set({ isImagePlaceholder: true });
+        img.id = genId();
+        fc.add(img);
+        fc.requestRenderAll();
+      })
+      .catch(() => { /* silently leave placeholder rect */ });
+  }
+}
+
 function applyTemplate(fc, template, dims) {
   fc.clear();
   fc.backgroundColor = '#ffffff';
@@ -40,212 +145,431 @@ function applyTemplate(fc, template, dims) {
   const layouts = {
     'Cover': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#0A0908', selectable: false });
+      bg.id = genId(); fc.add(bg);
+      // Full-bleed hero image behind all masthead/title chrome
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W, height: H, imageUrl: IMG.bridePortrait, fill: '#1A1612' });
+      const shade = new Rect({ left: 0, top: 0, width: W, height: H, fill: 'rgba(10,9,8,0.35)', selectable: false });
       const rule = new Rect({ left: 40, top: 60, width: W - 80, height: 1, fill: GOLD_C });
-      const masthead = new Textbox('LWD', { left: 40, top: 80, width: W - 80, fontSize: 72, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontWeight: '300', fontStyle: 'italic', textAlign: 'center' });
-      const issueLabel = new Textbox('ISSUE 01 · SPRING 2026', { left: 40, top: 170, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 200, textAlign: 'center' });
-      const title = new Textbox('THE BRIDAL\nEDITION', { left: 40, top: H * 0.55, width: W - 80, fontSize: 48, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontWeight: '300', fontStyle: 'italic', lineHeight: 1.1, textAlign: 'center' });
+      const masthead = new Textbox('LWD', { left: 40, top: 80, width: W - 80, fontSize: 84, fontFamily: 'Bodoni Moda', fill: '#F0EBE0', fontWeight: '400', fontStyle: 'italic', textAlign: 'center' });
+      const issueLabel = new Textbox('ISSUE 01 · SPRING 2026', { left: 40, top: 188, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300, textAlign: 'center' });
+      const title = new Textbox('THE BRIDAL\nEDITION', { left: 40, top: H * 0.56, width: W - 80, fontSize: 54, fontFamily: 'Playfair Display', fill: '#F0EBE0', fontWeight: '400', fontStyle: 'italic', lineHeight: 1.05, textAlign: 'center' });
       const rule2 = new Rect({ left: 40, top: H - 80, width: W - 80, height: 1, fill: GOLD_C });
-      const credits = new Textbox('Vera Wang · Elie Saab · Marchesa', { left: 40, top: H - 65, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.5)', textAlign: 'center' });
-      [bg, rule, masthead, issueLabel, title, rule2, credits].forEach(o => { o.id = genId(); fc.add(o); });
+      const credits = new Textbox('Vera Wang · Elie Saab · Marchesa', { left: 40, top: H - 65, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.65)', charSpacing: 200, textAlign: 'center' });
+      [shade, rule, masthead, issueLabel, title, rule2, credits].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Editorial': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#ffffff', selectable: false });
-      const imgPlaceholder = new Rect({ left: 0, top: 0, width: W * 0.5, height: H, fill: '#E8E3D8' });
-      const imgLabel = new Textbox('IMAGE', { left: W * 0.1, top: H * 0.47, width: W * 0.3, fontSize: 10, fontFamily: 'Jost', fill: MUTED_C, textAlign: 'center', charSpacing: 150 });
-      const headline = new Textbox('YOUR\nHEADLINE\nHERE', { left: W * 0.54, top: 80, width: W * 0.42, fontSize: 36, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontWeight: '300', fontStyle: 'italic', lineHeight: 1.1 });
-      const rule = new Rect({ left: W * 0.54, top: 240, width: W * 0.42, height: 1, fill: GOLD_C });
-      const body = new Textbox('Your editorial copy goes here. Write about the beautiful details, the venue, the couple — whatever makes this spread sing.', { left: W * 0.54, top: 254, width: W * 0.42, fontSize: 12, fontFamily: 'Jost', fill: DARK_C, lineHeight: 1.6 });
-      const byline = new Textbox('Photography: Studio Name', { left: W * 0.54, top: H - 60, width: W * 0.42, fontSize: 9, fontFamily: 'Jost', fill: MUTED_C });
-      [bg, imgPlaceholder, imgLabel, headline, rule, body, byline].forEach(o => { o.id = genId(); fc.add(o); });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W * 0.5, height: H, imageUrl: IMG.fashionEditorial });
+      const category = new Textbox('EDITORIAL · SPRING', { left: W * 0.54, top: 72, width: W * 0.42, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 250 });
+      const headline = new Textbox('Something\nBorrowed,\nSomething Gold', { left: W * 0.54, top: 100, width: W * 0.42, fontSize: 44, fontFamily: 'Bodoni Moda', fill: DARK_C, fontWeight: '400', fontStyle: 'italic', lineHeight: 1.05 });
+      const rule = new Rect({ left: W * 0.54, top: 290, width: W * 0.42, height: 1, fill: GOLD_C });
+      const body = new Textbox('For the modern bride, tradition becomes language — softened, re-tuned, reimagined. A veil inherited from a grandmother, a locket tucked in a bouquet; these are the gestures that carry love forward through time.\n\nThis season, we revisit the rituals that remain — and the ones that are quietly, gloriously new.', { left: W * 0.54, top: 306, width: W * 0.42, fontSize: 13, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.65 });
+      const byline = new Textbox('Photography · Studio Name\nWords · Charlotte Ashford', { left: W * 0.54, top: H - 76, width: W * 0.42, fontSize: 9, fontFamily: 'Jost', fill: MUTED_C, lineHeight: 1.8, charSpacing: 100 });
+      [category, headline, rule, body, byline].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Fashion': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#0A0908', selectable: false });
       bg.id = genId(); fc.add(bg);
       const colW = (W - 8) / 3;
+      const imgs = [IMG.fashionEditorial, IMG.dressDetail, IMG.bridePortrait];
       [0, 1, 2].forEach(i => {
-        const col = new Rect({ left: i * (colW + 4), top: 0, width: colW, height: H * 0.78, fill: '#1A1612' });
-        col.id = genId(); fc.add(col);
+        addImagePlaceholder(fc, {
+          left: i * (colW + 4), top: 0, width: colW, height: H * 0.78,
+          imageUrl: imgs[i],
+          fill: '#1A1612',
+        });
       });
       const rule = new Rect({ left: 40, top: H * 0.82, width: W - 80, height: 1, fill: GOLD_C });
-      const heading = new Textbox('SPRING / SUMMER 2026', { left: 40, top: H * 0.85, width: W - 80, fontSize: 22, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', textAlign: 'center' });
-      const designers = new Textbox('Elie Saab · Marchesa · Jenny Packham', { left: 40, top: H * 0.92, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: 'rgba(201,168,76,0.7)', textAlign: 'center', charSpacing: 100 });
+      const heading = new Textbox('SPRING / SUMMER 2026', { left: 40, top: H * 0.85, width: W - 80, fontSize: 26, fontFamily: 'Bodoni Moda', fill: '#F0EBE0', fontStyle: 'italic', textAlign: 'center', charSpacing: 120 });
+      const designers = new Textbox('Elie Saab · Marchesa · Jenny Packham', { left: 40, top: H * 0.93, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: 'rgba(201,168,76,0.85)', textAlign: 'center', charSpacing: 200 });
       [rule, heading, designers].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Travel': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#1A1B2E', selectable: false });
-      const imgPh = new Rect({ left: 0, top: 0, width: W, height: H * 0.65, fill: '#2A2B3E' });
-      const gradient = new Rect({ left: 0, top: H * 0.45, width: W, height: H * 0.2, fill: 'rgba(26,27,46,0.8)' });
-      const location = new Textbox('TUSCANY, ITALY', { left: 40, top: H * 0.68, width: W - 80, fontSize: 48, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', fontWeight: '300', lineHeight: 1 });
-      const tagline = new Textbox('Where rolling hills meet eternal love.', { left: 40, top: H * 0.82, width: W - 80, fontSize: 14, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.6)', lineHeight: 1.5 });
-      [bg, imgPh, gradient, location, tagline].forEach(o => { o.id = genId(); fc.add(o); });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W, height: H * 0.65, imageUrl: IMG.tuscany, fill: '#2A2B3E' });
+      const gradient = new Rect({ left: 0, top: H * 0.5, width: W, height: H * 0.18, fill: 'rgba(26,27,46,0.85)', selectable: false });
+      const category = new Textbox('DESTINATION · JUNE 2026', { left: 40, top: H * 0.68, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300, textAlign: 'center' });
+      const location = new Textbox('Tuscany', { left: 40, top: H * 0.72, width: W - 80, fontSize: 84, fontFamily: 'GFS Didot', fill: '#F0EBE0', fontStyle: 'italic', fontWeight: '400', lineHeight: 1, textAlign: 'center' });
+      const rule = new Rect({ left: W / 2 - 30, top: H * 0.87, width: 60, height: 1, fill: GOLD_C });
+      const tagline = new Textbox('Where rolling hills meet eternal love.', { left: 40, top: H * 0.89, width: W - 80, fontSize: 15, fontFamily: 'Cormorant Garamond', fill: 'rgba(240,235,224,0.8)', fontStyle: 'italic', lineHeight: 1.5, textAlign: 'center' });
+      [gradient, category, location, rule, tagline].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Bridal': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
-      const imgPh = new Rect({ left: W * 0.35, top: 0, width: W * 0.65, height: H, fill: '#EDE8E0' });
-      const rule = new Rect({ left: 40, top: 80, width: 2, height: 60, fill: GOLD_C });
-      const dressName = new Textbox('THE MADELEINE', { left: 60, top: 80, width: W * 0.3, fontSize: 28, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.1 });
-      const designer = new Textbox('Vera Wang', { left: 60, top: 158, width: W * 0.3, fontSize: 12, fontFamily: 'Jost', fill: MUTED_C, charSpacing: 100 });
-      const details = new Textbox('Duchess satin · bespoke\nmade to measure', { left: 60, top: 200, width: W * 0.3, fontSize: 11, fontFamily: 'Jost', fill: DARK_C, lineHeight: 1.6 });
-      const price = new Textbox('POA', { left: 60, top: H - 80, width: 120, fontSize: 14, fontFamily: 'Cormorant Garamond', fill: GOLD_C, fontStyle: 'italic' });
-      [bg, imgPh, rule, dressName, designer, details, price].forEach(o => { o.id = genId(); fc.add(o); });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: W * 0.35, top: 0, width: W * 0.65, height: H, imageUrl: IMG.bridePortrait, fill: '#EDE8E0' });
+      const rule = new Rect({ left: 40, top: 80, width: 2, height: 64, fill: GOLD_C });
+      const dressName = new Textbox('The Madeleine', { left: 60, top: 78, width: W * 0.3, fontSize: 34, fontFamily: 'Bodoni Moda', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.05 });
+      const designer = new Textbox('VERA WANG', { left: 60, top: 162, width: W * 0.3, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const details = new Textbox('Duchess satin · hand-draped bodice\nBespoke · made to measure in Paris', { left: 60, top: 196, width: W * 0.3, fontSize: 12, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.7 });
+      const divider = new Rect({ left: 60, top: H - 112, width: 40, height: 1, fill: GOLD_C });
+      const priceLabel = new Textbox('PRICE ON REQUEST', { left: 60, top: H - 98, width: W * 0.3, fontSize: 9, fontFamily: 'Jost', fill: MUTED_C, charSpacing: 200 });
+      const price = new Textbox('POA', { left: 60, top: H - 78, width: W * 0.3, fontSize: 18, fontFamily: 'Bodoni Moda', fill: GOLD_C, fontStyle: 'italic' });
+      [rule, dressName, designer, details, divider, priceLabel, price].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Jewellery': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#1A0A0F', selectable: false });
-      const circle = new Circle({ left: W / 2 - 180, top: H * 0.1, radius: 180, fill: '#2A1520', stroke: 'rgba(201,168,76,0.3)', strokeWidth: 1 });
-      const name = new Textbox('THE MADELEINE RING', { left: 40, top: H * 0.65, width: W - 80, fontSize: 24, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', textAlign: 'center', charSpacing: 50 });
-      const rule = new Rect({ left: W / 2 - 40, top: H * 0.73, width: 80, height: 1, fill: GOLD_C });
-      const details = new Textbox('18ct white gold · 3.2ct round brilliant', { left: 40, top: H * 0.76, width: W - 80, fontSize: 11, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.55)', textAlign: 'center', charSpacing: 80 });
-      const brand = new Textbox('Graff, London', { left: 40, top: H * 0.82, width: W - 80, fontSize: 13, fontFamily: 'Cormorant Garamond', fill: GOLD_C, textAlign: 'center', fontStyle: 'italic' });
-      const price = new Textbox('£48,000', { left: 40, top: H * 0.88, width: W - 80, fontSize: 16, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', textAlign: 'center', fontStyle: 'italic' });
-      [bg, circle, name, rule, details, brand, price].forEach(o => { o.id = genId(); fc.add(o); });
+      bg.id = genId(); fc.add(bg);
+      // Circular product showcase area (kept as decorative circle; image placeholder sits within it)
+      const circle = new Circle({ left: W / 2 - 180, top: H * 0.1, radius: 180, fill: '#2A1520', stroke: 'rgba(201,168,76,0.35)', strokeWidth: 1, selectable: false });
+      circle.id = genId(); fc.add(circle);
+      addImagePlaceholder(fc, { left: W / 2 - 160, top: H * 0.12, width: 320, height: 320, imageUrl: IMG.ring, fill: '#2A1520' });
+      const name = new Textbox('THE MADELEINE RING', { left: 40, top: H * 0.65, width: W - 80, fontSize: 28, fontFamily: 'Bodoni Moda', fill: '#F0EBE0', fontStyle: 'italic', textAlign: 'center', charSpacing: 100 });
+      const rule = new Rect({ left: W / 2 - 40, top: H * 0.735, width: 80, height: 1, fill: GOLD_C });
+      const details = new Textbox('18ct white gold · 3.2ct round brilliant', { left: 40, top: H * 0.76, width: W - 80, fontSize: 11, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.65)', textAlign: 'center', charSpacing: 150 });
+      const brand = new Textbox('Graff, London', { left: 40, top: H * 0.82, width: W - 80, fontSize: 15, fontFamily: 'Cormorant Garamond', fill: GOLD_C, textAlign: 'center', fontStyle: 'italic' });
+      const price = new Textbox('£48,000', { left: 40, top: H * 0.88, width: W - 80, fontSize: 18, fontFamily: 'Bodoni Moda', fill: '#F0EBE0', textAlign: 'center', fontStyle: 'italic' });
+      [name, rule, details, brand, price].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Real Wedding': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#18120A', selectable: false });
-      const imgPh = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#2A2016' });
-      const overlay = new Rect({ left: 0, top: H * 0.6, width: W, height: H * 0.4, fill: 'rgba(24,18,10,0.75)' });
-      const names = new Textbox('Isabella & James', { left: 40, top: H * 0.65, width: W - 80, fontSize: 42, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', fontWeight: '300', textAlign: 'center' });
-      const location = new Textbox('MARRIED IN TUSCANY', { left: 40, top: H * 0.78, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 200, textAlign: 'center' });
-      const date = new Textbox('June 14 · 2026', { left: 40, top: H * 0.85, width: W - 80, fontSize: 11, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.5)', textAlign: 'center' });
-      [bg, imgPh, overlay, names, location, date].forEach(o => { o.id = genId(); fc.add(o); });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W, height: H, imageUrl: IMG.coupleCeremony, fill: '#2A2016' });
+      const overlay = new Rect({ left: 0, top: H * 0.58, width: W, height: H * 0.42, fill: 'rgba(24,18,10,0.78)', selectable: false });
+      const rule = new Rect({ left: W / 2 - 40, top: H * 0.63, width: 80, height: 1, fill: GOLD_C });
+      const names = new Textbox('Isabella & James', { left: 40, top: H * 0.65, width: W - 80, fontSize: 52, fontFamily: 'Great Vibes', fill: '#F0EBE0', textAlign: 'center', lineHeight: 1.1 });
+      const location = new Textbox('MARRIED IN TUSCANY', { left: 40, top: H * 0.8, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 400, textAlign: 'center' });
+      const date = new Textbox('The Fourteenth of June · MMXXVI', { left: 40, top: H * 0.86, width: W - 80, fontSize: 12, fontFamily: 'Cormorant Garamond', fill: 'rgba(240,235,224,0.7)', fontStyle: 'italic', textAlign: 'center' });
+      [overlay, rule, names, location, date].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Detail': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
       bg.id = genId(); fc.add(bg);
+      const header = new Textbox('DETAILS OF THE DAY', { left: 40, top: 28, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300, textAlign: 'center' });
+      header.id = genId(); fc.add(header);
       const colW = (W - 2 * 40 - 2 * 8) / 3;
-      ['The Bouquet', 'The Ring', 'The Veil'].forEach((cap, i) => {
+      const captions = ['The Bouquet', 'The Ring', 'The Veil'];
+      const imgs = [IMG.bouquet, IMG.ring, IMG.dressDetail];
+      captions.forEach((cap, i) => {
         const x = 40 + i * (colW + 8);
-        const imgPh = new Rect({ left: x, top: 60, width: colW, height: H * 0.72, fill: '#EDE8E0' });
-        imgPh.id = genId(); fc.add(imgPh);
-        const capText = new Textbox(cap, { left: x, top: 60 + H * 0.72 + 12, width: colW, fontSize: 10, fontFamily: 'Jost', fill: MUTED_C, textAlign: 'center', charSpacing: 80 });
+        addImagePlaceholder(fc, { left: x, top: 72, width: colW, height: H * 0.7, imageUrl: imgs[i], fill: '#EDE8E0' });
+        const capText = new Textbox(cap, { left: x, top: 72 + H * 0.7 + 18, width: colW, fontSize: 16, fontFamily: 'Bodoni Moda', fill: DARK_C, fontStyle: 'italic', textAlign: 'center' });
         capText.id = genId(); fc.add(capText);
       });
-      const rule = new Rect({ left: 40, top: H - 50, width: W - 80, height: 1, fill: 'rgba(201,168,76,0.3)' });
-      const credit = new Textbox('Photography: Studio Name', { left: 40, top: H - 35, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: MUTED_C });
+      const rule = new Rect({ left: 40, top: H - 52, width: W - 80, height: 1, fill: 'rgba(201,168,76,0.35)' });
+      const credit = new Textbox('Photography · Studio Name', { left: 40, top: H - 38, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: MUTED_C, charSpacing: 200, textAlign: 'center' });
       [rule, credit].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Navigation': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
       bg.id = genId(); fc.add(bg);
-      const rule = new Rect({ left: 40, top: 60, width: W - 80, height: 1, fill: GOLD_C });
-      const issueLabel = new Textbox('I S S U E  0 1', { left: 40, top: 78, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 200, textAlign: 'center' });
-      const rule2 = new Rect({ left: 40, top: 102, width: W - 80, height: 1, fill: 'rgba(201,168,76,0.3)' });
-      const subtitle = new Textbox('The Bridal Edition', { left: 40, top: 118, width: W - 80, fontSize: 28, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', textAlign: 'center' });
-      [rule, issueLabel, rule2, subtitle].forEach(o => { o.id = genId(); fc.add(o); });
-      // Contents entries as sample rows
+      const contentsLabel = new Textbox('CONTENTS', { left: 40, top: 54, width: W - 80, fontSize: 11, fontFamily: 'Cinzel', fill: GOLD_C, charSpacing: 400, textAlign: 'center' });
+      const rule = new Rect({ left: 40, top: 84, width: W - 80, height: 1, fill: GOLD_C });
+      const issueLabel = new Textbox('ISSUE 01 · SPRING 2026', { left: 40, top: 100, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: MUTED_C, charSpacing: 300, textAlign: 'center' });
+      const subtitle = new Textbox('The Bridal Edition', { left: 40, top: 132, width: W - 80, fontSize: 40, fontFamily: 'Bodoni Moda', fill: DARK_C, fontStyle: 'italic', textAlign: 'center', fontWeight: '400' });
+      const rule2 = new Rect({ left: W / 2 - 30, top: 206, width: 60, height: 1, fill: 'rgba(201,168,76,0.5)' });
+      [contentsLabel, rule, issueLabel, subtitle, rule2].forEach(o => { o.id = genId(); fc.add(o); });
+      // Contents entries: left page number (serif gold), right title
       const entries = [
-        '06  The Wedding Dress',
-        '14  Jewellery Stories',
-        '22  Venues of the Season',
-        '34  Real Wedding: Isabella',
-        '44  The Bridal Beauty Edit',
-        '52  Destination: Tuscany',
+        ['06', 'The Wedding Dress'],
+        ['14', 'Jewellery Stories'],
+        ['22', 'Venues of the Season'],
+        ['34', 'Real Wedding · Isabella & James'],
+        ['44', 'The Bridal Beauty Edit'],
+        ['52', 'Destination · Tuscany'],
+        ['64', 'The Planner Spotlight'],
       ];
-      entries.forEach((entry, i) => {
-        const row = new Textbox(entry, { left: 40, top: 200 + i * 52, width: W - 80, fontSize: 14, fontFamily: 'Cormorant Garamond', fill: DARK_C });
-        row.id = genId(); fc.add(row);
+      const startY = 250;
+      const rowH = 62;
+      entries.forEach(([num, title], i) => {
+        const y = startY + i * rowH;
+        const pageNo = new Textbox(num, { left: 60, top: y, width: 80, fontSize: 32, fontFamily: 'Bodoni Moda', fill: GOLD_C, fontStyle: 'italic' });
+        pageNo.id = genId(); fc.add(pageNo);
+        const titleObj = new Textbox(title, { left: 160, top: y + 8, width: W - 200, fontSize: 18, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic' });
+        titleObj.id = genId(); fc.add(titleObj);
         if (i < entries.length - 1) {
-          const divider = new Rect({ left: 40, top: 200 + i * 52 + 28, width: W - 80, height: 1, fill: 'rgba(24,18,10,0.1)' });
+          const divider = new Rect({ left: 60, top: y + rowH - 12, width: W - 120, height: 1, fill: 'rgba(24,18,10,0.08)' });
           divider.id = genId(); fc.add(divider);
         }
       });
     },
     'Venue': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#1A1B2E', selectable: false });
-      const imgPh = new Rect({ left: 0, top: 0, width: W * 0.52, height: H, fill: '#2A2B3E' });
-      const rule = new Rect({ left: W * 0.56, top: 60, width: 2, height: 60, fill: GOLD_C });
-      const venueName = new Textbox('HOTEL CIPRIANI', { left: W * 0.58, top: 60, width: W * 0.38, fontSize: 28, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', lineHeight: 1.1 });
-      const location = new Textbox('Venice, Italy', { left: W * 0.58, top: 148, width: W * 0.38, fontSize: 11, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 80 });
-      const desc = new Textbox('A palazzo suspended above the Grand Canal, where time slows to the pace of gondolas and wedding bells.', { left: W * 0.58, top: 190, width: W * 0.38, fontSize: 12, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.7)', lineHeight: 1.6 });
-      const features = new Textbox('Private canal entrance\nIn-house floral studio\nDedicated wedding concierge', { left: W * 0.58, top: H * 0.6, width: W * 0.38, fontSize: 11, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.55)', lineHeight: 1.7 });
-      [bg, imgPh, rule, venueName, location, desc, features].forEach(o => { o.id = genId(); fc.add(o); });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W * 0.52, height: H, imageUrl: IMG.venetianPalazzo, fill: '#2A2B3E' });
+      const rule = new Rect({ left: W * 0.58, top: 72, width: 2, height: 68, fill: GOLD_C });
+      const category = new Textbox('VENUE OF THE MONTH', { left: W * 0.6, top: 72, width: W * 0.38, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const venueName = new Textbox('Hotel Cipriani', { left: W * 0.6, top: 96, width: W * 0.38, fontSize: 36, fontFamily: 'Bodoni Moda', fill: '#F0EBE0', fontStyle: 'italic', lineHeight: 1.05 });
+      const location = new Textbox('Venice · Italy', { left: W * 0.6, top: 168, width: W * 0.38, fontSize: 14, fontFamily: 'Cormorant Garamond', fill: GOLD_C, fontStyle: 'italic' });
+      const desc = new Textbox('A palazzo suspended above the Grand Canal, where time slows to the pace of gondolas and the soft ring of distant wedding bells.', { left: W * 0.6, top: 210, width: W * 0.36, fontSize: 13, fontFamily: 'Cormorant Garamond', fill: 'rgba(240,235,224,0.8)', lineHeight: 1.65, fontStyle: 'italic' });
+      const ruleMid = new Rect({ left: W * 0.6, top: H * 0.55, width: 40, height: 1, fill: GOLD_C });
+      const featuresLabel = new Textbox('AT A GLANCE', { left: W * 0.6, top: H * 0.57, width: W * 0.36, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const features = new Textbox('Private canal entrance\nIn-house floral studio\nDedicated wedding concierge\nUp to 160 guests seated', { left: W * 0.6, top: H * 0.62, width: W * 0.36, fontSize: 11, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.7)', lineHeight: 2 });
+      [rule, category, venueName, location, desc, ruleMid, featuresLabel, features].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Venue Portrait': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#0A0908', selectable: false });
-      const imgPh = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#1A1612' });
-      const overlay = new Rect({ left: 0, top: H * 0.55, width: W, height: H * 0.45, fill: 'rgba(10,9,8,0.8)' });
-      const headline = new Textbox('Where Dreams Take Shape', { left: 40, top: H * 0.6, width: W - 80, fontSize: 36, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', fontWeight: '300', lineHeight: 1.15 });
-      const venueName = new Textbox('VENUE NAME', { left: 40, top: H * 0.75, width: W - 80, fontSize: 11, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 150 });
-      const location = new Textbox('Location · Up to 250 guests', { left: 40, top: H * 0.83, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.5)' });
-      [bg, imgPh, overlay, headline, venueName, location].forEach(o => { o.id = genId(); fc.add(o); });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W, height: H, imageUrl: IMG.venueInterior, fill: '#1A1612' });
+      const overlay = new Rect({ left: 0, top: H * 0.52, width: W, height: H * 0.48, fill: 'rgba(10,9,8,0.82)', selectable: false });
+      const category = new Textbox('EDITORIAL · THE GRAND VENUES', { left: 40, top: H * 0.58, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 400, textAlign: 'center' });
+      const headline = new Textbox('Where Dreams\nTake Shape', { left: 40, top: H * 0.62, width: W - 80, fontSize: 44, fontFamily: 'Bodoni Moda', fill: '#F0EBE0', fontStyle: 'italic', fontWeight: '400', lineHeight: 1.1, textAlign: 'center' });
+      const rule = new Rect({ left: W / 2 - 30, top: H * 0.82, width: 60, height: 1, fill: GOLD_C });
+      const venueName = new Textbox('VENUE NAME', { left: 40, top: H * 0.84, width: W - 80, fontSize: 11, fontFamily: 'Cinzel', fill: GOLD_C, charSpacing: 300, textAlign: 'center' });
+      const location = new Textbox('Location · Up to 250 guests', { left: 40, top: H * 0.9, width: W - 80, fontSize: 12, fontFamily: 'Cormorant Garamond', fill: 'rgba(240,235,224,0.7)', fontStyle: 'italic', textAlign: 'center' });
+      [overlay, category, headline, rule, venueName, location].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Couple': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#1A1B2E', selectable: false });
-      const imgPh = new Rect({ left: 0, top: 0, width: W, height: H * 0.55, fill: '#2A2B3E' });
-      const rule = new Rect({ left: 40, top: H * 0.58, width: W - 80, height: 1, fill: GOLD_C });
-      const names = new Textbox('Sophia & James', { left: 40, top: H * 0.62, width: W - 80, fontSize: 36, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', fontWeight: '300' });
-      const date = new Textbox('Wedding Date · Location', { left: 40, top: H * 0.74, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 100 });
-      const story = new Textbox('Their love story begins here. Add your couple\'s narrative — the journey, the proposal, the day itself.', { left: 40, top: H * 0.81, width: W - 80, fontSize: 12, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.65)', lineHeight: 1.6 });
-      [bg, imgPh, rule, names, date, story].forEach(o => { o.id = genId(); fc.add(o); });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W, height: H * 0.55, imageUrl: IMG.coupleCeremony, fill: '#2A2B3E' });
+      const rule = new Rect({ left: W / 2 - 40, top: H * 0.58, width: 80, height: 1, fill: GOLD_C });
+      const names = new Textbox('Sophia & James', { left: 40, top: H * 0.6, width: W - 80, fontSize: 58, fontFamily: 'Great Vibes', fill: '#F0EBE0', textAlign: 'center', lineHeight: 1.1 });
+      const date = new Textbox('WEDDING DATE · LOCATION', { left: 40, top: H * 0.75, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300, textAlign: 'center' });
+      const story = new Textbox('Their love story begins here. Two worlds, braided quietly across seasons and cities — until a single, certain summer evening. Add your couple\'s narrative: the meeting, the proposal, the day itself, told in your own voice.', { left: 80, top: H * 0.81, width: W - 160, fontSize: 13, fontFamily: 'Cormorant Garamond', fill: 'rgba(240,235,224,0.8)', lineHeight: 1.7, fontStyle: 'italic', textAlign: 'center' });
+      [rule, names, date, story].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Beauty': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
-      const imgPh = new Rect({ left: W * 0.4, top: 0, width: W * 0.6, height: H, fill: '#EDE8E0' });
-      const rule = new Rect({ left: 40, top: 60, width: 2, height: 50, fill: GOLD_C });
-      const headline = new Textbox('The Art of\nBridal Beauty', { left: 60, top: 60, width: W * 0.32, fontSize: 28, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.15 });
-      const divider = new Rect({ left: 40, top: 160, width: W * 0.35, height: 1, fill: 'rgba(201,168,76,0.3)' });
-      const credits = new Textbox('Makeup Artist: Name\nHair Stylist: Name\nModel / Bride: Name', { left: 40, top: 178, width: W * 0.35, fontSize: 11, fontFamily: 'Jost', fill: DARK_C, lineHeight: 1.8 });
-      const products = new Textbox('Key look description and products used. Add the details that make this beauty edit stand out.', { left: 40, top: H * 0.55, width: W * 0.35, fontSize: 11, fontFamily: 'Jost', fill: MUTED_C, lineHeight: 1.6 });
-      [bg, imgPh, rule, headline, divider, credits, products].forEach(o => { o.id = genId(); fc.add(o); });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: W * 0.4, top: 0, width: W * 0.6, height: H, imageUrl: IMG.beauty, fill: '#EDE8E0' });
+      const rule = new Rect({ left: 40, top: 68, width: 2, height: 56, fill: GOLD_C });
+      const category = new Textbox('BEAUTY EDIT', { left: 60, top: 68, width: W * 0.3, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const headline = new Textbox('The Art of\nBridal Beauty', { left: 60, top: 92, width: W * 0.32, fontSize: 34, fontFamily: 'Bodoni Moda', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.1 });
+      const divider = new Rect({ left: 40, top: 208, width: W * 0.3, height: 1, fill: 'rgba(201,168,76,0.4)' });
+      const creditsLabel = new Textbox('CREDITS', { left: 40, top: 220, width: W * 0.3, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const credits = new Textbox('Makeup · Marie-Claire Dupont\nHair · Sebastian Laurent\nBride · Isabella Moretti\nFragrance · Chanel No. 5', { left: 40, top: 240, width: W * 0.32, fontSize: 12, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.9, fontStyle: 'italic' });
+      const productsLabel = new Textbox('THE LOOK', { left: 40, top: H * 0.55, width: W * 0.3, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const products = new Textbox('A soft focus palette — satin skin, a whisper of blush across the cheekbone, lips stained the colour of champagne roses. Timeless. Unfussy. Entirely her own.', { left: 40, top: H * 0.58, width: W * 0.32, fontSize: 12, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.7, fontStyle: 'italic' });
+      [rule, category, headline, divider, creditsLabel, credits, productsLabel, products].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Florals': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
-      const imgPh = new Rect({ left: 0, top: 0, width: W, height: H * 0.68, fill: '#EDE8E0' });
-      const overlay = new Rect({ left: 0, top: H * 0.5, width: W, height: H * 0.18, fill: 'rgba(250,248,245,0.7)' });
-      const headline = new Textbox('In Full Bloom', { left: 40, top: H * 0.72, width: W - 80, fontSize: 36, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', fontWeight: '300', textAlign: 'center' });
-      const rule = new Rect({ left: W / 2 - 40, top: H * 0.82, width: 80, height: 1, fill: GOLD_C });
-      const florist = new Textbox('Florist Name · description of arrangement', { left: 40, top: H * 0.85, width: W - 80, fontSize: 11, fontFamily: 'Jost', fill: MUTED_C, textAlign: 'center' });
-      [bg, imgPh, overlay, headline, rule, florist].forEach(o => { o.id = genId(); fc.add(o); });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W, height: H * 0.68, imageUrl: IMG.florals, fill: '#EDE8E0' });
+      const category = new Textbox('THE FLORAL EDIT', { left: 40, top: H * 0.72, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 400, textAlign: 'center' });
+      const headline = new Textbox('In Full Bloom', { left: 40, top: H * 0.755, width: W - 80, fontSize: 48, fontFamily: 'DM Serif Display', fill: DARK_C, fontStyle: 'italic', textAlign: 'center' });
+      const rule = new Rect({ left: W / 2 - 40, top: H * 0.86, width: 80, height: 1, fill: GOLD_C });
+      const florist = new Textbox('Florals by Saipua · soft garden roses, sweet pea, and Italian ruscus, arranged in the tradition of seventeenth-century Dutch still life.', { left: 80, top: H * 0.88, width: W - 160, fontSize: 13, fontFamily: 'Cormorant Garamond', fill: DARK_C, textAlign: 'center', lineHeight: 1.6, fontStyle: 'italic' });
+      [category, headline, rule, florist].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Reception': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
-      const imgPh = new Rect({ left: 0, top: 0, width: W, height: H * 0.6, fill: '#EDE8E0' });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W, height: H * 0.6, imageUrl: IMG.receptionTable, fill: '#EDE8E0' });
       const rule = new Rect({ left: 40, top: H * 0.63, width: W - 80, height: 1, fill: GOLD_C });
-      const headline = new Textbox('Dressed to Perfection', { left: 40, top: H * 0.66, width: W - 80, fontSize: 32, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.15 });
-      const credits = new Textbox('Venue: Name  ·  Table Stylist: Name  ·  Colour Palette: Ivory · Sage · Dusty Rose', { left: 40, top: H * 0.77, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: MUTED_C });
-      const caption = new Textbox('Editorial caption describing the tablescape, the inspiration, and the styling choices that made this reception unforgettable.', { left: 40, top: H * 0.83, width: W - 80, fontSize: 12, fontFamily: 'Jost', fill: DARK_C, lineHeight: 1.6 });
-      [bg, imgPh, rule, headline, credits, caption].forEach(o => { o.id = genId(); fc.add(o); });
+      const category = new Textbox('THE RECEPTION', { left: 40, top: H * 0.645, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const headline = new Textbox('Dressed to Perfection', { left: 40, top: H * 0.68, width: W - 80, fontSize: 42, fontFamily: 'Bodoni Moda', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.05 });
+      const creditsRule = new Rect({ left: 40, top: H * 0.79, width: 40, height: 1, fill: GOLD_C });
+      const credits = new Textbox('VENUE · AYNHOE PARK    STYLING · BLUEBIRD ATELIER\nPALETTE · IVORY · SAGE · DUSTY ROSE', { left: 40, top: H * 0.805, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: MUTED_C, charSpacing: 200, lineHeight: 2 });
+      const caption = new Textbox('Long candlelit tables dressed in hand-dyed silk runners, antique porcelain, and low gardens of garden roses — the tablescape was conceived as a still-life, quietly unfolding course by course into the night.', { left: 40, top: H * 0.87, width: W - 80, fontSize: 13, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.65, fontStyle: 'italic' });
+      [rule, category, headline, creditsRule, credits, caption].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Ceremony': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#ffffff', selectable: false });
-      const imgPh = new Rect({ left: 0, top: 0, width: W, height: H * 0.62, fill: '#EDE8E0' });
-      const headline = new Textbox('The Walk to\nForever', { left: 40, top: H * 0.65, width: W * 0.55, fontSize: 36, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.1 });
-      const rule = new Rect({ left: W * 0.58, top: H * 0.65, width: 1, height: H * 0.28, fill: 'rgba(201,168,76,0.4)' });
-      const story = new Textbox('Ceremony story goes here. The venue, the atmosphere, the emotional walk down the aisle.', { left: W * 0.62, top: H * 0.65, width: W * 0.34, fontSize: 11, fontFamily: 'Jost', fill: MUTED_C, lineHeight: 1.65 });
-      const credit = new Textbox('Photography: Studio Name', { left: 40, top: H - 40, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: MUTED_C });
-      [bg, imgPh, headline, rule, story, credit].forEach(o => { o.id = genId(); fc.add(o); });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W, height: H * 0.62, imageUrl: IMG.coupleCeremony, fill: '#EDE8E0' });
+      const category = new Textbox('THE CEREMONY', { left: 40, top: H * 0.65, width: W * 0.55, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const headline = new Textbox('The Walk to\nForever', { left: 40, top: H * 0.675, width: W * 0.55, fontSize: 44, fontFamily: 'Bodoni Moda', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.05 });
+      const rule = new Rect({ left: W * 0.58, top: H * 0.66, width: 1, height: H * 0.28, fill: 'rgba(201,168,76,0.5)' });
+      const story = new Textbox('The chapel at the end of a cypress avenue. Afternoon light pouring through stained glass. The quiet moment before the aisle — a breath held by everyone who loves them. This is the architecture of a vow: place, light, patience.', { left: W * 0.62, top: H * 0.66, width: W * 0.34, fontSize: 13, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.7, fontStyle: 'italic' });
+      const creditRule = new Rect({ left: 40, top: H - 52, width: 40, height: 1, fill: GOLD_C });
+      const credit = new Textbox('PHOTOGRAPHY · STUDIO NAME', { left: 40, top: H - 38, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: MUTED_C, charSpacing: 300 });
+      [category, headline, rule, story, creditRule, credit].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Stationery': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
-      const imgPh = new Rect({ left: W * 0.38, top: 0, width: W * 0.62, height: H, fill: '#EDE8E0' });
-      const rule = new Rect({ left: 40, top: 60, width: W * 0.32, height: 1, fill: GOLD_C });
-      const headline = new Textbox('The Perfect\nFirst Impression', { left: 40, top: 76, width: W * 0.32, fontSize: 28, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.15 });
-      const designer = new Textbox('Stationery Designer: Name', { left: 40, top: 178, width: W * 0.32, fontSize: 10, fontFamily: 'Jost', fill: MUTED_C, charSpacing: 60 });
-      const paper = new Textbox('Hot-press letterpress on cotton paper', { left: 40, top: 200, width: W * 0.32, fontSize: 11, fontFamily: 'Jost', fill: DARK_C });
-      const desc = new Textbox('Suite description — the design concept, the paper choice, the printing technique.', { left: 40, top: H * 0.55, width: W * 0.32, fontSize: 11, fontFamily: 'Jost', fill: MUTED_C, lineHeight: 1.6 });
-      [bg, imgPh, rule, headline, designer, paper, desc].forEach(o => { o.id = genId(); fc.add(o); });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: W * 0.38, top: 0, width: W * 0.62, height: H, imageUrl: IMG.stationery, fill: '#EDE8E0' });
+      const rule = new Rect({ left: 40, top: 64, width: W * 0.3, height: 1, fill: GOLD_C });
+      const category = new Textbox('THE INVITATION SUITE', { left: 40, top: 74, width: W * 0.3, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const headline = new Textbox('The Perfect\nFirst Impression', { left: 40, top: 98, width: W * 0.32, fontSize: 32, fontFamily: 'Bodoni Moda', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.1 });
+      const designerLabel = new Textbox('DESIGNED BY', { left: 40, top: 232, width: W * 0.32, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const designer = new Textbox('Mr. Boddington\'s Studio', { left: 40, top: 248, width: W * 0.32, fontSize: 16, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic' });
+      const paperRule = new Rect({ left: 40, top: 286, width: 40, height: 1, fill: 'rgba(201,168,76,0.5)' });
+      const paperLabel = new Textbox('PAPER & PRINT', { left: 40, top: 296, width: W * 0.32, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const paper = new Textbox('Hot-press letterpress on 600gsm Italian cotton · hand-torn deckled edge · 18ct gold foil monogram.', { left: 40, top: 316, width: W * 0.32, fontSize: 13, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.6 });
+      const descLabel = new Textbox('THE SUITE', { left: 40, top: H * 0.55, width: W * 0.32, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const desc = new Textbox('Six pieces in soft bone and ink: invitation, RSVP, details card, menu, place card, and thank-you. A single suite, entirely couture.', { left: 40, top: H * 0.58, width: W * 0.32, fontSize: 13, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.65, fontStyle: 'italic' });
+      [rule, category, headline, designerLabel, designer, paperRule, paperLabel, paper, descLabel, desc].forEach(o => { o.id = genId(); fc.add(o); });
     },
     'Food & Cake': () => {
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#ffffff', selectable: false });
-      const imgPh = new Rect({ left: W * 0.1, top: H * 0.1, width: W * 0.8, height: H * 0.55, fill: '#F0EBE0' });
-      const rule = new Rect({ left: W / 2 - 60, top: H * 0.68, width: 120, height: 1, fill: GOLD_C });
-      const headline = new Textbox('The Sweet Finale', { left: 40, top: H * 0.72, width: W - 80, fontSize: 32, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', textAlign: 'center' });
-      const details = new Textbox('Cake Designer: Name  ·  Champagne sponge, elderflower cream, gold leaf', { left: 40, top: H * 0.82, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: MUTED_C, textAlign: 'center' });
-      [bg, imgPh, rule, headline, details].forEach(o => { o.id = genId(); fc.add(o); });
+      bg.id = genId(); fc.add(bg);
+      const category = new Textbox('THE SWEET FINALE', { left: 40, top: 54, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 400, textAlign: 'center' });
+      const ruleTop = new Rect({ left: W / 2 - 30, top: 80, width: 60, height: 1, fill: GOLD_C });
+      addImagePlaceholder(fc, { left: W * 0.1, top: H * 0.11, width: W * 0.8, height: H * 0.55, imageUrl: IMG.cake, fill: '#F0EBE0' });
+      const rule = new Rect({ left: W / 2 - 60, top: H * 0.69, width: 120, height: 1, fill: GOLD_C });
+      const headline = new Textbox('La Pièce Montée', { left: 40, top: H * 0.72, width: W - 80, fontSize: 44, fontFamily: 'Abril Fatface', fill: DARK_C, textAlign: 'center' });
+      const subhead = new Textbox('Champagne sponge · elderflower cream · 23ct gold leaf', { left: 40, top: H * 0.82, width: W - 80, fontSize: 14, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', textAlign: 'center' });
+      const details = new Textbox('CAKE BY LILY VANILLI · FIVE TIERS · FOR ONE HUNDRED AND SIXTY', { left: 40, top: H * 0.88, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: MUTED_C, charSpacing: 300, textAlign: 'center' });
+      [category, ruleTop, rule, headline, subhead, details].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    // ── NEW TEMPLATES ────────────────────────────────────────────────────────
+    "Editor's Letter": () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      bg.id = genId(); fc.add(bg);
+      // Right 55% portrait circle
+      const portraitR = 180;
+      const portraitCx = W * 0.725;
+      const portraitCy = H * 0.3;
+      const portraitCircle = new Circle({
+        left: portraitCx - portraitR,
+        top: portraitCy - portraitR,
+        radius: portraitR,
+        fill: '#EDE8E0',
+        stroke: GOLD_C,
+        strokeWidth: 1,
+        selectable: false,
+      });
+      portraitCircle.id = genId(); fc.add(portraitCircle);
+      // Image placeholder as square inscribed in the circle bounds
+      addImagePlaceholder(fc, {
+        left: portraitCx - portraitR,
+        top: portraitCy - portraitR,
+        width: portraitR * 2,
+        height: portraitR * 2,
+        imageUrl: IMG.bridePortrait,
+        fill: '#EDE8E0',
+      });
+      const kicker = new Textbox('FROM THE EDITOR', { left: 40, top: 80, width: W * 0.42, fontSize: 11, fontFamily: 'Cinzel', fill: GOLD_C, charSpacing: 400 });
+      const rule = new Rect({ left: 40, top: 108, width: 60, height: 1, fill: GOLD_C });
+      const headline = new Textbox('A Season\nof Grace', { left: 40, top: 124, width: W * 0.42, fontSize: 48, fontFamily: 'Bodoni Moda', fill: DARK_C, fontStyle: 'italic', fontWeight: '400', lineHeight: 1.05 });
+      const body = new Textbox('There is a particular hush that settles over the world just before a wedding — a held breath between the arrangement of chairs and the first notes of music. This season, we found ourselves drawn again and again to that stillness.\n\nIt is the silence of the bride who pauses at the chapel door. The quiet between a vow made and a vow received. The moment, after the last guest has left, when two people sit alone among the candles and the roses, and understand that their life has changed.\n\nThese are the moments we chased — across Tuscan hillsides and Parisian ateliers, into the studios of couturiers and the gardens of florists who speak in blooms the way poets speak in metres.\n\nWhat follows is an edition made slowly, made carefully. It is, above all, a love letter.', { left: 40, top: 260, width: W * 0.42, fontSize: 12, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.75 });
+      const signature = new Textbox('Charlotte Ashford', { left: 40, top: H - 170, width: W * 0.42, fontSize: 48, fontFamily: 'Great Vibes', fill: GOLD_C });
+      const sigLine = new Rect({ left: 40, top: H - 108, width: 120, height: 1, fill: DARK_C });
+      const sigTitle = new Textbox('EDITOR-IN-CHIEF', { left: 40, top: H - 96, width: W * 0.42, fontSize: 10, fontFamily: 'Jost', fill: DARK_C, charSpacing: 400 });
+      [kicker, rule, headline, body, signature, sigLine, sigTitle].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'About Page': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#0A0908', selectable: false });
+      bg.id = genId(); fc.add(bg);
+      const mark = new Textbox('LUXURY WEDDING DIRECTORY', { left: 40, top: 68, width: W - 80, fontSize: 14, fontFamily: 'Cinzel', fill: GOLD_C, charSpacing: 500, textAlign: 'center' });
+      const ruleTop = new Rect({ left: W / 2 - 40, top: 104, width: 80, height: 1, fill: GOLD_C });
+      const hero = new Textbox('Our Story', { left: 40, top: 128, width: W - 80, fontSize: 72, fontFamily: 'Bodoni Moda', fill: '#F0EBE0', fontStyle: 'italic', textAlign: 'center', fontWeight: '400' });
+      const lede = new Textbox('A curated directory of the world\'s most exceptional wedding venues, planners, and artisans — gathered, vetted, and celebrated by the editors who have spent a decade covering them.', { left: 100, top: 240, width: W - 200, fontSize: 15, fontFamily: 'Cormorant Garamond', fill: 'rgba(240,235,224,0.8)', fontStyle: 'italic', lineHeight: 1.7, textAlign: 'center' });
+      const colW = (W - 160) / 3;
+      const columns = [
+        { title: 'Curation', body: 'Every name in these pages has been chosen, not paid-for. We travel, we watch, we listen, and we only publish what we would entrust to those we love.' },
+        { title: 'Craft', body: 'We champion the makers — the seamstress, the calligrapher, the florist, the chef — whose hands shape the quiet perfection of a great wedding day.' },
+        { title: 'Celebration', body: 'We believe a wedding is the most public private moment of a life. These pages are made in service of couples who want theirs to feel unmistakably their own.' },
+      ];
+      columns.forEach((c, i) => {
+        const x = 80 + i * (colW + 20);
+        const title = new Textbox(c.title.toUpperCase(), { left: x, top: 380, width: colW, fontSize: 11, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 400, textAlign: 'center' });
+        const divider = new Rect({ left: x + colW / 2 - 20, top: 410, width: 40, height: 1, fill: GOLD_C });
+        const body = new Textbox(c.body, { left: x, top: 424, width: colW, fontSize: 12, fontFamily: 'Cormorant Garamond', fill: 'rgba(240,235,224,0.75)', lineHeight: 1.7, textAlign: 'center', fontStyle: 'italic' });
+        [title, divider, body].forEach(o => { o.id = genId(); fc.add(o); });
+      });
+      const footerRule = new Rect({ left: W / 2 - 40, top: H - 88, width: 80, height: 1, fill: GOLD_C });
+      const established = new Textbox('Established MMXXIV', { left: 40, top: H - 72, width: W - 80, fontSize: 16, fontFamily: 'GFS Didot', fill: 'rgba(240,235,224,0.6)', fontStyle: 'italic', textAlign: 'center' });
+      [mark, ruleTop, hero, lede, footerRule, established].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Back Cover': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#18120A', selectable: false });
+      bg.id = genId(); fc.add(bg);
+      const kicker = new Textbox('IN THE NEXT ISSUE', { left: 40, top: 72, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 500, textAlign: 'center' });
+      const headline = new Textbox('Summer in\nProvence', { left: 40, top: 100, width: W - 80, fontSize: 52, fontFamily: 'Bodoni Moda', fill: '#F0EBE0', fontStyle: 'italic', textAlign: 'center', lineHeight: 1.05, fontWeight: '400' });
+      const rule = new Rect({ left: W / 2 - 30, top: 244, width: 60, height: 1, fill: GOLD_C });
+      // 3 teaser cards
+      const cardW = (W - 2 * 40 - 2 * 16) / 3;
+      const cardImgH = 200;
+      const cardY = 280;
+      const teasers = [
+        { img: IMG.tuscany,        caption: 'A Lavender Wedding in Luberon' },
+        { img: IMG.florals,        caption: 'The Return of the Wildflower' },
+        { img: IMG.venueInterior,  caption: 'Château d\'Estoublon · An Exclusive' },
+      ];
+      teasers.forEach((t, i) => {
+        const x = 40 + i * (cardW + 16);
+        addImagePlaceholder(fc, { left: x, top: cardY, width: cardW, height: cardImgH, imageUrl: t.img, fill: '#2A2016' });
+        const captionRule = new Rect({ left: x, top: cardY + cardImgH + 16, width: 30, height: 1, fill: GOLD_C });
+        captionRule.id = genId(); fc.add(captionRule);
+        const cap = new Textbox(t.caption, { left: x, top: cardY + cardImgH + 26, width: cardW, fontSize: 13, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', lineHeight: 1.4 });
+        cap.id = genId(); fc.add(cap);
+      });
+      // Masthead credits block
+      const mastheadY = H * 0.72;
+      const mastheadRule = new Rect({ left: 40, top: mastheadY, width: W - 80, height: 1, fill: 'rgba(201,168,76,0.35)' });
+      const mastheadLabel = new Textbox('MASTHEAD', { left: 40, top: mastheadY + 16, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 400, textAlign: 'center' });
+      const credits = new Textbox(
+        'EDITOR-IN-CHIEF · Charlotte Ashford    CREATIVE DIRECTOR · Isadora Valois    PHOTOGRAPHY EDITOR · Henry Asquith\n' +
+        'FASHION EDITOR · Celine Moreau    FEATURES · Eleanor Whitmore    ART DIRECTION · Studio Fable\n' +
+        'COPY · James Harrington    DIGITAL · Sophia Lin    PUBLISHER · LWD Media Group',
+        { left: 40, top: mastheadY + 40, width: W - 80, fontSize: 8, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.55)', charSpacing: 200, lineHeight: 2.2, textAlign: 'center' }
+      );
+      const lwd = new Textbox('LWD', { left: 40, top: H - 64, width: W - 80, fontSize: 22, fontFamily: 'Bodoni Moda', fill: GOLD_C, fontStyle: 'italic', textAlign: 'center' });
+      const yearLine = new Textbox('SPRING MMXXVI · ISSUE 01', { left: 40, top: H - 36, width: W - 80, fontSize: 8, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.4)', charSpacing: 500, textAlign: 'center' });
+      [kicker, headline, rule, mastheadRule, mastheadLabel, credits, lwd, yearLine].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Full-Page Advertisement': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#0A0908', selectable: false });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W, height: H, imageUrl: IMG.dressDetail, fill: '#1A1612' });
+      // Thin gold bar at 80% height
+      const barY = H * 0.8;
+      const bar = new Rect({ left: W * 0.25, top: barY, width: W * 0.5, height: 1, fill: GOLD_C, selectable: false });
+      bar.id = genId(); fc.add(bar);
+      const brand = new Textbox('VERA WANG', { left: 40, top: barY + 20, width: W - 80, fontSize: 52, fontFamily: 'Abril Fatface', fill: '#F0EBE0', textAlign: 'center', charSpacing: 150 });
+      const tagline = new Textbox('COUTURE · NEW YORK · PARIS', { left: 40, top: barY + 96, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 500, textAlign: 'center' });
+      const url = new Textbox('verawang.com', { left: 40, top: H - 44, width: W - 80, fontSize: 11, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.7)', charSpacing: 200, textAlign: 'center' });
+      [brand, tagline, url].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Product Showcase Ad': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W * 0.5, height: H, imageUrl: IMG.ring, fill: '#EDE8E0' });
+      // Right cream panel (matches bg, acts as logical right column)
+      const panel = new Rect({ left: W * 0.5, top: 0, width: W * 0.5, height: H, fill: '#FAF8F5', selectable: false });
+      panel.id = genId(); fc.add(panel);
+      const featured = new Textbox('FEATURED', { left: W * 0.55, top: 120, width: W * 0.4, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 500 });
+      const ruleTop = new Rect({ left: W * 0.55, top: 146, width: 40, height: 1, fill: GOLD_C });
+      const product = new Textbox('The Madeleine\nSolitaire', { left: W * 0.55, top: 166, width: W * 0.4, fontSize: 38, fontFamily: 'Bodoni Moda', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.05 });
+      const desc = new Textbox('A 3.2ct old-European cut diamond set on a\nhand-forged 18ct gold band.', { left: W * 0.55, top: 286, width: W * 0.4, fontSize: 14, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.6, fontStyle: 'italic' });
+      const goldRule = new Rect({ left: W * 0.55, top: 360, width: 80, height: 1, fill: GOLD_C });
+      const priceLabel = new Textbox('FROM', { left: W * 0.55, top: 376, width: W * 0.4, fontSize: 9, fontFamily: 'Jost', fill: MUTED_C, charSpacing: 300 });
+      const price = new Textbox('£48,000', { left: W * 0.55, top: 392, width: W * 0.4, fontSize: 26, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic' });
+      // CTA
+      const cta = new Rect({ left: W * 0.55, top: 460, width: 200, height: 50, fill: '#0A0908', selectable: true });
+      cta.id = genId(); fc.add(cta);
+      const ctaText = new Textbox('SHOP NOW', { left: W * 0.55, top: 478, width: 200, fontSize: 11, fontFamily: 'Jost', fill: '#F0EBE0', charSpacing: 500, textAlign: 'center' });
+      const brand = new Textbox('GRAFF · LONDON', { left: W * 0.55, top: H - 68, width: W * 0.4, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 500 });
+      [featured, ruleTop, product, desc, goldRule, priceLabel, price, ctaText, brand].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+    'Venue Advertisement': () => {
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#0A0908', selectable: false });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W, height: H, imageUrl: IMG.venetianPalazzo, fill: '#1A1612' });
+      // Bottom dark gradient for text legibility
+      const gradient = new Rect({ left: 0, top: H * 0.45, width: W, height: H * 0.55, fill: 'rgba(10,9,8,0.65)', selectable: false });
+      gradient.id = genId(); fc.add(gradient);
+      const ruleTop = new Rect({ left: W / 2 - 40, top: H * 0.56, width: 80, height: 1, fill: GOLD_C });
+      const venueName = new Textbox('HOTEL CIPRIANI', { left: 40, top: H * 0.58, width: W - 80, fontSize: 34, fontFamily: 'Cinzel', fill: GOLD_C, charSpacing: 600, textAlign: 'center' });
+      const tagline = new Textbox('A palazzo suspended above the Grand Canal', { left: 40, top: H * 0.66, width: W - 80, fontSize: 18, fontFamily: 'Cormorant Garamond', fill: '#F0EBE0', fontStyle: 'italic', textAlign: 'center' });
+      const ruleMid = new Rect({ left: W / 2 - 30, top: H * 0.73, width: 60, height: 1, fill: GOLD_C });
+      const callout = new Textbox('PRIVATE VIEWINGS BY APPOINTMENT', { left: 40, top: H * 0.75, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: '#F0EBE0', charSpacing: 500, textAlign: 'center' });
+      // CTA button
+      const ctaRect = new Rect({ left: W / 2 - 110, top: H * 0.8, width: 220, height: 52, fill: 'transparent', stroke: GOLD_C, strokeWidth: 1, selectable: true });
+      ctaRect.id = genId(); fc.add(ctaRect);
+      const ctaText = new Textbox('BOOK A VISIT', { left: W / 2 - 110, top: H * 0.8 + 19, width: 220, fontSize: 11, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 500, textAlign: 'center' });
+      const footer = new Textbox('cipriani.com  ·  +39 041 520 7744', { left: 40, top: H - 48, width: W - 80, fontSize: 10, fontFamily: 'Cormorant Garamond', fill: 'rgba(240,235,224,0.7)', fontStyle: 'italic', textAlign: 'center', charSpacing: 100 });
+      [ruleTop, venueName, tagline, ruleMid, callout, ctaText, footer].forEach(o => { o.id = genId(); fc.add(o); });
     },
   };
 
   const defaultLayout = () => {
     const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#ffffff', selectable: false });
-    const categoryLabel = new Textbox(template.category.toUpperCase(), { left: 40, top: 48, width: W - 80, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 200 });
-    const rule = new Rect({ left: 40, top: 70, width: W - 80, height: 1, fill: 'rgba(201,168,76,0.3)' });
-    const titleObj = new Textbox(template.name, { left: 40, top: 90, width: W - 80, fontSize: 40, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', fontWeight: '300', lineHeight: 1.15 });
-    const desc = new Textbox(template.description || 'Add your content here', { left: 40, top: 200, width: W - 80, fontSize: 13, fontFamily: 'Jost', fill: 'rgba(24,18,10,0.6)', lineHeight: 1.65 });
-    const imgPh = new Rect({ left: 40, top: 290, width: W - 80, height: H * 0.45, fill: '#F0EBE0' });
-    const imgLabel = new Textbox('+ ADD IMAGE', { left: 40, top: 290 + (H * 0.45) / 2 - 10, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: MUTED_C, textAlign: 'center', charSpacing: 150 });
-    [bg, categoryLabel, rule, titleObj, desc, imgPh, imgLabel].forEach(o => { o.id = genId(); fc.add(o); });
+    bg.id = genId(); fc.add(bg);
+    const categoryLabel = new Textbox(template.category.toUpperCase(), { left: 40, top: 48, width: W - 80, fontSize: 10, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+    const rule = new Rect({ left: 40, top: 70, width: W - 80, height: 1, fill: 'rgba(201,168,76,0.35)' });
+    const titleObj = new Textbox(template.name, { left: 40, top: 90, width: W - 80, fontSize: 44, fontFamily: 'Bodoni Moda', fill: DARK_C, fontStyle: 'italic', fontWeight: '400', lineHeight: 1.1 });
+    const desc = new Textbox(template.description || 'Add your content here', { left: 40, top: 200, width: W - 80, fontSize: 14, fontFamily: 'Cormorant Garamond', fill: 'rgba(24,18,10,0.7)', lineHeight: 1.65, fontStyle: 'italic' });
+    addImagePlaceholder(fc, { left: 40, top: 300, width: W - 80, height: H * 0.5, imageUrl: IMG.fashionEditorial });
+    [categoryLabel, rule, titleObj, desc].forEach(o => { o.id = genId(); fc.add(o); });
   };
 
-  const layoutFn = layouts[template.category] || defaultLayout;
+  // Preload the fashion-editorial font matrix so template text renders with
+  // correct metrics from the first paint instead of falling back to system serif.
+  [
+    'Bodoni Moda', 'Playfair Display', 'Abril Fatface', 'DM Serif Display',
+    'Cinzel', 'GFS Didot', 'Cormorant Garamond', 'Great Vibes', 'Jost',
+  ].forEach(f => { try { loadGoogleFont(f); } catch { /* noop */ } });
+
+  // Try category match first, then template name (for new named templates),
+  // and fall back to defaultLayout if neither is a registered layout.
+  const layoutFn = layouts[template.category] || layouts[template.name] || defaultLayout;
   layoutFn();
 
   // Templates are authored at A4 (794×1123) — the locked standard page size.
@@ -572,6 +896,15 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const [guides, setGuides] = useState({ h: [], v: [] });
   const [draftGuide, setDraftGuide] = useState(null); // null | { axis: 'h'|'v', pos: number }
 
+  // Image picker — opened by double-clicking any isImagePlaceholder object
+  const [imagePickerOpen, setImagePickerOpen] = useState(false);
+  const imagePickerTargetRef = useRef(null); // the Fabric object to replace
+
+  const openImagePicker = useCallback((target) => {
+    imagePickerTargetRef.current = target || null;
+    setImagePickerOpen(true);
+  }, []);
+
   // Page number settings
   const [pageNumberSettings, setPageNumberSettings] = useState({
     format: 'arabic',
@@ -634,10 +967,46 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const pushUndo = useCallback(() => {
     const fc = getActiveCanvas();
     if (!fc) return;
-    const json = fc.toJSON(['id']);
+    const json = fc.toJSON(['id', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker']);
     setUndoStack(prev => [...prev.slice(-29), json]);
     setRedoStack([]);
   }, [getActiveCanvas]);
+
+  // ── Image picker selection ─────────────────────────────────────────────────
+  // When a URL is selected from ImagePickerModal, replace the tagged placeholder
+  // (either backdrop Rect or previously-placed Image) with a fresh FabricImage
+  // that inherits the original bounds, so the layout stays intact.
+  const handleImagePickerSelect = useCallback(async (url) => {
+    const fc = getActiveCanvas();
+    const target = imagePickerTargetRef.current;
+    if (!fc || !target || !url) { setImagePickerOpen(false); return; }
+    try {
+      const img = await FabricImage.fromURL(url, { crossOrigin: 'anonymous' });
+      if (!img) return;
+      const left = target.left;
+      const top  = target.top;
+      const width  = (target.width  ?? img.width)  * (target.scaleX ?? 1);
+      const height = (target.height ?? img.height) * (target.scaleY ?? 1);
+      const scale = Math.max(width / img.width, height / img.height);
+      img.set({
+        left, top,
+        scaleX: scale, scaleY: scale,
+        clipPath: new Rect({ left, top, width, height, absolutePositioned: true }),
+      });
+      img.set({ isImagePlaceholder: true });
+      img.id = genId();
+      fc.remove(target);
+      fc.add(img);
+      fc.setActiveObject(img);
+      fc.requestRenderAll();
+      pushUndo();
+    } catch (e) {
+      console.error('Image picker: failed to load', e);
+    } finally {
+      setImagePickerOpen(false);
+      imagePickerTargetRef.current = null;
+    }
+  }, [getActiveCanvas, pushUndo]);
 
   // ── Canvas init helper ──────────────────────────────────────────────────────
   const initCanvas = useCallback((canvasEl, pageJSON, onSelect, onModify, onLayersChange) => {
@@ -657,6 +1026,15 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     fc.on('object:modified', () => { onModify(); syncL(); });
     fc.on('object:added',    () => { onModify(); syncL(); });
     fc.on('object:removed',  () => { onModify(); syncL(); });
+
+    // Double-click on an image placeholder opens the picker modal so users can
+    // swap the Unsplash default for their own uploaded or previously-used imagery.
+    fc.on('mouse:dblclick', (e) => {
+      const t = e.target;
+      if (t?.isImagePlaceholder) {
+        openImagePicker(t);
+      }
+    });
 
     // Snap to grid — reads live state via ref so no stale closures
     fc.on('object:moving', (e) => {
@@ -688,7 +1066,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     }
 
     return fc;
-  }, [dims.w, dims.h]);
+  }, [dims.w, dims.h, openImagePicker]);
 
   // ── Load saved pages from Supabase on mount ──────────────────────────────────
   useEffect(() => {
@@ -938,7 +1316,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     if (!spreadView) {
       const fc = fabricRef.current;
       if (!fc) return;
-      const json = fc.toJSON(['id', 'name', 'custom']);
+      const json = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker']);
       const thumb = fc.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
       setPages(prev => prev.map((p, i) =>
         i === currentPageIndex ? { ...p, canvasJSON: json, thumbnailDataUrl: thumb } : p
@@ -947,12 +1325,12 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pages.length);
       setPages(prev => prev.map((p, i) => {
         if (i === leftIndex && fabricRefLeft.current) {
-          const json  = fabricRefLeft.current.toJSON(['id', 'name', 'custom']);
+          const json  = fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker']);
           const thumb = fabricRefLeft.current.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
           return { ...p, canvasJSON: json, thumbnailDataUrl: thumb };
         }
         if (i === rightIndex && fabricRef.current) {
-          const json  = fabricRef.current.toJSON(['id', 'name', 'custom']);
+          const json  = fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker']);
           const thumb = fabricRef.current.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
           return { ...p, canvasJSON: json, thumbnailDataUrl: thumb };
         }
@@ -1144,13 +1522,13 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pages.length);
       const freshPages = pages.map((page, i) => {
         if (!spreadView && i === currentPageIndex && fabricRef.current) {
-          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom']) };
+          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker']) };
         }
         if (spreadView && i === leftIndex && fabricRefLeft.current) {
-          return { ...page, canvasJSON: fabricRefLeft.current.toJSON(['id', 'name', 'custom']) };
+          return { ...page, canvasJSON: fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker']) };
         }
         if (spreadView && i === rightIndex && fabricRef.current) {
-          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom']) };
+          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker']) };
         }
         return page;
       });
@@ -1860,6 +2238,18 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
           pointerEvents: 'none',
           zIndex: 9999,
         }} />
+      )}
+
+      {/* Image picker modal — triggered by double-click on any placeholder */}
+      {imagePickerOpen && (
+        <ImagePickerModal
+          issue={issue}
+          onSelect={handleImagePickerSelect}
+          onClose={() => {
+            setImagePickerOpen(false);
+            imagePickerTargetRef.current = null;
+          }}
+        />
       )}
     </div>
   );

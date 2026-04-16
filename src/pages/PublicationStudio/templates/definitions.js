@@ -1,6 +1,113 @@
 import { PALETTES } from './palettes';
 
-export const TEMPLATES = [
+// ── 6 new template definitions (Editor's Letter, About, Back Cover, Ads) ────
+// Kept as named const exports so they can be imported individually for tests or
+// thumbnail generation scripts. The final TEMPLATES array interleaves them
+// with the existing 18 entries in a magazine-reading order.
+const EDITORS_LETTER_TEMPLATE = {
+  id: 'editors-letter',
+  name: "Editor's Letter",
+  category: "Editor's Letter",
+  palette: 'ivory',
+  description: 'Circular portrait and editor\'s address — the issue\'s opening voice.',
+  fields: [
+    { id: 'portrait',    type: 'image',    label: 'Editor Portrait', required: true, hint: 'Head-and-shoulders portrait works best' },
+    { id: 'kicker',      type: 'text',     label: 'Kicker',           default: 'FROM THE EDITOR' },
+    { id: 'headline',    type: 'text',     label: 'Letter Headline',  default: 'A Season of Grace' },
+    { id: 'body',        type: 'textarea', label: 'Letter Body',      hint: '4–5 short paragraphs', maxLength: 1400 },
+    { id: 'signature',   type: 'text',     label: 'Signature Name',   default: 'Charlotte Ashford' },
+    { id: 'title_line',  type: 'text',     label: 'Title Line',       default: 'EDITOR-IN-CHIEF' },
+  ],
+};
+
+const ABOUT_PAGE_TEMPLATE = {
+  id: 'about-page',
+  name: 'About Page',
+  category: 'About Page',
+  palette: 'obsidian',
+  description: 'Dark mission statement page with three columns of values.',
+  fields: [
+    { id: 'brand_mark',  type: 'text',     label: 'Brand Mark',  default: 'LUXURY WEDDING DIRECTORY' },
+    { id: 'hero',        type: 'text',     label: 'Hero Title',  default: 'Our Story' },
+    { id: 'lede',        type: 'textarea', label: 'Lede',        maxLength: 280 },
+    { id: 'pillar1',     type: 'text',     label: 'Pillar 1',    default: 'Curation' },
+    { id: 'pillar1_body',type: 'textarea', label: 'Pillar 1 body', maxLength: 220 },
+    { id: 'pillar2',     type: 'text',     label: 'Pillar 2',    default: 'Craft' },
+    { id: 'pillar2_body',type: 'textarea', label: 'Pillar 2 body', maxLength: 220 },
+    { id: 'pillar3',     type: 'text',     label: 'Pillar 3',    default: 'Celebration' },
+    { id: 'pillar3_body',type: 'textarea', label: 'Pillar 3 body', maxLength: 220 },
+    { id: 'established', type: 'text',     label: 'Established', default: 'Established MMXXIV' },
+  ],
+};
+
+const BACK_COVER_TEMPLATE = {
+  id: 'back-cover',
+  name: 'Back Cover',
+  category: 'Back Cover',
+  palette: 'obsidian',
+  description: 'Next-issue teaser triptych with full masthead credits.',
+  fields: [
+    { id: 'kicker',    type: 'text',     label: 'Kicker',     default: 'IN THE NEXT ISSUE' },
+    { id: 'headline',  type: 'text',     label: 'Headline',   default: 'Summer in Provence' },
+    { id: 'teaser1_image', type: 'image',label: 'Teaser 1 Image' },
+    { id: 'teaser1_caption', type: 'text', label: 'Teaser 1 Caption', default: 'A Lavender Wedding in Luberon' },
+    { id: 'teaser2_image', type: 'image',label: 'Teaser 2 Image' },
+    { id: 'teaser2_caption', type: 'text', label: 'Teaser 2 Caption', default: 'The Return of the Wildflower' },
+    { id: 'teaser3_image', type: 'image',label: 'Teaser 3 Image' },
+    { id: 'teaser3_caption', type: 'text', label: 'Teaser 3 Caption', default: 'Château d\'Estoublon · An Exclusive' },
+    { id: 'masthead',  type: 'textarea', label: 'Masthead Credits', hint: 'Editor, Creative Director, Photography, etc.', maxLength: 600 },
+  ],
+};
+
+const FULL_PAGE_AD_TEMPLATE = {
+  id: 'full-page-ad',
+  name: 'Full-Page Advertisement',
+  category: 'Full-Page Advertisement',
+  palette: 'obsidian',
+  description: 'Full-bleed image ad with gold bar, brand mark and URL.',
+  fields: [
+    { id: 'image',    type: 'image', label: 'Ad Image',   required: true, hint: 'Full bleed, high-resolution' },
+    { id: 'brand',    type: 'text',  label: 'Brand Name', default: 'VERA WANG', required: true },
+    { id: 'tagline',  type: 'text',  label: 'Tagline',    default: 'COUTURE · NEW YORK · PARIS' },
+    { id: 'url',      type: 'text',  label: 'URL / Handle', default: 'verawang.com' },
+  ],
+};
+
+const PRODUCT_SHOWCASE_AD_TEMPLATE = {
+  id: 'product-showcase-ad',
+  name: 'Product Showcase Ad',
+  category: 'Product Showcase Ad',
+  palette: 'ivory',
+  description: 'Half-page product image, half-page cream panel with CTA.',
+  fields: [
+    { id: 'image',    type: 'image',    label: 'Product Image',  required: true, hint: 'Clean background preferred' },
+    { id: 'featured', type: 'text',     label: 'Kicker',          default: 'FEATURED' },
+    { id: 'product',  type: 'text',     label: 'Product Name',    default: 'The Madeleine Solitaire', required: true },
+    { id: 'description', type: 'textarea', label: 'Description', maxLength: 120 },
+    { id: 'price',    type: 'text',     label: 'Price',           default: '£48,000' },
+    { id: 'cta',      type: 'text',     label: 'CTA Label',       default: 'SHOP NOW' },
+    { id: 'brand',    type: 'text',     label: 'Brand Line',      default: 'GRAFF · LONDON' },
+  ],
+};
+
+const VENUE_AD_TEMPLATE = {
+  id: 'venue-advertisement',
+  name: 'Venue Advertisement',
+  category: 'Venue Advertisement',
+  palette: 'obsidian',
+  description: 'Full-bleed venue hero with appointment-only call to action.',
+  fields: [
+    { id: 'image',     type: 'image', label: 'Venue Image',  required: true },
+    { id: 'venue',     type: 'text',  label: 'Venue Name',    default: 'HOTEL CIPRIANI', required: true },
+    { id: 'tagline',   type: 'text',  label: 'Tagline',       default: 'A palazzo suspended above the Grand Canal' },
+    { id: 'callout',   type: 'text',  label: 'Callout',       default: 'PRIVATE VIEWINGS BY APPOINTMENT' },
+    { id: 'cta',       type: 'text',  label: 'CTA Label',     default: 'BOOK A VISIT' },
+    { id: 'footer',    type: 'text',  label: 'Footer Contact',default: 'cipriani.com  ·  +39 041 520 7744' },
+  ],
+};
+
+// The full existing template library (unchanged definitions, reordered below).
+const BASE_TEMPLATES = [
   {
     id: 'vogue-cover',
     name: 'The Cover',
@@ -534,6 +641,70 @@ export const TEMPLATES = [
     ],
   },
 ];
+
+// Helper: pick a template from BASE_TEMPLATES by id — keeps the magazine-order
+// assembly below readable, and surfaces a clear runtime error if a referenced
+// template is ever removed from BASE_TEMPLATES.
+function byId(id) {
+  const t = BASE_TEMPLATES.find(t => t.id === id);
+  if (!t) throw new Error(`Missing template: ${id}`);
+  return t;
+}
+
+// ── Magazine-reading order ──────────────────────────────────────────────────
+// Cover → Editor's Letter → About Page → Contents → Full-Page Ad →
+// Editorial → Travel → Fashion → Bridal → Jewellery → Beauty → Florals →
+// Stationery → Cake → Couple → Real Wedding → Ceremony → Reception →
+// Venue → Venue Portrait → Product Showcase Ad → Venue Ad → Detail → Back Cover.
+//
+// Remaining BASE_TEMPLATES that aren't specifically called out in the
+// ordering above are appended at the end in their original sequence so no
+// template is lost from the picker.
+const ORDERED_IDS = [
+  'vogue-cover',                // Cover
+  'editors-letter',             // Editor's Letter
+  'about-page',                 // About Page
+  'table-of-contents',          // Navigation / Contents
+  'full-page-ad',               // Full-Page Advertisement
+  'feature-spread',             // Editorial
+  'the-destination',            // Travel
+  'the-runway',                 // Fashion
+  'the-gown',                   // Bridal
+  'the-jewel',                  // Jewellery
+  'beauty-edit',                // Beauty
+  'floral-spread',              // Florals
+  'invitation-suite',           // Stationery
+  'cake-moment',                // Food & Cake
+  'couple-story',               // Couple
+  'the-portrait',               // Real Wedding
+  'ceremony-aisle',             // Ceremony
+  'reception-table',            // Reception
+  'the-hotel',                  // Venue
+  'venue-portrait',             // Venue Portrait
+  'product-showcase-ad',        // Product Showcase Ad
+  'venue-advertisement',        // Venue Advertisement
+  'the-triptych',               // Detail
+  'back-cover',                 // Back Cover
+];
+
+const NEW_TEMPLATES_BY_ID = {
+  'editors-letter':       EDITORS_LETTER_TEMPLATE,
+  'about-page':           ABOUT_PAGE_TEMPLATE,
+  'back-cover':           BACK_COVER_TEMPLATE,
+  'full-page-ad':         FULL_PAGE_AD_TEMPLATE,
+  'product-showcase-ad':  PRODUCT_SHOWCASE_AD_TEMPLATE,
+  'venue-advertisement':  VENUE_AD_TEMPLATE,
+};
+
+// Build the ordered list, then append any BASE_TEMPLATES that weren't
+// referenced in ORDERED_IDS (editorial extras — pull quote, masthead, etc.)
+const orderedPrimary = ORDERED_IDS.map((id) =>
+  NEW_TEMPLATES_BY_ID[id] || byId(id)
+);
+const orderedIdsSet = new Set(ORDERED_IDS);
+const extras = BASE_TEMPLATES.filter(t => !orderedIdsSet.has(t.id));
+
+export const TEMPLATES = [...orderedPrimary, ...extras];
 
 export const CATEGORIES = [...new Set(TEMPLATES.map(t => t.category))];
 export default TEMPLATES;
