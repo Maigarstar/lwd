@@ -38,9 +38,12 @@ import PdfUploader    from './AdminModules/components/PdfUploader';
 import HotspotEditor    from './PublicationStudio/HotspotEditor';
 import TemplatePicker  from './PublicationStudio/templates/TemplatePicker';
 import TemplateEditor  from './PublicationStudio/templates/TemplateEditor';
-import MonetizationTab from './PublicationStudio/MonetizationTab';
-import HeatmapPanel    from './PublicationStudio/HeatmapPanel';
-import { uploadIssueAltCover } from '../services/magazineIssuesService';
+import MonetizationTab        from './PublicationStudio/MonetizationTab';
+import HeatmapPanel            from './PublicationStudio/HeatmapPanel';
+import PageCommentsPanel       from './PublicationStudio/PageCommentsPanel';
+import EditorialCalendarPanel  from './PublicationStudio/EditorialCalendarPanel';
+import { uploadIssueAltCover, fetchRenderHistory } from '../services/magazineIssuesService';
+import { fetchCommentCountsByPage } from '../services/magazineCommentsService';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const GOLD   = '#C9A84C';
@@ -892,7 +895,7 @@ function PreflightPanel({ issue, pages }) {
   );
 }
 
-function SettingsTab({ issue, pages, onPublish, onUnpublish, onArchive, onDelete, publishing, archiving, deleting, onSchedule, onPageFormat }) {
+function SettingsTab({ issue, pages, onPublish, onUnpublish, onArchive, onDelete, publishing, archiving, deleting, onSchedule, onPageFormat, renderHistory }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [scheduleDate, setScheduleDate]   = useState(issue?.scheduled_publish_at ? new Date(issue.scheduled_publish_at).toISOString().slice(0, 16) : '');
   const [scheduling, setScheduling]       = useState(false);
@@ -1022,6 +1025,103 @@ function SettingsTab({ issue, pages, onPublish, onUnpublish, onArchive, onDelete
           </div>
         ))}
       </div>
+
+      <Hr />
+      <SectionHead>Output Formats</SectionHead>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 8 }}>
+        {/* Digital card */}
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '16px 14px' }}>
+          <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GOLD, marginBottom: 10 }}>✦ Digital</div>
+          <div style={{ fontFamily: NU, fontSize: 11, color: 'rgba(255,255,255,0.7)', marginBottom: 4 }}>Flipbook</div>
+          <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, marginBottom: 10, lineHeight: 1.5 }}>Reader URL</div>
+          {issue?.slug ? (
+            <a
+              href={`/publications/${issue.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontFamily: NU, fontSize: 9, color: GOLD, textDecoration: 'none', wordBreak: 'break-all' }}
+            >
+              /publications/{issue.slug} ↗
+            </a>
+          ) : (
+            <span style={{ fontFamily: NU, fontSize: 9, color: MUTED }}>No slug set</span>
+          )}
+          <div style={{ marginTop: 10 }}>
+            <span style={{
+              fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+              color: issue?.status === 'published' ? '#34d399' : MUTED,
+              background: issue?.status === 'published' ? 'rgba(52,211,153,0.1)' : 'rgba(255,255,255,0.05)',
+              borderRadius: 10, padding: '3px 8px',
+            }}>
+              {issue?.status === 'published' ? '✓ Live' : issue?.status === 'draft' ? 'Draft' : issue?.status || 'Draft'}
+            </span>
+          </div>
+        </div>
+
+        {/* Print card */}
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '16px 14px' }}>
+          <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GOLD, marginBottom: 10 }}>✦ Print</div>
+          <div style={{ fontFamily: NU, fontSize: 11, color: 'rgba(255,255,255,0.7)', marginBottom: 4 }}>PDF Export</div>
+          <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, marginBottom: 10, lineHeight: 1.5 }}>300 DPI ready</div>
+          <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, marginBottom: 10, lineHeight: 1.5 }}>
+            {issue?.pdf_url
+              ? `Current PDF: ${issue.pdf_url.split('/').pop() || 'original.pdf'}`
+              : 'Not uploaded'
+            }
+          </div>
+          {issue?.pdf_url ? (
+            <a
+              href={issue.pdf_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-block',
+                fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase',
+                color: '#1a1806', background: GOLD, borderRadius: 3, padding: '5px 12px', textDecoration: 'none',
+              }}
+            >
+              ↓ Download PDF
+            </a>
+          ) : (
+            <span style={{ fontFamily: NU, fontSize: 9, color: MUTED }}>Upload PDF first</span>
+          )}
+          <div style={{ fontFamily: NU, fontSize: 9, color: MUTED, marginTop: 8, lineHeight: 1.5 }}>
+            For professional print: ensure images are 300 DPI.
+          </div>
+        </div>
+      </div>
+
+      <Hr />
+      <SectionHead>Render History</SectionHead>
+      {(!renderHistory || renderHistory.length === 0) ? (
+        <div style={{ fontFamily: NU, fontSize: 11, color: MUTED, padding: '12px 0' }}>No render history yet.</div>
+      ) : (
+        <div style={{ border: `1px solid ${BORDER}`, borderRadius: 4, overflow: 'hidden', marginBottom: 8 }}>
+          {/* Table header */}
+          <div style={{ display: 'grid', gridTemplateColumns: '60px 60px 1fr 100px 1fr', background: 'rgba(255,255,255,0.03)', borderBottom: `1px solid ${BORDER}`, padding: '7px 12px' }}>
+            {['Version', 'Pages', 'Date', 'Triggered By', 'Notes'].map(h => (
+              <div key={h} style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: MUTED }}>{h}</div>
+            ))}
+          </div>
+          {renderHistory.map((row, i) => (
+            <div key={row.id} style={{
+              display: 'grid',
+              gridTemplateColumns: '60px 60px 1fr 100px 1fr',
+              padding: '8px 12px',
+              borderBottom: i < renderHistory.length - 1 ? `1px solid ${BORDER}` : 'none',
+              background: i === 0 ? 'rgba(201,168,76,0.04)' : 'transparent',
+            }}>
+              <div style={{ fontFamily: NU, fontSize: 11, color: i === 0 ? GOLD : 'rgba(255,255,255,0.7)', fontWeight: i === 0 ? 700 : 400 }}>v{row.render_version}</div>
+              <div style={{ fontFamily: NU, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>{row.page_count}</div>
+              <div style={{ fontFamily: NU, fontSize: 10, color: MUTED }}>
+                {row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, textTransform: 'capitalize' }}>{row.triggered_by || '—'}</div>
+              <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.notes || '—'}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <Hr />
       <SectionHead>Danger Zone</SectionHead>
@@ -1164,6 +1264,9 @@ function IssueWorkspace({ issueId, onDelete }) {
   const [hotspotPage,        setHotspotPage]        = useState(null);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [activeTemplate,     setActiveTemplate]     = useState(null);
+  const [commentsPage,       setCommentsPage]       = useState(null); // page_number for PageCommentsPanel
+  const [commentCounts,      setCommentCounts]      = useState({});   // { [pageNumber]: count }
+  const [renderHistory,      setRenderHistory]      = useState([]);
 
   // load issue
   useEffect(() => {
@@ -1178,6 +1281,22 @@ function IssueWorkspace({ issueId, onDelete }) {
     if ((tab !== 'pages' && tab !== 'analytics') || !issueId) return;
     fetchPages(issueId).then(({ data }) => {
       if (data) setPages(data);
+    });
+  }, [tab, issueId]);
+
+  // load render history when settings tab is active
+  useEffect(() => {
+    if (tab !== 'settings' || !issueId) return;
+    fetchRenderHistory(issueId).then(({ data }) => {
+      if (data) setRenderHistory(data);
+    });
+  }, [tab, issueId]);
+
+  // load comment counts when pages tab is active
+  useEffect(() => {
+    if (tab !== 'pages' || !issueId) return;
+    fetchCommentCountsByPage(issueId).then(({ data }) => {
+      if (data) setCommentCounts(data);
     });
   }, [tab, issueId]);
 
@@ -1468,6 +1587,14 @@ function IssueWorkspace({ issueId, onDelete }) {
                       <span style={{ fontFamily: NU, fontSize: 11, color: MUTED, minWidth: 32 }}>p{pg.page_number}</span>
                       {pg.link_targets?.length > 0 && <span style={{ fontFamily: NU, fontSize: 9, color: GOLD }}>✦ {pg.link_targets.length} hotspot{pg.link_targets.length > 1 ? 's' : ''}</span>}
                       {pg.vendor_credits?.length > 0 && <span style={{ fontFamily: NU, fontSize: 9, color: MUTED }}>◈ {pg.vendor_credits.length} credit{pg.vendor_credits.length > 1 ? 's' : ''}</span>}
+                      {commentCounts[pg.page_number] > 0 && (
+                        <span style={{ fontFamily: NU, fontSize: 9, color: '#fbbf24', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 10, padding: '2px 7px' }}>
+                          ✎ {commentCounts[pg.page_number]}
+                        </span>
+                      )}
+                      <button onClick={() => setCommentsPage(pg.page_number)} style={{ fontFamily: NU, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: MUTED, background: 'none', border: `1px solid rgba(255,255,255,0.12)`, padding: '5px 10px', borderRadius: 2, cursor: 'pointer' }}>
+                        Notes
+                      </button>
                       <button onClick={() => setHotspotPage(pg)} style={{ marginLeft: 'auto', fontFamily: NU, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: GOLD, background: 'none', border: `1px solid rgba(201,168,76,0.3)`, padding: '5px 12px', borderRadius: 2, cursor: 'pointer' }}>
                         ✦ Edit
                       </button>
@@ -1477,6 +1604,15 @@ function IssueWorkspace({ issueId, onDelete }) {
               </div>
             )}
           </div>
+        )}
+
+        {/* PageCommentsPanel overlay */}
+        {commentsPage !== null && (
+          <PageCommentsPanel
+            issue={issue}
+            currentPageNumber={commentsPage}
+            onClose={() => setCommentsPage(null)}
+          />
         )}
 
         {/* HotspotEditor overlay */}
@@ -1566,6 +1702,7 @@ function IssueWorkspace({ issueId, onDelete }) {
             publishing={publishing}
             archiving={archiving}
             deleting={deleting}
+            renderHistory={renderHistory}
           />
         )}
       </div>
@@ -1629,11 +1766,12 @@ function CreateModal({ onCreated, onClose }) {
 // ── Main Publication Studio ───────────────────────────────────────────────────
 
 export default function PublicationStudio({ onBack }) {
-  const [issues,      setIssues]      = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [activeId,    setActiveId]    = useState(null);
-  const [showCreate,  setShowCreate]  = useState(false);
-  const [filter,      setFilter]      = useState('all'); // all | draft | published | archived
+  const [issues,          setIssues]          = useState([]);
+  const [loading,         setLoading]         = useState(true);
+  const [activeId,        setActiveId]        = useState(null);
+  const [showCreate,      setShowCreate]      = useState(false);
+  const [filter,          setFilter]          = useState('all'); // all | draft | published | archived
+  const [showCalendar,    setShowCalendar]    = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1673,6 +1811,10 @@ export default function PublicationStudio({ onBack }) {
           ✦ LWD
         </div>
         <div style={{ flex: 1 }} />
+        <button onClick={() => setShowCalendar(true)}
+          style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'none', border: `1px solid ${BORDER}`, borderRadius: 3, color: MUTED, padding: '7px 14px', cursor: 'pointer' }}>
+          📅 Calendar
+        </button>
         <button onClick={() => setShowCreate(true)}
           style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: GOLD, border: 'none', borderRadius: 3, color: '#1a1806', padding: '7px 16px', cursor: 'pointer' }}>
           + New Issue
@@ -1786,6 +1928,20 @@ export default function PublicationStudio({ onBack }) {
         <CreateModal
           onCreated={handleCreated}
           onClose={() => setShowCreate(false)}
+        />
+      )}
+
+      {showCalendar && (
+        <EditorialCalendarPanel
+          onSelectIssue={(issueId) => {
+            setShowCalendar(false);
+            if (issueId) {
+              setActiveId(issueId);
+            } else {
+              setShowCreate(true);
+            }
+          }}
+          onClose={() => setShowCalendar(false)}
         />
       )}
     </div>

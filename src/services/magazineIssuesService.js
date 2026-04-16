@@ -426,3 +426,41 @@ export async function trackAbClick(issueId, variant) {
     .rpc('increment_ab_stat', { p_issue_id: issueId, p_variant: variant, p_field: 'clicks' })
     .catch(() => {});
 }
+
+// ── Render History ─────────────────────────────────────────────────────────────
+
+/**
+ * Log a render version entry when an issue is (re)processed.
+ * @param {string} issueId
+ * @param {number} renderVersion
+ * @param {number} pageCount
+ * @param {string} triggeredBy - 'pdf_upload' | 'reprocess' | 'manual'
+ * @param {string|null} notes
+ * @returns {{ error: Error|null }}
+ */
+export async function logRenderVersion(issueId, renderVersion, pageCount, triggeredBy, notes) {
+  const { error } = await supabase
+    .from('magazine_render_history')
+    .insert({
+      issue_id:       issueId,
+      render_version: renderVersion,
+      page_count:     pageCount,
+      triggered_by:   triggeredBy || 'manual',
+      notes:          notes || null,
+    });
+  return { error };
+}
+
+/**
+ * Fetch render history for an issue, newest version first.
+ * @param {string} issueId
+ * @returns {{ data: Array, error: Error|null }}
+ */
+export async function fetchRenderHistory(issueId) {
+  const { data, error } = await supabase
+    .from('magazine_render_history')
+    .select('*')
+    .eq('issue_id', issueId)
+    .order('render_version', { ascending: false });
+  return { data: data || [], error };
+}
