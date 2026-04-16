@@ -845,6 +845,7 @@ export default function HomepageEditor({ onBack, isLight = false, allPosts = [] 
   const [selectedId, setSelectedId] = useState(null);
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveErr, setSaveErr] = useState(false);
   const [saving, setSaving] = useState(false);
   const [viewport, setViewport] = useState('desktop');
 
@@ -896,11 +897,16 @@ export default function HomepageEditor({ onBack, isLight = false, allPosts = [] 
 
   const save = async () => {
     setSaving(true);
+    setSaveErr(false);
     const { error } = await saveHomepageConfig(sections);
     setSaving(false);
     if (!error) {
-      setSaved(true); setDirty(false);
+      setSaved(true); setDirty(false); setSaveErr(false);
       setTimeout(() => setSaved(false), 2500);
+    } else {
+      setSaveErr(true);
+      console.error('[HomepageEditor] save failed:', error);
+      setTimeout(() => setSaveErr(false), 4000);
     }
   };
 
@@ -959,9 +965,10 @@ export default function HomepageEditor({ onBack, isLight = false, allPosts = [] 
 
         <span style={{
           fontFamily: FU, fontSize: 9,
-          color: dirty ? S.warn : saved ? S.success : 'transparent',
+          color: saveErr ? S.error : dirty ? S.warn : saved ? S.success : 'transparent',
+          transition: 'color 0.2s',
         }}>
-          {dirty ? '● Unsaved' : saved ? '✓ Saved' : '·'}
+          {saveErr ? '✕ Save failed' : dirty ? '● Unsaved' : saved ? '✓ Saved' : '·'}
         </span>
 
         <GhostBtn small onClick={save} disabled={saving}>
