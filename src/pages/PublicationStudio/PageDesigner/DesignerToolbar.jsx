@@ -4,6 +4,33 @@ import { PAGE_SIZES } from './designerConstants';
 
 const ZOOM_PRESETS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 
+const popoverLabelStyle = {
+  display: 'block',
+  fontFamily: NU,
+  fontSize: 10,
+  color: 'rgba(255,255,255,0.5)',
+  marginBottom: 3,
+  marginTop: 10,
+};
+
+const popoverInputStyle = {
+  width: '100%',
+  boxSizing: 'border-box',
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.12)',
+  borderRadius: 3,
+  color: '#fff',
+  fontFamily: NU,
+  fontSize: 11,
+  padding: '5px 8px',
+  outline: 'none',
+};
+
+const popoverSelectStyle = {
+  ...popoverInputStyle,
+  cursor: 'pointer',
+};
+
 export default function DesignerToolbar({
   issue,
   pages,
@@ -14,10 +41,13 @@ export default function DesignerToolbar({
   onRedo,
   zoom,
   onZoomChange,
+  onFitPage,
   showGrid,
   onToggleGrid,
   showRuler,
   onToggleRuler,
+  showBleed,
+  onToggleBleed,
   spreadView,
   onToggleSpread,
   onSave,
@@ -28,10 +58,15 @@ export default function DesignerToolbar({
   exportingPrint,
   pageSize,
   onPageSizeChange,
+  currentDims,
   hasGuides,
   onClearGuides,
+  pageNumberSettings,
+  onPageNumSettingsChange,
+  onApplyPageNumbers,
 }) {
   const [printConfirm, setPrintConfirm] = useState(false);
+  const [showPageNumPopover, setShowPageNumPopover] = useState(false);
 
   const zoomPct = Math.round(zoom * 100);
 
@@ -90,6 +125,9 @@ export default function DesignerToolbar({
         {/* Ruler toggle */}
         <ToolBtn onClick={onToggleRuler} active={showRuler} title="Toggle ruler">⊟ Ruler</ToolBtn>
 
+        {/* Bleed + safe zone guides */}
+        <ToolBtn onClick={onToggleBleed} active={showBleed} title="Toggle bleed and safe zone guides">⊞ Bleed</ToolBtn>
+
         {/* Spread view toggle */}
         <ToolBtn onClick={onToggleSpread} active={spreadView} title="Toggle double-page spread view">⊠ Spread</ToolBtn>
 
@@ -121,27 +159,130 @@ export default function DesignerToolbar({
           ))}
         </select>
         <ToolBtn onClick={increaseZoom} title="Zoom in">+</ToolBtn>
+
+        {/* Fit page */}
+        {onFitPage && (
+          <ToolBtn onClick={onFitPage} title="Fit page to screen">⊡ Fit</ToolBtn>
+        )}
       </div>
 
       {/* Right controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
 
-        {/* Page size */}
-        <select
-          value={pageSize}
-          onChange={e => onPageSizeChange(e.target.value)}
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 3, color: '#fff',
-            fontFamily: NU, fontSize: 11,
-            padding: '3px 6px', outline: 'none', cursor: 'pointer',
-          }}
-        >
-          {Object.entries(PAGE_SIZES).map(([key, val]) => (
-            <option key={key} value={key}>{val.label}</option>
-          ))}
-        </select>
+        {/* Page size + mm dimensions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <select
+            value={pageSize}
+            onChange={e => onPageSizeChange(e.target.value)}
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 3, color: '#fff',
+              fontFamily: NU, fontSize: 11,
+              padding: '3px 6px', outline: 'none', cursor: 'pointer',
+            }}
+          >
+            {Object.entries(PAGE_SIZES).map(([key, val]) => (
+              <option key={key} value={key}>{val.label}</option>
+            ))}
+          </select>
+          {currentDims && (
+            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontFamily: "'Jost',sans-serif" }}>
+              {currentDims.mmW}×{currentDims.mmH}mm
+            </span>
+          )}
+        </div>
+
+        {/* Page numbering popover */}
+        {pageNumberSettings && (
+          <div style={{ position: 'relative' }}>
+            <ToolBtn onClick={() => setShowPageNumPopover(v => !v)} active={showPageNumPopover} title="Page numbering settings">
+              № Numbering
+            </ToolBtn>
+            {showPageNumPopover && (
+              <div
+                style={{
+                  position: 'absolute', top: '100%', right: 0, zIndex: 300,
+                  background: '#2A2520', border: `1px solid ${BORDER}`, borderRadius: 3,
+                  padding: 16, width: 240, marginTop: 4,
+                }}
+              >
+                <div style={{ marginBottom: 10, fontSize: 10, color: GOLD, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: "'Jost',sans-serif" }}>
+                  Page Numbering
+                </div>
+
+                <label style={popoverLabelStyle}>Format</label>
+                <select
+                  value={pageNumberSettings.format}
+                  onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, format: e.target.value })}
+                  style={popoverSelectStyle}
+                >
+                  <option value="arabic">1, 2, 3 (Arabic)</option>
+                  <option value="roman">i, ii, iii (Roman)</option>
+                  <option value="none">None (no numbers)</option>
+                </select>
+
+                <label style={popoverLabelStyle}>Prefix</label>
+                <input
+                  value={pageNumberSettings.prefix}
+                  onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, prefix: e.target.value })}
+                  placeholder="e.g. — "
+                  style={popoverInputStyle}
+                />
+
+                <label style={popoverLabelStyle}>Suffix</label>
+                <input
+                  value={pageNumberSettings.suffix}
+                  onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, suffix: e.target.value })}
+                  placeholder="e.g. —"
+                  style={popoverInputStyle}
+                />
+
+                <label style={popoverLabelStyle}>Start from</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={pageNumberSettings.startFrom}
+                  onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, startFrom: parseInt(e.target.value) || 1 })}
+                  style={popoverInputStyle}
+                />
+
+                <label style={{ ...popoverLabelStyle, display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                  <input
+                    type="checkbox"
+                    checked={pageNumberSettings.excludeCover}
+                    onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, excludeCover: e.target.checked })}
+                  />
+                  No number on cover
+                </label>
+
+                <label style={{ ...popoverLabelStyle, display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={pageNumberSettings.excludeBackCover}
+                    onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, excludeBackCover: e.target.checked })}
+                  />
+                  No number on back cover
+                </label>
+
+                <button
+                  onClick={() => { onApplyPageNumbers?.(); setShowPageNumPopover(false); }}
+                  style={{
+                    marginTop: 14, width: '100%',
+                    background: 'rgba(201,169,110,0.15)',
+                    border: '1px solid rgba(201,169,110,0.4)',
+                    borderRadius: 3, color: GOLD,
+                    fontFamily: NU, fontSize: 10, fontWeight: 700,
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                    padding: '7px 0', cursor: 'pointer',
+                  }}
+                >
+                  ✦ Apply to All Pages
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
 

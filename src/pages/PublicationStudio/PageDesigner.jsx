@@ -204,6 +204,36 @@ function GuideLines({ guides, onMoveGuide }) {
   );
 }
 
+// ── Page number helpers ───────────────────────────────────────────────────────
+function toRoman(num) {
+  const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1];
+  const syms = ['m','cm','d','cd','c','xc','l','xl','x','ix','v','iv','i'];
+  let result = '';
+  vals.forEach((v, i) => { while (num >= v) { result += syms[i]; num -= v; } });
+  return result;
+}
+
+function getPageDisplayNumber(pageIndex, settings, totalPages) {
+  if (settings.excludeCover && pageIndex === 0) return '';
+  if (settings.excludeBackCover && pageIndex === totalPages - 1 && totalPages > 1) return '';
+
+  let num = pageIndex;
+  const displayNum = num + (settings.startFrom - 1);
+
+  if (displayNum <= 0) return '';
+
+  let formatted;
+  if (settings.format === 'roman') {
+    formatted = toRoman(displayNum);
+  } else if (settings.format === 'arabic') {
+    formatted = String(displayNum);
+  } else {
+    return '';
+  }
+
+  return `${settings.prefix}${formatted}${settings.suffix}`;
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function PageDesigner({ issue, onIssueUpdate }) {
   // Canvas element refs
@@ -216,6 +246,9 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
 
   // Canvas container ref (for guide coordinate calculations)
   const canvasContainerRef = useRef(null);
+
+  // Canvas area ref (for auto-fit zoom)
+  const canvasAreaRef = useRef(null);
 
   const initRef = useRef(false);
 
@@ -231,6 +264,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const [pageSize, setPageSize] = useState(issue?.page_size || 'A4');
   const [showGrid, setShowGrid] = useState(false);
   const [showRuler, setShowRuler] = useState(false);
+  const [showBleed, setShowBleed] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [saving, setSaving] = useState(false);
   const [exportingDigital, setExportingDigital] = useState(false);
@@ -246,7 +280,44 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const [guides, setGuides] = useState({ h: [], v: [] });
   const [draftGuide, setDraftGuide] = useState(null); // null | { axis: 'h'|'v', pos: number }
 
+  // Page number settings
+  const [pageNumberSettings, setPageNumberSettings] = useState({
+    format: 'arabic',
+    prefix: '',
+    suffix: '',
+    startFrom: 1,
+    excludeCover: true,
+    excludeBackCover: true,
+    position: 'bottom-center',
+  });
+
   const dims = PAGE_SIZES[pageSize] || PAGE_SIZES.A4;
+
+  // ── Auto-fit zoom ────────────────────────────────────────────────────────────
+  // Note: fitToScreen only calls setZoom here. handleZoomChange (defined below)
+  // updates the Fabric canvas sizes too. We use a ref to avoid circular deps.
+  const fitToScreenRaw = useCallback(() => {
+    const el = canvasAreaRef.current;
+    if (!el) return;
+    const availW = el.clientWidth  - 80;
+    const availH = el.clientHeight - 80;
+    const scaleW = availW / dims.w;
+    const scaleH = availH / dims.h;
+    const fit = Math.min(scaleW, scaleH, 1.5);
+    return parseFloat(fit.toFixed(2));
+  }, [dims.w, dims.h]);
+
+  const fitToScreen = useCallback(() => {
+    const fit = fitToScreenRaw();
+    if (fit != null) setZoom(fit);
+  }, [fitToScreenRaw]);
+
+  useEffect(() => {
+    fitToScreen();
+    const ro = new ResizeObserver(fitToScreen);
+    if (canvasAreaRef.current) ro.observe(canvasAreaRef.current);
+    return () => ro.disconnect();
+  }, [dims.w, dims.h]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Active canvas helper ────────────────────────────────────────────────────
   const getActiveCanvas = useCallback(() => {
@@ -509,13 +580,73 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     }
   }, [getActiveCanvas, pushUndo]);
 
+  const addPageNumber = useCallback(() => {
+    const fc = getActiveCanvas();
+    if (!fc) return;
+    const displayNum = getPageDisplayNumber(currentPageIndex, pageNumberSettings, pages.length);
+    const tb = new Textbox(displayNum || '1', {
+      left: dims.w / 2 - 30,
+      top: dims.h - 50,
+      width: 60,
+      fontSize: 10,
+      fontFamily: 'Jost',
+      fill: '#18120A',
+      fontWeight: '400',
+      charSpacing: 60,
+      textAlign: 'center',
+    });
+    tb.set('customType', 'pagenumber');
+    loadGoogleFont('Jost');
+    fc.add(tb);
+    fc.setActiveObject(tb);
+    fc.renderAll();
+    pushUndo();
+  }, [getActiveCanvas, currentPageIndex, pageNumberSettings, pages.length, dims, pushUndo]);
+
   function handleAddElement(variant, text) {
     if (['text', 'heading', 'caption', 'pullquote', 'subheading', 'aitext'].includes(variant)) {
       addElement(variant, text);
     } else if (['rect', 'circle', 'line', 'divider'].includes(variant)) {
       addShape(variant);
+    } else if (variant === 'pagenumber') {
+      addPageNumber();
     }
   }
+
+  const handleApplyPageNumbers = useCallback(() => {
+    saveCurrentPageToState();
+    setPages(prev => prev.map((page, i) => {
+      const displayNum = getPageDisplayNumber(i, pageNumberSettings, prev.length);
+      if (!displayNum) return page;
+
+      let canvasData = page.canvasJSON
+        ? JSON.parse(JSON.stringify(page.canvasJSON))
+        : { objects: [], version: '6.0.0' };
+      if (canvasData.objects) {
+        canvasData.objects = canvasData.objects.filter(o => o.customType !== 'pagenumber');
+      } else {
+        canvasData.objects = [];
+      }
+
+      const pnObj = {
+        type: 'textbox',
+        customType: 'pagenumber',
+        left: dims.w / 2 - 30,
+        top: dims.h - 50,
+        width: 60,
+        text: displayNum,
+        fontSize: 10,
+        fontFamily: 'Jost',
+        fill: '#18120A',
+        fontWeight: '400',
+        charSpacing: 60,
+        textAlign: 'center',
+      };
+      canvasData.objects.push(pnObj);
+
+      return { ...page, canvasJSON: canvasData };
+    }));
+  }, [pageNumberSettings, dims, saveCurrentPageToState]);
 
   function handleAddTemplate(templateId) {
     // Stub — templates can be wired to TemplatePicker later
@@ -847,10 +978,13 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         onRedo={handleRedo}
         zoom={zoom}
         onZoomChange={handleZoomChange}
+        onFitPage={fitToScreen}
         showGrid={showGrid}
         onToggleGrid={() => setShowGrid(v => !v)}
         showRuler={showRuler}
         onToggleRuler={() => setShowRuler(v => !v)}
+        showBleed={showBleed}
+        onToggleBleed={() => setShowBleed(v => !v)}
         spreadView={spreadView}
         onToggleSpread={() => {
           saveCurrentPageToState();
@@ -865,8 +999,12 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         exportingPrint={exportingPrint}
         pageSize={pageSize}
         onPageSizeChange={handlePageSizeChange}
+        currentDims={dims}
         hasGuides={guides.h.length > 0 || guides.v.length > 0}
         onClearGuides={handleClearGuides}
+        pageNumberSettings={pageNumberSettings}
+        onPageNumSettingsChange={setPageNumberSettings}
+        onApplyPageNumbers={handleApplyPageNumbers}
       />
 
       {/* Main area: panels + canvas */}
@@ -908,15 +1046,18 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
             )}
 
             {/* Scrollable canvas container */}
-            <div style={{
-              flex: 1,
-              overflow: 'auto',
-              background: '#141210',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: spreadView ? '40px 20px' : '40px',
-            }}>
+            <div
+              ref={canvasAreaRef}
+              style={{
+                flex: 1,
+                overflow: 'auto',
+                background: '#141210',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: spreadView ? '40px 20px' : '40px',
+              }}
+            >
 
               {spreadView ? (
                 // ── SPREAD VIEW ────────────────────────────────────────────────
@@ -1024,6 +1165,28 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
                       width={dims.w * zoom}
                       height={dims.h * zoom}
                     />
+                  )}
+                  {/* Bleed + safe zone guides */}
+                  {showBleed && (
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      pointerEvents: 'none',
+                      zIndex: 15,
+                    }}>
+                      {/* Bleed line — 3mm ≈ 11px */}
+                      <div style={{
+                        position: 'absolute',
+                        inset: 11,
+                        border: '1px dashed rgba(255,80,80,0.5)',
+                      }} />
+                      {/* Safe zone — 5mm ≈ 19px */}
+                      <div style={{
+                        position: 'absolute',
+                        inset: 19,
+                        border: '1px dashed rgba(0,168,255,0.35)',
+                      }} />
+                    </div>
                   )}
                   {/* Guide lines overlay */}
                   <GuideLines

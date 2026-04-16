@@ -141,6 +141,11 @@ export default function ElementsPanel({ onAddElement, onAddImage, onAddTemplate,
         preview={<span style={{ fontFamily: GD, fontSize: 16, color: GOLD, fontStyle: 'italic' }}>"</span>}
         onClick={() => onAddElement('pullquote')}
       />
+      <ElemButton
+        label="Page No."
+        preview={<span style={{ fontFamily: NU, fontSize: 13, color: GOLD }}>№</span>}
+        onClick={() => onAddElement('pagenumber')}
+      />
 
       <Divider />
 
