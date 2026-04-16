@@ -686,6 +686,48 @@ function PageVideoOverlay({ page }) {
   );
 }
 
+// ── Page flip wrapper (desktop only) ─────────────────────────────────────────
+function PageFlipWrapper({ flipDir, isFlipping, children }) {
+  const prefersReduced = typeof window !== 'undefined'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (prefersReduced) return <>{children}</>;
+
+  return (
+    <div style={{
+      width: '100%', height: '100%',
+      position: 'relative',
+      transformStyle: 'preserve-3d',
+      animation: isFlipping
+        ? `${flipDir === 'next' ? 'pageFlipForward' : 'pageFlipBackward'} 0.6s cubic-bezier(0.645,0.045,0.355,1.000) forwards`
+        : 'none',
+      willChange: isFlipping ? 'transform' : 'auto',
+    }}>
+      {children}
+      <style>{`
+        @keyframes pageFlipForward {
+          0%   { transform: rotateY(0deg);   box-shadow: 0 8px 48px rgba(0,0,0,0.0); }
+          40%  { transform: rotateY(-70deg); box-shadow: 0 16px 80px rgba(0,0,0,0.5); }
+          50%  { transform: rotateY(-90deg); box-shadow: 0 20px 100px rgba(0,0,0,0.6); }
+          60%  { transform: rotateY(-70deg); box-shadow: 0 16px 80px rgba(0,0,0,0.4); }
+          100% { transform: rotateY(0deg);   box-shadow: 0 8px 48px rgba(0,0,0,0.0); }
+        }
+        @keyframes pageFlipBackward {
+          0%   { transform: rotateY(0deg);   box-shadow: 0 8px 48px rgba(0,0,0,0.0); }
+          40%  { transform: rotateY(70deg);  box-shadow: 0 16px 80px rgba(0,0,0,0.5); }
+          50%  { transform: rotateY(90deg);  box-shadow: 0 20px 100px rgba(0,0,0,0.6); }
+          60%  { transform: rotateY(70deg);  box-shadow: 0 16px 80px rgba(0,0,0,0.4); }
+          100% { transform: rotateY(0deg);   box-shadow: 0 8px 48px rgba(0,0,0,0.0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          @keyframes pageFlipForward  { 0%, 100% { transform: none; } }
+          @keyframes pageFlipBackward { 0%, 100% { transform: none; } }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 // ── Page image ────────────────────────────────────────────────────────────────
 function PageImage({ page, side, pageBg, onHotspotClick }) {
   const [loaded, setLoaded] = useState(false);
@@ -1167,7 +1209,12 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const [showTextMode, setShowTextMode] = useState(false);
 
   // ── Tier 8: page flip animation state ────────────────────────────────────────
-  const [pageFlip, setPageFlip] = useState(null); // 'next' | 'prev' | null
+  const [flipDir,        setFlipDir]        = useState(null);      // 'next' | 'prev' | null
+  const [isFlipping,     setIsFlipping]     = useState(false);
+  const [displayedPage,  setDisplayedPage]  = useState(1);         // what's currently rendered
+
+  // Ref to prevent rapid-click during flip
+  const flipLockRef = useRef(false);
 
   // Drag-to-pan refs
   const dragging       = useRef(false);
@@ -1325,23 +1372,45 @@ export default function PublicationsReaderPage({ slug, onBack }) {
 
   const goPrev = useCallback(() => {
     if (!canPrev) return;
-    setPageFlip('prev');
+    if (flipLockRef.current || isFlipping) return;
+    if (zoom > 1) { goToPage(Math.max(1, currentPage - step)); return; }
+    const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) { goToPage(Math.max(1, currentPage - step)); return; }
+    const newPage = Math.max(1, currentPage - step);
+    setFlipDir('prev');
+    setIsFlipping(true);
+    flipLockRef.current = true;
     setTimeout(() => {
-      const next = Math.max(1, currentPage - step);
-      goToPage(next);
-      setTimeout(() => setPageFlip(null), 120);
-    }, 80);
-  }, [canPrev, currentPage, step, goToPage]);
+      setDisplayedPage(newPage);
+      goToPage(newPage);
+      setTimeout(() => {
+        setIsFlipping(false);
+        setFlipDir(null);
+        flipLockRef.current = false;
+      }, 300);
+    }, 300);
+  }, [canPrev, currentPage, step, goToPage, isFlipping, zoom]);
 
   const goNext = useCallback(() => {
     if (!canNext || paywallBlocking) return;
-    setPageFlip('next');
+    if (flipLockRef.current || isFlipping) return;
+    if (zoom > 1) { goToPage(Math.min(totalPages, currentPage + step)); return; }
+    const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) { goToPage(Math.min(totalPages, currentPage + step)); return; }
+    const newPage = Math.min(totalPages, currentPage + step);
+    setFlipDir('next');
+    setIsFlipping(true);
+    flipLockRef.current = true;
     setTimeout(() => {
-      const next = Math.min(totalPages, currentPage + step);
-      goToPage(next);
-      setTimeout(() => setPageFlip(null), 120);
-    }, 80);
-  }, [canNext, paywallBlocking, currentPage, step, totalPages, goToPage]);
+      setDisplayedPage(newPage);
+      goToPage(newPage);
+      setTimeout(() => {
+        setIsFlipping(false);
+        setFlipDir(null);
+        flipLockRef.current = false;
+      }, 300);
+    }, 300);
+  }, [canNext, paywallBlocking, currentPage, step, totalPages, goToPage, isFlipping, zoom]);
 
   // ── URL sync on page change ──────────────────────────────────────────────────
   useEffect(() => {
@@ -1353,6 +1422,13 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   useEffect(() => {
     setCreditsOpen(false);
   }, [currentPage]);
+
+  // ── Sync displayedPage for TOC / thumbnail jumps (non-animated navigation) ───
+  useEffect(() => {
+    if (!isFlipping) {
+      setDisplayedPage(currentPage);
+    }
+  }, [currentPage, isFlipping]);
 
   // ── Keyboard shortcuts ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -1517,13 +1593,14 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const useDoubleSpread = isDesktop && forceSpread;
 
   // ── Derive spread pages ──────────────────────────────────────────────────────
-  const pageByNum = (n) => pages.find(p => p.page_number === n) || null;
-  const leftPage  = useDoubleSpread && currentPage > 1 ? pageByNum(currentPage)     : null;
-  const rightPage = useDoubleSpread
-    ? (currentPage === 1 ? pageByNum(1) : pageByNum(currentPage + 1))
-    : pageByNum(currentPage);
-
-  const isDoubleSpread = useDoubleSpread && currentPage > 1;
+  // displayedPage drives what's shown inside the flip wrapper.
+  // currentPage drives everything else (progress bar, counter, TOC, URL, bookmarks).
+  const pageByNum      = (n) => pages.find(p => p.page_number === n) || null;
+  const leftPage       = useDoubleSpread && displayedPage > 1 ? pageByNum(displayedPage)     : null;
+  const rightPage      = useDoubleSpread
+    ? (displayedPage === 1 ? pageByNum(1) : pageByNum(displayedPage + 1))
+    : pageByNum(displayedPage);
+  const isDoubleSpread = useDoubleSpread && displayedPage > 1;
 
   // ── Spread credits ───────────────────────────────────────────────────────────
   const spreadCredits = useMemo(() => {
@@ -1626,24 +1703,34 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
-        {/* ② Spread wrapper with zoom + pan transform + page flip */}
+        {/* ② Spread wrapper with zoom + pan transform */}
         <div style={{
           display: 'flex',
           height: '100%', maxHeight: '100%',
-          width: useDoubleSpread ? (currentPage === 1 ? '50%' : '100%') : 'auto',
+          width: useDoubleSpread ? (displayedPage === 1 ? '50%' : '100%') : 'auto',
           maxWidth: useDoubleSpread ? 1400 : `calc(100vh * ${1 / pageAspect})`,
           gap: isDoubleSpread ? 2 : 0,
           boxShadow: T.pageShad,
           background: T.pageBg,
-          transform: `scale(${zoom}) translate(${panX / zoom}px, ${panY / zoom}px) rotateY(${pageFlip === 'next' ? -15 : pageFlip === 'prev' ? 15 : 0}deg)`,
+          transform: `scale(${zoom}) translate(${panX / zoom}px, ${panY / zoom}px)`,
           transformOrigin: 'center center',
-          opacity: pageFlip ? 0.93 : 1,
-          transition: dragging.current ? 'none' : `transform 0.12s ease-in-out, opacity 0.12s ease`,
+          transition: dragging.current ? 'none' : undefined,
         }}>
-          {useDoubleSpread && currentPage > 1 && (
-            <PageImage page={leftPage} side="left" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
+          {isDesktop ? (
+            <PageFlipWrapper flipDir={flipDir} isFlipping={isFlipping}>
+              {useDoubleSpread && displayedPage > 1 && (
+                <PageImage page={leftPage} side="left" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
+              )}
+              <PageImage page={rightPage} side="right" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
+            </PageFlipWrapper>
+          ) : (
+            <>
+              {useDoubleSpread && displayedPage > 1 && (
+                <PageImage page={leftPage} side="left" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
+              )}
+              <PageImage page={rightPage} side="right" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
+            </>
           )}
-          <PageImage page={rightPage} side="right" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
         </div>
 
         {/* Nav buttons */}
