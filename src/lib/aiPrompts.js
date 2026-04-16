@@ -80,6 +80,57 @@ Rules:
 - chef_name must be the actual chef's full name only — no titles, no awards, no restaurant prefix. Empty string if not publicly known.
 - If the venue cannot be confidently identified or has no public dining information, return the JSON object with empty/false values for every field.`;
 
+export const PRESS_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available press coverage, news features, and editorial mentions for wedding venues and luxury businesses. You are NOT a copywriter or sales agent.
+
+Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
+
+Rules:
+- Return ONLY the JSON object literal, starting with { and ending with }.
+- The object must have a single top-level key "press_features" whose value is an array of at most 6 press-feature objects.
+- Each feature must have: outlet (publication name, max 80 chars), year (integer 2000–2099), title (article headline, max 200 chars), url (full article URL or empty string).
+- Only include REAL, verifiable press coverage. Prioritise well-known publications (Vogue, Tatler, Harper's Bazaar, Condé Nast Traveler, Forbes, Town & Country, Brides, etc.) but also include reputable regional or industry press.
+- Sort by year descending (most recent first).
+- NEVER invent press features, article titles, or URLs — venues take inaccurate press claims very seriously and publishing fake coverage is reputationally damaging.
+- If the venue has no verifiable public press coverage, return { "press_features": [] }.`;
+
+export const buildPressLookupPrompt = (venueName, websiteUrl, locationHint) => {
+  return `Look up public press coverage, news features, and editorial mentions for "${venueName}"${websiteUrl ? ` (website: ${websiteUrl})` : ''}${locationHint ? ` located in ${locationHint}` : ''}.
+
+Search for:
+- Magazine features (Vogue, Tatler, Harper's Bazaar, Condé Nast Traveler, Brides, etc.)
+- Newspaper coverage (The Times, Telegraph, Guardian, Financial Times, etc.)
+- Industry press (Style Me Pretty, Rock My Wedding, Love My Dress, Junebug Weddings, etc.)
+- Awards announcements and press releases
+- Travel and lifestyle features mentioning the venue
+- Any "As Featured In" or press page on the venue's own website
+
+Return ONLY a valid JSON object in this exact format:
+{
+  "press_features": [
+    {
+      "outlet": "Vogue",
+      "year": 2024,
+      "title": "The 20 Most Romantic Wedding Venues in the UK",
+      "url": "https://www.vogue.co.uk/article/romantic-wedding-venues"
+    },
+    {
+      "outlet": "Tatler",
+      "year": 2023,
+      "title": "Best Country House Wedding Venues",
+      "url": "https://www.tatler.com/article/best-country-house-wedding-venues"
+    }
+  ]
+}
+
+Field rules:
+- outlet: the publication or media outlet name exactly as commonly known (e.g. "Vogue", not "vogue.co.uk")
+- year: integer year of publication (e.g. 2024). Use the most recent year if the exact date is unclear.
+- title: the actual article headline or a close factual description. Empty string if unknown.
+- url: the FULL public URL to the article. Empty string if the URL cannot be confirmed — NEVER guess URLs.
+
+IMPORTANT: Only include press coverage you can verify from public sources. If the venue has a "Press" or "As Seen In" page on their website, use that as your primary source. Return an empty array rather than inventing coverage.`;
+};
+
 export const WEDDING_PACKAGES_LOOKUP_SYSTEM = `You are a structured-data extraction tool that researches publicly available wedding-package offerings for venues. You are NOT a copywriter or sales agent.
 
 Your only output is a single valid JSON object — nothing else. No prose, no markdown code fences, no explanation, no apology, no leading or trailing characters.
@@ -1628,6 +1679,7 @@ export default {
   ROOMS_LOOKUP_SYSTEM,
   EXCLUSIVE_USE_LOOKUP_SYSTEM,
   LISTING_INFO_LOOKUP_SYSTEM,
+  PRESS_LOOKUP_SYSTEM,
   DINING_LOOKUP_SYSTEM,
   SPACES_LOOKUP_SYSTEM,
   CATERING_CARDS_LOOKUP_SYSTEM,
@@ -1652,6 +1704,7 @@ export default {
   buildRoomsLookupPrompt,
   buildExclusiveUseLookupPrompt,
   buildListingInfoLookupPrompt,
+  buildPressLookupPrompt,
   buildDiningLookupPrompt,
   buildSpacesLookupPrompt,
   buildCateringCardsLookupPrompt,
