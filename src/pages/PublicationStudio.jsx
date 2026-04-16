@@ -29,10 +29,12 @@ import {
 import { deleteAllPages, fetchPages } from '../services/magazinePageService';
 import { processPdf }                 from '../services/pdfProcessorService';
 import { supabase }                   from '../lib/supabaseClient';
+import { sendEmail, fetchNewsletterSubscribers } from '../services/emailSendService';
 
 // ── Re-used admin components ──────────────────────────────────────────────────
 import PageGrid       from './AdminModules/components/PageGrid';
 import PdfUploader    from './AdminModules/components/PdfUploader';
+import HotspotEditor  from './PublicationStudio/HotspotEditor';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const GOLD   = '#C9A84C';
@@ -576,6 +578,8 @@ function IssueWorkspace({ issueId, onDelete }) {
   const [deleting,    setDeleting]    = useState(false);
   const [coverUp,     setCoverUp]     = useState(false);
   const [reprocessing, setReprocessing] = useState(false);
+  const [pages,       setPages]        = useState([]);
+  const [hotspotPage, setHotspotPage]  = useState(null);
 
   // load issue
   useEffect(() => {
@@ -584,6 +588,14 @@ function IssueWorkspace({ issueId, onDelete }) {
       if (data) { setIssue(data); setFormData(data); }
     });
   }, [issueId]);
+
+  // load pages when pages tab is active
+  useEffect(() => {
+    if (tab !== 'pages' || !issueId) return;
+    fetchPages(issueId).then(({ data }) => {
+      if (data) setPages(data);
+    });
+  }, [tab, issueId]);
 
   const change = useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -612,10 +624,65 @@ function IssueWorkspace({ issueId, onDelete }) {
     setCoverUp(false);
   };
 
+  const sendIssueEmail = useCallback(async (publishedIssue) => {
+    try {
+      const subscribers = await fetchNewsletterSubscribers();
+      if (!subscribers.length) return;
+
+      const coverImg = publishedIssue.cover_image || '';
+      const issueLabel = [
+        publishedIssue.issue_number && `Issue ${publishedIssue.issue_number}`,
+        publishedIssue.season,
+        publishedIssue.year,
+      ].filter(Boolean).join(' · ');
+
+      const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0A0908;font-family:'Georgia',serif;">
+  <div style="max-width:600px;margin:0 auto;background:#0A0908;padding:40px 32px;">
+    <div style="text-align:center;margin-bottom:8px;">
+      <span style="font-family:'Georgia',serif;font-size:11px;color:#C9A84C;letter-spacing:0.2em;text-transform:uppercase;">Luxury Wedding Directory</span>
+    </div>
+    <div style="border-top:1px solid rgba(201,168,76,0.3);margin-bottom:32px;"></div>
+    ${coverImg ? `<div style="text-align:center;margin-bottom:28px;"><img src="${coverImg}" alt="Issue Cover" style="max-height:400px;max-width:100%;object-fit:contain;box-shadow:0 12px 48px rgba(0,0,0,0.6);"></div>` : ''}
+    <div style="text-align:center;margin-bottom:8px;">
+      <span style="font-family:'Georgia',serif;font-size:11px;color:#C9A84C;letter-spacing:0.15em;text-transform:uppercase;">${issueLabel}</span>
+    </div>
+    <h1 style="font-family:'Georgia',serif;font-size:32px;font-weight:400;font-style:italic;color:#F0EBE0;text-align:center;margin:0 0 16px;">${publishedIssue.title || 'New Issue'}</h1>
+    ${publishedIssue.intro ? `<p style="font-family:'Georgia',serif;font-size:16px;line-height:1.7;color:rgba(240,235,224,0.75);text-align:center;margin:0 0 32px;">${publishedIssue.intro.slice(0,200)}${publishedIssue.intro.length > 200 ? '…' : ''}</p>` : ''}
+    <div style="text-align:center;margin-bottom:40px;">
+      <a href="https://luxuryweddingdirectory.com/publications/${publishedIssue.slug}" style="display:inline-block;background:#C9A84C;color:#0A0908;font-family:'Georgia',serif;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;padding:14px 36px;border-radius:2px;">Read the Issue ✦</a>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:24px;text-align:center;">
+      <span style="font-size:11px;color:rgba(255,255,255,0.3);font-family:sans-serif;">© ${new Date().getFullYear()} Luxury Wedding Directory · <a href="https://luxuryweddingdirectory.com/unsubscribe" style="color:rgba(255,255,255,0.3);">Unsubscribe</a></span>
+    </div>
+  </div>
+</body>
+</html>`;
+
+      await sendEmail({
+        subject:    `New Issue: ${publishedIssue.title || 'The Latest Edition'} — LWD`,
+        fromName:   'Luxury Wedding Directory',
+        fromEmail:  'editorial@luxuryweddingdirectory.com',
+        html,
+        recipients: subscribers.map(s => ({ email: s.email, name: [s.first_name, s.last_name].filter(Boolean).join(' ') || undefined })),
+        type:       'campaign',
+      });
+      console.log('[PublicationStudio] Launch email sent to', subscribers.length, 'subscribers');
+    } catch (err) {
+      console.warn('[PublicationStudio] Launch email failed (non-blocking):', err.message);
+    }
+  }, []);
+
   const handlePublish = async () => {
     setPublishing(true);
     const { data, error } = await publishIssue(issueId);
-    if (!error && data) { setIssue(data); setFormData(data); }
+    if (!error && data) {
+      setIssue(data);
+      setFormData(data);
+      sendIssueEmail(data).catch(() => {}); // fire and forget
+    }
     setPublishing(false);
   };
 
@@ -735,9 +802,44 @@ function IssueWorkspace({ issueId, onDelete }) {
               onPageCountChange={count => {
                 setIssue(prev => ({ ...prev, page_count: count }));
                 setFormData(prev => ({ ...prev, page_count: count }));
+                // Refresh pages list after count change
+                fetchPages(issueId).then(({ data }) => { if (data) setPages(data); });
               }}
             />
+
+            {/* Hotspot quick-access list */}
+            {pages.length > 0 && (
+              <div style={{ marginTop: 24 }}>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>
+                  Page Hotspots & Credits
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {pages.map(pg => (
+                    <div key={pg.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <span style={{ fontFamily: NU, fontSize: 11, color: MUTED, minWidth: 32 }}>p{pg.page_number}</span>
+                      {pg.link_targets?.length > 0 && <span style={{ fontFamily: NU, fontSize: 9, color: GOLD }}>✦ {pg.link_targets.length} hotspot{pg.link_targets.length > 1 ? 's' : ''}</span>}
+                      {pg.vendor_credits?.length > 0 && <span style={{ fontFamily: NU, fontSize: 9, color: MUTED }}>◈ {pg.vendor_credits.length} credit{pg.vendor_credits.length > 1 ? 's' : ''}</span>}
+                      <button onClick={() => setHotspotPage(pg)} style={{ marginLeft: 'auto', fontFamily: NU, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: GOLD, background: 'none', border: `1px solid rgba(201,168,76,0.3)`, padding: '5px 12px', borderRadius: 2, cursor: 'pointer' }}>
+                        ✦ Edit
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+        )}
+
+        {/* HotspotEditor overlay */}
+        {hotspotPage && (
+          <HotspotEditor
+            page={hotspotPage}
+            onSave={(updatedPage) => {
+              setPages(ps => ps.map(p => p.id === updatedPage.id ? updatedPage : p));
+              setHotspotPage(null);
+            }}
+            onClose={() => setHotspotPage(null)}
+          />
         )}
 
         {tab === 'pdf' && (

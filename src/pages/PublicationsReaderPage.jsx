@@ -6,7 +6,7 @@
 //           reader mode (dark/sepia), cinematic intro, reading progress bar,
 //           enhanced page counter, keyboard shortcuts, pinch-to-zoom
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { fetchIssueBySlug } from '../services/magazineIssuesService';
 import { fetchPages }       from '../services/magazinePageService';
 import { trackIssueView, trackPageTurn, trackDownload } from '../services/publicationsAnalyticsService';
@@ -505,12 +505,56 @@ function TopBar({
   );
 }
 
+// ── Hotspot overlay item ──────────────────────────────────────────────────────
+function HotspotOverlay({ hotspot, onClick }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      title={hotspot.label}
+      style={{
+        position:   'absolute',
+        left:       hotspot.x + '%',
+        top:        hotspot.y + '%',
+        width:      hotspot.w + '%',
+        height:     hotspot.h + '%',
+        border:     `2px solid ${hovered ? '#C9A84C' : 'rgba(201,168,76,0.35)'}`,
+        background: hovered ? 'rgba(201,168,76,0.12)' : 'rgba(201,168,76,0.04)',
+        cursor:     'pointer',
+        transition: 'all 0.15s',
+        borderRadius: 2,
+        display:    'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'flex-start',
+        padding:    4,
+        boxSizing:  'border-box',
+      }}
+    >
+      {hovered && (
+        <span style={{
+          fontFamily: NU,
+          fontSize: 9, fontWeight: 600, color: '#C9A84C',
+          background: 'rgba(0,0,0,0.8)', padding: '3px 7px',
+          borderRadius: 2, letterSpacing: '0.08em', textTransform: 'uppercase',
+          maxWidth: '90%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+        }}>
+          ✦ {hotspot.label}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ── Page image ────────────────────────────────────────────────────────────────
-function PageImage({ page, side, pageBg }) {
+function PageImage({ page, side, pageBg, onHotspotClick }) {
   const [loaded, setLoaded] = useState(false);
   if (!page) {
     return <div style={{ flex: 1, background: pageBg, border: '1px solid rgba(255,255,255,0.04)' }} />;
   }
+  const hotspots = page?.link_targets || [];
   return (
     <div style={{ flex: 1, position: 'relative', background: pageBg, overflow: 'hidden' }}>
       {!loaded && (
@@ -533,6 +577,14 @@ function PageImage({ page, side, pageBg }) {
           userSelect: 'none', pointerEvents: 'none',
         }}
       />
+      {/* Hotspot overlay — only shown when image is loaded */}
+      {loaded && hotspots.map(hs => (
+        <HotspotOverlay
+          key={hs.id}
+          hotspot={hs}
+          onClick={() => onHotspotClick?.(hs)}
+        />
+      ))}
     </div>
   );
 }
@@ -683,6 +735,146 @@ function ZoomPill({ zoom, onReset }) {
   );
 }
 
+// ── Vendor Credits button ─────────────────────────────────────────────────────
+function VendorCreditsButton({ count, open, onToggle }) {
+  return (
+    <button onClick={onToggle} style={{
+      position: 'fixed', bottom: 56, left: 20, zIndex: 110,
+      background: open ? 'rgba(201,168,76,0.15)' : 'rgba(0,0,0,0.55)',
+      border: `1px solid ${open ? 'rgba(201,168,76,0.5)' : 'rgba(255,255,255,0.1)'}`,
+      borderRadius: 2, color: open ? '#C9A84C' : 'rgba(255,255,255,0.6)',
+      fontFamily: NU, fontSize: 9, fontWeight: 600,
+      letterSpacing: '0.1em', textTransform: 'uppercase', padding: '7px 14px',
+      cursor: 'pointer', transition: 'all 0.15s',
+    }}>
+      ◈ Credits ({count})
+    </button>
+  );
+}
+
+// ── Credits drawer ────────────────────────────────────────────────────────────
+function CreditsDrawer({ credits, onClose }) {
+  return (
+    <div style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 120,
+      background: 'rgba(10,9,8,0.97)', backdropFilter: 'blur(12px)',
+      borderTop: '1px solid rgba(255,255,255,0.08)',
+      padding: '20px 24px 28px',
+      animation: 'slideUp 0.25s ease',
+    }}>
+      <style>{`@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+        <span style={{ fontFamily: GD, fontSize: 18, color: '#F0EBE0', flex: 1 }}>In This Spread</span>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 16, padding: 0 }}>✕</button>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+        {credits.map((c, i) => (
+          <a
+            key={i}
+            href={c.profileSlug ? `/vendor/${c.profileSlug}` : (c.website || '#')}
+            target={c.website ? '_blank' : undefined}
+            rel="noreferrer"
+            style={{
+              display: 'flex', flexDirection: 'column', gap: 3,
+              padding: '10px 14px', background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3,
+              textDecoration: 'none', minWidth: 140,
+              transition: 'border-color 0.15s',
+            }}
+          >
+            <span style={{ fontFamily: NU, fontSize: 8, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{c.role}</span>
+            <span style={{ fontFamily: GD, fontSize: 15, color: '#F0EBE0', fontStyle: 'italic' }}>{c.vendorName}</span>
+            {c.category && <span style={{ fontFamily: NU, fontSize: 9, color: MUTED }}>{c.category}</span>}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── In-reader enquiry modal ───────────────────────────────────────────────────
+function InReaderEnquiryModal({ hotspot, onClose }) {
+  const [form,    setForm]    = useState({ name: '', email: '', message: '' });
+  const [sending, setSending] = useState(false);
+  const [sent,    setSent]    = useState(false);
+
+  const handleSubmit = async () => {
+    if (!form.name || !form.email) return;
+    setSending(true);
+    try {
+      const { supabase } = await import('../lib/supabaseClient');
+      await supabase.from('inquiries').insert({
+        vendor_name: hotspot.vendorName,
+        vendor_url:  hotspot.url,
+        category:    hotspot.category,
+        name:        form.name,
+        email:       form.email,
+        message:     form.message || `Enquiry about ${hotspot.label}`,
+        source:      'publication_hotspot',
+      }).catch(() => {});
+      setSent(true);
+    } catch {}
+    setSending(false);
+  };
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{ background: '#0A0908', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: 32, width: 'min(420px,90vw)', position: 'relative' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 18 }}>✕</button>
+        {sent ? (
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <div style={{ fontSize: 28, marginBottom: 12 }}>✦</div>
+            <div style={{ fontFamily: GD, fontSize: 22, color: '#F0EBE0', marginBottom: 8 }}>Enquiry sent</div>
+            <div style={{ fontFamily: NU, fontSize: 12, color: MUTED }}>We'll be in touch shortly.</div>
+            <button onClick={onClose} style={{ marginTop: 20, fontFamily: NU, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: GOLD, background: 'none', border: `1px solid ${GOLD}`, padding: '9px 24px', borderRadius: 2, cursor: 'pointer' }}>Close</button>
+          </div>
+        ) : (
+          <>
+            <div style={{ fontFamily: NU, fontSize: 9, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>Enquire About</div>
+            <div style={{ fontFamily: GD, fontSize: 22, color: '#F0EBE0', fontStyle: 'italic', marginBottom: 4 }}>{hotspot.label}</div>
+            {hotspot.vendorName && <div style={{ fontFamily: NU, fontSize: 12, color: MUTED, marginBottom: 20 }}>{hotspot.vendorName}</div>}
+            {[
+              { key: 'name',  label: 'Your Name',      placeholder: 'Isabella Chen',          type: 'text'  },
+              { key: 'email', label: 'Email Address',   placeholder: 'isabella@example.com',   type: 'email' },
+            ].map(f => (
+              <div key={f.key} style={{ marginBottom: 14 }}>
+                <label style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, color: MUTED, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>{f.label}</label>
+                <input
+                  type={f.type}
+                  value={form[f.key]}
+                  onChange={e => setForm(v => ({ ...v, [f.key]: e.target.value }))}
+                  placeholder={f.placeholder}
+                  style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 3, color: '#fff', fontFamily: NU, fontSize: 13, padding: '8px 10px', outline: 'none' }}
+                />
+              </div>
+            ))}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontFamily: NU, fontSize: 10, fontWeight: 700, color: MUTED, letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>Message (optional)</label>
+              <textarea
+                value={form.message}
+                onChange={e => setForm(v => ({ ...v, message: e.target.value }))}
+                rows={3}
+                placeholder={`I'm interested in ${hotspot.label}…`}
+                style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 3, color: '#fff', fontFamily: NU, fontSize: 13, padding: '8px 10px', outline: 'none', resize: 'vertical' }}
+              />
+            </div>
+            <button
+              onClick={handleSubmit}
+              disabled={sending || !form.name || !form.email}
+              style={{ width: '100%', background: GOLD, border: 'none', color: '#0A0908', fontFamily: NU, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '12px', borderRadius: 2, cursor: 'pointer', opacity: (!form.name || !form.email) ? 0.5 : 1 }}
+            >
+              {sending ? 'Sending…' : 'Send Enquiry ✦'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main reader component ─────────────────────────────────────────────────────
 export default function PublicationsReaderPage({ slug, onBack }) {
   const [issue,   setIssue]   = useState(null);
@@ -703,6 +895,10 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const [showIntro, setShowIntro] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const toastTimer = useRef(null);
+
+  // ── Tier 2: hotspots + credits state ─────────────────────────────────────────
+  const [activeHotspot, setActiveHotspot] = useState(null);
+  const [creditsOpen,   setCreditsOpen]   = useState(false);
 
   // Drag-to-pan refs
   const dragging       = useRef(false);
@@ -829,6 +1025,11 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     if (!slug || !issue) return;
     window.history.replaceState({}, '', `/publications/${slug}?page=${currentPage}`);
   }, [currentPage, slug, issue]);
+
+  // ── Close credits drawer on page navigation ───────────────────────────────────
+  useEffect(() => {
+    setCreditsOpen(false);
+  }, [currentPage]);
 
   // ── Keyboard shortcuts ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -967,6 +1168,15 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     window.open(issue.pdf_url, '_blank', 'noreferrer');
   }, [issue]);
 
+  // ── Hotspot click handler ────────────────────────────────────────────────────
+  const handleHotspotClick = useCallback((hs) => {
+    if (hs.type === 'vendor' && hs.url) {
+      setActiveHotspot(hs);
+    } else if (hs.url) {
+      window.open(hs.url, '_blank', 'noreferrer');
+    }
+  }, []);
+
   // ── Derive spread pages ──────────────────────────────────────────────────────
   const pageByNum = (n) => pages.find(p => p.page_number === n) || null;
   const leftPage  = isDesktop && currentPage > 1 ? pageByNum(currentPage)     : null;
@@ -975,6 +1185,14 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     : pageByNum(currentPage);
 
   const isDoubleSpread = isDesktop && currentPage > 1;
+
+  // ── Spread credits ───────────────────────────────────────────────────────────
+  const spreadCredits = useMemo(() => {
+    const creditPages = [leftPage, rightPage].filter(Boolean);
+    return creditPages.flatMap(p => p?.vendor_credits || []);
+  }, [leftPage, rightPage]);
+  const spreadHasCredits = spreadCredits.length > 0;
+  const spreadCreditCount = spreadCredits.length;
 
   // ── Render ───────────────────────────────────────────────────────────────────
   if (loading) return <Spinner />;
@@ -1056,9 +1274,9 @@ export default function PublicationsReaderPage({ slug, onBack }) {
           transition: dragging.current ? 'none' : 'transform 0.1s ease',
         }}>
           {isDesktop && currentPage > 1 && (
-            <PageImage page={leftPage} side="left" pageBg={PAGE_BG} />
+            <PageImage page={leftPage} side="left" pageBg={PAGE_BG} onHotspotClick={handleHotspotClick} />
           )}
-          <PageImage page={rightPage} side="right" pageBg={PAGE_BG} />
+          <PageImage page={rightPage} side="right" pageBg={PAGE_BG} onHotspotClick={handleHotspotClick} />
         </div>
 
         {/* Nav buttons */}
@@ -1084,6 +1302,31 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         onJump={goToPage}
         isDesktop={isDesktop}
       />
+
+      {/* Vendor Credits button */}
+      {spreadHasCredits && (
+        <VendorCreditsButton
+          count={spreadCreditCount}
+          open={creditsOpen}
+          onToggle={() => setCreditsOpen(o => !o)}
+        />
+      )}
+
+      {/* Credits drawer */}
+      {creditsOpen && (
+        <CreditsDrawer
+          credits={spreadCredits}
+          onClose={() => setCreditsOpen(false)}
+        />
+      )}
+
+      {/* In-reader enquiry modal */}
+      {activeHotspot && (
+        <InReaderEnquiryModal
+          hotspot={activeHotspot}
+          onClose={() => setActiveHotspot(null)}
+        />
+      )}
 
       {/* ⑤ Share toast */}
       <Toast message="Link copied!" visible={toastVisible} />

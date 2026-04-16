@@ -237,3 +237,43 @@ export async function updatePageCaption(pageId, caption) {
     return { data: null, error };
   }
 }
+
+/**
+ * Save hotspot link_targets for a page.
+ * @param {string} pageId - UUID of magazine_issue_pages row
+ * @param {Array}  hotspots - array of hotspot objects
+ */
+export async function updatePageHotspots(pageId, hotspots) {
+  try {
+    const { data, error } = await supabase
+      .from(PAGES_TABLE)
+      .update({ link_targets: hotspots })
+      .eq('id', pageId)
+      .select()
+      .single();
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+}
+
+/**
+ * Save vendor credits for a page.
+ * @param {string} pageId  - UUID of magazine_issue_pages row
+ * @param {Array}  credits - array of credit objects
+ */
+export async function updatePageCredits(pageId, credits) {
+  try {
+    const { data, error } = await supabase
+      .from(PAGES_TABLE)
+      .update({ vendor_credits: credits })
+      .eq('id', pageId)
+      .select()
+      .single();
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+}
