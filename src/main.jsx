@@ -81,6 +81,7 @@ import PublicationsPage       from "./pages/PublicationsPage.jsx";
 import PublicationsReaderPage from "./pages/PublicationsReaderPage.jsx";
 import PublicationsEmbedPage  from "./pages/PublicationsEmbedPage.jsx";
 import PublicationStudio      from "./pages/PublicationStudio.jsx";
+import ThumbnailRenderer      from "./pages/PublicationStudio/ThumbnailRenderer.jsx";
 import MagazineHomePage     from "./pages/Magazine/MagazineHomePage.jsx";
 import CategoryPage          from "./pages/Magazine/CategoryPage.jsx";
 import MagazineArticlePage  from "./pages/Magazine/MagazineArticlePage.jsx";
@@ -335,6 +336,8 @@ function pathToState(pathname) {
   if (parts[0] === "publications" && parts[1] === "embed" && parts.length === 3) return { page: "publications-embed", publicationsEmbedSlug: parts[2] };
   if (parts[0] === "publications" && parts.length === 2) return { page: "publications-reader", publicationsSlug: parts[1] };
   if (parts[0] === "publication-studio") return { page: "publication-studio" };
+  // Dev-only renderer for thumbnail generation — see scripts/generate-template-thumbnails.mjs
+  if (parts[0] === "studio-thumbnail" && parts.length === 2) return { page: "studio-thumbnail", templateId: parts[1] };
   if (parts[0] === "magazine" && parts.length === 1) return { page: "magazine" };
   if (parts[0] === "magazine" && parts[1] === "category" && parts.length === 3) return { page: "magazine-category", magazineCategoryId: parts[2] };
   if (parts[0] === "magazine" && parts[1] === "fashion" && parts.length === 2) return { page: "magazine-fashion" };
@@ -454,6 +457,7 @@ function App() {
   const [activeMagazineSlug, setActiveMagazineSlug] = useState(initial.magazineSlug || null);
   const [activePublicationsSlug, setActivePublicationsSlug] = useState(initial.publicationsSlug || null);
   const [activeEmbedSlug,        setActiveEmbedSlug]        = useState(initial.publicationsEmbedSlug || null);
+  const [studioThumbnailId,      setStudioThumbnailId]      = useState(initial.templateId || null);
   const [studioEntityType, setStudioEntityType] = useState(initial.entityType || null);
   const [studioSlug, setStudioSlug] = useState(initial.slug || null);
   const [activeVenueSlug, setActiveVenueSlug] = useState(initial.venueSlug || null);
@@ -539,6 +543,7 @@ function App() {
       setActiveEventSlug(s.eventSlug || null);
       setActiveLocationType(s.locationType || null);
       setActiveLocationSlug(s.locationSlug || null);
+      setStudioThumbnailId(s.templateId || null);
       setCategoryRegion(null);
       setCategorySearchQuery(null);
       setPage(s.page);
@@ -889,6 +894,9 @@ function App() {
             onBack={goHome}
           />
         )}
+        {page === "studio-thumbnail" && (
+          <ThumbnailRenderer templateId={studioThumbnailId} />
+        )}
         {page === "magazine" && (
           <MagazineHomePage
             onNavigateArticle={goMagazineArticle}
@@ -1201,15 +1209,15 @@ function App() {
             Rendered here for ALL pages except auth/dashboard pages listed below.
             RULE: Never import or render <SiteFooter> inside a page component that
             is served through this main.jsx render tree — it will double-render. ── */}
-        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review","publications-reader","publications-embed","publication-studio"].includes(page) && (
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review","publications-reader","publications-embed","publication-studio","studio-thumbnail"].includes(page) && (
           <SiteFooter onNavigateAdmin={goAdmin} />
         )}
 
         {/* ── Aura suppressor — keeps chat closed on all dashboard / auth pages ── */}
-        <AuraSuppressor active={["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","join"].includes(page)} />
+        <AuraSuppressor active={["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","join","studio-thumbnail"].includes(page)} />
 
         {/* ── Global chat system, hidden on dashboards and auth pages ── */}
-        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","join"].includes(page) && (
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","join","studio-thumbnail"].includes(page) && (
           <AuraChat onNavigateHome={goHome} />
         )}
 

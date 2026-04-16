@@ -24,8 +24,8 @@ function genId() {
 // page dims. This is what keeps a template looking right on A5 / Tabloid /
 // Square pages instead of rendering the same absolute pixels on a bigger
 // canvas (which made text look too small and sit too close to the edge).
-const TEMPLATE_REF_W = 794;
-const TEMPLATE_REF_H = 1123;
+export const TEMPLATE_REF_W = 794;
+export const TEMPLATE_REF_H = 1123;
 
 // ── Curated Unsplash image set ────────────────────────────────────────────────
 // High-res editorial photography used as default placeholder imagery for each
@@ -131,7 +131,7 @@ function addImagePlaceholder(fc, { left, top, width, height, imageUrl, fill = '#
   }
 }
 
-function applyTemplate(fc, template, dims) {
+export function applyTemplate(fc, template, dims) {
   fc.clear();
   fc.backgroundColor = '#ffffff';
 
