@@ -15,13 +15,39 @@ import { trackIssueView, trackPageTurn, trackDownload } from '../services/public
 const GOLD      = '#C9A84C';
 const GD        = "var(--font-heading-primary, 'Cormorant Garamond', Georgia, serif)";
 const NU        = "var(--font-body, 'Jost', sans-serif)";
-const BG_DARK   = '#080706';
-const BG_SEPIA  = '#16120C';
-const PAGE_DARK = '#0F0D0A';
-const PAGE_SEPIA= '#1E1810';
 const MUTED     = 'rgba(255,255,255,0.38)';
 const CTRL_BG   = 'rgba(0,0,0,0.55)';
 const CTRL_HOV  = 'rgba(201,168,76,0.18)';
+
+// Reader theme system — dark (lights off) vs light (lights on)
+const READER_THEMES = {
+  dark: {
+    bg:       '#080706',
+    pageBg:   '#0F0D0A',
+    ctrlBg:   'rgba(0,0,0,0.6)',
+    ctrlText: 'rgba(255,255,255,0.72)',
+    ctrlBdr:  'rgba(255,255,255,0.1)',
+    muted:    'rgba(255,255,255,0.38)',
+    topGrad:  'linear-gradient(to bottom, rgba(8,7,6,0.96) 0%, rgba(8,7,6,0) 100%)',
+    btnHov:   'rgba(201,168,76,0.18)',
+    text:     '#ffffff',
+    shadow:   '0 8px 48px rgba(0,0,0,0.6)',
+    pageShad: '0 8px 48px rgba(0,0,0,0.6)',
+  },
+  light: {
+    bg:       '#EAE5DC',
+    pageBg:   '#FFFFFF',
+    ctrlBg:   'rgba(255,255,255,0.88)',
+    ctrlText: 'rgba(24,18,10,0.72)',
+    ctrlBdr:  'rgba(24,18,10,0.12)',
+    muted:    'rgba(24,18,10,0.45)',
+    topGrad:  'linear-gradient(to bottom, rgba(234,229,220,0.97) 0%, rgba(234,229,220,0) 100%)',
+    btnHov:   'rgba(201,168,76,0.15)',
+    text:     '#18120A',
+    shadow:   '0 4px 28px rgba(0,0,0,0.12)',
+    pageShad: '0 8px 40px rgba(0,0,0,0.14)',
+  },
+};
 
 // ── Bookmark helpers ──────────────────────────────────────────────────────────
 function loadBookmarks(issueId) {
@@ -53,7 +79,7 @@ function Spinner() {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', height: '100vh', background: BG_DARK, gap: 20,
+      justifyContent: 'center', height: '100vh', background: '#080706', gap: 20,
     }}>
       <div style={{ fontSize: 32, opacity: 0.3, animation: 'spin 2s linear infinite' }}>◈</div>
       <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
@@ -69,7 +95,7 @@ function ErrorScreen({ message, onBack }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', height: '100vh', background: BG_DARK,
+      justifyContent: 'center', height: '100vh', background: '#080706',
       gap: 16, padding: 24, textAlign: 'center',
     }}>
       <span style={{ fontSize: 36, opacity: 0.25 }}>◈</span>
@@ -224,7 +250,7 @@ function Toast({ message, visible }) {
 }
 
 // ── TOC Panel ────────────────────────────────────────────────────────────────
-function TOCPanel({ open, onClose, pages, currentPage, onJump, bookmarks, onToggleBookmark }) {
+function TOCPanel({ open, onClose, pages, currentPage, onJump, bookmarks, onToggleBookmark, T }) {
   const listRef  = useRef(null);
   const activeRef = useRef(null);
 
@@ -251,9 +277,9 @@ function TOCPanel({ open, onClose, pages, currentPage, onJump, bookmarks, onTogg
       <div style={{
         position: 'fixed', top: 0, left: 0, bottom: 0,
         width: 280, zIndex: 195,
-        background: 'rgba(8,7,6,0.97)',
+        background: T.ctrlBg,
         backdropFilter: 'blur(12px)',
-        borderRight: '1px solid rgba(255,255,255,0.08)',
+        borderRight: `1px solid ${T.ctrlBdr}`,
         display: 'flex', flexDirection: 'column',
         transform: open ? 'translateX(0)' : 'translateX(-100%)',
         transition: 'transform 0.28s ease',
@@ -262,7 +288,7 @@ function TOCPanel({ open, onClose, pages, currentPage, onJump, bookmarks, onTogg
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '18px 16px 14px',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
+          borderBottom: `1px solid ${T.ctrlBdr}`,
           flexShrink: 0,
         }}>
           <span style={{
@@ -274,7 +300,7 @@ function TOCPanel({ open, onClose, pages, currentPage, onJump, bookmarks, onTogg
           <button
             onClick={onClose}
             style={{
-              background: 'none', border: 'none', color: MUTED,
+              background: 'none', border: 'none', color: T.muted,
               cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 4,
             }}
           >
@@ -301,14 +327,14 @@ function TOCPanel({ open, onClose, pages, currentPage, onJump, bookmarks, onTogg
                   transition: 'background 0.15s',
                 }}
                 onClick={() => { onJump(p.page_number); onClose(); }}
-                onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = T.btnHov; }}
                 onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
               >
                 {/* Thumbnail */}
                 <div style={{
                   width: 48, height: 68, flexShrink: 0,
-                  background: PAGE_DARK, borderRadius: 1, overflow: 'hidden',
-                  border: `1px solid ${isCurrent ? 'rgba(201,168,76,0.4)' : 'rgba(255,255,255,0.07)'}`,
+                  background: T.pageBg, borderRadius: 1, overflow: 'hidden',
+                  border: `1px solid ${isCurrent ? 'rgba(201,168,76,0.4)' : T.ctrlBdr}`,
                 }}>
                   {thumbSrc
                     ? <img src={thumbSrc} alt={`p${p.page_number}`}
@@ -316,14 +342,14 @@ function TOCPanel({ open, onClose, pages, currentPage, onJump, bookmarks, onTogg
                     : <div style={{
                         width: '100%', height: '100%', display: 'flex',
                         alignItems: 'center', justifyContent: 'center',
-                        fontFamily: NU, fontSize: 9, color: MUTED,
+                        fontFamily: NU, fontSize: 9, color: T.muted,
                       }}>{p.page_number}</div>
                   }
                 </div>
                 {/* Page number */}
                 <span style={{
                   fontFamily: NU, fontSize: 10,
-                  color: isCurrent ? 'rgba(255,255,255,0.85)' : MUTED,
+                  color: isCurrent ? T.text : T.muted,
                   flex: 1,
                   letterSpacing: '0.04em',
                 }}>
@@ -335,7 +361,7 @@ function TOCPanel({ open, onClose, pages, currentPage, onJump, bookmarks, onTogg
                   title={isBookmarked ? 'Remove bookmark' : 'Bookmark this page'}
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer',
-                    color: isBookmarked ? GOLD : 'rgba(255,255,255,0.25)',
+                    color: isBookmarked ? GOLD : T.muted,
                     fontSize: 13, padding: '4px 8px', flexShrink: 0,
                     transition: 'color 0.15s',
                   }}
@@ -358,13 +384,14 @@ function TopBar({
   bookmarked, onToggleBookmark,
   onShare,
   readerMode, onToggleMode,
+  T,
 }) {
   const btnStyle = {
-    background:    CTRL_BG,
-    border:        '1px solid rgba(255,255,255,0.1)',
+    background:    T.ctrlBg,
+    border:        `1px solid ${T.ctrlBdr}`,
     borderRadius:  2,
     padding:       '6px 12px',
-    color:         'rgba(255,255,255,0.6)',
+    color:         T.ctrlText,
     fontFamily:    NU,
     fontSize:      9,
     fontWeight:    600,
@@ -387,7 +414,7 @@ function TopBar({
       right:      0,
       zIndex:     100,
       height:     52,
-      background: 'linear-gradient(to bottom, rgba(8,7,6,0.96) 0%, rgba(8,7,6,0) 100%)',
+      background: T.topGrad,
       display:    'flex',
       alignItems: 'center',
       padding:    '0 20px',
@@ -418,7 +445,7 @@ function TopBar({
             .filter(Boolean).join(' · ')}
         </div>
         <div style={{
-          fontFamily: GD, fontSize: 16, fontWeight: 400, color: '#fff',
+          fontFamily: GD, fontSize: 16, fontWeight: 400, color: T.text,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
           {issue.title || 'Untitled Issue'}
@@ -430,8 +457,8 @@ function TopBar({
         onClick={onToggleTOC}
         style={{
           ...btnStyle,
-          color: showTOC ? GOLD : 'rgba(255,255,255,0.6)',
-          border: showTOC ? `1px solid rgba(201,168,76,0.45)` : '1px solid rgba(255,255,255,0.1)',
+          color: showTOC ? GOLD : T.ctrlText,
+          border: showTOC ? `1px solid rgba(201,168,76,0.45)` : `1px solid ${T.ctrlBdr}`,
         }}
       >
         ☰ Contents
@@ -442,8 +469,8 @@ function TopBar({
         onClick={onToggleBookmark}
         style={{
           ...btnStyle,
-          color: bookmarked ? GOLD : 'rgba(255,255,255,0.6)',
-          border: bookmarked ? `1px solid rgba(201,168,76,0.45)` : '1px solid rgba(255,255,255,0.1)',
+          color: bookmarked ? GOLD : T.ctrlText,
+          border: bookmarked ? `1px solid rgba(201,168,76,0.45)` : `1px solid ${T.ctrlBdr}`,
         }}
         title={bookmarked ? 'Remove bookmark' : 'Bookmark this page'}
       >
@@ -460,14 +487,14 @@ function TopBar({
         ↗ Share
       </button>
 
-      {/* Reader mode (desktop) */}
+      {/* Reader mode toggle (desktop) */}
       <button
         onClick={onToggleMode}
         style={{ ...btnStyle, display: 'none' }}
         className="pub-reader-mode"
         title="Toggle reader mode"
       >
-        {readerMode === 'dark' ? '◐ Sepia' : '◑ Dark'}
+        {readerMode === 'dark' ? '☀ Lights On' : '☾ Lights Off'}
       </button>
 
       {/* LWD brand (desktop) */}
@@ -590,7 +617,7 @@ function PageImage({ page, side, pageBg, onHotspotClick }) {
 }
 
 // ── Nav button ────────────────────────────────────────────────────────────────
-function NavButton({ direction, onClick, disabled }) {
+function NavButton({ direction, onClick, disabled, T }) {
   const [hovered, setHovered] = useState(false);
   return (
     <button
@@ -603,9 +630,9 @@ function NavButton({ direction, onClick, disabled }) {
         [direction === 'prev' ? 'left' : 'right']: 16,
         zIndex: 50,
         width: 48, height: 48, borderRadius: '50%',
-        background: hovered ? CTRL_HOV : CTRL_BG,
-        border: `1px solid ${hovered ? 'rgba(201,168,76,0.45)' : 'rgba(255,255,255,0.1)'}`,
-        color: disabled ? 'rgba(255,255,255,0.15)' : (hovered ? GOLD : 'rgba(255,255,255,0.7)'),
+        background: hovered ? T.btnHov : T.ctrlBg,
+        border: `1px solid ${hovered ? 'rgba(201,168,76,0.45)' : T.ctrlBdr}`,
+        color: disabled ? (T.muted) : (hovered ? GOLD : T.ctrlText),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: disabled ? 'default' : 'pointer',
         fontSize: 20, transition: 'all 0.15s', userSelect: 'none',
@@ -617,7 +644,7 @@ function NavButton({ direction, onClick, disabled }) {
 }
 
 // ── Page counter ──────────────────────────────────────────────────────────────
-function PageCounter({ currentPage, totalPages, isDouble, bookmarks }) {
+function PageCounter({ currentPage, totalPages, isDouble, bookmarks, T }) {
   const end = isDouble ? Math.min(currentPage + 1, totalPages) : currentPage;
   const pct = totalPages > 0 ? Math.round((currentPage / totalPages) * 100) : 0;
   const isBookmarked = bookmarks.includes(currentPage);
@@ -626,8 +653,8 @@ function PageCounter({ currentPage, totalPages, isDouble, bookmarks }) {
     <div style={{
       position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
       zIndex: 100,
-      background: CTRL_BG,
-      border: '1px solid rgba(255,255,255,0.1)',
+      background: T.ctrlBg,
+      border: `1px solid ${T.ctrlBdr}`,
       borderRadius: 20,
       padding: '6px 18px',
       display: 'flex', alignItems: 'center', gap: 8,
@@ -635,15 +662,15 @@ function PageCounter({ currentPage, totalPages, isDouble, bookmarks }) {
       {isBookmarked && (
         <span style={{ color: GOLD, fontSize: 10, marginRight: 2 }}>✦</span>
       )}
-      <span style={{ fontFamily: NU, fontSize: 11, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.04em' }}>
+      <span style={{ fontFamily: NU, fontSize: 11, color: T.ctrlText, letterSpacing: '0.04em' }}>
         Page {isDouble && end > currentPage ? `${currentPage} – ${end}` : currentPage}
       </span>
-      <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10 }}>/</span>
-      <span style={{ fontFamily: NU, fontSize: 11, color: MUTED, letterSpacing: '0.04em' }}>
+      <span style={{ color: T.muted, fontSize: 10 }}>/</span>
+      <span style={{ fontFamily: NU, fontSize: 11, color: T.muted, letterSpacing: '0.04em' }}>
         {totalPages}
       </span>
-      <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>·</span>
-      <span style={{ fontFamily: NU, fontSize: 11, color: MUTED, letterSpacing: '0.04em' }}>
+      <span style={{ color: T.muted, fontSize: 10 }}>·</span>
+      <span style={{ fontFamily: NU, fontSize: 11, color: T.muted, letterSpacing: '0.04em' }}>
         {pct}%
       </span>
     </div>
@@ -651,7 +678,7 @@ function PageCounter({ currentPage, totalPages, isDouble, bookmarks }) {
 }
 
 // ── Thumbnail strip ───────────────────────────────────────────────────────────
-function ThumbnailStrip({ pages, currentPage, onJump, isDesktop }) {
+function ThumbnailStrip({ pages, currentPage, onJump, isDesktop, T }) {
   const [open, setOpen] = useState(false);
   if (!isDesktop) return null;
   return (
@@ -660,8 +687,8 @@ function ThumbnailStrip({ pages, currentPage, onJump, isDesktop }) {
         onClick={() => setOpen(o => !o)}
         style={{
           position: 'fixed', bottom: 20, right: 20, zIndex: 110,
-          background: CTRL_BG, border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 2, color: open ? GOLD : 'rgba(255,255,255,0.6)',
+          background: T.ctrlBg, border: `1px solid ${T.ctrlBdr}`,
+          borderRadius: 2, color: open ? GOLD : T.ctrlText,
           fontFamily: NU, fontSize: 9, fontWeight: 600,
           letterSpacing: '0.1em', textTransform: 'uppercase',
           padding: '7px 14px', cursor: 'pointer', transition: 'color 0.15s',
@@ -672,7 +699,7 @@ function ThumbnailStrip({ pages, currentPage, onJump, isDesktop }) {
       {open && (
         <div style={{
           position: 'fixed', bottom: 60, left: 0, right: 0, zIndex: 105,
-          background: 'rgba(8,7,6,0.96)', borderTop: '1px solid rgba(255,255,255,0.08)',
+          background: T.ctrlBg, borderTop: `1px solid ${T.ctrlBdr}`,
           padding: '12px 20px', display: 'flex', gap: 8, overflowX: 'auto',
         }}>
           {pages.map(p => (
@@ -681,8 +708,8 @@ function ThumbnailStrip({ pages, currentPage, onJump, isDesktop }) {
               onClick={() => { onJump(p.page_number); setOpen(false); }}
               title={`Page ${p.page_number}`}
               style={{
-                flexShrink: 0, width: 52, height: 74, background: '#1A1612',
-                border: `1px solid ${p.page_number === currentPage ? GOLD : 'rgba(255,255,255,0.08)'}`,
+                flexShrink: 0, width: 52, height: 74, background: T.pageBg,
+                border: `1px solid ${p.page_number === currentPage ? GOLD : T.ctrlBdr}`,
                 borderRadius: 1, overflow: 'hidden', cursor: 'pointer',
                 padding: 0, position: 'relative',
               }}
@@ -693,7 +720,7 @@ function ThumbnailStrip({ pages, currentPage, onJump, isDesktop }) {
                 : <div style={{
                     width: '100%', height: '100%', display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
-                    fontFamily: NU, fontSize: 9, color: MUTED,
+                    fontFamily: NU, fontSize: 9, color: T.muted,
                   }}>{p.page_number}</div>
               }
               <div style={{
@@ -712,21 +739,21 @@ function ThumbnailStrip({ pages, currentPage, onJump, isDesktop }) {
 }
 
 // ── Zoom reset pill ───────────────────────────────────────────────────────────
-function ZoomPill({ zoom, onReset }) {
+function ZoomPill({ zoom, onReset, T }) {
   if (zoom === 1) return null;
   return (
     <button
       onClick={onReset}
       style={{
         position: 'fixed', bottom: 20, left: 20, zIndex: 110,
-        background: CTRL_BG, border: '1px solid rgba(255,255,255,0.15)',
+        background: T.ctrlBg, border: `1px solid ${T.ctrlBdr}`,
         borderRadius: 20, padding: '6px 14px',
-        color: 'rgba(255,255,255,0.75)', fontFamily: NU, fontSize: 10,
+        color: T.ctrlText, fontFamily: NU, fontSize: 10,
         fontWeight: 600, letterSpacing: '0.08em', cursor: 'pointer',
         display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s',
       }}
-      onMouseEnter={e => e.currentTarget.style.background = CTRL_HOV}
-      onMouseLeave={e => e.currentTarget.style.background = CTRL_BG}
+      onMouseEnter={e => e.currentTarget.style.background = T.btnHov}
+      onMouseLeave={e => e.currentTarget.style.background = T.ctrlBg}
     >
       {Math.round(zoom * 100)}%
       <span style={{ opacity: 0.5 }}>·</span>
@@ -736,13 +763,13 @@ function ZoomPill({ zoom, onReset }) {
 }
 
 // ── Vendor Credits button ─────────────────────────────────────────────────────
-function VendorCreditsButton({ count, open, onToggle }) {
+function VendorCreditsButton({ count, open, onToggle, T }) {
   return (
     <button onClick={onToggle} style={{
       position: 'fixed', bottom: 56, left: 20, zIndex: 110,
-      background: open ? 'rgba(201,168,76,0.15)' : 'rgba(0,0,0,0.55)',
-      border: `1px solid ${open ? 'rgba(201,168,76,0.5)' : 'rgba(255,255,255,0.1)'}`,
-      borderRadius: 2, color: open ? '#C9A84C' : 'rgba(255,255,255,0.6)',
+      background: open ? 'rgba(201,168,76,0.15)' : T.ctrlBg,
+      border: `1px solid ${open ? 'rgba(201,168,76,0.5)' : T.ctrlBdr}`,
+      borderRadius: 2, color: open ? '#C9A84C' : T.ctrlText,
       fontFamily: NU, fontSize: 9, fontWeight: 600,
       letterSpacing: '0.1em', textTransform: 'uppercase', padding: '7px 14px',
       cursor: 'pointer', transition: 'all 0.15s',
@@ -753,19 +780,20 @@ function VendorCreditsButton({ count, open, onToggle }) {
 }
 
 // ── Credits drawer ────────────────────────────────────────────────────────────
-function CreditsDrawer({ credits, onClose }) {
+function CreditsDrawer({ credits, onClose, T }) {
+  const drawerBg = T.ctrlBg !== 'rgba(0,0,0,0.6)' ? 'rgba(240,235,226,0.97)' : 'rgba(10,9,8,0.97)';
   return (
     <div style={{
       position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 120,
-      background: 'rgba(10,9,8,0.97)', backdropFilter: 'blur(12px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
+      background: drawerBg, backdropFilter: 'blur(12px)',
+      borderTop: `1px solid ${T.ctrlBdr}`,
       padding: '20px 24px 28px',
       animation: 'slideUp 0.25s ease',
     }}>
       <style>{`@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-        <span style={{ fontFamily: GD, fontSize: 18, color: '#F0EBE0', flex: 1 }}>In This Spread</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 16, padding: 0 }}>✕</button>
+        <span style={{ fontFamily: GD, fontSize: 18, color: T.text, flex: 1 }}>In This Spread</span>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: T.muted, cursor: 'pointer', fontSize: 16, padding: 0 }}>✕</button>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         {credits.map((c, i) => (
@@ -776,15 +804,15 @@ function CreditsDrawer({ credits, onClose }) {
             rel="noreferrer"
             style={{
               display: 'flex', flexDirection: 'column', gap: 3,
-              padding: '10px 14px', background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)', borderRadius: 3,
+              padding: '10px 14px', background: T.btnHov,
+              border: `1px solid ${T.ctrlBdr}`, borderRadius: 3,
               textDecoration: 'none', minWidth: 140,
               transition: 'border-color 0.15s',
             }}
           >
             <span style={{ fontFamily: NU, fontSize: 8, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{c.role}</span>
-            <span style={{ fontFamily: GD, fontSize: 15, color: '#F0EBE0', fontStyle: 'italic' }}>{c.vendorName}</span>
-            {c.category && <span style={{ fontFamily: NU, fontSize: 9, color: MUTED }}>{c.category}</span>}
+            <span style={{ fontFamily: GD, fontSize: 15, color: T.text, fontStyle: 'italic' }}>{c.vendorName}</span>
+            {c.category && <span style={{ fontFamily: NU, fontSize: 9, color: T.muted }}>{c.category}</span>}
           </a>
         ))}
       </div>
@@ -918,9 +946,10 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const pageEnteredAt = useRef(null);
   const prevPageRef   = useRef(null);
 
-  // Derived
-  const BG       = readerMode === 'dark' ? BG_DARK   : BG_SEPIA;
-  const PAGE_BG  = readerMode === 'dark' ? PAGE_DARK : PAGE_SEPIA;
+  // Theme derivation
+  const T      = READER_THEMES[readerMode] || READER_THEMES.dark;
+  const BG     = T.bg;
+  const PAGE_BG = T.pageBg;
 
   // ── Responsive ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1047,7 +1076,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       }
       if (e.key === 't' || e.key === 'T') setShowTOC(o => !o);
       if (e.key === 'z' || e.key === 'Z') resetZoom();
-      if (e.key === 'm' || e.key === 'M') setReaderMode(m => m === 'dark' ? 'sepia' : 'dark');
+      if (e.key === 'm' || e.key === 'M') setReaderMode(m => m === 'dark' ? 'light' : 'dark');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1208,7 +1237,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     <div
       style={{
         position: 'fixed', inset: 0,
-        background: BG,
+        background: T.bg,
         display: 'flex', flexDirection: 'column',
         overflow: 'hidden', userSelect: 'none',
         transition: 'background 0.4s ease',
@@ -1231,7 +1260,8 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         onToggleBookmark={handleToggleBookmarkCurrent}
         onShare={handleShare}
         readerMode={readerMode}
-        onToggleMode={() => setReaderMode(m => m === 'dark' ? 'sepia' : 'dark')}
+        onToggleMode={() => setReaderMode(m => m === 'dark' ? 'light' : 'dark')}
+        T={T}
       />
 
       {/* ③ TOC Panel */}
@@ -1243,6 +1273,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         onJump={goToPage}
         bookmarks={bookmarks}
         onToggleBookmark={handleToggleBookmarkPage}
+        T={T}
       />
 
       {/* Main viewer */}
@@ -1267,25 +1298,25 @@ export default function PublicationsReaderPage({ slug, onBack }) {
           width: isDesktop ? (currentPage === 1 ? '50%' : '100%') : '100%',
           maxWidth: isDesktop ? 1400 : 700,
           gap: isDoubleSpread ? 2 : 0,
-          boxShadow: '0 8px 48px rgba(0,0,0,0.6)',
-          background: PAGE_BG,
+          boxShadow: T.pageShad,
+          background: T.pageBg,
           transform: `scale(${zoom}) translate(${panX / zoom}px, ${panY / zoom}px)`,
           transformOrigin: 'center center',
           transition: dragging.current ? 'none' : 'transform 0.1s ease',
         }}>
           {isDesktop && currentPage > 1 && (
-            <PageImage page={leftPage} side="left" pageBg={PAGE_BG} onHotspotClick={handleHotspotClick} />
+            <PageImage page={leftPage} side="left" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
           )}
-          <PageImage page={rightPage} side="right" pageBg={PAGE_BG} onHotspotClick={handleHotspotClick} />
+          <PageImage page={rightPage} side="right" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
         </div>
 
         {/* Nav buttons */}
-        <NavButton direction="prev" onClick={goPrev} disabled={!canPrev} />
-        <NavButton direction="next" onClick={goNext} disabled={!canNext} />
+        <NavButton direction="prev" onClick={goPrev} disabled={!canPrev} T={T} />
+        <NavButton direction="next" onClick={goNext} disabled={!canNext} T={T} />
       </div>
 
       {/* ② Zoom reset pill */}
-      <ZoomPill zoom={zoom} onReset={resetZoom} />
+      <ZoomPill zoom={zoom} onReset={resetZoom} T={T} />
 
       {/* Enhanced page counter */}
       <PageCounter
@@ -1293,6 +1324,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         totalPages={totalPages}
         isDouble={isDoubleSpread}
         bookmarks={bookmarks}
+        T={T}
       />
 
       {/* Thumbnail strip (desktop, secondary) */}
@@ -1301,6 +1333,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         currentPage={currentPage}
         onJump={goToPage}
         isDesktop={isDesktop}
+        T={T}
       />
 
       {/* Vendor Credits button */}
@@ -1309,6 +1342,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
           count={spreadCreditCount}
           open={creditsOpen}
           onToggle={() => setCreditsOpen(o => !o)}
+          T={T}
         />
       )}
 
@@ -1317,6 +1351,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         <CreditsDrawer
           credits={spreadCredits}
           onClose={() => setCreditsOpen(false)}
+          T={T}
         />
       )}
 

@@ -298,3 +298,37 @@ export async function uploadIssueCover(issueId, file) {
     return { publicUrl: null, storagePath: null, error };
   }
 }
+
+/**
+ * Upload the back cover image for a magazine issue.
+ * Stores at magazine-covers/[issueId]/back-cover.[ext]
+ * Updates back_cover_image + back_cover_storage_path on the issue.
+ */
+export async function uploadIssueBackCover(issueId, file) {
+  try {
+    const ext  = file.type === 'image/png' ? 'png' : 'jpg';
+    const path = `${issueId}/back-cover.${ext}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from(COVER_BUCKET)
+      .upload(path, file, {
+        upsert:       true,
+        cacheControl: '31536000',
+        contentType:  file.type || 'image/jpeg',
+      });
+    if (uploadErr) throw uploadErr;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from(COVER_BUCKET)
+      .getPublicUrl(path);
+
+    await updateIssue(issueId, {
+      back_cover_image:         publicUrl,
+      back_cover_storage_path:  path,
+    });
+
+    return { publicUrl, storagePath: path, error: null };
+  } catch (error) {
+    return { publicUrl: null, storagePath: null, error };
+  }
+}

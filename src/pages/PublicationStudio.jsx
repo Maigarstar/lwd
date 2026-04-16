@@ -25,6 +25,7 @@ import {
   deleteIssue,
   bumpRenderVersion,
   uploadIssueCover,
+  uploadIssueBackCover,
 } from '../services/magazineIssuesService';
 import { deleteAllPages, fetchPages } from '../services/magazinePageService';
 import { processPdf }                 from '../services/pdfProcessorService';
@@ -64,6 +65,65 @@ const SEASONS     = ['Spring', 'Summer', 'Autumn', 'Winter'];
 const CURR_YEAR   = new Date().getFullYear();
 const YEAR_OPTS   = Array.from({ length: 10 }, (_, i) => CURR_YEAR - 2 + i);
 const POLISH_SYS  = 'You are a professional copy editor for a luxury wedding magazine. Fix all spelling, grammar, and punctuation errors in the text. Preserve the exact tone, style, and meaning. Return only the corrected text — no explanation, no quotes.';
+
+// ── Editorial personas for AI generation ──────────────────────────────────────
+const PERSONAS = [
+  {
+    id: 'luxury-editorial',
+    label: 'Luxury Editorial',
+    emoji: '✦',
+    sys: 'You are a senior editor at a prestigious luxury wedding magazine in the style of Vogue and Condé Nast Bride. Write with sophistication, elegance, and aspiration. Use elevated vocabulary, evocative imagery, and a tone that feels exclusive yet warmly inviting. Every sentence should feel considered.',
+  },
+  {
+    id: 'romantic-dreamy',
+    label: 'Romantic',
+    emoji: '◇',
+    sys: 'You are a romantic editorial writer for a high-end bridal magazine. Write with warmth, poetry, and emotional depth. Evoke the feeling of love, beauty, and the magic of weddings. Use lyrical, gentle, and evocative language.',
+  },
+  {
+    id: 'modern-bold',
+    label: 'Modern & Bold',
+    emoji: '◈',
+    sys: "You are a bold, modern magazine editor in the style of Harper's Bazaar. Write with confidence, directness, and contemporary energy. Be stylish and authoritative — strong, current, and impactful without being cold.",
+  },
+  {
+    id: 'playful-exciting',
+    label: 'Playful',
+    emoji: '⊕',
+    sys: 'You are an enthusiastic and warm wedding magazine editor. Write with genuine excitement, charm, and approachable energy. Celebrate love joyfully. Be conversational but polished — like a brilliant friend who knows weddings inside out.',
+  },
+  {
+    id: 'intimate-personal',
+    label: 'Intimate',
+    emoji: '◉',
+    sys: 'You write in a personal, intimate editorial voice — warm, close, diary-like. Write as if the editor is speaking directly to the reader, sharing something meaningful and real. Vulnerable yet curated, personal yet universal.',
+  },
+  {
+    id: 'cinematic',
+    label: 'Cinematic',
+    emoji: '▣',
+    sys: 'You are a cinematic storyteller writing for a luxury publication. Write with visual, atmospheric language that paints vivid scenes. Think light, texture, movement, and emotion. Every sentence should feel like a still frame from a beautiful film.',
+  },
+  {
+    id: 'minimal-refined',
+    label: 'Minimal',
+    emoji: '—',
+    sys: 'You write in the Net-a-Porter / Bottega Veneta editorial style — spare, precise, and quietly confident. Never over-explain. Every word is deliberate. Restrained luxury. Say more with less.',
+  },
+];
+
+const GENERATE_PROMPTS = {
+  title: (f) =>
+    `Write a single compelling editorial magazine issue title for a luxury wedding publication. Season: ${f.season || 'unspecified'}, Year: ${f.year || new Date().getFullYear()}${f.intro ? `. Theme hint: "${f.intro.slice(0, 120)}"` : ''}. Return ONLY the title, nothing else, no punctuation at the end unless it is a meaningful part of the title.`,
+  intro: (f) =>
+    `Write a 2–3 sentence editorial introduction for issue "${f.title || 'New Issue'}" of Luxury Wedding Directory magazine${f.season ? ` (${f.season} ${f.year || ''})` : ''}. This appears on the public issue listing page. Return ONLY the paragraph text.`,
+  editor_note: (f) =>
+    `Write an editor's note of 2–3 paragraphs for issue "${f.title || 'New Issue'}" of Luxury Wedding Directory magazine${f.intro ? `. Issue theme: "${f.intro.slice(0, 150)}"` : ''}. Write in first person as the editor. Return ONLY the editor's note text.`,
+  seo_title: (f) =>
+    `Write an SEO-optimised title strictly under 60 characters for this luxury wedding magazine issue titled "${f.title || 'New Issue'}"${f.season ? `, ${f.season} ${f.year}` : ''}. Return ONLY the title.`,
+  seo_description: (f) =>
+    `Write a meta description strictly under 155 characters for this luxury wedding magazine issue titled "${f.title || 'New Issue'}"${f.intro ? `. Theme: "${f.intro.slice(0, 80)}"` : ''}. Return ONLY the meta description text.`,
+};
 
 function fmt(ts) {
   if (!ts) return null;
@@ -185,38 +245,115 @@ function SuggestionBar({ polished, onAccept, onDismiss }) {
   );
 }
 
-// PolishField wraps a textarea with native spellCheck + an AI polish button
-function PolishField({ label, hint, value, onChange, rows = 4, charLimit }) {
-  const [polishing,   setPolishing]   = useState(false);
-  const [suggestion,  setSuggestion]  = useState(null);
-  const [polishErr,   setPolishErr]   = useState('');
+// ── Persona selector ──────────────────────────────────────────────────────────
 
-  const handlePolish = async () => {
-    const text = (value || '').trim();
-    if (!text) return;
-    setPolishing(true); setPolishErr(''); setSuggestion(null);
+function PersonaSelector({ value, onChange }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>
+        ✦ AI Writing Persona
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {PERSONAS.map(p => {
+          const active = value === p.id;
+          return (
+            <button
+              key={p.id}
+              onClick={() => onChange(p.id)}
+              title={p.sys.slice(0, 100) + '…'}
+              style={{
+                fontFamily: NU, fontSize: 9, fontWeight: 600,
+                letterSpacing: '0.06em',
+                padding: '5px 11px',
+                borderRadius: 2,
+                border: `1px solid ${active ? GOLD : 'rgba(255,255,255,0.12)'}`,
+                background: active ? 'rgba(201,168,76,0.12)' : 'rgba(255,255,255,0.04)',
+                color: active ? GOLD : 'rgba(255,255,255,0.55)',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {p.emoji} {p.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// AIField — textarea with both Generate (new content) and Polish (grammar fix) buttons
+function AIField({ label, hint, value, onChange, rows = 4, charLimit, field, issueData, persona }) {
+  const [polishing,  setPolishing]  = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [suggestion, setSuggestion] = useState(null);
+  const [aiErr,      setAiErr]      = useState('');
+
+  const runAI = async (mode) => {
+    const personaConfig = PERSONAS.find(p => p.id === persona) || PERSONAS[0];
+    const isSetter = mode === 'generate' ? setGenerating : setPolishing;
+    isSetter(true); setAiErr(''); setSuggestion(null);
     try {
       const { callAiGenerate } = await import('../lib/aiGenerate');
-      const data = await callAiGenerate({
-        feature:      'publication_polish',
-        systemPrompt: POLISH_SYS,
-        userPrompt:   text,
-      });
+      const systemPrompt = mode === 'generate'
+        ? personaConfig.sys
+        : POLISH_SYS;
+      const userPrompt = mode === 'generate'
+        ? (GENERATE_PROMPTS[field]?.(issueData || {}) || (value || '').trim())
+        : (value || '').trim();
+      if (!userPrompt) { isSetter(false); return; }
+      const data = await callAiGenerate({ feature: `pub_${mode}_${field}`, systemPrompt, userPrompt });
       if (data?.text?.trim()) setSuggestion(data.text.trim());
-      else setPolishErr('No suggestion returned.');
+      else setAiErr('No content returned.');
     } catch (e) {
-      setPolishErr(e.message || 'AI unavailable');
+      setAiErr(e.message || 'AI unavailable');
     }
-    setPolishing(false);
+    isSetter(false);
   };
 
   const len = (value || '').length;
+  const busy = polishing || generating;
 
   return (
     <div style={{ marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
         <Lbl hint={hint}>{label}</Lbl>
-        <PolishButton onClick={handlePolish} loading={polishing} disabled={!value?.trim()} />
+        <div style={{ display: 'flex', gap: 5 }}>
+          {/* Generate button — creates new content in selected persona */}
+          {field && GENERATE_PROMPTS[field] && (
+            <button
+              onClick={() => runAI('generate')}
+              disabled={busy}
+              title={`Generate ${label} in ${PERSONAS.find(p => p.id === persona)?.label || 'Luxury Editorial'} style`}
+              style={{
+                fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                background: generating ? 'rgba(201,168,76,0.12)' : 'none',
+                border: `1px solid ${generating ? GOLD : 'rgba(201,168,76,0.4)'}`,
+                borderRadius: 2, padding: '3px 8px',
+                color: generating ? GOLD : 'rgba(201,168,76,0.7)',
+                cursor: busy ? 'default' : 'pointer', transition: 'all 0.15s', flexShrink: 0,
+              }}
+            >
+              {generating ? '⟳ Generating…' : '✦ Generate'}
+            </button>
+          )}
+          {/* Polish button — grammar/spelling fix only */}
+          <button
+            onClick={() => runAI('polish')}
+            disabled={busy || !value?.trim()}
+            title="Fix spelling & grammar"
+            style={{
+              fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+              background: 'none',
+              border: `1px solid ${polishing ? GOLD : 'rgba(255,255,255,0.12)'}`,
+              borderRadius: 2, padding: '3px 8px',
+              color: polishing ? GOLD : (!value?.trim() ? 'rgba(255,255,255,0.2)' : MUTED),
+              cursor: (busy || !value?.trim()) ? 'default' : 'pointer', transition: 'all 0.15s', flexShrink: 0,
+            }}
+          >
+            {polishing ? '⟳ Polishing…' : '✦ Polish'}
+          </button>
+        </div>
       </div>
       <textarea
         value={value ?? ''}
@@ -230,7 +367,75 @@ function PolishField({ label, hint, value, onChange, rows = 4, charLimit }) {
           {len}/{charLimit}
         </div>
       )}
-      {polishErr && <div style={{ fontFamily: NU, fontSize: 10, color: '#f87171', marginTop: 4 }}>{polishErr}</div>}
+      {aiErr && <div style={{ fontFamily: NU, fontSize: 10, color: '#f87171', marginTop: 4 }}>{aiErr}</div>}
+      {suggestion && (
+        <SuggestionBar
+          polished={suggestion}
+          onAccept={() => { onChange(suggestion); setSuggestion(null); }}
+          onDismiss={() => setSuggestion(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// AIInputField — single-line input with Generate button
+function AIInputField({ label, hint, value, onChange, placeholder, field, issueData, persona, monospace, charLimit }) {
+  const [generating, setGenerating] = useState(false);
+  const [suggestion, setSuggestion] = useState(null);
+  const [aiErr,      setAiErr]      = useState('');
+
+  const handleGenerate = async () => {
+    const personaConfig = PERSONAS.find(p => p.id === persona) || PERSONAS[0];
+    setGenerating(true); setAiErr(''); setSuggestion(null);
+    try {
+      const { callAiGenerate } = await import('../lib/aiGenerate');
+      const userPrompt = GENERATE_PROMPTS[field]?.(issueData || {});
+      if (!userPrompt) { setGenerating(false); return; }
+      const data = await callAiGenerate({ feature: `pub_generate_${field}`, systemPrompt: personaConfig.sys, userPrompt });
+      if (data?.text?.trim()) setSuggestion(data.text.trim());
+      else setAiErr('No content returned.');
+    } catch (e) {
+      setAiErr(e.message || 'AI unavailable');
+    }
+    setGenerating(false);
+  };
+
+  const len = (value || '').length;
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+        <Lbl hint={hint}>{label}</Lbl>
+        {field && GENERATE_PROMPTS[field] && (
+          <button
+            onClick={handleGenerate}
+            disabled={generating}
+            style={{
+              fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+              background: generating ? 'rgba(201,168,76,0.12)' : 'none',
+              border: `1px solid ${generating ? GOLD : 'rgba(201,168,76,0.4)'}`,
+              borderRadius: 2, padding: '3px 8px',
+              color: generating ? GOLD : 'rgba(201,168,76,0.7)',
+              cursor: generating ? 'default' : 'pointer', transition: 'all 0.15s', flexShrink: 0,
+            }}
+          >
+            {generating ? '⟳ Generating…' : '✦ Generate'}
+          </button>
+        )}
+      </div>
+      <input
+        spellCheck
+        value={value ?? ''}
+        onChange={e => { onChange(e.target.value); setSuggestion(null); }}
+        placeholder={placeholder}
+        style={{ ...INPUT, ...(monospace ? { fontFamily: 'monospace', fontSize: 12 } : {}) }}
+      />
+      {charLimit && (
+        <div style={{ fontFamily: NU, fontSize: 10, color: len > charLimit ? '#f87171' : MUTED, marginTop: 3 }}>
+          {len}/{charLimit}
+        </div>
+      )}
+      {aiErr && <div style={{ fontFamily: NU, fontSize: 10, color: '#f87171', marginTop: 4 }}>{aiErr}</div>}
       {suggestion && (
         <SuggestionBar
           polished={suggestion}
@@ -244,9 +449,10 @@ function PolishField({ label, hint, value, onChange, rows = 4, charLimit }) {
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ data, onChange, slugLocked, saving, onSave, coverUrl, onCoverUpload, coverUploading }) {
+function OverviewTab({ data, onChange, slugLocked, saving, onSave, coverUrl, onCoverUpload, coverUploading, backCoverUrl, onBackCoverUpload, backCoverUploading, persona, onPersonaChange }) {
   const [slugTouched, setSlugTouched] = useState(false);
-  const coverRef = useRef(null);
+  const coverRef     = useRef(null);
+  const backCoverRef = useRef(null);
 
   // Auto-slug from title
   useEffect(() => {
@@ -263,13 +469,20 @@ function OverviewTab({ data, onChange, slugLocked, saving, onSave, coverUrl, onC
 
       {/* ── Left: form ── */}
       <div>
+        <PersonaSelector value={persona} onChange={onPersonaChange} />
+
         <SectionHead>Issue Details</SectionHead>
 
-        <Field label="Title" hint="required">
-          <input spellCheck value={f.title ?? ''} onChange={e => onChange('title', e.target.value)}
-            placeholder="e.g. The Grand Wedding Edition"
-            style={INPUT} />
-        </Field>
+        <AIInputField
+          field="title"
+          issueData={f}
+          persona={persona}
+          label="Title"
+          hint="required"
+          value={f.title}
+          onChange={v => onChange('title', v)}
+          placeholder="e.g. The Grand Wedding Edition"
+        />
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
           <Field label="Issue No.">
@@ -311,7 +524,10 @@ function OverviewTab({ data, onChange, slugLocked, saving, onSave, coverUrl, onC
         <Hr />
         <SectionHead>Editorial Content</SectionHead>
 
-        <PolishField
+        <AIField
+          field="intro"
+          issueData={f}
+          persona={persona}
           label="Introduction"
           hint="Shown on the public listing page"
           value={f.intro}
@@ -319,7 +535,10 @@ function OverviewTab({ data, onChange, slugLocked, saving, onSave, coverUrl, onC
           rows={3}
         />
 
-        <PolishField
+        <AIField
+          field="editor_note"
+          issueData={f}
+          persona={persona}
           label="Editor's Note"
           hint="Personal note from the editor"
           value={f.editor_note}
@@ -330,13 +549,22 @@ function OverviewTab({ data, onChange, slugLocked, saving, onSave, coverUrl, onC
         <Hr />
         <SectionHead>SEO</SectionHead>
 
-        <Field label="SEO Title" hint="max 60 chars"
-          counter={f.seo_title && <div style={{ fontFamily: NU, fontSize: 10, color: f.seo_title.length > 60 ? '#f87171' : MUTED, marginTop: 3 }}>{f.seo_title.length}/60</div>}>
-          <input spellCheck value={f.seo_title ?? ''} onChange={e => onChange('seo_title', e.target.value)}
-            placeholder="Leave blank to use issue title" style={INPUT} />
-        </Field>
+        <AIInputField
+          field="seo_title"
+          issueData={f}
+          persona={persona}
+          label="SEO Title"
+          hint="max 60 chars"
+          value={f.seo_title}
+          onChange={v => onChange('seo_title', v)}
+          placeholder="Leave blank to use issue title"
+          charLimit={60}
+        />
 
-        <PolishField
+        <AIField
+          field="seo_description"
+          issueData={f}
+          persona={persona}
           label="SEO Description"
           hint="max 155 chars"
           value={f.seo_description}
@@ -350,7 +578,7 @@ function OverviewTab({ data, onChange, slugLocked, saving, onSave, coverUrl, onC
         </div>
       </div>
 
-      {/* ── Right: cover + stats ── */}
+      {/* ── Right: cover + back cover + stats ── */}
       <div>
         {/* Cover upload */}
         <div style={{ marginBottom: 24 }}>
@@ -386,6 +614,44 @@ function OverviewTab({ data, onChange, slugLocked, saving, onSave, coverUrl, onC
             <button onClick={() => coverRef.current?.click()}
               style={{ marginTop: 8, width: '100%', fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'none', border: `1px solid ${BORDER}`, color: MUTED, padding: '6px 0', borderRadius: 3, cursor: 'pointer' }}>
               Replace cover
+            </button>
+          )}
+        </div>
+
+        {/* Back cover upload */}
+        <div style={{ marginBottom: 24 }}>
+          <SectionHead>Back Cover</SectionHead>
+          <div
+            onClick={() => !backCoverUploading && backCoverRef.current?.click()}
+            style={{
+              cursor: backCoverUploading ? 'default' : 'pointer',
+              borderRadius: 4, overflow: 'hidden',
+              border: `1px solid ${BORDER}`,
+              background: '#1A1612',
+              paddingBottom: '141.4%',
+              position: 'relative',
+              transition: 'border-color 0.2s',
+            }}
+          >
+            {backCoverUrl
+              ? <img src={backCoverUrl} alt="Back Cover" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 28, opacity: 0.2 }}>◈</span>
+                  <span style={{ fontFamily: NU, fontSize: 10, color: MUTED, textAlign: 'center' }}>{backCoverUploading ? 'Uploading…' : 'Click to upload back cover'}</span>
+                </div>
+            }
+            {backCoverUploading && (
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontFamily: NU, fontSize: 11, color: GOLD }}>Uploading…</span>
+              </div>
+            )}
+          </div>
+          <input ref={backCoverRef} type="file" accept="image/*" style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) { onBackCoverUpload(f); e.target.value = ''; } }} />
+          {backCoverUrl && (
+            <button onClick={() => backCoverRef.current?.click()}
+              style={{ marginTop: 8, width: '100%', fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'none', border: `1px solid ${BORDER}`, color: MUTED, padding: '6px 0', borderRadius: 3, cursor: 'pointer' }}>
+              Replace back cover
             </button>
           )}
         </div>
@@ -576,7 +842,9 @@ function IssueWorkspace({ issueId, onDelete }) {
   const [publishing,  setPublishing]  = useState(false);
   const [archiving,   setArchiving]   = useState(false);
   const [deleting,    setDeleting]    = useState(false);
-  const [coverUp,     setCoverUp]     = useState(false);
+  const [coverUp,          setCoverUp]          = useState(false);
+  const [backCoverUploading, setBackCoverUploading] = useState(false);
+  const [persona,          setPersona]          = useState('luxury-editorial');
   const [reprocessing, setReprocessing] = useState(false);
   const [pages,       setPages]        = useState([]);
   const [hotspotPage, setHotspotPage]  = useState(null);
@@ -623,6 +891,17 @@ function IssueWorkspace({ issueId, onDelete }) {
     }
     setCoverUp(false);
   };
+
+  const handleBackCoverUpload = useCallback(async (file) => {
+    if (!issue?.id) return;
+    setBackCoverUploading(true);
+    const { publicUrl, error } = await uploadIssueBackCover(issue.id, file);
+    if (!error && publicUrl) {
+      setIssue(prev => ({ ...prev, back_cover_image: publicUrl, back_cover_storage_path: `${issue.id}/back-cover.jpg` }));
+      setFormData(prev => ({ ...prev, back_cover_image: publicUrl, back_cover_storage_path: `${issue.id}/back-cover.jpg` }));
+    }
+    setBackCoverUploading(false);
+  }, [issue?.id]);
 
   const sendIssueEmail = useCallback(async (publishedIssue) => {
     try {
@@ -791,6 +1070,11 @@ function IssueWorkspace({ issueId, onDelete }) {
             coverUrl={formData.cover_image}
             onCoverUpload={handleCoverUpload}
             coverUploading={coverUp}
+            backCoverUrl={formData.back_cover_image}
+            onBackCoverUpload={handleBackCoverUpload}
+            backCoverUploading={backCoverUploading}
+            persona={persona}
+            onPersonaChange={setPersona}
           />
         )}
 
