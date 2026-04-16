@@ -62,6 +62,10 @@ function listingToCard(listing) {
     desc:        listing.cardSummary || listing.shortDescription || '',
     tag:         listing.cardBadge   || null,
     styles:      Array.isArray(listing.styles) ? listing.styles : [],
+    // Quality & approval — drives tier badge + approval indicators on cards
+    contentScore:        listing.contentQualityScore ?? null,
+    editorialApproved:   listing.editorialApproved   ?? false,
+    editorialFactChecked:listing.editorialFactChecked ?? false,
     // Classification
     cat:         listing.categorySlug || listing.listingType || '',
     type:        listing.listingType  || '',

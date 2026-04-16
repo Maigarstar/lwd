@@ -24,6 +24,10 @@ import ReviewsSection from './components/reviews/ReviewsSection';
 import EventDrawer from './components/EventDrawer';
 import { ShowcaseAtAGlance, ShowcasePricing, ShowcaseVerified } from './components/showcase';
 import { fetchVenueIntelligence } from './services/venueIntelligenceService';
+import { getQualityTier } from './services/listings';
+import TierBadge from './components/editorial/TierBadge';
+import ApprovalIndicators from './components/editorial/ApprovalIndicators';
+import FreshnessText from './components/editorial/FreshnessText';
 
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.luxuryweddingdirectory.co.uk';
 
@@ -757,7 +761,17 @@ function HeroCinematic({ venue, onEnquire, onBack }) {
             <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>{venue.rating}</span>
             {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.55)" }}>({venue.reviews} reviews)</span>}</> }
             {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>✓ LWD Verified</span>}
+            {venue.contentScore != null && <TierBadge tier={getQualityTier(venue.contentScore)} showLabel={true} size="sm" />}
           </div>
+          {/* Editorial approval + freshness */}
+          {(venue.editorialApproved || venue.editorialFactChecked) && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+              <ApprovalIndicators approved={venue.editorialApproved} factChecked={venue.editorialFactChecked} layout="horizontal" />
+              {venue.editorialApproved && venue.editorialLastReviewedAt && (
+                <FreshnessText lastReviewedAt={venue.editorialLastReviewedAt} color="rgba(255,255,255,0.55)" fontSize={11} />
+              )}
+            </div>
+          )}
           {/* Published / Updated date — WordPress-style editorial timestamp */}
           {venue.publishedAt && (
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
@@ -915,7 +929,16 @@ function HeroSplit({ venue, onEnquire }) {
           <span style={{ fontFamily: FB, fontSize: 14, fontWeight: 700, color: C.text }}>{venue.rating}</span>
           {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>· {venue.reviews} reviews</span>}</> }
           {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: C.green, fontWeight: 700 }}>✓ Verified</span>}
+          {venue.contentScore != null && <TierBadge tier={getQualityTier(venue.contentScore)} showLabel={true} size="sm" />}
         </div>
+        {(venue.editorialApproved || venue.editorialFactChecked) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+            <ApprovalIndicators approved={venue.editorialApproved} factChecked={venue.editorialFactChecked} layout="horizontal" />
+            {venue.editorialApproved && venue.editorialLastReviewedAt && (
+              <FreshnessText lastReviewedAt={venue.editorialLastReviewedAt} color={C.textMuted} fontSize={11} />
+            )}
+          </div>
+        )}
         <div style={{ height: 1, background: C.border, marginBottom: isMobile ? 16 : 24 }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: isMobile ? 16 : 24, gap: 12, flexWrap: isMobile ? "wrap" : "nowrap" }}>
           {venue.priceFrom && (
@@ -980,12 +1003,19 @@ function HeroMagazine({ venue, onEnquire }) {
               <span style={{ fontFamily: FB, fontSize: 13, fontWeight: 700, color: C.text }}>{venue.rating}</span>
               {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: C.textLight }}>({venue.reviews} reviews)</span>}</> }
               {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: C.green, fontWeight: 700 }}>✓ LWD Verified</span>}
+              {venue.contentScore != null && <TierBadge tier={getQualityTier(venue.contentScore)} showLabel={true} size="sm" />}
               {venue.publishedAt && (
                 <>
                   <span style={{ width: 1, height: 12, background: C.border2 }} />
                   <span style={{ fontFamily: FB, fontSize: 11, color: C.textMuted, letterSpacing: "0.3px" }}>
                     Published {new Date(venue.publishedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </span>
+                </>
+              )}
+              {(venue.editorialApproved || venue.editorialFactChecked) && (
+                <>
+                  <span style={{ width: 1, height: 12, background: C.border2 }} />
+                  <ApprovalIndicators approved={venue.editorialApproved} factChecked={venue.editorialFactChecked} layout="horizontal" />
                 </>
               )}
             </div>
@@ -1181,7 +1211,16 @@ function HeroVideo({ venue, onEnquire }) {
           <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>{venue.rating}</span>
           {venue.reviews != null && <span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>({venue.reviews} reviews)</span>}
           {venue.verified && <span style={{ fontFamily: FB, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>✓ LWD Verified</span>}
+          {venue.contentScore != null && <TierBadge tier={getQualityTier(venue.contentScore)} showLabel={true} size="sm" />}
         </div>
+        {(venue.editorialApproved || venue.editorialFactChecked) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+            <ApprovalIndicators approved={venue.editorialApproved} factChecked={venue.editorialFactChecked} layout="horizontal" />
+            {venue.editorialApproved && venue.editorialLastReviewedAt && (
+              <FreshnessText lastReviewedAt={venue.editorialLastReviewedAt} color="rgba(255,255,255,0.55)" fontSize={11} />
+            )}
+          </div>
+        )}
         {/* Published / Updated date — WordPress-style editorial timestamp */}
         {venue.publishedAt && (
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
@@ -8644,6 +8683,11 @@ export default function VenueProfile({ onBack = null, slug = null, countrySlug =
             ? listing.sectionIntros
             : {},
           heroSummary: listing.heroSummary || null,
+          // Quality & approval — drives tier badge + approval indicators on profile
+          contentScore:         listing.contentQualityScore ?? null,
+          editorialApproved:    listing.editorialApproved   ?? false,
+          editorialFactChecked: listing.editorialFactChecked ?? false,
+          editorialLastReviewedAt: listing.editorialLastReviewedAt || null,
           // Hero layout style chosen in Listing Studio (cinematic | split | magazine | video)
           heroLayout: listing.heroLayout || 'cinematic',
           // Parsed video embed for HeroVideo component ({ type, heroId } or null)

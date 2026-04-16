@@ -375,6 +375,11 @@ function transformSupabaseListingForUI(listing: any): any {
     }
   }
 
+  // Alias contentQualityScore → contentScore so LuxuryVenueCard (which reads v.contentScore) works
+  if (transformed.contentQualityScore != null && transformed.contentScore == null) {
+    transformed.contentScore = transformed.contentQualityScore
+  }
+
   // Fallback: pull video URL from card_settings JSONB if no video from media_items
   if (!transformed.videoUrl && transformed.cardSettings && typeof transformed.cardSettings === 'object') {
     const cs = transformed.cardSettings as Record<string, any>;
