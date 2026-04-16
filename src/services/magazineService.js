@@ -122,7 +122,7 @@ const POST_FIELD_MAP = {
 // Keeping them out of POST_FIELD_MAP avoids a schema migration; lifting them
 // on read means the editor consumes them as plain top-level formData fields.
 const POST_EXCLUDED_KEYS = new Set(['content', '_lastEdited', 'date', 'category',
-  'coverImageFocal', 'relatedPosts', 'heroTextAlign', 'galleryImages']);
+  'coverImageFocal', 'relatedPosts', 'heroTextAlign', 'galleryImages', 'heroCaption']);
 
 function mapPostToDb(formData) {
   const row = {};
@@ -154,11 +154,13 @@ function mapPostToDb(formData) {
   // aiMetadata through if they touch galleryImages or coverImageFocal.
   const hasGallery = Array.isArray(formData.galleryImages);
   const hasFocal   = formData.coverImageFocal !== undefined;
-  if (hasGallery || hasFocal) {
+  const hasCaption = typeof formData.heroCaption === 'string';
+  if (hasGallery || hasFocal || hasCaption) {
     const base = (formData.aiMetadata && typeof formData.aiMetadata === 'object') ? formData.aiMetadata : {};
     const merged = { ...base };
     if (hasGallery) merged.galleryImages   = formData.galleryImages;
     if (hasFocal)   merged.coverImageFocal = formData.coverImageFocal;
+    if (hasCaption) merged.heroCaption     = formData.heroCaption;
     row.ai_metadata = merged;
   }
   // Ensure published_at is set when publishing
@@ -181,6 +183,7 @@ function mapPostFromDb(row) {
   const meta = (c.aiMetadata && typeof c.aiMetadata === 'object') ? c.aiMetadata : null;
   c.galleryImages   = meta && Array.isArray(meta.galleryImages) ? meta.galleryImages : [];
   c.coverImageFocal = meta && meta.coverImageFocal ? meta.coverImageFocal : null;
+  c.heroCaption     = meta && typeof meta.heroCaption === 'string' ? meta.heroCaption : '';
   return c;
 }
 
