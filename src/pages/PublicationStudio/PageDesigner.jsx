@@ -347,6 +347,9 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const snapToGridRef = useRef(false);
   useEffect(() => { snapToGridRef.current = snapToGrid; }, [snapToGrid]);
 
+  // Clipboard ref — stores a cloned Fabric object for copy/paste
+  const clipboardRef = useRef(null);
+
   const SNAP_GRID = 40; // matches GridOverlay cell size
 
   const dims = PAGE_SIZES[pageSize] || PAGE_SIZES.A4;
@@ -574,11 +577,105 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   // ── Keyboard shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
     function handleKey(e) {
+      // Don't intercept when typing in an input / textarea
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
+
       const isMac = navigator.platform.toUpperCase().includes('MAC');
       const mod = isMac ? e.metaKey : e.ctrlKey;
+
+      // Undo / Redo / Save
       if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); }
       if (mod && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); handleRedo(); }
       if (mod && e.key === 's') { e.preventDefault(); handleSave(); }
+
+      // Copy — Ctrl/Cmd+C
+      if (mod && e.key === 'c') {
+        const fc = getActiveCanvas();
+        const obj = fc?.getActiveObject?.();
+        if (!obj) return;
+        e.preventDefault();
+        obj.clone().then(cloned => {
+          clipboardRef.current = cloned;
+        });
+      }
+
+      // Cut — Ctrl/Cmd+X
+      if (mod && e.key === 'x') {
+        const fc = getActiveCanvas();
+        const obj = fc?.getActiveObject?.();
+        if (!obj) return;
+        e.preventDefault();
+        obj.clone().then(cloned => {
+          clipboardRef.current = cloned;
+          fc.remove(obj);
+          fc.discardActiveObject();
+          fc.requestRenderAll();
+          pushUndo();
+        });
+      }
+
+      // Paste — Ctrl/Cmd+V
+      if (mod && e.key === 'v') {
+        const fc = getActiveCanvas();
+        if (!fc || !clipboardRef.current) return;
+        e.preventDefault();
+        clipboardRef.current.clone().then(cloned => {
+          // Offset paste so it doesn't land exactly on top
+          cloned.set({
+            left: (cloned.left ?? 0) + 20,
+            top:  (cloned.top  ?? 0) + 20,
+            id:   genId(),
+          });
+          fc.add(cloned);
+          fc.setActiveObject(cloned);
+          fc.requestRenderAll();
+          pushUndo();
+          // Update clipboard to the new clone so repeated paste keeps offsetting
+          clipboardRef.current = cloned;
+        });
+      }
+
+      // Duplicate — Ctrl/Cmd+D
+      if (mod && e.key === 'd') {
+        const fc = getActiveCanvas();
+        const obj = fc?.getActiveObject?.();
+        if (!obj) return;
+        e.preventDefault();
+        obj.clone().then(cloned => {
+          cloned.set({
+            left: (obj.left ?? 0) + 20,
+            top:  (obj.top  ?? 0) + 20,
+            id:   genId(),
+          });
+          fc.add(cloned);
+          fc.setActiveObject(cloned);
+          fc.requestRenderAll();
+          pushUndo();
+        });
+      }
+
+      // Delete selected object — Backspace or Delete
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        const fc = getActiveCanvas();
+        const obj = fc?.getActiveObject?.();
+        if (!obj) return;
+        // Don't intercept if Fabric textbox is in edit mode
+        if (obj.isEditing) return;
+        e.preventDefault();
+        fc.remove(obj);
+        fc.discardActiveObject();
+        fc.requestRenderAll();
+        pushUndo();
+      }
+
+      // Escape — deselect
+      if (e.key === 'Escape') {
+        const fc = getActiveCanvas();
+        fc?.discardActiveObject?.();
+        fc?.requestRenderAll?.();
+      }
+
       // Tab switches active spread side in spread view
       if (e.key === 'Tab' && spreadView) {
         e.preventDefault();
