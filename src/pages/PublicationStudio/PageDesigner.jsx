@@ -15,6 +15,23 @@ function genId() {
     : Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+// ── Spread pairing logic ──────────────────────────────────────────────────────
+function getSpreadIndices(currentPageIndex, totalPages) {
+  // currentPageIndex is 0-based
+  if (currentPageIndex === 0) {
+    // Cover — alone on right, blank grey on left
+    return { leftIndex: null, rightIndex: 0 };
+  }
+  // Group pages into spreads: [1,2], [3,4], [5,6]...
+  const spreadNum = Math.floor((currentPageIndex - 1) / 2);
+  const leftIndex  = 1 + spreadNum * 2;       // e.g. 1, 3, 5
+  const rightIndex = 1 + spreadNum * 2 + 1;   // e.g. 2, 4, 6
+  return {
+    leftIndex:  leftIndex  < totalPages ? leftIndex  : null,
+    rightIndex: rightIndex < totalPages ? rightIndex : null,
+  };
+}
+
 // ── Grid overlay ──────────────────────────────────────────────────────────────
 function GridOverlay({ width, height, cellPx = 40 }) {
   const lines = [];
@@ -120,8 +137,14 @@ function Ruler({ length, isVertical, scale = 1 }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function PageDesigner({ issue, onIssueUpdate }) {
-  const canvasElRef = useRef(null);
-  const fabricRef = useRef(null);
+  // Canvas element refs
+  const canvasElRef     = useRef(null); // right / single
+  const canvasElRefLeft = useRef(null); // left (spread view only)
+
+  // Fabric instance refs
+  const fabricRef     = useRef(null); // right / single
+  const fabricRefLeft = useRef(null); // left (spread view only)
+
   const initRef = useRef(false);
 
   const [pages, setPages] = useState([{
@@ -143,27 +166,30 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
 
+  // Spread view state
+  const [spreadView, setSpreadView] = useState(false);
+  const [activeSpreadSide, setActiveSpreadSide] = useState('right'); // 'left' | 'right'
+
   const dims = PAGE_SIZES[pageSize] || PAGE_SIZES.A4;
+
+  // ── Active canvas helper ────────────────────────────────────────────────────
+  const getActiveCanvas = useCallback(() => {
+    if (!spreadView) return fabricRef.current;
+    return activeSpreadSide === 'left' ? fabricRefLeft.current : fabricRef.current;
+  }, [spreadView, activeSpreadSide]);
 
   // ── Undo helpers ────────────────────────────────────────────────────────────
   const pushUndo = useCallback(() => {
-    const fc = fabricRef.current;
+    const fc = getActiveCanvas();
     if (!fc) return;
     const json = fc.toJSON(['id']);
     setUndoStack(prev => [...prev.slice(-29), json]);
     setRedoStack([]);
-  }, []);
+  }, [getActiveCanvas]);
 
-  // ── Canvas init ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!canvasElRef.current) return;
-
-    if (fabricRef.current) {
-      fabricRef.current.dispose();
-      fabricRef.current = null;
-    }
-
-    const fc = new Canvas(canvasElRef.current, {
+  // ── Canvas init helper ──────────────────────────────────────────────────────
+  const initCanvas = useCallback((canvasEl, pageJSON, onSelect, onModify) => {
+    const fc = new Canvas(canvasEl, {
       width: dims.w,
       height: dims.h,
       backgroundColor: '#ffffff',
@@ -171,30 +197,110 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       selection: true,
     });
 
-    fabricRef.current = fc;
+    fc.on('selection:created', (e) => onSelect(e.selected?.[0] || null));
+    fc.on('selection:updated', (e) => onSelect(e.selected?.[0] || null));
+    fc.on('selection:cleared', () => onSelect(null));
+    fc.on('object:modified', onModify);
+    fc.on('object:added', onModify);
+    fc.on('object:removed', onModify);
 
-    fc.on('selection:created', (e) => setSelectedObject(e.selected?.[0] || null));
-    fc.on('selection:updated', (e) => setSelectedObject(e.selected?.[0] || null));
-    fc.on('selection:cleared', () => setSelectedObject(null));
-    fc.on('object:modified', pushUndo);
-
-    // Load existing page JSON
-    const page = pages[currentPageIndex];
-    if (page?.canvasJSON) {
-      fc.loadFromJSON(page.canvasJSON).then(() => fc.renderAll());
+    if (pageJSON) {
+      fc.loadFromJSON(pageJSON).then(() => fc.renderAll());
     }
 
-    return () => {
-      if (fabricRef.current === fc) {
-        fc.dispose();
+    return fc;
+  }, [dims.w, dims.h]);
+
+  // ── Canvas init ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!spreadView) {
+      // ── Single page mode ──
+      if (!canvasElRef.current) return;
+
+      if (fabricRef.current) {
+        fabricRef.current.dispose();
         fabricRef.current = null;
       }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageSize]);
 
-  // ── Page switching ──────────────────────────────────────────────────────────
+      const fc = initCanvas(
+        canvasElRef.current,
+        pages[currentPageIndex]?.canvasJSON,
+        (obj) => setSelectedObject(obj),
+        pushUndo,
+      );
+      fabricRef.current = fc;
+
+      return () => {
+        if (fabricRef.current === fc) {
+          fc.dispose();
+          fabricRef.current = null;
+        }
+      };
+    } else {
+      // ── Spread mode ──
+      const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pages.length);
+
+      // Dispose existing instances
+      if (fabricRef.current) {
+        fabricRef.current.dispose();
+        fabricRef.current = null;
+      }
+      if (fabricRefLeft.current) {
+        fabricRefLeft.current.dispose();
+        fabricRefLeft.current = null;
+      }
+
+      // Init right canvas (always present)
+      if (canvasElRef.current) {
+        const fcRight = initCanvas(
+          canvasElRef.current,
+          rightIndex !== null ? pages[rightIndex]?.canvasJSON : null,
+          (obj) => {
+            setActiveSpreadSide('right');
+            setSelectedObject(obj);
+          },
+          pushUndo,
+        );
+        fabricRef.current = fcRight;
+      }
+
+      // Init left canvas (only when leftIndex is valid and element is mounted)
+      if (leftIndex !== null && canvasElRefLeft.current) {
+        const fcLeft = initCanvas(
+          canvasElRefLeft.current,
+          pages[leftIndex]?.canvasJSON,
+          (obj) => {
+            setActiveSpreadSide('left');
+            setSelectedObject(obj);
+          },
+          pushUndo,
+        );
+        fabricRefLeft.current = fcLeft;
+      }
+
+      return () => {
+        if (fabricRef.current) {
+          fabricRef.current.dispose();
+          fabricRef.current = null;
+        }
+        if (fabricRefLeft.current) {
+          fabricRefLeft.current.dispose();
+          fabricRefLeft.current = null;
+        }
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spreadView, pageSize, currentPageIndex]);
+
+  // ── Sync selectedObject when active spread side changes ────────────────────
   useEffect(() => {
+    const fc = getActiveCanvas();
+    if (fc) setSelectedObject(fc.getActiveObject() || null);
+  }, [activeSpreadSide]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Page switching (single mode) ────────────────────────────────────────────
+  useEffect(() => {
+    if (spreadView) return; // handled by canvas init effect
     const fc = fabricRef.current;
     if (!fc) return;
     fc.clear();
@@ -223,20 +329,37 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [undoStack, redoStack]);
 
-  // ── Save current page to state ──────────────────────────────────────────────
+  // ── Save current page(s) to state ──────────────────────────────────────────
   const saveCurrentPageToState = useCallback(() => {
-    const fc = fabricRef.current;
-    if (!fc) return;
-    const json = fc.toJSON(['id', 'name', 'custom']);
-    const thumb = fc.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
-    setPages(prev => prev.map((p, i) =>
-      i === currentPageIndex ? { ...p, canvasJSON: json, thumbnailDataUrl: thumb } : p
-    ));
-  }, [currentPageIndex]);
+    if (!spreadView) {
+      const fc = fabricRef.current;
+      if (!fc) return;
+      const json = fc.toJSON(['id', 'name', 'custom']);
+      const thumb = fc.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
+      setPages(prev => prev.map((p, i) =>
+        i === currentPageIndex ? { ...p, canvasJSON: json, thumbnailDataUrl: thumb } : p
+      ));
+    } else {
+      const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pages.length);
+      setPages(prev => prev.map((p, i) => {
+        if (i === leftIndex && fabricRefLeft.current) {
+          const json  = fabricRefLeft.current.toJSON(['id', 'name', 'custom']);
+          const thumb = fabricRefLeft.current.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
+          return { ...p, canvasJSON: json, thumbnailDataUrl: thumb };
+        }
+        if (i === rightIndex && fabricRef.current) {
+          const json  = fabricRef.current.toJSON(['id', 'name', 'custom']);
+          const thumb = fabricRef.current.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
+          return { ...p, canvasJSON: json, thumbnailDataUrl: thumb };
+        }
+        return p;
+      }));
+    }
+  }, [spreadView, currentPageIndex, pages.length]);
 
   // ── Add elements ────────────────────────────────────────────────────────────
   const addElement = useCallback((variant, initialText) => {
-    const fc = fabricRef.current;
+    const fc = getActiveCanvas();
     if (!fc) return;
     const defaults = ELEMENT_DEFAULTS[variant] || ELEMENT_DEFAULTS.text;
 
@@ -269,10 +392,10 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     fc.setActiveObject(tb);
     fc.renderAll();
     pushUndo();
-  }, [pushUndo]);
+  }, [getActiveCanvas, pushUndo]);
 
   const addImage = useCallback(async (src) => {
-    const fc = fabricRef.current;
+    const fc = getActiveCanvas();
     if (!fc) return;
     try {
       const img = await FabricImage.fromURL(src, { crossOrigin: 'anonymous' });
@@ -285,10 +408,10 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     } catch (e) {
       console.error('Failed to load image:', e);
     }
-  }, [dims, pushUndo]);
+  }, [getActiveCanvas, dims, pushUndo]);
 
   const addShape = useCallback((type) => {
-    const fc = fabricRef.current;
+    const fc = getActiveCanvas();
     if (!fc) return;
     let shape;
     if (type === 'rect') {
@@ -308,7 +431,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       fc.renderAll();
       pushUndo();
     }
-  }, [pushUndo]);
+  }, [getActiveCanvas, pushUndo]);
 
   function handleAddElement(variant, text) {
     if (['text', 'heading', 'caption', 'pullquote', 'subheading', 'aitext'].includes(variant)) {
@@ -320,7 +443,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
 
   function handleAddTemplate(templateId) {
     // Stub — templates can be wired to TemplatePicker later
-    const fc = fabricRef.current;
+    const fc = getActiveCanvas();
     if (!fc) return;
     const label = new Textbox(`Template ${templateId + 1}`, {
       left: 60, top: 60,
@@ -336,23 +459,23 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
 
   // ── Undo / Redo ─────────────────────────────────────────────────────────────
   const handleUndo = useCallback(() => {
-    const fc = fabricRef.current;
+    const fc = getActiveCanvas();
     if (!fc || undoStack.length < 2) return;
     const prev = undoStack[undoStack.length - 2];
     const current = undoStack[undoStack.length - 1];
     setRedoStack(r => [...r, current]);
     setUndoStack(s => s.slice(0, -1));
     fc.loadFromJSON(prev).then(() => fc.renderAll());
-  }, [undoStack]);
+  }, [getActiveCanvas, undoStack]);
 
   const handleRedo = useCallback(() => {
-    const fc = fabricRef.current;
+    const fc = getActiveCanvas();
     if (!fc || redoStack.length === 0) return;
     const next = redoStack[redoStack.length - 1];
     setUndoStack(s => [...s, next]);
     setRedoStack(r => r.slice(0, -1));
     fc.loadFromJSON(next).then(() => fc.renderAll());
-  }, [redoStack]);
+  }, [getActiveCanvas, redoStack]);
 
   // ── Save ────────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
@@ -371,10 +494,11 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       await new Promise(r => setTimeout(r, 100));
 
       const renderVersion = (issue.render_version || 1) + 1;
+      // Use right canvas (single canvas) for export iteration
+      const fc = fabricRef.current;
 
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
-        const fc = fabricRef.current;
         if (!fc) break;
 
         if (page.canvasJSON) {
@@ -418,10 +542,11 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       saveCurrentPageToState();
       await new Promise(r => setTimeout(r, 100));
 
+      // Use right canvas (single canvas) for export iteration
+      const fc = fabricRef.current;
       const printPages = [];
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
-        const fc = fabricRef.current;
         if (!fc) break;
         if (page.canvasJSON) {
           await fc.loadFromJSON(page.canvasJSON);
@@ -444,6 +569,8 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   function handleSelectPage(i) {
     saveCurrentPageToState();
     setCurrentPageIndex(i);
+    // In spread view, reset active side to right when navigating
+    if (spreadView) setActiveSpreadSide('right');
   }
 
   function handleAddPage() {
@@ -503,20 +630,40 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     fc.setZoom(z);
     fc.setWidth(dims.w * z);
     fc.setHeight(dims.h * z);
+    // Also update left canvas in spread view
+    if (spreadView && fabricRefLeft.current) {
+      fabricRefLeft.current.setZoom(z);
+      fabricRefLeft.current.setWidth(dims.w * z);
+      fabricRefLeft.current.setHeight(dims.h * z);
+    }
   }
 
   // ── Properties update ───────────────────────────────────────────────────────
   function handlePropertiesUpdate() {
     // Trigger thumbnail refresh after property changes
-    const fc = fabricRef.current;
+    const fc = getActiveCanvas();
     if (!fc) return;
     const thumb = fc.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
-    setPages(prev => prev.map((p, i) =>
-      i === currentPageIndex ? { ...p, thumbnailDataUrl: thumb } : p
-    ));
+
+    if (!spreadView) {
+      setPages(prev => prev.map((p, i) =>
+        i === currentPageIndex ? { ...p, thumbnailDataUrl: thumb } : p
+      ));
+    } else {
+      const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pages.length);
+      const targetIndex = activeSpreadSide === 'left' ? leftIndex : rightIndex;
+      if (targetIndex !== null) {
+        setPages(prev => prev.map((p, i) =>
+          i === targetIndex ? { ...p, thumbnailDataUrl: thumb } : p
+        ));
+      }
+    }
   }
 
   const RULER_SIZE = showRuler ? 20 : 0;
+
+  // Compute spread indices for render
+  const spreadIndices = getSpreadIndices(currentPageIndex, pages.length);
 
   return (
     <div style={{
@@ -543,6 +690,12 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         onToggleGrid={() => setShowGrid(v => !v)}
         showRuler={showRuler}
         onToggleRuler={() => setShowRuler(v => !v)}
+        spreadView={spreadView}
+        onToggleSpread={() => {
+          saveCurrentPageToState();
+          setSpreadView(v => !v);
+          setActiveSpreadSide('right');
+        }}
         onSave={handleSave}
         saving={saving}
         onExportDigital={handleExportDigital}
@@ -585,21 +738,119 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
             <div style={{
               flex: 1,
               overflow: 'auto',
-              display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: 'flex-start',
-              padding: 40,
               background: '#141210',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: spreadView ? '40px 20px' : '40px',
             }}>
-              <div style={{ position: 'relative', flexShrink: 0 }}>
-                <canvas ref={canvasElRef} />
-                {showGrid && (
-                  <GridOverlay
-                    width={dims.w * zoom}
-                    height={dims.h * zoom}
-                  />
-                )}
-              </div>
+
+              {spreadView ? (
+                // ── SPREAD VIEW ────────────────────────────────────────────────
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 0,
+                  transform: `scale(${zoom})`,
+                  transformOrigin: 'top center',
+                }}>
+                  {/* Left page */}
+                  <div
+                    onClick={() => {
+                      if (spreadIndices.leftIndex !== null) {
+                        setActiveSpreadSide('left');
+                      }
+                    }}
+                    style={{
+                      position: 'relative',
+                      boxShadow: activeSpreadSide === 'left'
+                        ? `0 0 0 2px #C9A96E, 0 12px 48px rgba(0,0,0,0.6)`
+                        : '0 12px 48px rgba(0,0,0,0.5)',
+                      cursor: spreadIndices.leftIndex !== null ? 'pointer' : 'default',
+                      marginRight: 4, // spine gap
+                    }}
+                  >
+                    {/* Left page active indicator */}
+                    {activeSpreadSide === 'left' && spreadIndices.leftIndex !== null && (
+                      <div style={{
+                        position: 'absolute', top: -24, left: 0,
+                        fontSize: 10, color: '#C9A96E', fontFamily: "'Jost',sans-serif",
+                        fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
+                        pointerEvents: 'none',
+                      }}>
+                        Page {spreadIndices.leftIndex + 1} — editing
+                      </div>
+                    )}
+
+                    {spreadIndices.leftIndex !== null ? (
+                      // Real left page canvas
+                      <div style={{ position: 'relative' }}>
+                        <canvas ref={canvasElRefLeft} />
+                        {showGrid && activeSpreadSide === 'left' && (
+                          <GridOverlay width={dims.w} height={dims.h} />
+                        )}
+                      </div>
+                    ) : (
+                      // Cover: blank left page
+                      <div style={{
+                        width: dims.w, height: dims.h,
+                        background: '#2A2520',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 13, fontFamily: "'Jost',sans-serif" }}>
+                          — cover —
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right page */}
+                  <div
+                    onClick={() => setActiveSpreadSide('right')}
+                    style={{
+                      position: 'relative',
+                      boxShadow: activeSpreadSide === 'right'
+                        ? `0 0 0 2px #C9A96E, 0 12px 48px rgba(0,0,0,0.6)`
+                        : '0 12px 48px rgba(0,0,0,0.5)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {activeSpreadSide === 'right' && (
+                      <div style={{
+                        position: 'absolute', top: -24, left: 0,
+                        fontSize: 10, color: '#C9A96E', fontFamily: "'Jost',sans-serif",
+                        fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
+                        pointerEvents: 'none',
+                      }}>
+                        Page {(spreadIndices.rightIndex ?? 0) + 1} — editing
+                      </div>
+                    )}
+                    <div style={{ position: 'relative' }}>
+                      <canvas ref={canvasElRef} />
+                      {showGrid && activeSpreadSide === 'right' && (
+                        <GridOverlay width={dims.w} height={dims.h} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // ── SINGLE PAGE VIEW ─────────────────────────────────────────────
+                <div style={{
+                  position: 'relative',
+                  flexShrink: 0,
+                  transform: `scale(${zoom})`,
+                  transformOrigin: 'top center',
+                  boxShadow: '0 12px 48px rgba(0,0,0,0.6)',
+                }}>
+                  <canvas ref={canvasElRef} />
+                  {showGrid && (
+                    <GridOverlay
+                      width={dims.w * zoom}
+                      height={dims.h * zoom}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -607,7 +858,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         {/* Properties panel */}
         <PropertiesPanel
           selectedObject={selectedObject}
-          canvas={fabricRef.current}
+          canvas={getActiveCanvas()}
           onUpdate={handlePropertiesUpdate}
         />
       </div>

@@ -18,6 +18,8 @@ export default function DesignerToolbar({
   onToggleGrid,
   showRuler,
   onToggleRuler,
+  spreadView,
+  onToggleSpread,
   onSave,
   saving,
   onExportDigital,
@@ -85,6 +87,9 @@ export default function DesignerToolbar({
 
         {/* Ruler toggle */}
         <ToolBtn onClick={onToggleRuler} active={showRuler} title="Toggle ruler">⊟ Ruler</ToolBtn>
+
+        {/* Spread view toggle */}
+        <ToolBtn onClick={onToggleSpread} active={spreadView} title="Toggle double-page spread view">⊠ Spread</ToolBtn>
 
         <Sep />
 
