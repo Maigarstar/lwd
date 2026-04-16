@@ -354,13 +354,13 @@ export default function MagazineIssuesModule({ C }) {
           {/* Table header */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '60px 1fr 100px 90px 110px 80px 80px',
+            gridTemplateColumns: '60px 1fr 100px 80px 110px 60px 80px 80px',
             gap: 0,
             background: 'rgba(255,255,255,0.03)',
             borderBottom: '1px solid rgba(255,255,255,0.08)',
             padding: '0 16px',
           }}>
-            {['Cover', 'Title / Slug', 'Status', 'Pages', 'Processing', 'Created', ''].map((h, i) => (
+            {['Cover', 'Title / Slug', 'Status', 'Pages', 'Processing', 'Views', 'Created', ''].map((h, i) => (
               <div key={i} style={{
                 fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
                 textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)',
@@ -379,7 +379,7 @@ export default function MagazineIssuesModule({ C }) {
                 key={issue.id}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '60px 1fr 100px 90px 110px 80px 80px',
+                  gridTemplateColumns: '60px 1fr 100px 80px 110px 60px 80px 80px',
                   gap: 0,
                   padding: '12px 16px',
                   borderBottom: '1px solid rgba(255,255,255,0.05)',
@@ -436,6 +436,15 @@ export default function MagazineIssuesModule({ C }) {
                 {/* Processing */}
                 <div style={{ fontFamily: NU, fontSize: 11, color: proc.color }}>
                   {proc.label}
+                </div>
+
+                {/* Views */}
+                <div style={{
+                  fontFamily: NU, fontSize: 12,
+                  color: issue.view_count ? GOLD : 'rgba(255,255,255,0.2)',
+                  fontWeight: issue.view_count ? 600 : 400,
+                }}>
+                  {issue.view_count || '—'}
                 </div>
 
                 {/* Created */}

@@ -19,6 +19,7 @@ import {
 } from '../../services/magazineIssuesService';
 import { deleteAllPages } from '../../services/magazinePageService';
 import { processPdf } from '../../services/pdfProcessorService';
+import { supabase } from '../../lib/supabaseClient';
 import IssueDetailsForm from './components/IssueDetailsForm';
 import PdfUploader from './components/PdfUploader';
 import PageGrid from './components/PageGrid';
@@ -28,8 +29,9 @@ const GD   = "var(--font-heading-primary, 'Cormorant Garamond', Georgia, serif)"
 const NU   = "var(--font-body, 'Nunito Sans', sans-serif)";
 
 const TABS = [
-  { key: 'details', label: 'Details' },
-  { key: 'pages',   label: 'Pages'   },
+  { key: 'details',   label: 'Details'   },
+  { key: 'pages',     label: 'Pages'     },
+  { key: 'analytics', label: 'Analytics' },
 ];
 
 const STATUS_CONFIG = {
@@ -48,6 +50,219 @@ const PROC_CONFIG = {
 function fmt(ts) {
   if (!ts) return '—';
   return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// ── IssueAnalytics ────────────────────────────────────────────────────────────
+// Reads from magazine_analytics for a single issue and renders:
+//   • KPI tiles (views, sessions, page turns, downloads)
+//   • Page popularity bar chart
+//   • Device + reader mode split
+//   • Recent 20 events log
+function IssueAnalytics({ issueId, issue }) {
+  const [rows,    setRows]    = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!issueId) return;
+    setLoading(true);
+    supabase
+      .from('magazine_analytics')
+      .select('*')
+      .eq('issue_id', issueId)
+      .order('created_at', { ascending: false })
+      .limit(2000)          // enough for any realistic issue
+      .then(({ data }) => {
+        setRows(data || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [issueId]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', fontFamily: NU, fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
+        Loading analytics…
+      </div>
+    );
+  }
+
+  // ── Aggregate ─────────────────────────────────────────────────────────────
+  const views      = rows.filter(r => r.event_type === 'view');
+  const pageTurns  = rows.filter(r => r.event_type === 'page_turn');
+  const downloads  = rows.filter(r => r.event_type === 'download');
+  const dwells     = rows.filter(r => r.event_type === 'dwell');
+
+  const uniqueSessions = new Set(rows.map(r => r.session_id).filter(Boolean)).size;
+
+  // Page popularity: count page_turns per page_number
+  const pageHits = {};
+  pageTurns.forEach(r => {
+    if (r.page_number) pageHits[r.page_number] = (pageHits[r.page_number] || 0) + 1;
+  });
+  const topPages = Object.entries(pageHits)
+    .map(([p, c]) => ({ page: Number(p), count: c }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20);
+  const maxPageHits = topPages[0]?.count || 1;
+
+  // Device breakdown (from view events)
+  const deviceMap = {};
+  views.forEach(r => { if (r.device_type) deviceMap[r.device_type] = (deviceMap[r.device_type] || 0) + 1; });
+  const deviceTotal = Object.values(deviceMap).reduce((s, v) => s + v, 0) || 1;
+
+  // Avg dwell time per page
+  const avgDwell = dwells.length
+    ? Math.round(dwells.reduce((s, r) => s + (r.duration_ms || 0), 0) / dwells.length / 1000)
+    : 0;
+
+  // KPI tile component
+  const Tile = ({ label, value, sub }) => (
+    <div style={{
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: 6,
+      padding: '18px 20px',
+      flex: 1,
+      minWidth: 0,
+    }}>
+      <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GOLD, marginBottom: 8 }}>
+        {label}
+      </div>
+      <div style={{ fontFamily: GD, fontSize: 32, fontWeight: 300, color: '#fff', lineHeight: 1 }}>
+        {value}
+      </div>
+      {sub && <div style={{ fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 6 }}>{sub}</div>}
+    </div>
+  );
+
+  // No data yet
+  if (rows.length === 0) {
+    return (
+      <div style={{ padding: '60px 32px', textAlign: 'center' }}>
+        <div style={{ fontSize: 32, opacity: 0.15, marginBottom: 16 }}>◈</div>
+        <div style={{ fontFamily: NU, fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>
+          No analytics data yet.
+        </div>
+        <div style={{ fontFamily: NU, fontSize: 11, color: 'rgba(255,255,255,0.2)', marginTop: 6 }}>
+          Events are recorded when readers open this issue at /publications/{issue?.slug}.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '24px 32px', maxWidth: 900 }}>
+
+      {/* ── KPI tiles ── */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap' }}>
+        <Tile label="Views"         value={views.length}     sub={`${uniqueSessions} unique session${uniqueSessions !== 1 ? 's' : ''}`} />
+        <Tile label="Page Turns"    value={pageTurns.length} sub={pageTurns.length ? `avg ${Math.round(pageTurns.length / Math.max(views.length, 1))} per visit` : null} />
+        <Tile label="Downloads"     value={downloads.length} />
+        <Tile label="Avg Dwell"     value={avgDwell ? `${avgDwell}s` : '—'} sub="per page" />
+      </div>
+
+      {/* ── Page popularity ── */}
+      {topPages.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 14 }}>
+            Page Popularity (top {topPages.length} pages by turn count)
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {topPages.map(({ page, count }) => (
+              <div key={page} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.4)', width: 42, flexShrink: 0, textAlign: 'right' }}>
+                  p.{page}
+                </div>
+                <div style={{ flex: 1, height: 18, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
+                  <div style={{
+                    position: 'absolute', left: 0, top: 0, bottom: 0,
+                    width: `${(count / maxPageHits) * 100}%`,
+                    background: `linear-gradient(to right, ${GOLD}, rgba(201,168,76,0.5))`,
+                    borderRadius: 2,
+                    transition: 'width 0.4s ease',
+                  }} />
+                </div>
+                <div style={{ fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.5)', width: 28, flexShrink: 0 }}>
+                  {count}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Device + mode split ── */}
+      {Object.keys(deviceMap).length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 14 }}>
+            Device Breakdown
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {Object.entries(deviceMap).map(([device, count]) => (
+              <div key={device} style={{
+                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 6, padding: '12px 16px', minWidth: 100,
+              }}>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>
+                  {device}
+                </div>
+                <div style={{ fontFamily: GD, fontSize: 24, color: '#fff', fontWeight: 300 }}>{count}</div>
+                <div style={{ fontFamily: NU, fontSize: 10, color: GOLD, marginTop: 4 }}>
+                  {Math.round((count / deviceTotal) * 100)}%
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Recent events log ── */}
+      <div>
+        <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 14 }}>
+          Recent Events (last 20)
+        </div>
+        <div style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6, overflow: 'hidden' }}>
+          {rows.slice(0, 20).map((r, i) => {
+            const typeColor = {
+              view:       '#60a5fa',
+              page_turn:  GOLD,
+              download:   '#34d399',
+              dwell:      'rgba(255,255,255,0.5)',
+            }[r.event_type] || 'rgba(255,255,255,0.4)';
+            return (
+              <div key={r.id || i} style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '8px 14px',
+                borderBottom: i < Math.min(rows.length, 20) - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+              }}>
+                {/* Event type */}
+                <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: typeColor, width: 70, flexShrink: 0 }}>
+                  {r.event_type}
+                </span>
+                {/* Page */}
+                <span style={{ fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.35)', width: 40, flexShrink: 0 }}>
+                  {r.page_number ? `p.${r.page_number}` : '—'}
+                </span>
+                {/* Device */}
+                <span style={{ fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.3)', width: 60, flexShrink: 0 }}>
+                  {r.device_type || '—'}
+                </span>
+                {/* Mode */}
+                <span style={{ fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.25)', flex: 1 }}>
+                  {r.reader_mode || '—'}{r.duration_ms ? ` · ${Math.round(r.duration_ms / 1000)}s` : ''}
+                </span>
+                {/* Time */}
+                <span style={{ fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.25)', flexShrink: 0 }}>
+                  {r.created_at ? new Date(r.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function StatusPill({ status }) {
@@ -515,6 +730,11 @@ export default function MagazineIssueEditor({ issueId, onBack, C }) {
               setIssue(prev => prev ? { ...prev, page_count: count } : prev);
             }}
           />
+        )}
+
+        {/* ─ Analytics tab ─ */}
+        {tab === 'analytics' && (
+          <IssueAnalytics issueId={issueId} issue={issue} />
         )}
       </div>
     </div>
