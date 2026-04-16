@@ -197,198 +197,236 @@ function SidebarPostRow({ post, onClick, light = false }) {
 
 // ─── Gallery Split Hero ───────────────────────────────────────────────────────
 function GallerySplitHero({ post, isLight = true }) {
-  const gallery = Array.isArray(post.galleryImages) ? post.galleryImages : [];
-  // Build full image array: cover first, then gallery images (skip gallery[0] on right panel)
-  const allImages = [post.coverImage, ...gallery].filter(Boolean);
+  // ── Image data ──────────────────────────────────────────────────────────────
+  const gallery   = Array.isArray(post.galleryImages) ? post.galleryImages : [];
+  const allImages = [post.coverImage, ...gallery].filter(Boolean); // all left-panel images
+  const rightImg  = gallery[0] || null;                            // FIXED right panel
+  const caption   = post.heroCaption || '';
+  const count     = allImages.length;
+
+  // ── State ────────────────────────────────────────────────────────────────────
   const [activeIdx, setActiveIdx] = useState(0);
-  const leftImg  = allImages[activeIdx] || null;
-  // Right panel: always gallery[0] (first gallery image), separate from the cycling left
-  const rightImg = gallery[0] || allImages[1] || null;
-  const caption  = post.heroCaption || '';
+  const thumbStripRef             = useRef(null);
 
-  // Light editorial palette — matches 5starweddingdirectory.com
-  const bg        = isLight ? '#ffffff'                  : '#0f0f0d';
-  const titleClr  = isLight ? '#141414'                  : '#f5f0e8';
-  const mutedClr  = isLight ? 'rgba(20,20,20,0.48)'      : 'rgba(245,240,232,0.50)';
-  const borderClr = isLight ? 'rgba(20,20,20,0.10)'      : 'rgba(245,240,232,0.08)';
-  const stripBg   = isLight ? '#f7f5f2'                  : '#111110';
-  const emptyBg   = isLight ? '#e8e3dc'                  : '#1a1a16';
+  // Responsive viewport
+  const getVp = () => typeof window !== 'undefined'
+    ? (window.innerWidth < 768 ? 'mobile' : window.innerWidth < 1024 ? 'tablet' : 'desktop')
+    : 'desktop';
+  const [vp, setVp] = useState(getVp);
+  useEffect(() => {
+    const h = () => setVp(getVp());
+    window.addEventListener('resize', h, { passive: true });
+    return () => window.removeEventListener('resize', h);
+  }, []);
 
+  // Inject fade + hover CSS once
+  useEffect(() => {
+    if (document.getElementById('gs-hero-css')) return;
+    const s = document.createElement('style');
+    s.id = 'gs-hero-css';
+    s.textContent = `
+      @keyframes gsFadeIn { 0% { opacity:0 } 100% { opacity:1 } }
+      .gs-left-img { animation: gsFadeIn 0.32s ease forwards; }
+      .gs-thumb { transition: opacity 0.18s ease, transform 0.15s ease, border-color 0.18s ease; }
+      .gs-thumb:hover { opacity: 0.88 !important; transform: translateY(-1px); }
+      .gs-strip::-webkit-scrollbar { display: none; }
+    `;
+    document.head.appendChild(s);
+  }, []);
+
+  // ── Derived layout flags ────────────────────────────────────────────────────
+  // 0 images → render nothing
+  if (count === 0) return null;
+  const isMobile    = vp === 'mobile';
+  const isTablet    = vp === 'tablet';
+  const hasSplit    = count >= 2 && rightImg;   // need right image for split
+  const showThumbs  = count >= 3;               // 3+ images → strip appears
+
+  // Thumbnail dimensions per breakpoint
+  const thumbW  = isMobile ? 120 : isTablet ? 140 : 160;
+  const thumbH  = isMobile ?  80 : isTablet ?  95 : 110;
+  const thumbGp = isMobile ?  10 : 14;
+
+  // ── Palette ──────────────────────────────────────────────────────────────────
+  const bg       = isLight ? '#ffffff'             : '#0f0f0d';
+  const titleClr = isLight ? '#141414'             : '#f5f0e8';
+  const mutedClr = isLight ? 'rgba(20,20,20,0.48)' : 'rgba(245,240,232,0.50)';
+  const borderClr= isLight ? 'rgba(20,20,20,0.10)' : 'rgba(245,240,232,0.08)';
+  const stripBg  = isLight ? '#f7f5f2'             : '#111110';
+  const arrowClr = isLight ? 'rgba(20,20,20,0.50)' : 'rgba(245,240,232,0.50)';
+
+  const scrollThumbs = (dir) => {
+    thumbStripRef.current?.scrollBy({ left: dir * (thumbW + thumbGp) * 3, behavior: 'smooth' });
+  };
+
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <header style={{ background: bg }}>
 
-      {/* ── Title block ── white bg, clean editorial */}
-      <div style={{
-        maxWidth: 1230,
-        margin: '0 auto',
-        padding: 'clamp(48px, 6vw, 80px) clamp(24px, 6vw, 80px) clamp(24px, 3vw, 36px)',
-      }}>
+      {/* ── 1. Title block ── centred, white bg ─────────────────────────────── */}
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: 'clamp(48px,6vw,80px) clamp(24px,5vw,72px) clamp(24px,3vw,36px)' }}>
 
-        {/* Category label — centred */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 20 }}>
-          <div style={{ width: 40, height: 1, background: GOLD, opacity: 0.45 }} />
-          <span style={{
-            fontFamily: FU, fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD,
-          }}>
+        {/* Category */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:14, marginBottom:20 }}>
+          <div style={{ width:40, height:1, background:GOLD, opacity:0.45 }} />
+          <span style={{ fontFamily:FU, fontSize:10, fontWeight:700, letterSpacing:'0.22em', textTransform:'uppercase', color:GOLD }}>
             {post.categoryLabel || 'Feature'}
           </span>
-          <div style={{ width: 40, height: 1, background: GOLD, opacity: 0.45 }} />
+          <div style={{ width:40, height:1, background:GOLD, opacity:0.45 }} />
         </div>
 
-        {/* H1 — centred */}
-        <h1 style={{
-          fontFamily: FD,
-          fontSize: 'clamp(30px, 4.5vw, 62px)',
-          fontWeight: 400,
-          color: titleClr,
-          margin: '0 auto 16px',
-          lineHeight: 1.1,
-          letterSpacing: '-0.01em',
-          maxWidth: 860,
-          textAlign: 'center',
-        }}>
+        {/* H1 */}
+        <h1 style={{ fontFamily:FD, fontSize:'clamp(30px,4.5vw,62px)', fontWeight:400, color:titleClr, margin:'0 auto 14px', lineHeight:1.1, letterSpacing:'-0.01em', maxWidth:860, textAlign:'center' }}>
           {post.title}
         </h1>
 
-        {/* Standfirst — centred italic subtitle */}
+        {/* Standfirst */}
         {post.standfirst && (
-          <p style={{
-            fontFamily: FD, fontSize: 'clamp(15px, 1.4vw, 20px)',
-            fontStyle: 'italic', color: mutedClr,
-            margin: '0 auto 20px', lineHeight: 1.65, maxWidth: 640,
-            textAlign: 'center',
-          }}>
+          <p style={{ fontFamily:FD, fontSize:'clamp(15px,1.4vw,20px)', fontStyle:'italic', color:mutedClr, margin:'0 auto 18px', lineHeight:1.65, maxWidth:640, textAlign:'center' }}>
             {post.standfirst}
           </p>
         )}
 
         {/* Divider */}
-        <div style={{ width: 48, height: 1, background: borderClr, margin: '0 auto 18px' }} />
+        <div style={{ width:48, height:1, background:borderClr, margin:'0 auto 16px' }} />
 
-        {/* Meta row — centred */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {post.author && (
-            <>
-              {post.author.avatar && (
-                <img src={post.author.avatar} alt={post.author.name}
-                  style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-              )}
-              <span style={{ fontFamily: FU, fontSize: 11, fontWeight: 400, color: mutedClr }}>
-                {post.author.name}
-              </span>
-              <span style={{ color: borderClr, fontSize: 16, lineHeight: 1 }}>·</span>
-            </>
-          )}
-          <span style={{ fontFamily: FU, fontSize: 11, color: mutedClr }}>{formatDate(post.date)}</span>
-          {post.readingTime && (
-            <>
-              <span style={{ color: borderClr, fontSize: 16, lineHeight: 1 }}>·</span>
-              <span style={{ fontFamily: FU, fontSize: 11, color: mutedClr }}>{post.readingTime} min read</span>
-            </>
-          )}
+        {/* Meta */}
+        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', justifyContent:'center' }}>
+          {post.author && <>
+            {post.author.avatar && <img src={post.author.avatar} alt={post.author.name} style={{ width:28, height:28, borderRadius:'50%', objectFit:'cover', flexShrink:0 }} />}
+            <span style={{ fontFamily:FU, fontSize:11, color:mutedClr }}>{post.author.name}</span>
+            <span style={{ color:borderClr, fontSize:16 }}>·</span>
+          </>}
+          <span style={{ fontFamily:FU, fontSize:11, color:mutedClr }}>{formatDate(post.date)}</span>
+          {post.readingTime && <>
+            <span style={{ color:borderClr, fontSize:16 }}>·</span>
+            <span style={{ fontFamily:FU, fontSize:11, color:mutedClr }}>{post.readingTime} min read</span>
+          </>}
         </div>
       </div>
 
-      {/* ── Split image area ── contained, no black margin */}
-      <div style={{
-        maxWidth: 1230,
-        margin: '0 auto',
-        padding: '0 clamp(24px, 6vw, 80px)',
-      }}>
-        <div style={{
-          display: 'flex',
-          gap: 4,
-          height: 'clamp(380px, 58svh, 760px)',
-          overflow: 'hidden',
-          borderRadius: 3,
-        }}>
-          {/* Left panel: 2/3, carousel slides via thumbnail clicks */}
-          <div style={{ flex: '2 1 0%', position: 'relative', overflow: 'hidden' }}>
-            {/* Sliding strip of all images */}
+      {/* ── 2. Image area ───────────────────────────────────────────────────── */}
+      <div style={{ maxWidth:1280, margin:'0 auto', padding:`0 clamp(24px,5vw,72px)` }}>
+
+        {/* ─ Fallback: 1 image → full width ─ */}
+        {!hasSplit && (
+          <div style={{ position:'relative', height:560, overflow:'hidden', borderRadius:3 }}>
+            <img
+              key={activeIdx}
+              src={allImages[0]}
+              alt=""
+              className="gs-left-img"
+              style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }}
+            />
+            {caption && <GsCaption caption={caption} />}
+          </div>
+        )}
+
+        {/* ─ Split: 65 / 35 ─ */}
+        {hasSplit && (
+          <div style={{
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: 4,
+            height: isMobile ? 'auto' : 560,
+            overflow: 'hidden',
+            borderRadius: 3,
+          }}>
+            {/* LEFT 65%: fades on thumbnail click */}
             <div style={{
-              display: 'flex',
-              width: `${allImages.length * 100}%`,
-              height: '100%',
-              transform: `translateX(${-activeIdx * (100 / allImages.length)}%)`,
-              transition: 'transform 0.45s cubic-bezier(0.25, 0.1, 0.25, 1)',
-              willChange: 'transform',
+              position: 'relative',
+              overflow: 'hidden',
+              flex: isMobile ? 'none' : '65 1 0%',
+              height: isMobile ? 'clamp(220px,52vw,380px)' : '100%',
             }}>
+              <img
+                key={activeIdx}
+                src={allImages[activeIdx]}
+                alt=""
+                className="gs-left-img"
+                style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }}
+              />
+              {caption && <GsCaption caption={caption} />}
+            </div>
+
+            {/* RIGHT 35%: ALWAYS gallery[0], never changes */}
+            <div style={{
+              position: 'relative',
+              overflow: 'hidden',
+              flex: isMobile ? 'none' : '35 1 0%',
+              height: isMobile ? 'clamp(180px,40vw,280px)' : '100%',
+            }}>
+              <img
+                src={rightImg}
+                alt=""
+                style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── 3. Thumbnail strip ── 3+ images only ────────────────────────────── */}
+      {showThumbs && (
+        <div style={{ maxWidth:1280, margin:'0 auto', padding:`0 clamp(24px,5vw,72px)` }}>
+          <div style={{ position:'relative', background:stripBg, borderRadius:'0 0 3px 3px' }}>
+
+            {/* Left arrow — desktop/tablet only */}
+            {!isMobile && (
+              <button onClick={() => scrollThumbs(-1)} aria-label="Previous images" style={{ position:'absolute', left:0, top:0, bottom:0, zIndex:2, background:`linear-gradient(to right,${stripBg} 60%,transparent)`, border:'none', cursor:'pointer', padding:'0 16px 0 10px', color:arrowClr, fontSize:22, lineHeight:1, display:'flex', alignItems:'center' }}>
+                ‹
+              </button>
+            )}
+
+            {/* Strip */}
+            <div
+              ref={thumbStripRef}
+              className="gs-strip"
+              style={{ display:'flex', gap:thumbGp, overflowX:'auto', scrollbarWidth:'none', padding: isMobile ? `14px 16px` : `15px 44px`, alignItems:'center' }}
+            >
               {allImages.map((src, i) => (
-                <div key={i} style={{ width: `${100 / allImages.length}%`, height: '100%', flexShrink: 0, position: 'relative' }}>
-                  <img src={src} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-                </div>
+                <button
+                  key={i}
+                  onClick={() => setActiveIdx(i)}
+                  className="gs-thumb"
+                  title={`Image ${i + 1}`}
+                  style={{
+                    width: thumbW, height: thumbH,
+                    borderRadius: 2, overflow:'hidden',
+                    flexShrink: 0, padding: 0, cursor:'pointer', background:'none',
+                    border: activeIdx === i ? `2.5px solid ${GOLD}` : `2px solid ${borderClr}`,
+                    opacity: activeIdx === i ? 1 : 0.55,
+                  }}
+                >
+                  <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                </button>
               ))}
             </div>
-            {/* Caption overlay */}
-            {caption && (
-              <div style={{
-                position: 'absolute', bottom: 0, left: 0, right: 0,
-                padding: '14px 20px',
-                background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)',
-                pointerEvents: 'none',
-              }}>
-                <span style={{ fontFamily: FD, fontSize: 12, fontStyle: 'italic', color: 'rgba(255,255,255,0.85)', letterSpacing: '0.02em' }}>
-                  {caption}
-                </span>
-              </div>
-            )}
-          </div>
 
-          {/* Right panel: 1/3, fixed on gallery[0] */}
-          {rightImg && (
-            <div style={{ flex: '1 1 0%', position: 'relative', overflow: 'hidden' }}>
-              <img src={rightImg} alt=""
-                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Thumbnail strip ── square, clickable, light bg */}
-      {allImages.length > 1 && (
-        <div style={{
-          maxWidth: 1230, margin: '0 auto',
-          padding: '12px clamp(24px, 6vw, 80px) 0',
-        }}>
-          <div style={{
-            display: 'flex', gap: 6, overflowX: 'auto',
-            background: stripBg,
-            padding: '10px 12px',
-            borderRadius: '0 0 3px 3px',
-            /* hide scrollbar on webkit */
-            scrollbarWidth: 'none',
-          }}>
-            {allImages.slice(0, 10).map((src, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveIdx(i)}
-                title={`Image ${i + 1}`}
-                style={{
-                  width: 64, height: 64,          /* square */
-                  borderRadius: 2,
-                  overflow: 'hidden',
-                  flexShrink: 0,
-                  padding: 0,
-                  cursor: 'pointer',
-                  background: 'none',
-                  border: activeIdx === i
-                    ? `2.5px solid ${GOLD}`
-                    : `2px solid ${isLight ? 'rgba(20,20,20,0.14)' : 'rgba(245,240,232,0.14)'}`,
-                  opacity: activeIdx === i ? 1 : 0.65,
-                  transition: 'opacity 0.15s, border-color 0.15s',
-                }}
-              >
-                <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            {/* Right arrow — desktop/tablet only */}
+            {!isMobile && (
+              <button onClick={() => scrollThumbs(1)} aria-label="Next images" style={{ position:'absolute', right:0, top:0, bottom:0, zIndex:2, background:`linear-gradient(to left,${stripBg} 60%,transparent)`, border:'none', cursor:'pointer', padding:'0 10px 0 16px', color:arrowClr, fontSize:22, lineHeight:1, display:'flex', alignItems:'center' }}>
+                ›
               </button>
-            ))}
+            )}
           </div>
         </div>
       )}
 
       {/* Bottom spacing */}
-      <div style={{ height: 'clamp(32px, 4vw, 56px)', background: bg }} />
+      <div style={{ height:'clamp(32px,4vw,56px)', background:bg }} />
     </header>
+  );
+}
+
+// Caption overlay — editorial, subtle gradient, not boxed
+function GsCaption({ caption }) {
+  return (
+    <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'32px 20px 14px', background:'linear-gradient(to top,rgba(0,0,0,0.42) 0%,transparent 100%)', pointerEvents:'none' }}>
+      <span style={{ fontFamily:FD, fontSize:12, fontStyle:'italic', fontWeight:300, color:'rgba(255,255,255,0.88)', letterSpacing:'0.025em' }}>
+        {caption}
+      </span>
+    </div>
   );
 }
 

@@ -3669,133 +3669,122 @@ function ArticlePreview({ formData, isLight, viewport, onBlockClick, selectedBlo
       )}
 
       {heroStyle === 'gallery-split' && (() => {
-        const gallery = Array.isArray(formData.galleryImages) ? formData.galleryImages : [];
+        const gallery   = Array.isArray(formData.galleryImages) ? formData.galleryImages : [];
         const allImages = [formData.coverImage, ...gallery].filter(Boolean);
-        const gsIdx = gallerySplitIdx < allImages.length ? gallerySplitIdx : 0;
-        const leftImg  = allImages[gsIdx] || null;
-        const rightImg = gallery[0] || allImages[1] || null;
+        const count     = allImages.length;
+        const gsIdx     = gallerySplitIdx < count ? gallerySplitIdx : 0;
+        const rightImg  = gallery[0] || null;          // FIXED — never changes
+        const caption   = formData.heroCaption || '';
         const isMobileVp = viewport === 'mobile';
-        const caption  = formData.heroCaption || '';
-        const splitH   = isMobileVp ? 'auto' : 560; /* ~3:2 ratio matching reference 1200×800 */
-        // Light editorial palette (matches public GallerySplitHero)
-        const gsBg      = isLight ? '#ffffff' : '#0f0f0d';
-        const gsTitleC  = isLight ? '#141414' : '#f5f0e8';
-        const gsMuted   = isLight ? 'rgba(20,20,20,0.48)' : 'rgba(245,240,232,0.50)';
-        const gsBorder  = isLight ? 'rgba(20,20,20,0.10)' : 'rgba(245,240,232,0.08)';
-        const gsStrip   = isLight ? '#f7f5f2' : '#111110';
-        const gsEmpty   = isLight ? '#e8e3dc' : '#1a1a16';
+        const hasSplit  = count >= 2 && rightImg;
+        const showThumbs = count >= 3;
 
-        // Fallback: no images at all
-        if (!leftImg && !rightImg) {
-          return (
-            <div style={{ background: gsBg, padding: '40px 32px 28px', borderBottom: `1px solid ${gsBorder}` }}>
-              <div style={{ textAlign: 'center' }}>
-                <p style={{ fontFamily: FU, fontSize: 10, color: gsMuted, margin: 0 }}>Add a cover image and gallery images to see the Gallery Split hero.</p>
-              </div>
-            </div>
-          );
-        }
+        // Palette
+        const gsBg    = isLight ? '#ffffff'             : '#0f0f0d';
+        const gsTitleC= isLight ? '#141414'             : '#f5f0e8';
+        const gsMuted = isLight ? 'rgba(20,20,20,0.48)' : 'rgba(245,240,232,0.50)';
+        const gsBorder= isLight ? 'rgba(20,20,20,0.10)' : 'rgba(245,240,232,0.08)';
+        const gsStrip = isLight ? '#f7f5f2'             : '#111110';
+        const gsEmpty = isLight ? '#e8e3dc'             : '#1a1a16';
+        const gsArrow = isLight ? 'rgba(20,20,20,0.50)' : 'rgba(245,240,232,0.50)';
+
+        // Thumb sizes (editor preview scaled down ~70% from public)
+        const tW = isMobileVp ? 84 : 112;
+        const tH = isMobileVp ? 56 : 75;
+        const tG = isMobileVp ? 8  : 10;
+
+        // No images fallback
+        if (count === 0) return (
+          <div style={{ background: gsBg, padding: '32px 24px', textAlign: 'center', borderBottom: `1px solid ${gsBorder}` }}>
+            <p style={{ fontFamily: FU, fontSize: 10, color: gsMuted, margin: 0 }}>Add a cover image + gallery images to see the Gallery Split hero.</p>
+          </div>
+        );
 
         return (
           <div style={{ background: gsBg }}>
-            {/* ── Centred title block ── */}
-            <div style={{ padding: '32px 24px 20px', textAlign: 'center' }}>
-              {/* Category */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 14 }}>
-                <div style={{ width: 32, height: 1, background: GOLD, opacity: 0.45 }} />
-                <span style={{ fontFamily: FU, fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: GOLD }}>
+            {/* ── Title block ── */}
+            <div style={{ padding: '28px 20px 16px', textAlign: 'center' }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginBottom:12 }}>
+                <div style={{ width:28, height:1, background:GOLD, opacity:0.45 }} />
+                <span style={{ fontFamily:FU, fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:GOLD }}>
                   {formData.categoryLabel || 'Feature'}
                 </span>
-                <div style={{ width: 32, height: 1, background: GOLD, opacity: 0.45 }} />
+                <div style={{ width:28, height:1, background:GOLD, opacity:0.45 }} />
               </div>
-              {/* Title */}
-              <div style={{ fontFamily: FD, fontSize: 'clamp(20px, 3vw, 36px)', fontWeight: 400, color: gsTitleC, lineHeight: 1.15, letterSpacing: '-0.01em', maxWidth: 680, margin: '0 auto 10px' }}>
+              <div style={{ fontFamily:FD, fontSize:'clamp(18px,3vw,32px)', fontWeight:400, color:gsTitleC, lineHeight:1.15, letterSpacing:'-0.01em', maxWidth:600, margin:'0 auto 10px' }}>
                 {formData.title || 'Article Title'}
               </div>
-              {/* Standfirst */}
               {formData.excerpt && (
-                <div style={{ fontFamily: FD, fontSize: 13, fontStyle: 'italic', color: gsMuted, lineHeight: 1.6, maxWidth: 500, margin: '0 auto 12px' }}>
+                <div style={{ fontFamily:FD, fontSize:12, fontStyle:'italic', color:gsMuted, lineHeight:1.6, maxWidth:440, margin:'0 auto 10px' }}>
                   {formData.excerpt}
                 </div>
               )}
-              {/* Divider */}
-              <div style={{ width: 36, height: 1, background: gsBorder, margin: '0 auto 12px' }} />
-              {/* Meta */}
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: FU, fontSize: 10, color: gsMuted }}>{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                {caption && <><span style={{ color: gsBorder }}>·</span><span style={{ fontFamily: FD, fontSize: 10, fontStyle: 'italic', color: gsMuted }}>{caption}</span></>}
+              <div style={{ width:32, height:1, background:gsBorder, margin:'0 auto 10px' }} />
+              <div style={{ display:'flex', gap:6, alignItems:'center', justifyContent:'center', flexWrap:'wrap' }}>
+                <span style={{ fontFamily:FU, fontSize:9, color:gsMuted }}>{new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</span>
               </div>
             </div>
 
-            {/* ── Split image area — tall, matching reference 3:2 proportions ── */}
-            <div style={{ margin: '0 16px' }}>
-              <div style={{ display: isMobileVp ? 'block' : 'flex', gap: 3, height: isMobileVp ? 'auto' : splitH, overflow: 'hidden', borderRadius: 3 }}>
-                {/* Left: carousel slide on thumbnail click */}
-                <div style={{ flex: isMobileVp ? undefined : '2 1 0%', height: isMobileVp ? 220 : '100%', position: 'relative', overflow: 'hidden' }}>
-                  {allImages.length > 0 ? (
-                    <div style={{
-                      display: 'flex',
-                      width: `${allImages.length * 100}%`,
-                      height: '100%',
-                      transform: `translateX(${-gsIdx * (100 / allImages.length)}%)`,
-                      transition: 'transform 0.45s cubic-bezier(0.25, 0.1, 0.25, 1)',
-                      willChange: 'transform',
-                    }}>
-                      {allImages.map((src, i) => (
-                        <div key={i} style={{ width: `${100 / allImages.length}%`, height: '100%', flexShrink: 0, position: 'relative' }}>
-                          <img src={src} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ position: 'absolute', inset: 0, background: gsEmpty }} />
-                  )}
+            {/* ── Image area ── */}
+            <div style={{ margin:'0 14px' }}>
+              {!hasSplit ? (
+                /* 1 image: full width */
+                <div style={{ position:'relative', height: isMobileVp ? 180 : 360, overflow:'hidden', borderRadius:3 }}>
+                  <img key={gsIdx} src={allImages[0]} alt="" className="gs-left-img"
+                    style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }} />
                   {caption && (
-                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '8px 14px', background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)', pointerEvents: 'none' }}>
-                      <span style={{ fontFamily: FD, fontSize: 10, fontStyle: 'italic', color: 'rgba(255,255,255,0.85)' }}>{caption}</span>
+                    <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'16px 14px 10px', background:'linear-gradient(to top,rgba(0,0,0,0.42) 0%,transparent 100%)', pointerEvents:'none' }}>
+                      <span style={{ fontFamily:FD, fontSize:10, fontStyle:'italic', fontWeight:300, color:'rgba(255,255,255,0.88)', letterSpacing:'0.025em' }}>{caption}</span>
                     </div>
                   )}
                 </div>
-
-                {/* Right: portrait (always gallery[0]) */}
-                {rightImg ? (
-                  <div style={{ flex: isMobileVp ? undefined : '1 1 0%', height: isMobileVp ? 260 : '100%', position: 'relative', overflow: 'hidden' }}>
-                    <img src={rightImg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                /* 2+ images: 65/35 split */
+                <div style={{ display:'flex', flexDirection: isMobileVp ? 'column' : 'row', gap:3, height: isMobileVp ? 'auto' : 360, overflow:'hidden', borderRadius:3 }}>
+                  {/* LEFT 65% — fades on thumb click */}
+                  <div style={{ position:'relative', overflow:'hidden', flex: isMobileVp ? 'none' : '65 1 0%', height: isMobileVp ? 180 : '100%' }}>
+                    <img key={gsIdx} src={allImages[gsIdx]} alt="" className="gs-left-img"
+                      style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }} />
+                    {caption && (
+                      <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'14px 12px 8px', background:'linear-gradient(to top,rgba(0,0,0,0.42) 0%,transparent 100%)', pointerEvents:'none' }}>
+                        <span style={{ fontFamily:FD, fontSize:10, fontStyle:'italic', fontWeight:300, color:'rgba(255,255,255,0.88)' }}>{caption}</span>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div style={{ flex: isMobileVp ? undefined : '1 1 0%', height: isMobileVp ? 160 : '100%', background: gsEmpty, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontFamily: FU, fontSize: 9, color: gsMuted }}>Add gallery image</span>
+                  {/* RIGHT 35% — FIXED always gallery[0] */}
+                  <div style={{ position:'relative', overflow:'hidden', flex: isMobileVp ? 'none' : '35 1 0%', height: isMobileVp ? 140 : '100%' }}>
+                    <img src={rightImg} alt=""
+                      style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }} />
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
-            {/* ── Square thumbnail strip ── */}
-            {allImages.length > 1 && (
-              <div style={{ margin: '0 16px' }}>
-                <div style={{ background: gsStrip, padding: '8px 10px', display: 'flex', gap: 5, overflowX: 'auto', borderRadius: '0 0 3px 3px', scrollbarWidth: 'none' }}>
-                  {allImages.slice(0, 10).map((src, i) => (
-                    <button
-                      key={i}
-                      onClick={e => { e.stopPropagation(); setGallerySplitIdx(i); }}
-                      title={`Image ${i + 1}`}
-                      style={{
-                        width: 52, height: 52,          /* square */
-                        borderRadius: 2, overflow: 'hidden', flexShrink: 0, padding: 0, cursor: 'pointer',
-                        border: gsIdx === i ? `2.5px solid ${GOLD}` : `2px solid ${gsBorder}`,
-                        background: 'none', transition: 'border-color 0.15s, opacity 0.15s',
-                        opacity: gsIdx === i ? 1 : 0.62,
-                      }}
-                    >
-                      <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    </button>
-                  ))}
+            {/* ── Thumbnail strip — 3+ images only ── */}
+            {showThumbs && (
+              <div style={{ margin:'0 14px' }}>
+                <div style={{ position:'relative', background:gsStrip, borderRadius:'0 0 3px 3px' }}>
+                  {!isMobileVp && (
+                    <button onClick={e=>{e.stopPropagation(); const el=document.getElementById('gs-ed-strip'); if(el) el.scrollBy({left:-(tW+tG)*3,behavior:'smooth'});}} style={{ position:'absolute',left:0,top:0,bottom:0,zIndex:2,background:`linear-gradient(to right,${gsStrip} 60%,transparent)`,border:'none',cursor:'pointer',padding:'0 12px 0 6px',color:gsArrow,fontSize:18,lineHeight:1,display:'flex',alignItems:'center' }}>‹</button>
+                  )}
+                  <div id="gs-ed-strip" style={{ display:'flex', gap:tG, overflowX:'auto', scrollbarWidth:'none', padding: isMobileVp ? `8px 10px` : `10px 36px`, alignItems:'center' }}>
+                    {allImages.map((src, i) => (
+                      <button key={i} onClick={e=>{e.stopPropagation(); setGallerySplitIdx(i);}} className="gs-thumb" title={`Image ${i+1}`}
+                        style={{ width:tW, height:tH, borderRadius:2, overflow:'hidden', flexShrink:0, padding:0, cursor:'pointer', background:'none',
+                          border: gsIdx===i ? `2.5px solid ${GOLD}` : `2px solid ${gsBorder}`,
+                          opacity: gsIdx===i ? 1 : 0.55 }}>
+                        <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                      </button>
+                    ))}
+                  </div>
+                  {!isMobileVp && (
+                    <button onClick={e=>{e.stopPropagation(); const el=document.getElementById('gs-ed-strip'); if(el) el.scrollBy({left:(tW+tG)*3,behavior:'smooth'});}} style={{ position:'absolute',right:0,top:0,bottom:0,zIndex:2,background:`linear-gradient(to left,${gsStrip} 60%,transparent)`,border:'none',cursor:'pointer',padding:'0 6px 0 12px',color:gsArrow,fontSize:18,lineHeight:1,display:'flex',alignItems:'center' }}>›</button>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Bottom spacing */}
-            <div style={{ height: 28 }} />
+            <div style={{ height:24 }} />
           </div>
         );
       })()}
