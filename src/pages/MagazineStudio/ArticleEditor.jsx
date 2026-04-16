@@ -6392,6 +6392,26 @@ const HERO_THUMBS = {
       <rect x="70" y="56" width="80"  height="3" rx="1" fill="rgba(245,240,232,0.5)" />
     </svg>
   ),
+  'hero-gallery-split': (
+    <svg viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', width: '100%', height: '100%' }}>
+      <rect width="220" height="90" fill="#141210" />
+      {/* Title block */}
+      <rect x="12" y="10" width="30" height="2" rx="1" fill="#c9a96e" />
+      <rect x="12" y="16" width="130" height="5" rx="1" fill="rgba(245,240,232,0.85)" />
+      <rect x="12" y="25" width="100" height="5" rx="1" fill="rgba(245,240,232,0.85)" />
+      {/* Split images */}
+      <rect x="12" y="36" width="130" height="40" rx="1" fill="#2a2520" />
+      <rect x="145" y="36" width="62" height="40" rx="1" fill="#2a2520" />
+      {/* Image detail lines */}
+      <circle cx="77" cy="56" r="7" fill="#3a3228" opacity="0.7" />
+      <circle cx="176" cy="56" r="5" fill="#3a3228" opacity="0.7" />
+      {/* Thumbnail strip */}
+      <rect x="12" y="79" width="18" height="8" rx="1" fill="#c9a96e" opacity="0.7" />
+      <rect x="34" y="79" width="18" height="8" rx="1" fill="#3a3228" />
+      <rect x="56" y="79" width="18" height="8" rx="1" fill="#3a3228" />
+      <rect x="78" y="79" width="18" height="8" rx="1" fill="#3a3228" />
+    </svg>
+  ),
 };
 
 const TOOLBAR_MENUS = [
@@ -6399,11 +6419,12 @@ const TOOLBAR_MENUS = [
     label: 'Hero',
     icon: '◉',
     items: [
-      { label: 'Cinematic',  sub: 'Full-bleed image · overlay text', action: 'hero-cinematic' },
-      { label: 'Editorial',  sub: 'Text dominant · inset image',     action: 'hero-editorial' },
-      { label: 'Split',      sub: '50/50 image + text',              action: 'hero-split' },
-      { label: 'Minimalist', sub: 'No image · typography only',      action: 'hero-minimal' },
-      { label: 'Dark',       sub: 'Dark full-bleed · centred',       action: 'hero-dark' },
+      { label: 'Cinematic',     sub: 'Full-bleed image · overlay text',               action: 'hero-cinematic' },
+      { label: 'Editorial',     sub: 'Text dominant · inset image',                   action: 'hero-editorial' },
+      { label: 'Split',         sub: '50/50 image + text',                            action: 'hero-split' },
+      { label: 'Minimalist',    sub: 'No image · typography only',                   action: 'hero-minimal' },
+      { label: 'Dark',          sub: 'Dark full-bleed · centred',                    action: 'hero-dark' },
+      { label: 'Gallery Split', sub: 'Landscape + portrait · thumbnail strip below', action: 'hero-gallery-split' },
     ],
   },
   {
@@ -6452,11 +6473,12 @@ const TOOLBAR_MENUS = [
 ];
 
 const HERO_PRESETS = {
-  'hero-cinematic': { heroLayout: 'cinematic', heroHeight: 560, heroOverlay: 0.5 },
-  'hero-editorial': { heroLayout: 'editorial', heroHeight: 420, heroOverlay: 0.25 },
-  'hero-split':     { heroLayout: 'split',     heroHeight: 480, heroOverlay: 0 },
-  'hero-minimal':   { heroLayout: 'minimal',   heroHeight: 0,   heroOverlay: 0 },
-  'hero-dark':      { heroLayout: 'dark',      heroHeight: 600, heroOverlay: 0.68 },
+  'hero-cinematic':     { heroStyle: 'cinematic',    heroHeight: 'tall',     heroOverlayOpacity: 50 },
+  'hero-editorial':     { heroStyle: 'editorial',    heroHeight: 'standard', heroOverlayOpacity: 25 },
+  'hero-split':         { heroStyle: 'split',        heroHeight: 'standard', heroOverlayOpacity: 0  },
+  'hero-minimal':       { heroStyle: 'minimal',      heroHeight: 'standard', heroOverlayOpacity: 0  },
+  'hero-dark':          { heroStyle: 'cinematic',    heroHeight: 'tall',     heroOverlayOpacity: 68 },
+  'hero-gallery-split': { heroStyle: 'gallery-split',heroHeight: 'standard', heroOverlayOpacity: 0  },
 };
 
 function CanvasToolbar({ formData, onChange, onAddBlock, SS, viewport = 'desktop', onViewport }) {
