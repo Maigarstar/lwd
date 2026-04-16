@@ -204,6 +204,18 @@ function GuideLines({ guides, onMoveGuide }) {
   );
 }
 
+// ── Bleed overlay ─────────────────────────────────────────────────────────────
+function BleedOverlay() {
+  return (
+    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 15 }}>
+      {/* Bleed line — 3mm ≈ 11px */}
+      <div style={{ position: 'absolute', inset: 11, border: '1px dashed rgba(255,80,80,0.5)' }} />
+      {/* Safe zone — 5mm ≈ 19px */}
+      <div style={{ position: 'absolute', inset: 19, border: '1px dashed rgba(0,168,255,0.35)' }} />
+    </div>
+  );
+}
+
 // ── Page number helpers ───────────────────────────────────────────────────────
 function toRoman(num) {
   const vals = [1000,900,500,400,100,90,50,40,10,9,5,4,1];
@@ -244,8 +256,9 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const fabricRef     = useRef(null); // right / single
   const fabricRefLeft = useRef(null); // left (spread view only)
 
-  // Canvas container ref (for guide coordinate calculations)
-  const canvasContainerRef = useRef(null);
+  // Canvas container refs (for guide coordinate calculations)
+  const canvasContainerRef     = useRef(null); // right / single (or active in spread)
+  const canvasContainerRefLeft = useRef(null); // left page in spread view
 
   // Canvas area ref (for auto-fit zoom)
   const canvasAreaRef = useRef(null);
@@ -272,8 +285,8 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
 
-  // Spread view state
-  const [spreadView, setSpreadView] = useState(false);
+  // Spread view state — default ON for wide screens
+  const [spreadView, setSpreadView] = useState(() => window.innerWidth >= 1400);
   const [activeSpreadSide, setActiveSpreadSide] = useState('right'); // 'left' | 'right'
 
   // Guide rails state
@@ -296,16 +309,20 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   // ── Auto-fit zoom ────────────────────────────────────────────────────────────
   // Note: fitToScreen only calls setZoom here. handleZoomChange (defined below)
   // updates the Fabric canvas sizes too. We use a ref to avoid circular deps.
+  const SPINE_GAP = 4;
+
   const fitToScreenRaw = useCallback(() => {
     const el = canvasAreaRef.current;
     if (!el) return;
     const availW = el.clientWidth  - 80;
     const availH = el.clientHeight - 80;
-    const scaleW = availW / dims.w;
-    const scaleH = availH / dims.h;
+    const canvasW = spreadView ? (dims.w * 2 + SPINE_GAP) : dims.w;
+    const canvasH = dims.h;
+    const scaleW = availW / canvasW;
+    const scaleH = availH / canvasH;
     const fit = Math.min(scaleW, scaleH, 1.5);
     return parseFloat(fit.toFixed(2));
-  }, [dims.w, dims.h]);
+  }, [dims.w, dims.h, spreadView]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fitToScreen = useCallback(() => {
     const fit = fitToScreenRaw();
@@ -317,7 +334,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     const ro = new ResizeObserver(fitToScreen);
     if (canvasAreaRef.current) ro.observe(canvasAreaRef.current);
     return () => ro.disconnect();
-  }, [dims.w, dims.h]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dims.w, dims.h, spreadView]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Active canvas helper ────────────────────────────────────────────────────
   const getActiveCanvas = useCallback(() => {
@@ -470,11 +487,16 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); }
       if (mod && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); handleRedo(); }
       if (mod && e.key === 's') { e.preventDefault(); handleSave(); }
+      // Tab switches active spread side in spread view
+      if (e.key === 'Tab' && spreadView) {
+        e.preventDefault();
+        setActiveSpreadSide(s => s === 'left' ? 'right' : 'left');
+      }
     }
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [undoStack, redoStack]);
+  }, [undoStack, redoStack, spreadView]);
 
   // ── Save current page(s) to state ──────────────────────────────────────────
   const saveCurrentPageToState = useCallback(() => {
@@ -776,8 +798,12 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   function handleSelectPage(i) {
     saveCurrentPageToState();
     setCurrentPageIndex(i);
-    // In spread view, reset active side to right when navigating
-    if (spreadView) setActiveSpreadSide('right');
+    if (spreadView) {
+      // Determine which side of the spread was clicked and activate it
+      const { leftIndex } = getSpreadIndices(i, pages.length);
+      if (i === leftIndex) setActiveSpreadSide('left');
+      else setActiveSpreadSide('right');
+    }
   }
 
   function handleAddPage() {
@@ -869,13 +895,19 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
 
   // ── Guide rails ─────────────────────────────────────────────────────────────
 
+  // Helper: get the active canvas container ref (left or right in spread, single otherwise)
+  const getActiveContainerRef = useCallback(() => {
+    if (spreadView && activeSpreadSide === 'left') return canvasContainerRefLeft;
+    return canvasContainerRef;
+  }, [spreadView, activeSpreadSide]);
+
   // Create horizontal guide by dragging from horizontal ruler
   const handleCreateHGuide = useCallback((startClientY) => {
     const onMove = (e) => {
       setDraftGuide({ axis: 'h', pos: e.clientY });
     };
     const onUp = (e) => {
-      const canvasContainer = canvasContainerRef.current;
+      const canvasContainer = getActiveContainerRef().current;
       if (canvasContainer) {
         const rect = canvasContainer.getBoundingClientRect();
         const y = (e.clientY - rect.top) / zoom;
@@ -889,13 +921,13 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, [zoom, dims]);
+  }, [zoom, dims, getActiveContainerRef]);
 
   // Create vertical guide by dragging from vertical ruler
   const handleCreateVGuide = useCallback((startClientX) => {
     const onMove = (e) => setDraftGuide({ axis: 'v', pos: e.clientX });
     const onUp = (e) => {
-      const canvasContainer = canvasContainerRef.current;
+      const canvasContainer = getActiveContainerRef().current;
       if (canvasContainer) {
         const rect = canvasContainer.getBoundingClientRect();
         const x = (e.clientX - rect.left) / zoom;
@@ -909,12 +941,12 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, [zoom, dims]);
+  }, [zoom, dims, getActiveContainerRef]);
 
   // Move or delete an existing guide
   const handleMoveGuide = useCallback((axis, index, e) => {
     e.preventDefault();
-    const canvasContainer = canvasContainerRef.current;
+    const canvasContainer = getActiveContainerRef().current;
     const onMove = (ev) => {
       if (!canvasContainer) return;
       const rect = canvasContainer.getBoundingClientRect();
@@ -947,7 +979,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, [zoom, dims]);
+  }, [zoom, dims, getActiveContainerRef]);
 
   // Clear all guides
   const handleClearGuides = useCallback(() => setGuides({ h: [], v: [] }), []);
@@ -1052,98 +1084,154 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
                 flex: 1,
                 overflow: 'auto',
                 background: '#141210',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: spreadView ? '40px 20px' : '40px',
               }}
             >
+              {/* Inner centering wrapper — plain block div, NOT a flex scroll container.
+                  Uses flex only internally for horizontal centering.
+                  minHeight:100% + padding give breathing room. No flex centering on
+                  the scroll container itself (avoids the snap-to-top bug where
+                  justify-content:center resets scroll position on re-renders). */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                padding: spreadView ? '40px 20px' : '40px',
+                minHeight: '100%',
+                boxSizing: 'border-box',
+              }}>
 
               {spreadView ? (
                 // ── SPREAD VIEW ────────────────────────────────────────────────
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 0,
-                  transform: `scale(${zoom})`,
-                  transformOrigin: 'top center',
-                }}>
-                  {/* Left page */}
-                  <div
-                    onClick={() => {
-                      if (spreadIndices.leftIndex !== null) {
-                        setActiveSpreadSide('left');
-                      }
-                    }}
-                    style={{
-                      position: 'relative',
-                      boxShadow: activeSpreadSide === 'left'
-                        ? `0 0 0 2px #C9A96E, 0 12px 48px rgba(0,0,0,0.6)`
-                        : '0 12px 48px rgba(0,0,0,0.5)',
-                      cursor: spreadIndices.leftIndex !== null ? 'pointer' : 'default',
-                      marginRight: 4, // spine gap
-                    }}
-                  >
-                    {/* Left page active indicator */}
-                    {activeSpreadSide === 'left' && spreadIndices.leftIndex !== null && (
-                      <div style={{
-                        position: 'absolute', top: -24, left: 0,
-                        fontSize: 10, color: '#C9A96E', fontFamily: "'Jost',sans-serif",
-                        fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
-                        pointerEvents: 'none',
-                      }}>
-                        Page {spreadIndices.leftIndex + 1} — editing
-                      </div>
-                    )}
-
-                    {spreadIndices.leftIndex !== null ? (
-                      // Real left page canvas
-                      <div style={{ position: 'relative' }}>
-                        <canvas ref={canvasElRefLeft} />
-                        {showGrid && activeSpreadSide === 'left' && (
-                          <GridOverlay width={dims.w} height={dims.h} />
-                        )}
-                      </div>
-                    ) : (
-                      // Cover: blank left page
-                      <div style={{
-                        width: dims.w, height: dims.h,
-                        background: '#2A2520',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 13, fontFamily: "'Jost',sans-serif" }}>
-                          — cover —
-                        </span>
-                      </div>
-                    )}
+                <div style={{ position: 'relative' }}>
+                  {/* Spread label — above the canvas, outside the transform */}
+                  <div style={{
+                    textAlign: 'center',
+                    marginBottom: 8,
+                    fontSize: 10,
+                    color: 'rgba(255,255,255,0.3)',
+                    fontFamily: "'Jost',sans-serif",
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                  }}>
+                    {spreadIndices.leftIndex === null
+                      ? 'Cover'
+                      : `Spread ${Math.ceil(spreadIndices.leftIndex / 2)} · Pages ${spreadIndices.leftIndex + 1}–${(spreadIndices.rightIndex ?? spreadIndices.leftIndex) + 1}`
+                    }
                   </div>
 
-                  {/* Right page */}
+                  {/* Pages container — one unified shadow for the whole spread */}
                   <div
-                    onClick={() => setActiveSpreadSide('right')}
                     style={{
-                      position: 'relative',
-                      boxShadow: activeSpreadSide === 'right'
-                        ? `0 0 0 2px #C9A96E, 0 12px 48px rgba(0,0,0,0.6)`
-                        : '0 12px 48px rgba(0,0,0,0.5)',
-                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      transform: `scale(${zoom})`,
+                      transformOrigin: 'top center',
+                      filter: 'drop-shadow(0 16px 64px rgba(0,0,0,0.7))',
                     }}
                   >
-                    {activeSpreadSide === 'right' && (
-                      <div style={{
-                        position: 'absolute', top: -24, left: 0,
-                        fontSize: 10, color: '#C9A96E', fontFamily: "'Jost',sans-serif",
-                        fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
-                        pointerEvents: 'none',
-                      }}>
-                        Page {(spreadIndices.rightIndex ?? 0) + 1} — editing
-                      </div>
-                    )}
-                    <div style={{ position: 'relative' }}>
-                      <canvas ref={canvasElRef} />
-                      {showGrid && activeSpreadSide === 'right' && (
-                        <GridOverlay width={dims.w} height={dims.h} />
+                    {/* LEFT PAGE */}
+                    <div
+                      style={{
+                        position: 'relative',
+                        cursor: spreadIndices.leftIndex !== null ? 'pointer' : 'default',
+                        outline: activeSpreadSide === 'left' ? '2px solid #C9A96E' : '2px solid transparent',
+                        outlineOffset: 0,
+                      }}
+                      onClick={() => {
+                        if (spreadIndices.leftIndex !== null) setActiveSpreadSide('left');
+                      }}
+                    >
+                      {/* Active indicator label */}
+                      {activeSpreadSide === 'left' && spreadIndices.leftIndex !== null && (
+                        <div style={{
+                          position: 'absolute', top: -22, left: 0,
+                          fontSize: 9, color: '#C9A96E',
+                          fontFamily: "'Jost', sans-serif",
+                          fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                          whiteSpace: 'nowrap',
+                          pointerEvents: 'none',
+                        }}>
+                          Page {(spreadIndices.leftIndex ?? 0) + 1} · editing
+                        </div>
                       )}
+
+                      {spreadIndices.leftIndex !== null ? (
+                        // Real left page — show canvas
+                        <div ref={canvasContainerRefLeft} style={{ position: 'relative' }}>
+                          <canvas ref={canvasElRefLeft} style={{ display: 'block' }} />
+                          {showGrid && activeSpreadSide === 'left' && (
+                            <GridOverlay width={dims.w} height={dims.h} />
+                          )}
+                          {showBleed && <BleedOverlay />}
+                          {activeSpreadSide === 'left' && (
+                            <GuideLines
+                              guides={guides}
+                              onMoveGuide={handleMoveGuide}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        // Cover — show grey placeholder
+                        <div style={{
+                          width: dims.w, height: dims.h,
+                          background: '#1E1B17',
+                          display: 'flex', flexDirection: 'column',
+                          alignItems: 'center', justifyContent: 'center',
+                          gap: 8,
+                        }}>
+                          <div style={{
+                            fontSize: 11, color: 'rgba(255,255,255,0.12)',
+                            fontFamily: "'Jost',sans-serif", letterSpacing: '0.15em',
+                            textTransform: 'uppercase',
+                          }}>Cover page</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* SPINE — 4px dark gap between pages */}
+                    <div style={{
+                      width: 4, height: dims.h,
+                      background: 'linear-gradient(to right, rgba(0,0,0,0.4), rgba(0,0,0,0.15), rgba(0,0,0,0.4))',
+                      flexShrink: 0,
+                    }} />
+
+                    {/* RIGHT PAGE */}
+                    <div
+                      style={{
+                        position: 'relative',
+                        cursor: 'pointer',
+                        outline: activeSpreadSide === 'right' ? '2px solid #C9A96E' : '2px solid transparent',
+                        outlineOffset: 0,
+                      }}
+                      onClick={() => setActiveSpreadSide('right')}
+                    >
+                      {activeSpreadSide === 'right' && (
+                        <div style={{
+                          position: 'absolute', top: -22, left: 0,
+                          fontSize: 9, color: '#C9A96E',
+                          fontFamily: "'Jost', sans-serif",
+                          fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                          whiteSpace: 'nowrap',
+                          pointerEvents: 'none',
+                        }}>
+                          Page {(spreadIndices.rightIndex ?? 0) + 1} · editing
+                        </div>
+                      )}
+
+                      <div ref={canvasContainerRef} style={{ position: 'relative' }}>
+                        <canvas ref={canvasElRef} style={{ display: 'block' }} />
+                        {showGrid && activeSpreadSide === 'right' && (
+                          <GridOverlay width={dims.w} height={dims.h} />
+                        )}
+                        {showBleed && <BleedOverlay />}
+                        {activeSpreadSide === 'right' && (
+                          <GuideLines
+                            guides={guides}
+                            onMoveGuide={handleMoveGuide}
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1167,27 +1255,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
                     />
                   )}
                   {/* Bleed + safe zone guides */}
-                  {showBleed && (
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      pointerEvents: 'none',
-                      zIndex: 15,
-                    }}>
-                      {/* Bleed line — 3mm ≈ 11px */}
-                      <div style={{
-                        position: 'absolute',
-                        inset: 11,
-                        border: '1px dashed rgba(255,80,80,0.5)',
-                      }} />
-                      {/* Safe zone — 5mm ≈ 19px */}
-                      <div style={{
-                        position: 'absolute',
-                        inset: 19,
-                        border: '1px dashed rgba(0,168,255,0.35)',
-                      }} />
-                    </div>
-                  )}
+                  {showBleed && <BleedOverlay />}
                   {/* Guide lines overlay */}
                   <GuideLines
                     guides={guides}
@@ -1195,9 +1263,10 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
                   />
                 </div>
               )}
-            </div>
-          </div>
-        </div>
+              </div>{/* end inner centering wrapper */}
+            </div>{/* end canvasAreaRef */}
+          </div>{/* end middle row (ruler + canvas area) */}
+        </div>{/* end canvas column */}
 
         {/* Properties panel */}
         <PropertiesPanel
