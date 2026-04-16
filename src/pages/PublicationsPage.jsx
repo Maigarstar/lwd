@@ -1,21 +1,17 @@
 // ─── src/pages/PublicationsPage.jsx ──────────────────────────────────────────
-// Public listing of all published magazine issues.
+// Public luxury magazine landing page.
 // Route: /publications
-// Displays a luxury grid of cover cards — each links to the reader.
+// Cinematic hero with latest cover + premium issue grid.
 
-import { useState, useEffect } from 'react';
-import HomeNav from '../components/nav/HomeNav';
+import { useState, useEffect, useRef } from 'react';
 import { fetchIssues } from '../services/magazineIssuesService';
 
-const GOLD   = '#C9A84C';
-const GD     = "var(--font-heading-primary, 'Cormorant Garamond', Georgia, serif)";
-const NU     = "var(--font-body, 'Jost', sans-serif)";
-const BG     = '#0A0908';
-const CARD   = '#14120F';
-const BORDER = 'rgba(201,168,76,0.18)';
-const MUTED  = 'rgba(255,255,255,0.42)';
+const GOLD = '#C9A84C';
+const GD   = "var(--font-heading-primary, 'Cormorant Garamond', Georgia, serif)";
+const NU   = "var(--font-body, 'Jost', sans-serif)";
+const BG   = '#080706';
 
-// ── Season label ──────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function seasonLabel(issue) {
   const parts = [];
   if (issue.season) parts.push(issue.season);
@@ -23,68 +19,338 @@ function seasonLabel(issue) {
   return parts.join(' ');
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
-function EmptyState() {
+function issueLabel(issue) {
+  const parts = [];
+  if (issue.issue_number) parts.push(`Issue ${String(issue.issue_number).padStart(2, '0')}`);
+  const sl = seasonLabel(issue);
+  if (sl) parts.push(sl);
+  return parts.join(' · ');
+}
+
+// ── Scroll-down chevron ───────────────────────────────────────────────────────
+function ScrollChevron({ targetId }) {
+  return (
+    <button
+      onClick={() => {
+        const el = document.getElementById(targetId);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }}
+      style={{
+        position:   'absolute',
+        bottom:     32,
+        left:       '50%',
+        transform:  'translateX(-50%)',
+        background: 'none',
+        border:     'none',
+        cursor:     'pointer',
+        padding:    8,
+        display:    'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap:        4,
+        animation:  'lwdChevronBounce 2s ease-in-out infinite',
+      }}
+      aria-label="Scroll to all issues"
+    >
+      <svg width="20" height="12" viewBox="0 0 20 12" fill="none">
+        <path d="M1 1L10 10L19 1" stroke="rgba(201,168,76,0.6)" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+      <style>{`
+        @keyframes lwdChevronBounce {
+          0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.6; }
+          50%       { transform: translateX(-50%) translateY(6px); opacity: 1; }
+        }
+      `}</style>
+    </button>
+  );
+}
+
+// ── Back link ─────────────────────────────────────────────────────────────────
+function BackLink({ onBack }) {
+  return (
+    <button
+      onClick={() => {
+        if (onBack) onBack();
+        else window.history.back();
+      }}
+      style={{
+        position:      'fixed',
+        top:           24,
+        left:          24,
+        zIndex:        100,
+        background:    'none',
+        border:        'none',
+        cursor:        'pointer',
+        display:       'flex',
+        alignItems:    'center',
+        gap:           8,
+        fontFamily:    NU,
+        fontSize:      11,
+        fontWeight:    500,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        color:         'rgba(255,255,255,0.7)',
+        padding:       '6px 0',
+        transition:    'color 0.2s',
+      }}
+      onMouseEnter={e => e.currentTarget.style.color = GOLD}
+      onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.7)'}
+    >
+      ← <span>LWD</span>
+    </button>
+  );
+}
+
+// ── Hero section ──────────────────────────────────────────────────────────────
+function Hero({ featured, onRead, isMobile }) {
+  const hasImage = !!(featured && featured.cover_image);
+  const label    = featured ? issueLabel(featured) : '';
+
+  // Noise SVG pattern for when there is no cover image
+  const noiseBg = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`;
+
   return (
     <div style={{
-      display:        'flex',
-      flexDirection:  'column',
-      alignItems:     'center',
-      justifyContent: 'center',
-      padding:        '120px 24px',
-      textAlign:      'center',
+      position:   'relative',
+      height:     '100vh',
+      minHeight:  600,
+      background: BG,
+      overflow:   'hidden',
+      display:    'flex',
+      alignItems: 'center',
     }}>
-      <div style={{ fontSize: 48, marginBottom: 24, opacity: 0.3 }}>◈</div>
-      <h2 style={{
-        fontFamily: GD,
-        fontSize:   28,
-        fontWeight: 400,
-        color:      '#fff',
-        margin:     '0 0 12px',
-        letterSpacing: '0.04em',
+      {/* Background cover image (right side) */}
+      {hasImage ? (
+        <>
+          <img
+            src={featured.cover_image}
+            alt={featured.title || 'Latest issue'}
+            style={{
+              position:   'absolute',
+              inset:      0,
+              width:      '100%',
+              height:     '100%',
+              objectFit:  'cover',
+              objectPosition: 'right center',
+              opacity:    isMobile ? 0.18 : 1,
+            }}
+          />
+          <div style={{
+            position:   'absolute',
+            inset:      0,
+            background: isMobile
+              ? `linear-gradient(to bottom, rgba(8,7,6,0.95) 0%, rgba(8,7,6,0.85) 100%)`
+              : `linear-gradient(to right, rgba(8,7,6,0.97) 45%, rgba(8,7,6,0.3) 100%)`,
+          }} />
+        </>
+      ) : (
+        <div style={{
+          position:   'absolute',
+          inset:      0,
+          backgroundImage: noiseBg,
+          backgroundRepeat: 'repeat',
+        }} />
+      )}
+
+      {/* Left-side content */}
+      <div style={{
+        position:  'relative',
+        zIndex:    2,
+        maxWidth:  isMobile ? '100%' : 600,
+        padding:   isMobile ? '100px 24px 80px' : '0 0 0 clamp(40px, 7vw, 120px)',
       }}>
-        No Issues Published Yet
-      </h2>
-      <p style={{
-        fontFamily: NU,
-        fontSize:   15,
-        color:      MUTED,
-        maxWidth:   340,
-        lineHeight: 1.6,
-      }}>
-        The latest edition of Luxury Wedding Directory magazine will appear here when published.
-      </p>
+        {/* Eyebrow */}
+        <div style={{
+          fontFamily:    NU,
+          fontSize:      9,
+          fontWeight:    600,
+          color:         GOLD,
+          letterSpacing: '0.2em',
+          textTransform: 'uppercase',
+          marginBottom:  16,
+        }}>
+          ✦&nbsp;&nbsp;The Magazine
+        </div>
+
+        {/* Issue label */}
+        {label && (
+          <div style={{
+            fontFamily:    NU,
+            fontSize:      11,
+            color:         'rgba(255,255,255,0.45)',
+            letterSpacing: '0.08em',
+            marginBottom:  20,
+          }}>
+            {label}
+          </div>
+        )}
+
+        {/* Title */}
+        <h1 style={{
+          fontFamily:    GD,
+          fontSize:      'clamp(52px, 7vw, 88px)',
+          fontWeight:    300,
+          fontStyle:     'italic',
+          color:         '#fff',
+          margin:        '0 0 24px',
+          letterSpacing: '0.02em',
+          lineHeight:    1.05,
+        }}>
+          {featured ? (featured.title || 'The Magazine') : 'The Magazine'}
+        </h1>
+
+        {/* Excerpt */}
+        {featured && featured.excerpt && (
+          <p style={{
+            fontFamily:    NU,
+            fontSize:      15,
+            color:         'rgba(255,255,255,0.6)',
+            maxWidth:      480,
+            lineHeight:    1.65,
+            margin:        '0 0 36px',
+            display:       '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow:      'hidden',
+          }}>
+            {featured.excerpt}
+          </p>
+        )}
+
+        {!featured && (
+          <p style={{
+            fontFamily:    NU,
+            fontSize:      15,
+            color:         'rgba(255,255,255,0.6)',
+            maxWidth:      480,
+            lineHeight:    1.65,
+            margin:        '0 0 36px',
+          }}>
+            Immersive editorial — curated for couples planning exceptional celebrations.
+          </p>
+        )}
+
+        {/* CTA row */}
+        <div style={{
+          display:    'flex',
+          alignItems: 'center',
+          gap:        28,
+          flexWrap:   'wrap',
+        }}>
+          {featured && onRead && (
+            <button
+              onClick={() => onRead(featured.slug)}
+              style={{
+                background:    GOLD,
+                color:         '#080706',
+                fontFamily:    NU,
+                fontSize:      12,
+                fontWeight:    600,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                padding:       '14px 32px',
+                border:        'none',
+                cursor:        'pointer',
+                transition:    'opacity 0.2s, transform 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}
+            >
+              Read Now →
+            </button>
+          )}
+
+          <button
+            onClick={() => {
+              const el = document.getElementById('all-issues');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            style={{
+              background:    'none',
+              border:        'none',
+              cursor:        'pointer',
+              fontFamily:    NU,
+              fontSize:      12,
+              color:         'rgba(255,255,255,0.5)',
+              letterSpacing: '0.08em',
+              padding:       0,
+              transition:    'color 0.2s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.9)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
+          >
+            ↓ All Issues
+          </button>
+        </div>
+      </div>
+
+      {/* Scroll chevron */}
+      <ScrollChevron targetId="all-issues" />
+    </div>
+  );
+}
+
+// ── Skeleton card ─────────────────────────────────────────────────────────────
+function SkeletonCard() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{
+        position:       'relative',
+        paddingBottom:  '141.4%',
+        background:     '#1a1612',
+        animation:      'lwdSkeletonPulse 1.6s ease-in-out infinite',
+      }} />
+      <div style={{ padding: '14px 0 0' }}>
+        <div style={{
+          height:     10,
+          width:      '50%',
+          background: '#1a1612',
+          marginBottom: 10,
+          animation:  'lwdSkeletonPulse 1.6s ease-in-out infinite',
+        }} />
+        <div style={{
+          height:     18,
+          width:      '80%',
+          background: '#1a1612',
+          animation:  'lwdSkeletonPulse 1.6s ease-in-out infinite 0.2s',
+        }} />
+      </div>
+      <style>{`
+        @keyframes lwdSkeletonPulse {
+          0%, 100% { opacity: 0.4; }
+          50%       { opacity: 0.7; }
+        }
+      `}</style>
     </div>
   );
 }
 
 // ── Issue card ────────────────────────────────────────────────────────────────
-function IssueCard({ issue, onRead }) {
+function IssueCard({ issue, onRead, isLatest }) {
   const [hovered, setHovered] = useState(false);
+  const sl = seasonLabel(issue);
 
   return (
     <div
-      onClick={() => onRead(issue.slug)}
+      onClick={() => onRead && onRead(issue.slug)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        cursor:         'pointer',
-        background:     CARD,
-        border:         `1px solid ${hovered ? 'rgba(201,168,76,0.45)' : BORDER}`,
-        borderRadius:   2,
-        overflow:       'hidden',
-        transition:     'border-color 0.2s, transform 0.25s',
-        transform:      hovered ? 'translateY(-4px)' : 'none',
-        display:        'flex',
-        flexDirection:  'column',
+        cursor:        'pointer',
+        display:       'flex',
+        flexDirection: 'column',
+        transition:    'transform 0.3s ease',
+        transform:     hovered ? 'translateY(-6px)' : 'none',
       }}
     >
-      {/* Cover image */}
+      {/* Cover wrapper — A4 ratio */}
       <div style={{
-        position:       'relative',
-        paddingBottom:  '141.4%', // A4 ratio
-        background:     '#1A1612',
-        flexShrink:     0,
+        position:      'relative',
+        paddingBottom: '141.4%',
+        background:    '#1a1612',
+        border:        `1px solid ${hovered ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.1)'}`,
+        transition:    'border-color 0.25s',
+        overflow:      'hidden',
       }}>
         {issue.cover_image ? (
           <img
@@ -97,7 +363,7 @@ function IssueCard({ issue, onRead }) {
               height:     '100%',
               objectFit:  'cover',
               transition: 'transform 0.4s ease',
-              transform:  hovered ? 'scale(1.03)' : 'scale(1)',
+              transform:  hovered ? 'scale(1.04)' : 'scale(1)',
             }}
           />
         ) : (
@@ -108,69 +374,99 @@ function IssueCard({ issue, onRead }) {
             alignItems:     'center',
             justifyContent: 'center',
             flexDirection:  'column',
-            gap:            12,
+            gap:            10,
           }}>
-            <span style={{ fontSize: 36, opacity: 0.2 }}>◈</span>
-            <span style={{
-              fontFamily:  NU,
-              fontSize:    10,
-              color:       MUTED,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-            }}>
-              No Cover
-            </span>
+            <span style={{ fontSize: 32, opacity: 0.15, color: GOLD }}>◈</span>
           </div>
         )}
 
-        {/* Issue number badge */}
-        {issue.issue_number && (
+        {/* Latest badge */}
+        {isLatest && (
           <div style={{
-            position:    'absolute',
-            top:         12,
-            left:        12,
-            background:  GOLD,
-            color:       '#000',
-            fontFamily:  NU,
-            fontSize:    9,
-            fontWeight:  700,
-            letterSpacing: '0.1em',
+            position:      'absolute',
+            top:           12,
+            left:          12,
+            background:    GOLD,
+            color:         '#080706',
+            fontFamily:    NU,
+            fontSize:      8,
+            fontWeight:    700,
+            letterSpacing: '0.12em',
             textTransform: 'uppercase',
-            padding:     '4px 8px',
-            borderRadius: 1,
+            padding:       '4px 8px',
           }}>
-            Issue {issue.issue_number}
+            ✦ Latest
+          </div>
+        )}
+
+        {/* Premium badge */}
+        {issue.access_level === 'premium' && (
+          <div style={{
+            position:      'absolute',
+            top:           12,
+            right:         12,
+            background:    'rgba(8,7,6,0.85)',
+            border:        `1px solid ${GOLD}`,
+            color:         GOLD,
+            fontFamily:    NU,
+            fontSize:      8,
+            fontWeight:    600,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            padding:       '4px 8px',
+          }}>
+            ✦ Premium
           </div>
         )}
       </div>
 
-      {/* Card footer */}
-      <div style={{ padding: '16px 16px 18px' }}>
-        {/* Season / year */}
-        {seasonLabel(issue) && (
-          <div style={{
-            fontFamily:    NU,
-            fontSize:      10,
-            fontWeight:    600,
-            color:         GOLD,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            marginBottom:  6,
-          }}>
-            {seasonLabel(issue)}
-          </div>
-        )}
+      {/* Info strip */}
+      <div style={{ padding: '14px 0 0' }}>
+        {/* Issue number + season row */}
+        <div style={{
+          display:       'flex',
+          alignItems:    'center',
+          gap:           8,
+          marginBottom:  8,
+        }}>
+          {issue.issue_number && (
+            <span style={{
+              background:    GOLD,
+              color:         '#080706',
+              fontFamily:    NU,
+              fontSize:      8,
+              fontWeight:    700,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              padding:       '3px 7px',
+            }}>
+              Issue {issue.issue_number}
+            </span>
+          )}
+          {sl && (
+            <span style={{
+              fontFamily:    NU,
+              fontSize:      9,
+              fontWeight:    600,
+              color:         GOLD,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+            }}>
+              {sl}
+            </span>
+          )}
+        </div>
 
         {/* Title */}
         <h3 style={{
-          fontFamily:  GD,
-          fontSize:    18,
-          fontWeight:  400,
-          color:       '#fff',
-          margin:      '0 0 8px',
-          letterSpacing: '0.02em',
-          lineHeight:  1.3,
-          // Two-line clamp
+          fontFamily:        GD,
+          fontSize:          17,
+          fontWeight:        400,
+          fontStyle:         'italic',
+          color:             '#fff',
+          margin:            '0 0 10px',
+          letterSpacing:     '0.02em',
+          lineHeight:        1.3,
           display:           '-webkit-box',
           WebkitLineClamp:   2,
           WebkitBoxOrient:   'vertical',
@@ -179,104 +475,120 @@ function IssueCard({ issue, onRead }) {
           {issue.title || 'Untitled Issue'}
         </h3>
 
-        {/* Meta */}
+        {/* Read label — fades in on hover */}
         <div style={{
-          display:    'flex',
-          alignItems: 'center',
-          gap:        12,
-          marginTop:  'auto',
+          fontFamily:    NU,
+          fontSize:      10,
+          fontWeight:    600,
+          color:         GOLD,
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          opacity:       hovered ? 1 : 0,
+          transition:    'opacity 0.2s',
         }}>
-          {issue.page_count > 0 && (
-            <span style={{
-              fontFamily: NU,
-              fontSize:   11,
-              color:      MUTED,
-            }}>
-              {issue.page_count} pages
-            </span>
-          )}
-          <span style={{
-            fontFamily:    NU,
-            fontSize:      10,
-            fontWeight:    600,
-            color:         GOLD,
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            marginLeft:    'auto',
-            opacity:       hovered ? 1 : 0.7,
-            transition:    'opacity 0.2s',
-          }}>
-            Read →
-          </span>
+          Read →
         </div>
       </div>
     </div>
   );
 }
 
-// ── Hero header ───────────────────────────────────────────────────────────────
-function Hero() {
+// ── Section header ────────────────────────────────────────────────────────────
+function SectionHeader({ title }) {
   return (
     <div style={{
-      padding:    '80px 0 60px',
-      textAlign:  'center',
-      borderBottom: `1px solid ${BORDER}`,
-      marginBottom: 56,
+      display:    'flex',
+      alignItems: 'center',
+      gap:        24,
+      marginBottom: 48,
     }}>
-      {/* Eyebrow */}
-      <div style={{
-        fontFamily:    NU,
-        fontSize:      10,
-        fontWeight:    600,
-        color:         GOLD,
-        letterSpacing: '0.18em',
-        textTransform: 'uppercase',
-        marginBottom:  20,
-      }}>
-        ✦ &nbsp;Luxury Wedding Directory
-      </div>
-
-      <h1 style={{
-        fontFamily:  GD,
-        fontSize:    'clamp(40px, 6vw, 72px)',
-        fontWeight:  300,
-        fontStyle:   'italic',
-        color:       '#fff',
-        margin:      '0 0 20px',
+      <h2 style={{
+        fontFamily:    GD,
+        fontSize:      36,
+        fontWeight:    300,
+        fontStyle:     'italic',
+        color:         '#fff',
+        margin:        0,
         letterSpacing: '0.02em',
-        lineHeight:  1.1,
+        whiteSpace:    'nowrap',
       }}>
-        The Magazine
-      </h1>
+        {title}
+      </h2>
+      <div style={{
+        flex:       1,
+        height:     1,
+        background: 'rgba(201,168,76,0.25)',
+      }} />
+    </div>
+  );
+}
 
-      <p style={{
-        fontFamily: NU,
-        fontSize:   15,
-        color:      MUTED,
-        maxWidth:   440,
-        margin:     '0 auto',
-        lineHeight: 1.6,
+// ── Footer strip ──────────────────────────────────────────────────────────────
+function FooterStrip() {
+  return (
+    <div style={{
+      background:  BG,
+      height:      60,
+      display:     'flex',
+      alignItems:  'center',
+      justifyContent: 'space-between',
+      padding:     '0 32px',
+      borderTop:   '1px solid rgba(201,168,76,0.1)',
+    }}>
+      <span style={{
+        fontFamily:    NU,
+        fontSize:      11,
+        color:         'rgba(255,255,255,0.35)',
+        letterSpacing: '0.06em',
       }}>
-        Immersive editorial — curated for couples planning exceptional celebrations.
-      </p>
+        Luxury Wedding Directory · The Magazine
+      </span>
+      <span style={{
+        fontFamily:    NU,
+        fontSize:      11,
+        color:         'rgba(255,255,255,0.25)',
+      }}>
+        © 2026
+      </span>
     </div>
   );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function PublicationsPage({ onRead, footerNav }) {
+export default function PublicationsPage({ onRead, onBack, footerNav }) {
   const [issues, setIssues]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    setIsMobile(mq.matches);
+    const handler = e => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     fetchIssues().then(({ data, error: err }) => {
       if (cancelled) return;
-      if (err) { setError('Failed to load issues.'); setLoading(false); return; }
-      // Only show published issues on the public page
-      setIssues((data || []).filter(i => i.status === 'published'));
+      if (err) {
+        setError('Failed to load issues.');
+        setLoading(false);
+        return;
+      }
+      const published = (data || [])
+        .filter(i => i.status === 'published')
+        .sort((a, b) => {
+          // Sort by issue_number desc, fallback to created_at desc
+          const na = a.issue_number ?? 0;
+          const nb = b.issue_number ?? 0;
+          if (nb !== na) return nb - na;
+          return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+        });
+      setIssues(published);
       setLoading(false);
     });
     return () => { cancelled = true; };
@@ -286,71 +598,109 @@ export default function PublicationsPage({ onRead, footerNav }) {
     if (onRead) onRead(slug);
   };
 
+  const featured = issues[0] || null;
+
   return (
-    <div style={{ background: BG, minHeight: '100vh', color: '#fff' }}>
-      {/* Nav */}
-      <HomeNav footerNav={footerNav} darkMode />
+    <div style={{ background: BG, minHeight: '100vh', color: '#fff', fontFamily: NU }}>
+      {/* Fixed back link */}
+      <BackLink onBack={onBack} />
 
-      <div style={{
-        maxWidth:  1200,
-        margin:    '0 auto',
-        padding:   '0 24px',
-      }}>
-        <Hero />
+      {/* Cinematic hero */}
+      <Hero
+        featured={loading ? null : featured}
+        onRead={handleRead}
+        isMobile={isMobile}
+      />
 
-        {/* Loading */}
-        {loading && (
-          <div style={{
-            display:        'flex',
-            justifyContent: 'center',
-            padding:        '80px 0',
-          }}>
+      {/* All Issues section */}
+      <section id="all-issues" style={{ padding: '80px 0 40px' }}>
+        <div style={{
+          maxWidth: 1280,
+          margin:   '0 auto',
+          padding:  isMobile ? '0 20px' : '0 32px',
+        }}>
+          <SectionHeader title="All Issues" />
+
+          {/* Loading skeletons */}
+          {loading && (
             <div style={{
-              fontFamily: NU,
-              fontSize:   12,
-              color:      MUTED,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
+              display:             'grid',
+              gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? '160px' : '220px'}, 1fr))`,
+              gap:                 28,
             }}>
-              Loading…
+              {[1, 2, 3, 4].map(n => <SkeletonCard key={n} />)}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Error */}
-        {!loading && error && (
-          <div style={{
-            textAlign:  'center',
-            padding:    '80px 0',
-            fontFamily: NU,
-            fontSize:   14,
-            color:      'rgba(255,80,80,0.8)',
-          }}>
-            {error}
-          </div>
-        )}
+          {/* Error */}
+          {!loading && error && (
+            <div style={{
+              textAlign:  'center',
+              padding:    '60px 0',
+              fontFamily: NU,
+              fontSize:   14,
+              color:      'rgba(255,100,100,0.75)',
+            }}>
+              {error}
+            </div>
+          )}
 
-        {/* Empty */}
-        {!loading && !error && issues.length === 0 && <EmptyState />}
+          {/* Empty */}
+          {!loading && !error && issues.length === 0 && (
+            <div style={{
+              display:        'flex',
+              flexDirection:  'column',
+              alignItems:     'center',
+              justifyContent: 'center',
+              padding:        '80px 24px',
+              textAlign:      'center',
+            }}>
+              <div style={{ fontSize: 40, marginBottom: 20, opacity: 0.2, color: GOLD }}>◈</div>
+              <h2 style={{
+                fontFamily: GD,
+                fontSize:   26,
+                fontWeight: 300,
+                fontStyle:  'italic',
+                color:      '#fff',
+                margin:     '0 0 12px',
+              }}>
+                No Issues Published Yet
+              </h2>
+              <p style={{
+                fontFamily: NU,
+                fontSize:   14,
+                color:      'rgba(255,255,255,0.4)',
+                maxWidth:   340,
+                lineHeight: 1.6,
+              }}>
+                The latest edition of Luxury Wedding Directory magazine will appear here when published.
+              </p>
+            </div>
+          )}
 
-        {/* Grid */}
-        {!loading && !error && issues.length > 0 && (
-          <div style={{
-            display:             'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-            gap:                 32,
-            paddingBottom:       80,
-          }}>
-            {issues.map(issue => (
-              <IssueCard
-                key={issue.id}
-                issue={issue}
-                onRead={handleRead}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+          {/* Grid */}
+          {!loading && !error && issues.length > 0 && (
+            <div style={{
+              display:             'grid',
+              gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? '160px' : '220px'}, 1fr))`,
+              gap:                 28,
+              paddingBottom:       40,
+            }}>
+              {issues.map((issue, idx) => (
+                <IssueCard
+                  key={issue.id}
+                  issue={issue}
+                  onRead={handleRead}
+                  isLatest={idx === 0}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Footer strip */}
+      <FooterStrip />
     </div>
   );
 }

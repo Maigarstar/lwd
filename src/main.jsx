@@ -866,6 +866,7 @@ function App() {
         {page === "publications" && (
           <PublicationsPage
             onRead={goPublicationsReader}
+            onBack={goHome}
             footerNav={footerNav}
           />
         )}
