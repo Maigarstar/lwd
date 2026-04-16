@@ -1237,16 +1237,203 @@ function AnalyticsTab({ issueId, issue }) {
   );
 }
 
+// ── Distribution tab ─────────────────────────────────────────────────────────
+function DistributionTab({ issue }) {
+  const BASE_URL = 'https://luxuryweddingdirectory.co.uk';
+  const [embedSize, setEmbedSize] = useState('tall');
+  const [copied,    setCopied]    = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const HEIGHT_MAP = { standard: '600', tall: '800', fullscreen: '100vh' };
+  const height = HEIGHT_MAP[embedSize] || '800';
+
+  const embedCode = issue
+    ? `<iframe\n  src="${BASE_URL}/publications/embed/${issue.slug}"\n  width="100%"\n  height="${height}"\n  frameborder="0"\n  allowfullscreen\n  title="${issue.title} · Luxury Wedding Directory">\n</iframe>`
+    : '';
+
+  const directLink = issue ? `${BASE_URL}/publications/${issue.slug}` : '';
+
+  const copyEmbed = () => {
+    if (!embedCode) return;
+    navigator.clipboard.writeText(embedCode).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const copyLink = () => {
+    if (!directLink) return;
+    navigator.clipboard.writeText(directLink).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  };
+
+  if (!issue) return null;
+
+  if (issue.status !== 'published') {
+    return (
+      <div style={{ padding: '32px 32px', maxWidth: 640 }}>
+        <div style={{
+          fontFamily: NU, fontSize: 12, color: MUTED, lineHeight: 1.7,
+          background: 'rgba(255,255,255,0.03)',
+          border: `1px solid ${BORDER}`,
+          borderRadius: 4,
+          padding: '16px 20px',
+        }}>
+          Publish this issue to access distribution options.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '28px 32px', maxWidth: 640 }}>
+
+      {/* Section A — Embed */}
+      <SectionHead>✦ Embed This Issue</SectionHead>
+      <div style={{ fontFamily: NU, fontSize: 12, color: MUTED, marginBottom: 16, lineHeight: 1.6 }}>
+        Paste this code into any website to embed this issue.
+      </div>
+
+      {/* Size presets */}
+      <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
+        {[
+          { key: 'standard',   label: 'Standard',   sub: 'height 600' },
+          { key: 'tall',       label: 'Tall',        sub: 'height 800' },
+          { key: 'fullscreen', label: 'Fullscreen',  sub: 'height 100vh' },
+        ].map(opt => (
+          <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input
+              type="radio"
+              name="embedSize"
+              value={opt.key}
+              checked={embedSize === opt.key}
+              onChange={() => setEmbedSize(opt.key)}
+              style={{ accentColor: GOLD, cursor: 'pointer' }}
+            />
+            <span style={{ fontFamily: NU, fontSize: 11, color: embedSize === opt.key ? '#fff' : MUTED }}>
+              {opt.label}
+              <span style={{ display: 'block', fontSize: 9, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.05em' }}>
+                {opt.sub}
+              </span>
+            </span>
+          </label>
+        ))}
+      </div>
+
+      {/* Code textarea */}
+      <textarea
+        readOnly
+        value={embedCode}
+        onClick={e => e.target.select()}
+        rows={8}
+        style={{
+          ...INPUT,
+          fontFamily: "'Courier New', monospace",
+          fontSize: 11,
+          lineHeight: 1.7,
+          resize: 'none',
+          color: 'rgba(255,255,255,0.7)',
+          marginBottom: 10,
+        }}
+      />
+
+      <button
+        onClick={copyEmbed}
+        style={{
+          fontFamily: NU, fontSize: 10, fontWeight: 700,
+          letterSpacing: '0.1em', textTransform: 'uppercase',
+          background: copied ? 'rgba(52,211,153,0.15)' : 'rgba(201,168,76,0.12)',
+          border: `1px solid ${copied ? 'rgba(52,211,153,0.4)' : 'rgba(201,168,76,0.35)'}`,
+          color: copied ? '#34d399' : GOLD,
+          padding: '8px 20px', borderRadius: 3, cursor: 'pointer',
+          transition: 'all 0.15s',
+        }}
+      >
+        {copied ? 'Copied!' : '✦ Copy Code'}
+      </button>
+
+      <Hr />
+
+      {/* Section B — Direct reader link */}
+      <SectionHead>✦ Direct Reader Link</SectionHead>
+      <div style={{
+        fontFamily: "'Courier New', monospace",
+        fontSize: 11,
+        color: 'rgba(255,255,255,0.6)',
+        background: 'rgba(255,255,255,0.04)',
+        border: `1px solid ${BORDER}`,
+        borderRadius: 4,
+        padding: '10px 14px',
+        marginBottom: 12,
+        wordBreak: 'break-all',
+        lineHeight: 1.5,
+      }}>
+        {directLink}
+      </div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button
+          onClick={copyLink}
+          style={{
+            fontFamily: NU, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            background: linkCopied ? 'rgba(52,211,153,0.1)' : 'rgba(255,255,255,0.06)',
+            border: `1px solid ${linkCopied ? 'rgba(52,211,153,0.35)' : BORDER}`,
+            color: linkCopied ? '#34d399' : MUTED,
+            padding: '7px 16px', borderRadius: 3, cursor: 'pointer',
+            transition: 'all 0.15s',
+          }}
+        >
+          {linkCopied ? 'Copied!' : 'Copy Link'}
+        </button>
+        <a
+          href={directLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontFamily: NU, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: GOLD, textDecoration: 'none',
+            border: `1px solid rgba(201,168,76,0.3)`,
+            padding: '7px 16px', borderRadius: 3,
+            transition: 'opacity 0.15s',
+          }}
+        >
+          Open →
+        </a>
+      </div>
+
+      <Hr />
+
+      {/* Section C — Partner Distribution (display only) */}
+      <SectionHead>✦ Partner Distribution</SectionHead>
+      <div style={{
+        fontFamily: NU, fontSize: 12, color: MUTED, lineHeight: 1.7,
+        background: 'rgba(255,255,255,0.03)',
+        border: `1px solid ${BORDER}`,
+        borderRadius: 4,
+        padding: '16px 20px',
+      }}>
+        Coming soon — send this issue directly to venues and planners
+        in the directory for them to embed on their profiles.
+      </div>
+
+    </div>
+  );
+}
+
 // ── Issue editor (main content area) ─────────────────────────────────────────
 
 const TABS = [
-  { key: 'design',     label: '✦ Design'   },
-  { key: 'overview',   label: 'Overview'   },
-  { key: 'pages',      label: 'Pages'      },
-  { key: 'pdf',        label: 'PDF'        },
-  { key: 'analytics',  label: 'Analytics'  },
-  { key: 'monetize',   label: '✦ Monetize' },
-  { key: 'settings',   label: 'Settings'   },
+  { key: 'design',       label: '✦ Design'      },
+  { key: 'overview',     label: 'Overview'      },
+  { key: 'pages',        label: 'Pages'         },
+  { key: 'pdf',          label: 'PDF'           },
+  { key: 'analytics',    label: 'Analytics'     },
+  { key: 'monetize',     label: '✦ Monetize'    },
+  { key: 'distribution', label: 'Distribution'  },
+  { key: 'settings',     label: 'Settings'      },
 ];
 
 function IssueWorkspace({ issueId, onDelete }) {
@@ -1694,6 +1881,10 @@ function IssueWorkspace({ issueId, onDelete }) {
 
         {tab === 'monetize' && (
           <MonetizationTab issue={issue} onIssueUpdate={handleIssueUpdate} />
+        )}
+
+        {tab === 'distribution' && (
+          <DistributionTab issue={issue} />
         )}
 
         {tab === 'settings' && (

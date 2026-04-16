@@ -79,6 +79,7 @@ import MostLovedPage from "./pages/MostLovedPage.jsx";
 import ArtistryPage from "./pages/Artistry/ArtistryPage.jsx";
 import PublicationsPage       from "./pages/PublicationsPage.jsx";
 import PublicationsReaderPage from "./pages/PublicationsReaderPage.jsx";
+import PublicationsEmbedPage  from "./pages/PublicationsEmbedPage.jsx";
 import PublicationStudio      from "./pages/PublicationStudio.jsx";
 import MagazineHomePage     from "./pages/Magazine/MagazineHomePage.jsx";
 import CategoryPage          from "./pages/Magazine/CategoryPage.jsx";
@@ -211,6 +212,7 @@ function stateToPath(pg, opts = {}) {
     case "magazine-studio":        return "/magazine-studio";
     case "publications":           return "/publications";
     case "publications-reader":    return `/publications/${opts.publicationsSlug || ''}`;
+    case "publications-embed":     return `/publications/embed/${opts.publicationsEmbedSlug || ''}`;
     case "publication-studio":     return "/publication-studio";
     case "studio-edit": {
       const { entityType, slug, from } = opts;
@@ -330,6 +332,7 @@ function pathToState(pathname) {
   }
   if (parts[0] === "magazine-studio" && parts.length === 1) return { page: "magazine-studio" };
   if (parts[0] === "publications" && parts.length === 1) return { page: "publications" };
+  if (parts[0] === "publications" && parts[1] === "embed" && parts.length === 3) return { page: "publications-embed", publicationsEmbedSlug: parts[2] };
   if (parts[0] === "publications" && parts.length === 2) return { page: "publications-reader", publicationsSlug: parts[1] };
   if (parts[0] === "publication-studio") return { page: "publication-studio" };
   if (parts[0] === "magazine" && parts.length === 1) return { page: "magazine" };
@@ -450,6 +453,7 @@ function App() {
   const [activeMagazineCategoryId, setActiveMagazineCategoryId] = useState(initial.magazineCategoryId || null);
   const [activeMagazineSlug, setActiveMagazineSlug] = useState(initial.magazineSlug || null);
   const [activePublicationsSlug, setActivePublicationsSlug] = useState(initial.publicationsSlug || null);
+  const [activeEmbedSlug,        setActiveEmbedSlug]        = useState(initial.publicationsEmbedSlug || null);
   const [studioEntityType, setStudioEntityType] = useState(initial.entityType || null);
   const [studioSlug, setStudioSlug] = useState(initial.slug || null);
   const [activeVenueSlug, setActiveVenueSlug] = useState(initial.venueSlug || null);
@@ -674,6 +678,7 @@ function App() {
   const goMagazineArticle = (slug) => { setActiveMagazineSlug(slug); setActiveMagazineCategoryId(null); setPage("magazine-article"); };
   const goPublications      = () => { setActivePublicationsSlug(null); setPage("publications"); };
   const goPublicationsReader = (slug) => { setActivePublicationsSlug(slug); setPage("publications-reader"); };
+  const goPublicationsEmbed  = (slug) => { setActiveEmbedSlug(slug); setPage("publications-embed"); };
   const goPublicationStudio  = () => { setPage("publication-studio"); };
   const goMagazineFashion = () => { setActiveMagazineSlug(null); setActiveMagazineCategoryId(null); setPage("magazine-fashion"); };
   const [magazineEditSlug, setMagazineEditSlug] = useState(null);
@@ -875,6 +880,9 @@ function App() {
             slug={activePublicationsSlug}
             onBack={goPublications}
           />
+        )}
+        {page === "publications-embed" && (
+          <PublicationsEmbedPage slug={activeEmbedSlug} />
         )}
         {page === "publication-studio" && (
           <PublicationStudio
@@ -1193,7 +1201,7 @@ function App() {
             Rendered here for ALL pages except auth/dashboard pages listed below.
             RULE: Never import or render <SiteFooter> inside a page component that
             is served through this main.jsx render tree — it will double-render. ── */}
-        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review","publications-reader","publication-studio"].includes(page) && (
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review","publications-reader","publications-embed","publication-studio"].includes(page) && (
           <SiteFooter onNavigateAdmin={goAdmin} />
         )}
 
