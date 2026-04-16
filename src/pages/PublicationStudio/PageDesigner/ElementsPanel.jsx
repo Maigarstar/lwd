@@ -45,7 +45,159 @@ function Divider() {
   return <div style={{ borderTop: `1px solid rgba(255,255,255,0.06)`, margin: '4px 0' }} />;
 }
 
-export default function ElementsPanel({ onAddElement, onAddImage, onAddTemplate, issue }) {
+// ── Layers panel components ───────────────────────────────────────────────────
+
+function LayerRow({ layer, typeIcon, isDragging, onDragStart, onDragEnd, onDragOver, onSelect, onToggleVisibility, onToggleLock }) {
+  const [hov, setHov] = useState(false);
+
+  return (
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
+      onClick={onSelect}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '7px 8px 7px 10px',
+        borderBottom: `1px solid rgba(255,255,255,0.04)`,
+        background: layer.selected
+          ? 'rgba(201,169,110,0.12)'
+          : hov ? 'rgba(255,255,255,0.04)' : 'transparent',
+        borderLeft: `2px solid ${layer.selected ? GOLD : 'transparent'}`,
+        cursor: 'pointer',
+        opacity: isDragging ? 0.4 : 1,
+        transition: 'background 0.1s, opacity 0.1s',
+        userSelect: 'none',
+      }}
+    >
+      {/* Drag handle */}
+      <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10, flexShrink: 0, cursor: 'grab' }}>⠿</span>
+
+      {/* Type icon */}
+      <span style={{
+        fontFamily: layer.type === 'textbox' || layer.type === 'text' ? "'Cormorant Garamond',serif" : NU,
+        fontSize: 11,
+        color: layer.selected ? GOLD : 'rgba(255,255,255,0.5)',
+        flexShrink: 0,
+        width: 16,
+        textAlign: 'center',
+      }}>
+        {typeIcon}
+      </span>
+
+      {/* Label */}
+      <span style={{
+        flex: 1,
+        fontFamily: NU,
+        fontSize: 11,
+        color: layer.visible
+          ? (layer.selected ? '#fff' : 'rgba(255,255,255,0.7)')
+          : 'rgba(255,255,255,0.25)',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        fontStyle: layer.type === 'textbox' ? 'italic' : 'normal',
+      }}>
+        {layer.label}
+      </span>
+
+      {/* Visibility toggle */}
+      <button
+        onClick={onToggleVisibility}
+        title={layer.visible ? 'Hide layer' : 'Show layer'}
+        style={{
+          background: 'none', border: 'none',
+          color: layer.visible ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)',
+          cursor: 'pointer', padding: '0 2px', fontSize: 12, lineHeight: 1,
+          flexShrink: 0,
+          opacity: hov || layer.selected ? 1 : 0,
+          transition: 'opacity 0.12s',
+        }}
+      >
+        {layer.visible ? '👁' : '🚫'}
+      </button>
+
+      {/* Lock toggle */}
+      <button
+        onClick={onToggleLock}
+        title={layer.locked ? 'Unlock layer' : 'Lock layer'}
+        style={{
+          background: 'none', border: 'none',
+          color: layer.locked ? GOLD : 'rgba(255,255,255,0.4)',
+          cursor: 'pointer', padding: '0 2px', fontSize: 11, lineHeight: 1,
+          flexShrink: 0,
+          opacity: hov || layer.locked || layer.selected ? 1 : 0,
+          transition: 'opacity 0.12s',
+        }}
+      >
+        {layer.locked ? '🔒' : '🔓'}
+      </button>
+    </div>
+  );
+}
+
+function LayersPanel({ layers, onSelectLayer, onToggleLayerVisibility, onToggleLayerLock, onReorderLayer }) {
+  const [dragId, setDragId] = useState(null);
+
+  if (!layers || layers.length === 0) {
+    return (
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '32px 16px', gap: 8,
+      }}>
+        <div style={{ fontSize: 24, opacity: 0.2 }}>⊟</div>
+        <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, textAlign: 'center', lineHeight: 1.5 }}>
+          No layers yet.<br />Add elements to the canvas.
+        </div>
+      </div>
+    );
+  }
+
+  const typeIcon = (type, customType) => {
+    if (customType === 'pagenumber') return '№';
+    if (type === 'textbox' || type === 'text' || type === 'itext') return 'T';
+    if (type === 'image') return '⬜';
+    if (type === 'rect') return '▭';
+    if (type === 'circle') return '○';
+    if (type === 'line') return '—';
+    return '◻';
+  };
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+      {layers.map((layer) => (
+        <LayerRow
+          key={layer.id}
+          layer={layer}
+          typeIcon={typeIcon(layer.type, layer.customType)}
+          isDragging={dragId === layer.id}
+          onDragStart={() => setDragId(layer.id)}
+          onDragEnd={() => setDragId(null)}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (dragId && dragId !== layer.id) {
+              onReorderLayer?.(dragId, layer.id);
+            }
+          }}
+          onSelect={() => onSelectLayer?.(layer.id)}
+          onToggleVisibility={(e) => { e.stopPropagation(); onToggleLayerVisibility?.(layer.id); }}
+          onToggleLock={(e) => { e.stopPropagation(); onToggleLayerLock?.(layer.id); }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ── Main ElementsPanel export ─────────────────────────────────────────────────
+
+export default function ElementsPanel({ onAddElement, onAddImage, onAddTemplate, issue, layers, onSelectLayer, onToggleLayerVisibility, onToggleLayerLock, onReorderLayer }) {
+  const [panelTab, setPanelTab] = useState('elements');
   const [aiBrief, setAiBrief] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
@@ -109,202 +261,249 @@ export default function ElementsPanel({ onAddElement, onAddImage, onAddTemplate,
       flexShrink: 0,
       background: '#1A1712',
       borderRight: `1px solid ${BORDER}`,
-      overflowY: 'auto',
+      overflowY: 'hidden',
       overflowX: 'hidden',
       display: 'flex',
       flexDirection: 'column',
     }}>
-      {/* Text elements */}
-      <div style={SECTION_STYLE}>Text</div>
-      <ElemButton
-        label="Heading"
-        preview={<span style={{ fontFamily: GD, fontSize: 18, color: GOLD }}>H</span>}
-        onClick={() => onAddElement('heading')}
-      />
-      <ElemButton
-        label="Body Text"
-        preview={<span style={{ fontFamily: GD, fontSize: 14, color: 'rgba(255,255,255,0.6)' }}>T</span>}
-        onClick={() => onAddElement('text')}
-      />
-      <ElemButton
-        label="Subheading"
-        preview={<span style={{ fontFamily: GD, fontSize: 16, color: 'rgba(255,255,255,0.7)' }}>S</span>}
-        onClick={() => onAddElement('subheading')}
-      />
-      <ElemButton
-        label="Caption"
-        preview={<span style={{ fontFamily: NU, fontSize: 10, color: MUTED, letterSpacing: '0.08em' }}>CAP</span>}
-        onClick={() => onAddElement('caption')}
-      />
-      <ElemButton
-        label="Pull Quote"
-        preview={<span style={{ fontFamily: GD, fontSize: 16, color: GOLD, fontStyle: 'italic' }}>"</span>}
-        onClick={() => onAddElement('pullquote')}
-      />
-      <ElemButton
-        label="Page No."
-        preview={<span style={{ fontFamily: NU, fontSize: 13, color: GOLD }}>№</span>}
-        onClick={() => onAddElement('pagenumber')}
-      />
-
-      <Divider />
-
-      {/* Shapes */}
-      <div style={SECTION_STYLE}>Shapes</div>
-      <ElemButton
-        label="Rectangle"
-        preview={
-          <svg width="22" height="14" viewBox="0 0 22 14">
-            <rect x="1" y="1" width="20" height="12" fill={GOLD} rx="0" />
-          </svg>
-        }
-        onClick={() => onAddElement('rect')}
-      />
-      <ElemButton
-        label="Circle"
-        preview={
-          <svg width="18" height="18" viewBox="0 0 18 18">
-            <circle cx="9" cy="9" r="8" fill={GOLD} />
-          </svg>
-        }
-        onClick={() => onAddElement('circle')}
-      />
-      <ElemButton
-        label="Line"
-        preview={
-          <svg width="22" height="4" viewBox="0 0 22 4">
-            <line x1="0" y1="2" x2="22" y2="2" stroke={GOLD} strokeWidth="2" />
-          </svg>
-        }
-        onClick={() => onAddElement('line')}
-      />
-      <ElemButton
-        label="Divider"
-        preview={
-          <svg width="22" height="4" viewBox="0 0 22 4">
-            <line x1="0" y1="2" x2="22" y2="2" stroke={GOLD} strokeWidth="1" />
-          </svg>
-        }
-        onClick={() => onAddElement('divider')}
-      />
-
-      <Divider />
-
-      {/* Image */}
-      <div style={SECTION_STYLE}>Image</div>
-      <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
-      <ElemButton
-        label="Upload Image"
-        preview={<span style={{ fontSize: 16 }}>↑</span>}
-        onClick={() => fileRef.current?.click()}
-      />
-      <ElemButton
-        label="From URL"
-        preview={<span style={{ fontSize: 14, color: MUTED }}>⊞</span>}
-        onClick={() => setUrlOpen(v => !v)}
-      />
-      {urlOpen && (
-        <div style={{ padding: '8px 16px', background: 'rgba(0,0,0,0.2)' }}>
-          <input
-            type="text"
-            placeholder="https://..."
-            value={imageUrl}
-            onChange={e => setImageUrl(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAddFromUrl()}
-            style={{
-              width: '100%', boxSizing: 'border-box',
-              background: 'rgba(255,255,255,0.06)',
-              border: `1px solid rgba(255,255,255,0.12)`,
-              borderRadius: 3, color: '#fff',
-              fontFamily: NU, fontSize: 11,
-              padding: '6px 8px', outline: 'none',
-            }}
-          />
+      {/* Tab bar */}
+      <div style={{
+        display: 'flex',
+        borderBottom: `1px solid ${BORDER}`,
+        flexShrink: 0,
+      }}>
+        {['elements', 'layers'].map(t => (
           <button
-            onClick={handleAddFromUrl}
+            key={t}
+            onClick={() => setPanelTab(t)}
             style={{
-              marginTop: 6, width: '100%',
-              background: GOLD, border: 'none',
-              borderRadius: 3, color: '#1a1208',
-              fontFamily: NU, fontSize: 10, fontWeight: 700,
-              letterSpacing: '0.06em', textTransform: 'uppercase',
-              padding: '6px 0', cursor: 'pointer',
+              flex: 1,
+              background: panelTab === t ? 'rgba(201,169,110,0.08)' : 'none',
+              border: 'none',
+              borderBottom: `2px solid ${panelTab === t ? GOLD : 'transparent'}`,
+              color: panelTab === t ? GOLD : MUTED,
+              fontFamily: NU,
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              padding: '10px 0',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
             }}
           >
-            Add Image
+            {t === 'elements' ? '⊞ Elements' : '⊟ Layers'}
           </button>
-        </div>
-      )}
+        ))}
+      </div>
 
-      <Divider />
-
-      {/* AI Generate */}
-      <div style={SECTION_STYLE}>AI Generate</div>
-      <ElemButton
-        label="✦ AI Write"
-        preview={<span style={{ fontSize: 14, color: GOLD }}>✦</span>}
-        onClick={() => setAiOpen(v => !v)}
-      />
-      {aiOpen && (
-        <div style={{ padding: '8px 16px', background: 'rgba(0,0,0,0.2)' }}>
-          <textarea
-            placeholder="Brief: e.g. 'Romantic opening paragraph for a Tuscany villa wedding'"
-            value={aiBrief}
-            onChange={e => setAiBrief(e.target.value)}
-            rows={3}
-            style={{
-              width: '100%', boxSizing: 'border-box',
-              background: 'rgba(255,255,255,0.06)',
-              border: `1px solid rgba(255,255,255,0.12)`,
-              borderRadius: 3, color: '#fff',
-              fontFamily: NU, fontSize: 11,
-              padding: '6px 8px', outline: 'none',
-              resize: 'vertical',
-            }}
+      {/* Elements tab */}
+      {panelTab === 'elements' && (
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {/* Text elements */}
+          <div style={SECTION_STYLE}>Text</div>
+          <ElemButton
+            label="Heading"
+            preview={<span style={{ fontFamily: GD, fontSize: 18, color: GOLD }}>H</span>}
+            onClick={() => onAddElement('heading')}
           />
-          <button
-            onClick={handleAIWrite}
-            disabled={aiLoading || !aiBrief.trim()}
-            style={{
-              marginTop: 6, width: '100%',
-              background: aiLoading ? 'rgba(201,169,110,0.4)' : GOLD,
-              border: 'none', borderRadius: 3,
-              color: '#1a1208', fontFamily: NU,
-              fontSize: 10, fontWeight: 700,
-              letterSpacing: '0.06em', textTransform: 'uppercase',
-              padding: '6px 0', cursor: aiLoading ? 'default' : 'pointer',
-              opacity: !aiBrief.trim() ? 0.5 : 1,
-            }}
-          >
-            {aiLoading ? 'Writing...' : '✦ Generate Text'}
-          </button>
-        </div>
-      )}
+          <ElemButton
+            label="Body Text"
+            preview={<span style={{ fontFamily: GD, fontSize: 14, color: 'rgba(255,255,255,0.6)' }}>T</span>}
+            onClick={() => onAddElement('text')}
+          />
+          <ElemButton
+            label="Subheading"
+            preview={<span style={{ fontFamily: GD, fontSize: 16, color: 'rgba(255,255,255,0.7)' }}>S</span>}
+            onClick={() => onAddElement('subheading')}
+          />
+          <ElemButton
+            label="Caption"
+            preview={<span style={{ fontFamily: NU, fontSize: 10, color: MUTED, letterSpacing: '0.08em' }}>CAP</span>}
+            onClick={() => onAddElement('caption')}
+          />
+          <ElemButton
+            label="Pull Quote"
+            preview={<span style={{ fontFamily: GD, fontSize: 16, color: GOLD, fontStyle: 'italic' }}>"</span>}
+            onClick={() => onAddElement('pullquote')}
+          />
+          <ElemButton
+            label="Page No."
+            preview={<span style={{ fontFamily: NU, fontSize: 13, color: GOLD }}>№</span>}
+            onClick={() => onAddElement('pagenumber')}
+          />
 
-      <Divider />
+          <Divider />
 
-      {/* Templates */}
-      <div style={SECTION_STYLE}>Templates</div>
-      {TEMPLATES.map((name, i) => (
-        <ElemButton
-          key={i}
-          label={name}
-          preview={
-            <div style={{
-              width: 28, height: 20,
-              background: 'rgba(201,169,110,0.15)',
-              border: `1px solid rgba(201,169,110,0.3)`,
-              borderRadius: 2,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <span style={{ fontFamily: NU, fontSize: 7, color: GOLD }}>{i + 1}</span>
+          {/* Shapes */}
+          <div style={SECTION_STYLE}>Shapes</div>
+          <ElemButton
+            label="Rectangle"
+            preview={
+              <svg width="22" height="14" viewBox="0 0 22 14">
+                <rect x="1" y="1" width="20" height="12" fill={GOLD} rx="0" />
+              </svg>
+            }
+            onClick={() => onAddElement('rect')}
+          />
+          <ElemButton
+            label="Circle"
+            preview={
+              <svg width="18" height="18" viewBox="0 0 18 18">
+                <circle cx="9" cy="9" r="8" fill={GOLD} />
+              </svg>
+            }
+            onClick={() => onAddElement('circle')}
+          />
+          <ElemButton
+            label="Line"
+            preview={
+              <svg width="22" height="4" viewBox="0 0 22 4">
+                <line x1="0" y1="2" x2="22" y2="2" stroke={GOLD} strokeWidth="2" />
+              </svg>
+            }
+            onClick={() => onAddElement('line')}
+          />
+          <ElemButton
+            label="Divider"
+            preview={
+              <svg width="22" height="4" viewBox="0 0 22 4">
+                <line x1="0" y1="2" x2="22" y2="2" stroke={GOLD} strokeWidth="1" />
+              </svg>
+            }
+            onClick={() => onAddElement('divider')}
+          />
+
+          <Divider />
+
+          {/* Image */}
+          <div style={SECTION_STYLE}>Image</div>
+          <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
+          <ElemButton
+            label="Upload Image"
+            preview={<span style={{ fontSize: 16 }}>↑</span>}
+            onClick={() => fileRef.current?.click()}
+          />
+          <ElemButton
+            label="From URL"
+            preview={<span style={{ fontSize: 14, color: MUTED }}>⊞</span>}
+            onClick={() => setUrlOpen(v => !v)}
+          />
+          {urlOpen && (
+            <div style={{ padding: '8px 16px', background: 'rgba(0,0,0,0.2)' }}>
+              <input
+                type="text"
+                placeholder="https://..."
+                value={imageUrl}
+                onChange={e => setImageUrl(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddFromUrl()}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: `1px solid rgba(255,255,255,0.12)`,
+                  borderRadius: 3, color: '#fff',
+                  fontFamily: NU, fontSize: 11,
+                  padding: '6px 8px', outline: 'none',
+                }}
+              />
+              <button
+                onClick={handleAddFromUrl}
+                style={{
+                  marginTop: 6, width: '100%',
+                  background: GOLD, border: 'none',
+                  borderRadius: 3, color: '#1a1208',
+                  fontFamily: NU, fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  padding: '6px 0', cursor: 'pointer',
+                }}
+              >
+                Add Image
+              </button>
             </div>
-          }
-          onClick={() => onAddTemplate && onAddTemplate(i)}
-        />
-      ))}
+          )}
 
-      <div style={{ height: 20 }} />
+          <Divider />
+
+          {/* AI Generate */}
+          <div style={SECTION_STYLE}>AI Generate</div>
+          <ElemButton
+            label="✦ AI Write"
+            preview={<span style={{ fontSize: 14, color: GOLD }}>✦</span>}
+            onClick={() => setAiOpen(v => !v)}
+          />
+          {aiOpen && (
+            <div style={{ padding: '8px 16px', background: 'rgba(0,0,0,0.2)' }}>
+              <textarea
+                placeholder="Brief: e.g. 'Romantic opening paragraph for a Tuscany villa wedding'"
+                value={aiBrief}
+                onChange={e => setAiBrief(e.target.value)}
+                rows={3}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: `1px solid rgba(255,255,255,0.12)`,
+                  borderRadius: 3, color: '#fff',
+                  fontFamily: NU, fontSize: 11,
+                  padding: '6px 8px', outline: 'none',
+                  resize: 'vertical',
+                }}
+              />
+              <button
+                onClick={handleAIWrite}
+                disabled={aiLoading || !aiBrief.trim()}
+                style={{
+                  marginTop: 6, width: '100%',
+                  background: aiLoading ? 'rgba(201,169,110,0.4)' : GOLD,
+                  border: 'none', borderRadius: 3,
+                  color: '#1a1208', fontFamily: NU,
+                  fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  padding: '6px 0', cursor: aiLoading ? 'default' : 'pointer',
+                  opacity: !aiBrief.trim() ? 0.5 : 1,
+                }}
+              >
+                {aiLoading ? 'Writing...' : '✦ Generate Text'}
+              </button>
+            </div>
+          )}
+
+          <Divider />
+
+          {/* Templates */}
+          <div style={SECTION_STYLE}>Templates</div>
+          {TEMPLATES.map((name, i) => (
+            <ElemButton
+              key={i}
+              label={name}
+              preview={
+                <div style={{
+                  width: 28, height: 20,
+                  background: 'rgba(201,169,110,0.15)',
+                  border: `1px solid rgba(201,169,110,0.3)`,
+                  borderRadius: 2,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <span style={{ fontFamily: NU, fontSize: 7, color: GOLD }}>{i + 1}</span>
+                </div>
+              }
+              onClick={() => onAddTemplate && onAddTemplate(i)}
+            />
+          ))}
+
+          <div style={{ height: 20 }} />
+        </div>
+      )}
+
+      {/* Layers tab */}
+      {panelTab === 'layers' && (
+        <LayersPanel
+          layers={layers}
+          onSelectLayer={onSelectLayer}
+          onToggleLayerVisibility={onToggleLayerVisibility}
+          onToggleLayerLock={onToggleLayerLock}
+          onReorderLayer={onReorderLayer}
+        />
+      )}
     </div>
   );
 }

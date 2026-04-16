@@ -246,6 +246,41 @@ function getPageDisplayNumber(pageIndex, settings, totalPages) {
   return `${settings.prefix}${formatted}${settings.suffix}`;
 }
 
+// ── Layer helpers ─────────────────────────────────────────────────────────────
+// Derive a human-readable label from a Fabric object
+function getLayerLabel(obj) {
+  if (obj.customType === 'pagenumber') return '№ Page Number';
+  const type = (obj.type || '').toLowerCase();
+  if (type === 'textbox' || type === 'text' || type === 'itext') {
+    const text = (obj.text || '').trim().slice(0, 24);
+    return text ? `"${text}${(obj.text || '').length > 24 ? '…' : ''}"` : 'Text';
+  }
+  if (type === 'image') return 'Image';
+  if (type === 'rect') return 'Rectangle';
+  if (type === 'circle') return 'Circle';
+  if (type === 'line') return 'Line';
+  if (type === 'triangle') return 'Triangle';
+  return obj.type || 'Object';
+}
+
+// Build the serialisable layers array from a canvas instance
+function buildLayers(fc) {
+  if (!fc) return [];
+  const objs = fc.getObjects();
+  const activeObj = fc.getActiveObject?.();
+  const activeId = activeObj?.id;
+  // Reverse so topmost layer is first (matches Figma/Photoshop convention)
+  return [...objs].reverse().map(obj => ({
+    id: obj.id,
+    type: (obj.type || '').toLowerCase(),
+    customType: obj.customType,
+    label: getLayerLabel(obj),
+    visible: obj.visible !== false,
+    locked: obj.selectable === false,
+    selected: !!activeId && obj.id === activeId,
+  }));
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function PageDesigner({ issue, onIssueUpdate }) {
   // Canvas element refs
@@ -275,6 +310,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [selectedObject, setSelectedObject] = useState(null);
   const [pageSize, setPageSize] = useState(issue?.page_size || 'A4');
+  const [layers, setLayers] = useState([]);
   const [showGrid, setShowGrid] = useState(false);
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [showRuler, setShowRuler] = useState(false);
@@ -359,7 +395,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   }, [getActiveCanvas]);
 
   // ── Canvas init helper ──────────────────────────────────────────────────────
-  const initCanvas = useCallback((canvasEl, pageJSON, onSelect, onModify) => {
+  const initCanvas = useCallback((canvasEl, pageJSON, onSelect, onModify, onLayersChange) => {
     const fc = new Canvas(canvasEl, {
       width: dims.w,
       height: dims.h,
@@ -368,12 +404,14 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       selection: true,
     });
 
-    fc.on('selection:created', (e) => onSelect(e.selected?.[0] || null));
-    fc.on('selection:updated', (e) => onSelect(e.selected?.[0] || null));
-    fc.on('selection:cleared', () => onSelect(null));
-    fc.on('object:modified', onModify);
-    fc.on('object:added', onModify);
-    fc.on('object:removed', onModify);
+    const syncL = () => onLayersChange?.(buildLayers(fc));
+
+    fc.on('selection:created', (e) => { onSelect(e.selected?.[0] || null); syncL(); });
+    fc.on('selection:updated', (e) => { onSelect(e.selected?.[0] || null); syncL(); });
+    fc.on('selection:cleared', () => { onSelect(null); syncL(); });
+    fc.on('object:modified', () => { onModify(); syncL(); });
+    fc.on('object:added',    () => { onModify(); syncL(); });
+    fc.on('object:removed',  () => { onModify(); syncL(); });
 
     // Snap to grid — reads live state via ref so no stale closures
     fc.on('object:moving', (e) => {
@@ -399,7 +437,9 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     });
 
     if (pageJSON) {
-      fc.loadFromJSON(pageJSON).then(() => fc.renderAll());
+      fc.loadFromJSON(pageJSON).then(() => { fc.renderAll(); syncL(); });
+    } else {
+      syncL();
     }
 
     return fc;
@@ -421,6 +461,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         pages[currentPageIndex]?.canvasJSON,
         (obj) => setSelectedObject(obj),
         pushUndo,
+        setLayers,
       );
       fabricRef.current = fc;
 
@@ -454,6 +495,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
             setSelectedObject(obj);
           },
           pushUndo,
+          setLayers,
         );
         fabricRef.current = fcRight;
       }
@@ -468,6 +510,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
             setSelectedObject(obj);
           },
           pushUndo,
+          setLayers,
         );
         fabricRefLeft.current = fcLeft;
       }
@@ -1014,6 +1057,52 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   // Clear all guides
   const handleClearGuides = useCallback(() => setGuides({ h: [], v: [] }), []);
 
+  // ── Layer panel actions ─────────────────────────────────────────────────────
+  const handleSelectLayer = useCallback((id) => {
+    const fc = getActiveCanvas();
+    if (!fc) return;
+    const obj = fc.getObjects().find(o => o.id === id);
+    if (obj) { fc.setActiveObject(obj); fc.requestRenderAll(); }
+  }, [getActiveCanvas]);
+
+  const handleToggleLayerVisibility = useCallback((id) => {
+    const fc = getActiveCanvas();
+    if (!fc) return;
+    const obj = fc.getObjects().find(o => o.id === id);
+    if (!obj) return;
+    obj.set('visible', !obj.visible);
+    fc.requestRenderAll();
+    setLayers(prev => prev.map(l => l.id === id ? { ...l, visible: !l.visible } : l));
+  }, [getActiveCanvas]);
+
+  const handleToggleLayerLock = useCallback((id) => {
+    const fc = getActiveCanvas();
+    if (!fc) return;
+    const obj = fc.getObjects().find(o => o.id === id);
+    if (!obj) return;
+    const nowLocked = obj.selectable !== false; // true → we are about to lock it
+    obj.set({ selectable: !nowLocked, evented: !nowLocked });
+    if (nowLocked && fc.getActiveObject?.() === obj) fc.discardActiveObject();
+    fc.requestRenderAll();
+    setLayers(prev => prev.map(l => l.id === id ? { ...l, locked: nowLocked } : l));
+  }, [getActiveCanvas]);
+
+  const handleReorderLayer = useCallback((draggedId, overId) => {
+    if (draggedId === overId) return;
+    const fc = getActiveCanvas();
+    if (!fc) return;
+    // _objects is bottom→top in Fabric; display list is reversed (top→bottom)
+    const objs = fc._objects;
+    const fromIdx = objs.findIndex(o => o.id === draggedId);
+    const toIdx   = objs.findIndex(o => o.id === overId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const [obj] = objs.splice(fromIdx, 1);
+    objs.splice(toIdx, 0, obj);
+    fc.requestRenderAll();
+    pushUndo();
+    setLayers(buildLayers(fc));
+  }, [getActiveCanvas, pushUndo]);
+
   const RULER_SIZE = showRuler ? 20 : 0;
 
   // Compute spread indices for render
@@ -1080,6 +1169,11 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
           onAddImage={addImage}
           onAddTemplate={handleAddTemplate}
           issue={issue}
+          layers={layers}
+          onSelectLayer={handleSelectLayer}
+          onToggleLayerVisibility={handleToggleLayerVisibility}
+          onToggleLayerLock={handleToggleLayerLock}
+          onReorderLayer={handleReorderLayer}
         />
 
         {/* Canvas area */}
