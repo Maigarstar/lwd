@@ -1578,7 +1578,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         )}
 
         {/* Elements panel */}
-        <div style={{ position: 'relative', zIndex: lightsOff ? 0 : 'auto', flexShrink: 0 }}>
+        <div style={{ position: 'relative', zIndex: lightsOff ? 0 : 'auto', flexShrink: 0, display: 'flex', minHeight: 0 }}>
         <ElementsPanel
           onAddElement={handleAddElement}
           onAddImage={addImage}
