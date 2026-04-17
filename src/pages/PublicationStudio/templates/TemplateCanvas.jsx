@@ -1993,6 +1993,454 @@ function StoryChapter({ f, s, W, H }) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ── PHASE 3: NEW EDITORIAL CATEGORIES
+// ─────────────────────────────────────────────────────────────────────────────
+
+function StyledShoot({ f, s, W, H }) {
+  const P = PALETTES.white;
+  const accent = '#B8926A';
+  const stripH = H * 0.54;
+  const gapPx = 6 * s;
+  const cellW = (W - gapPx * 2) / 3;
+  const imgs = [f.image1, f.image2, f.image3];
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#FAFAF8' }}>
+      {/* Header rule sandwich */}
+      <div style={{ position: 'absolute', top: 44 * s, left: 22 * s, right: 22 * s, height: 1, background: accent }} />
+      <div style={{ position: 'absolute', top: 44 * s, left: 22 * s, right: 22 * s, textAlign: 'center' }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7.5 * s, color: accent, letterSpacing: '0.5em', textTransform: 'uppercase', lineHeight: 1, background: '#FAFAF8', display: 'inline-block', padding: `0 ${10 * s}px`, marginTop: -6 * s }}>
+          {f.kicker || 'STYLED SHOOT'}
+        </div>
+      </div>
+      <div style={{ position: 'absolute', top: 62 * s, left: 22 * s, right: 22 * s, height: 1, background: accent }} />
+
+      {/* 3-column image strip */}
+      {imgs.map((img, i) => (
+        <div key={i} style={{ position: 'absolute', left: i * (cellW + gapPx), top: 76 * s, width: cellW, height: stripH, overflow: 'hidden' }}>
+          {img
+            ? <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <div style={{ width: '100%', height: '100%', background: i === 1 ? '#D8D0C8' : '#E2DDD6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 22 * s, opacity: 0.2, color: '#666' }}>⊡</span>
+              </div>
+          }
+        </div>
+      ))}
+
+      {/* Headline + intro below strip */}
+      <div style={{ position: 'absolute', left: 22 * s, right: 22 * s, top: 76 * s + stripH + 18 * s, textAlign: 'center' }}>
+        <div style={{ fontFamily: FONTS.subhead, fontSize: 36 * s, fontWeight: 400, fontStyle: 'italic', color: P.text, lineHeight: 1.05, marginBottom: 10 * s }}>
+          {f.headline || 'In Full Bloom'}
+        </div>
+        {f.intro && (
+          <div style={{ fontFamily: FONTS.editorial, fontSize: 9.5 * s, color: P.muted, lineHeight: 1.65, fontStyle: 'italic', maxWidth: '80%', margin: '0 auto' }}>
+            {f.intro}
+          </div>
+        )}
+      </div>
+
+      {/* Credits footer */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, borderTop: `1px solid rgba(30,26,20,0.1)`, padding: `${9 * s}px ${22 * s}px`, textAlign: 'center' }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 6.5 * s, color: P.muted, letterSpacing: '0.1em', lineHeight: 1.8 }}>
+          {f.photographer && <span>Photography · {f.photographer}{'   '}</span>}
+          {f.florist && <span>Florals · {f.florist}{'   '}</span>}
+          {f.planner && <span>Planning · {f.planner}{'   '}</span>}
+          {f.venue && <span>Venue · {f.venue}</span>}
+          {!f.photographer && !f.florist && !f.planner && !f.venue && (
+            <span>Photography · Studio Fable   Florals · Bloom & Wild   Venue · Villa San Casciano</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WeddingGallery({ f, s, W, H }) {
+  const P = PALETTES.white;
+  const accent = '#B8926A';
+  const gridTop = H * 0.145;
+  const heroW = W * 0.55;
+  const heroH = H - gridTop - 46 * s;
+  const rCellH = (heroH - 4 * s) / 2;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#FAFAF8' }}>
+      {/* Header */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: gridTop, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderBottom: `1px solid rgba(30,26,20,0.08)` }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 6.5 * s, color: accent, letterSpacing: '0.5em', textTransform: 'uppercase', marginBottom: 4 * s }}>
+          REAL WEDDING
+        </div>
+        <div style={{ fontFamily: FONTS.subhead, fontSize: 32 * s, fontWeight: 400, fontStyle: 'italic', color: P.text, lineHeight: 1.0 }}>
+          {f.names || 'Isabella & James'}
+        </div>
+        <div style={{ width: 40 * s, height: 1, background: accent, marginTop: 6 * s }} />
+      </div>
+
+      {/* Asymmetric grid: hero left + 2 stacked right */}
+      <div style={{ position: 'absolute', left: 0, top: gridTop, width: heroW - 3 * s, height: heroH, overflow: 'hidden' }}>
+        {f.image_hero
+          ? <img src={f.image_hero} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }} />
+          : <div style={{ width: '100%', height: '100%', background: '#D8D2C8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 32 * s, opacity: 0.2, color: '#666' }}>⊡</span>
+            </div>
+        }
+      </div>
+      {[f.image_tl, f.image_bl].map((img, i) => (
+        <div key={i} style={{ position: 'absolute', left: heroW + 3 * s, top: gridTop + i * (rCellH + 4 * s), width: W - heroW - 3 * s, height: rCellH, overflow: 'hidden' }}>
+          {img
+            ? <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <div style={{ width: '100%', height: '100%', background: i === 0 ? '#E2DDD6' : '#D4CEC6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 20 * s, opacity: 0.2, color: '#666' }}>⊡</span>
+              </div>
+          }
+        </div>
+      ))}
+
+      {/* Footer */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 42 * s, borderTop: `1px solid rgba(30,26,20,0.1)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 6.5 * s, color: P.muted, letterSpacing: '0.1em', textAlign: 'center' }}>
+          {[f.date, f.venue, f.photographer && `Photography: ${f.photographer}`].filter(Boolean).join('  ·  ')
+            || '15 September 2026  ·  Villa San Casciano, Tuscany  ·  Photography: Studio Fable'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SupplierCredits({ f, s, W, H }) {
+  const P = PALETTES.ivory;
+  const accent = '#B8926A';
+  const cols = [
+    { title: f.col1_title || 'PHOTOGRAPHY', entries: f.col1_entries || 'Studio Fable\nLondon & Destination\nstudiofable.co' },
+    { title: f.col2_title || 'VENUE', entries: f.col2_entries || 'Villa San Casciano\nTuscany, Italy\nvsc.it' },
+    { title: f.col3_title || 'GOWN & FASHION', entries: f.col3_entries || 'Vera Wang Couture\nShoes: Sophia Webster\nVeil: Toni Federici' },
+    { title: f.col4_title || 'FLOWERS & CAKE', entries: f.col4_entries || 'Bloom & Wild Florals\nButtercream Dreams\nCeremony: The Orchard' },
+  ];
+  const colW = (W - 44 * s) / 4;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Top masthead */}
+      <div style={{ position: 'absolute', top: 28 * s, left: 0, right: 0, textAlign: 'center' }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: accent, letterSpacing: '0.42em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 6 * s }}>
+          {f.issue_label || 'LUXURY WEDDING DIRECTORY'}
+        </div>
+        <div style={{ width: 36 * s, height: 1, background: accent, margin: '0 auto' }} />
+      </div>
+
+      {/* Headline */}
+      <div style={{ position: 'absolute', top: '10%', left: 0, right: 0, textAlign: 'center' }}>
+        <div style={{ fontFamily: FONTS.subhead, fontSize: 52 * s, fontWeight: 400, fontStyle: 'italic', color: P.text, lineHeight: 1.0 }}>
+          {f.headline || 'The Team'}
+        </div>
+      </div>
+
+      {/* Rule below headline */}
+      <div style={{ position: 'absolute', top: '26%', left: 22 * s, right: 22 * s, height: 1, background: 'rgba(30,26,20,0.12)' }} />
+
+      {/* 4-column credits */}
+      <div style={{ position: 'absolute', top: '28%', left: 22 * s, right: 22 * s, bottom: 54 * s, display: 'flex', gap: 0 }}>
+        {cols.map((col, i) => (
+          <div key={i} style={{ flex: 1, padding: `0 ${8 * s}px`, borderRight: i < 3 ? `1px solid rgba(30,26,20,0.08)` : 'none' }}>
+            <div style={{ fontFamily: FONTS.caption, fontSize: 6.5 * s, color: accent, letterSpacing: '0.32em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 6 * s }}>
+              {col.title}
+            </div>
+            <div style={{ width: 24 * s, height: 1, background: accent, opacity: 0.5, marginBottom: 8 * s }} />
+            <div style={{ fontFamily: FONTS.editorial, fontSize: 10 * s, color: P.text, lineHeight: 1.8, fontStyle: 'italic', whiteSpace: 'pre-line' }}>
+              {col.entries}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 50 * s, borderTop: `1px solid rgba(30,26,20,0.1)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 6.5 * s, color: P.muted, letterSpacing: '0.06em', textAlign: 'center', maxWidth: '80%' }}>
+          All weddings featured have been independently selected by our editorial team.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RegionalOpener({ f, s, W, H }) {
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#0D1520' }}>
+      {/* Full-bleed image */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #1a2840 0%, #0b1520 100%)' }} />
+      }
+      {/* Dark overlay */}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,12,22,0.55)' }} />
+
+      {/* Ghost region name — enormous italic watermark */}
+      <div style={{ position: 'absolute', left: '50%', top: '25%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontFamily: FONTS.subhead, fontSize: 130 * s, fontWeight: 400, fontStyle: 'italic', color: 'rgba(255,255,255,0.05)', lineHeight: 0.9, userSelect: 'none', pointerEvents: 'none' }}>
+        {f.region || 'TUSCANY'}
+      </div>
+
+      {/* Content layer */}
+      <div style={{ position: 'absolute', top: '44%', left: 0, right: 0, textAlign: 'center' }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: '#C9A84C', letterSpacing: '0.6em', textTransform: 'uppercase', marginBottom: 8 * s }}>
+          {f.kicker || 'THE REGION'}
+        </div>
+        <div style={{ width: 56 * s, height: 1, background: '#C9A84C', margin: '0 auto', marginBottom: 10 * s }} />
+        <div style={{ fontFamily: FONTS.subhead, fontSize: 60 * s, fontWeight: 400, fontStyle: 'italic', color: '#F0EBE0', lineHeight: 1.0, padding: `0 ${22 * s}px`, marginBottom: 16 * s }}>
+          {f.headline || 'Eternal Tuscany'}
+        </div>
+        {f.intro && (
+          <div style={{ fontFamily: FONTS.editorial, fontSize: 11 * s, color: 'rgba(240,235,224,0.8)', lineHeight: 1.7, fontStyle: 'italic', maxWidth: '72%', margin: '0 auto' }}>
+            {f.intro}
+          </div>
+        )}
+      </div>
+
+      {/* Byline */}
+      {f.byline && (
+        <div style={{ position: 'absolute', bottom: 20 * s, left: 0, right: 0, textAlign: 'center', fontFamily: FONTS.caption, fontSize: 7.5 * s, color: 'rgba(240,235,224,0.35)', letterSpacing: '0.2em' }}>
+          {f.byline}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlanningEdit({ f, s, W, H }) {
+  const P = PALETTES.ivory;
+  const accent = '#B8926A';
+  const cols = [
+    { title: f.col1_title || 'FIND YOUR VENUE', steps: (f.col1_steps || 'Define your guest list\nBook 12–18 months ahead\nArrange private viewings\nAsk for exclusive use').split('\n').filter(Boolean) },
+    { title: f.col2_title || 'BUILD YOUR TEAM', steps: (f.col2_steps || 'Photographer books first\nPlanner or coordinator\nFlorist consultation\nCaterer tasting day').split('\n').filter(Boolean) },
+    { title: f.col3_title || 'THE FINAL MONTH', steps: (f.col3_steps || 'Final dress fitting\nConfirm all suppliers\nSend final numbers\nPrepare morning kit').split('\n').filter(Boolean) },
+  ];
+  const colW = (W - 44 * s) / 3;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Left gold accent bar */}
+      <div style={{ position: 'absolute', left: 0, top: 0, width: 4, height: '100%', background: accent }} />
+
+      {/* Header */}
+      <div style={{ position: 'absolute', top: 30 * s, left: 22 * s }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7.5 * s, color: accent, letterSpacing: '0.42em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 * s }}>
+          THE PLANNING EDIT
+        </div>
+        <div style={{ fontFamily: FONTS.subhead, fontSize: 46 * s, fontWeight: 400, fontStyle: 'italic', color: P.text, lineHeight: 1.0, width: W * 0.6 }}>
+          {f.headline || 'Six Months\nto Perfect'}
+        </div>
+      </div>
+
+      {/* Small optional image top-right */}
+      {f.image ? (
+        <img src={f.image} alt="" style={{ position: 'absolute', right: 22 * s, top: 22 * s, width: W * 0.28, height: W * 0.28 * 1.26, objectFit: 'cover' }} />
+      ) : (
+        <div style={{ position: 'absolute', right: 22 * s, top: 22 * s, width: W * 0.28, height: W * 0.28 * 1.26, background: '#E8E0D4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: 20 * s, opacity: 0.18, color: P.text }}>⊡</span>
+        </div>
+      )}
+
+      {/* Rule below header */}
+      <div style={{ position: 'absolute', top: '24%', left: 22 * s, right: 22 * s, height: 1, background: 'rgba(30,26,20,0.15)' }} />
+
+      {/* 3 columns */}
+      <div style={{ position: 'absolute', top: '26%', left: 22 * s, right: 22 * s, bottom: 24 * s, display: 'flex', gap: 0 }}>
+        {cols.map((col, i) => (
+          <div key={i} style={{ flex: 1, padding: `0 ${8 * s}px ${0}px 0`, borderRight: i < 2 ? `1px solid rgba(30,26,20,0.1)` : 'none', paddingRight: 10 * s }}>
+            <div style={{ fontFamily: FONTS.caption, fontSize: 6.5 * s, color: accent, letterSpacing: '0.32em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 6 * s }}>
+              {col.title}
+            </div>
+            <div style={{ width: 20 * s, height: 1, background: accent, opacity: 0.5, marginBottom: 10 * s }} />
+            {col.steps.map((step, j) => (
+              <div key={j} style={{ display: 'flex', gap: 6 * s, marginBottom: 12 * s, alignItems: 'flex-start' }}>
+                <div style={{ fontFamily: FONTS.subhead, fontSize: 18 * s, fontWeight: 400, fontStyle: 'italic', color: `rgba(184,146,106,0.35)`, lineHeight: 1.1, flexShrink: 0, width: 16 * s, textAlign: 'right' }}>
+                  {j + 1}
+                </div>
+                <div style={{ fontFamily: FONTS.editorial, fontSize: 9.5 * s, color: P.text, lineHeight: 1.55 }}>
+                  {step}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SeasonOpener({ f, s, W, H }) {
+  const P = PALETTES.obsidian;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#0A0908' }}>
+      {/* Gold frame border */}
+      {[
+        { left: 20 * s, top: 20 * s, width: W - 40 * s, height: 1 },
+        { left: 20 * s, top: H - 20 * s, width: W - 40 * s, height: 1 },
+        { left: 20 * s, top: 20 * s, width: 1, height: H - 40 * s },
+        { left: W - 20 * s, top: 20 * s, width: 1, height: H - 40 * s },
+      ].map((r, i) => (
+        <div key={i} style={{ position: 'absolute', ...r, background: P.accent }} />
+      ))}
+
+      {/* Diamond mark */}
+      <div style={{ position: 'absolute', top: '28%', left: 0, right: 0, textAlign: 'center', fontFamily: 'Jost, sans-serif', fontSize: 14 * s, color: P.accent }}>◆</div>
+
+      {/* Giant season words */}
+      <div style={{ position: 'absolute', top: '33%', left: 40 * s, right: 40 * s, textAlign: 'center' }}>
+        <div style={{ fontFamily: '"Josefin Sans", sans-serif', fontSize: 90 * s, fontWeight: 700, color: '#F0EBE0', letterSpacing: '0.12em', lineHeight: 0.88, textTransform: 'uppercase' }}>
+          {(f.season || 'SPRING\nSUMMER').split('\n').map((line, i) => (
+            <div key={i}>{line}</div>
+          ))}
+        </div>
+      </div>
+
+      {/* Year */}
+      <div style={{ position: 'absolute', top: '68%', left: 0, right: 0, textAlign: 'center' }}>
+        <div style={{ fontFamily: FONTS.subhead, fontSize: 26 * s, fontWeight: 400, fontStyle: 'italic', color: P.accent, letterSpacing: '0.7em' }}>
+          {f.year || '2  0  2  6'}
+        </div>
+      </div>
+
+      {/* Subtitle + rule */}
+      <div style={{ position: 'absolute', top: '78%', left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 * s }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 8.5 * s, color: 'rgba(240,235,224,0.42)', letterSpacing: '0.55em', textTransform: 'uppercase' }}>
+          {f.subtitle || 'THE DEFINITIVE GUIDE'}
+        </div>
+        <div style={{ width: 56 * s, height: 1, background: P.accent }} />
+        <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.accent, letterSpacing: '0.5em', textTransform: 'uppercase' }}>
+          {f.issue || 'ISSUE 01'}
+        </div>
+      </div>
+
+      {/* Wordmark bottom */}
+      <div style={{ position: 'absolute', bottom: 34 * s, left: 0, right: 0, textAlign: 'center', fontFamily: FONTS.caption, fontSize: 7 * s, color: 'rgba(240,235,224,0.15)', letterSpacing: '0.35em', textTransform: 'uppercase' }}>
+        LUXURY WEDDING DIRECTORY
+      </div>
+    </div>
+  );
+}
+
+function BehindScenes({ f, s, W, H }) {
+  const P = PALETTES.white;
+  const accent = '#B8926A';
+  const stripTop = H * 0.2;
+  const stripH = H * 0.37;
+  const gapPx = 3 * s;
+  const cellW = (W - gapPx * 3) / 4;
+  const imgs = [f.image1, f.image2, f.image3, f.image4];
+  const notesY = stripTop + stripH + 54 * s;
+  const noteColW = (W - 44 * s) / 2;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#FAFAF8' }}>
+      {/* Header */}
+      <div style={{ position: 'absolute', top: 24 * s, left: 22 * s, right: 22 * s }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7.5 * s, color: accent, letterSpacing: '0.5em', textTransform: 'uppercase', marginBottom: 6 * s }}>
+          {f.kicker || 'BEHIND THE SCENES'}
+        </div>
+        <div style={{ fontFamily: FONTS.subhead, fontSize: 38 * s, fontWeight: 400, fontStyle: 'italic', color: P.text, lineHeight: 1.0, width: '65%' }}>
+          {f.headline || 'The Making of\na Perfect Day'}
+        </div>
+        <div style={{ width: W - 44 * s, height: 1, background: 'rgba(30,26,20,0.1)', marginTop: 10 * s }} />
+      </div>
+
+      {/* 4-wide horizontal image strip */}
+      {imgs.map((img, i) => (
+        <div key={i} style={{ position: 'absolute', left: i * (cellW + gapPx), top: stripTop, width: cellW, height: stripH, overflow: 'hidden' }}>
+          {img
+            ? <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <div style={{ width: '100%', height: '100%', background: ['#D8D2C8','#E2DDD6','#CCC6BC','#D4CEC6'][i], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 16 * s, opacity: 0.2, color: '#666' }}>⊡</span>
+              </div>
+          }
+        </div>
+      ))}
+
+      {/* Caption below strip */}
+      <div style={{ position: 'absolute', top: stripTop + stripH + 10 * s, left: 22 * s, right: 22 * s, fontFamily: FONTS.editorial, fontSize: 9.5 * s, color: P.muted, lineHeight: 1.55, fontStyle: 'italic', textAlign: 'center' }}>
+        {f.caption || 'Morning preparations — four hours before the ceremony.'}
+      </div>
+      <div style={{ position: 'absolute', top: stripTop + stripH + 38 * s, left: 22 * s, right: 22 * s, height: 1, background: 'rgba(30,26,20,0.08)' }} />
+
+      {/* Two-column production notes */}
+      <div style={{ position: 'absolute', top: notesY, left: 22 * s, width: noteColW, right: 'auto' }}>
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 9.5 * s, color: P.text, lineHeight: 1.72 }}>
+          {f.notes_col1 || 'The florals arrived at six in the morning — three white vans carrying everything from the ceremony arch to the boutonnieres. Head florist Elara Jones spent five hours on the bridal bouquet alone.'}
+        </div>
+      </div>
+      <div style={{ position: 'absolute', top: notesY, right: 22 * s, width: noteColW }}>
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 9.5 * s, color: P.text, lineHeight: 1.72 }}>
+          {f.notes_col2 || 'By eleven, the ballroom had been transformed. Sixty tables laid with hand-pressed linen, crystal, and a single gardenia stem. The bridal suite looked out over cypress trees.'}
+        </div>
+      </div>
+
+      {/* Credits footer */}
+      {f.byline && (
+        <div style={{ position: 'absolute', bottom: 16 * s, left: 22 * s, fontFamily: FONTS.caption, fontSize: 6.5 * s, color: P.muted, letterSpacing: '0.1em' }}>
+          {f.byline}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HoneymoonDiary({ f, s, W, H }) {
+  const P = PALETTES.midnight;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#0B1020' }}>
+      {/* Left image panel */}
+      <div style={{ position: 'absolute', left: 0, top: 0, width: '46%', height: '100%', overflow: 'hidden' }}>
+        {f.image
+          ? <img src={f.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+          : <div style={{ width: '100%', height: '100%', background: 'linear-gradient(160deg, #1a2840 0%, #0b1020 100%)' }} />
+        }
+        {/* Gradient overlay bottom of image */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '34%', background: 'linear-gradient(to top, rgba(11,16,32,0.82) 0%, transparent 100%)' }} />
+        {/* Location overlay */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: `${14 * s}px ${14 * s}px ${16 * s}px` }}>
+          <div style={{ fontFamily: '"Cinzel", serif', fontSize: 15 * s, color: P.accent, letterSpacing: '0.42em', textTransform: 'uppercase', marginBottom: 5 * s }}>
+            {f.destination || 'THE MALDIVES'}
+          </div>
+          <div style={{ fontFamily: FONTS.caption, fontSize: 7.5 * s, color: 'rgba(240,235,224,0.45)', letterSpacing: '0.18em' }}>
+            {f.coordinates || '3.2028° N  ·  73.2207° E'}
+          </div>
+        </div>
+      </div>
+
+      {/* Thin gold separator */}
+      <div style={{ position: 'absolute', left: '46%', top: '4%', height: '92%', width: 1, background: P.accent }} />
+
+      {/* Right diary panel */}
+      <div style={{ position: 'absolute', left: '49%', top: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: `${22 * s}px ${18 * s}px ${22 * s}px ${12 * s}px` }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 6.5 * s, color: P.accent, letterSpacing: '0.42em', textTransform: 'uppercase', marginBottom: 8 * s }}>
+          HONEYMOON DIARY
+        </div>
+        <div style={{ width: 36 * s, height: 1, background: P.accent, marginBottom: 10 * s }} />
+        <div style={{ fontFamily: FONTS.subhead, fontSize: 38 * s, fontWeight: 400, fontStyle: 'italic', color: '#F0EBE0', lineHeight: 1.0, marginBottom: 8 * s }}>
+          {f.headline || 'Five Days\nin Paradise'}
+        </div>
+        {f.property && (
+          <div style={{ fontFamily: FONTS.editorial, fontSize: 14 * s, color: P.accent, fontStyle: 'italic', marginBottom: 8 * s }}>
+            {f.property}
+          </div>
+        )}
+        <div style={{ width: '100%', height: 1, background: 'rgba(240,235,224,0.1)', marginBottom: 10 * s }} />
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 9.5 * s, color: 'rgba(240,235,224,0.8)', lineHeight: 1.78, fontStyle: 'italic', flex: 1, overflow: 'hidden' }}>
+          {f.entry || 'The overwater villa is accessed by a wooden bridge that sways gently in the ocean breeze — a threshold between the ordinary world and something else entirely. Below the glass floor, nurse sharks move through warm water the colour of first light.\n\nOn the first morning, we woke to a private breakfast on the deck: papaya, cold-pressed juice, and the sound of nothing.'}
+        </div>
+        {/* Practical footer */}
+        <div style={{ borderTop: `1px solid rgba(201,168,76,0.25)`, paddingTop: 8 * s, marginTop: 8 * s, display: 'flex', gap: 16 * s }}>
+          {f.nights && <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.accent, letterSpacing: '0.22em', textTransform: 'uppercase' }}>{f.nights} NIGHTS</div>}
+          {f.price_guide && <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: 'rgba(240,235,224,0.45)', letterSpacing: '0.1em' }}>{f.price_guide}</div>}
+          {f.website && <div style={{ fontFamily: FONTS.editorial, fontSize: 8.5 * s, color: 'rgba(240,235,224,0.38)', fontStyle: 'italic', marginLeft: 'auto' }}>{f.website}</div>}
+          {!f.nights && !f.price_guide && !f.website && (
+            <>
+              <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.accent, letterSpacing: '0.22em' }}>7 NIGHTS</div>
+              <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: 'rgba(240,235,224,0.45)', letterSpacing: '0.1em' }}>FROM £14,000</div>
+              <div style={{ fontFamily: FONTS.editorial, fontSize: 8.5 * s, color: 'rgba(240,235,224,0.35)', fontStyle: 'italic', marginLeft: 'auto' }}>soneva.com</div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export default function TemplateCanvas({ templateId, fields = {}, pageSize = 'A4', width = 400, forCapture = false, fieldStyles = {} }) {
@@ -2055,6 +2503,24 @@ export default function TemplateCanvas({ templateId, fields = {}, pageSize = 'A4
       case 'full-page-ad':           return <FullPageAd            {...props} />;
       case 'product-showcase-ad':    return <ProductShowcaseAd     {...props} />;
       case 'venue-advertisement':    return <VenueAdvertisement    {...props} />;
+      // Phase 2 variants
+      case 'cover-split':            return <CoverSplit            {...props} />;
+      case 'cover-typographic':      return <CoverTypographic      {...props} />;
+      case 'feature-cinematic':      return <FeatureCinematic      {...props} />;
+      case 'feature-minimal':        return <FeatureMinimal        {...props} />;
+      case 'venue-skyline':          return <VenueSkyline          {...props} />;
+      case 'venue-essay':            return <VenueEssay            {...props} />;
+      case 'couple-gallery':         return <CoupleGallery         {...props} />;
+      case 'story-chapter':          return <StoryChapter          {...props} />;
+      // Phase 3 new categories
+      case 'styled-shoot':           return <StyledShoot           {...props} />;
+      case 'wedding-gallery':        return <WeddingGallery        {...props} />;
+      case 'supplier-credits':       return <SupplierCredits       {...props} />;
+      case 'regional-opener':        return <RegionalOpener        {...props} />;
+      case 'planning-edit':          return <PlanningEdit          {...props} />;
+      case 'season-opener':          return <SeasonOpener          {...props} />;
+      case 'behind-scenes':          return <BehindScenes          {...props} />;
+      case 'honeymoon-diary':        return <HoneymoonDiary        {...props} />;
       default:
         return (
           <div style={{ ...container, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: 'sans-serif', fontSize: 14 * s }}>

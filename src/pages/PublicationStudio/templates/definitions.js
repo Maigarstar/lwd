@@ -661,18 +661,34 @@ function byId(id) {
 // ordering above are appended at the end in their original sequence so no
 // template is lost from the picker.
 const ORDERED_IDS = [
+  // ── Cover & Navigation ───────────────────────────────────────────────────────
   'vogue-cover',                // Cover
   'cover-split',                // Cover — Split variant
-  'cover-typographic',          // Cover — Typographic variant
+  'cover-typographic',          // Cover — Typographic (no photo)
+  'season-opener',              // Season announcement opener
   'editors-letter',             // Editor's Letter
   'about-page',                 // About Page
   'table-of-contents',          // Navigation / Contents
+  'supplier-credits',           // Team & Supplier Credits
+
+  // ── Full-Page Ads ─────────────────────────────────────────────────────────────
   'full-page-ad',               // Full-Page Advertisement
+
+  // ── Editorial ────────────────────────────────────────────────────────────────
   'feature-spread',             // Editorial
-  'feature-cinematic',          // Editorial — Cinematic variant
-  'feature-minimal',            // Editorial — Minimal variant
+  'feature-cinematic',          // Editorial — Cinematic (Harper's Bazaar)
+  'feature-minimal',            // Editorial — Minimal (Kinfolk)
   'story-chapter',              // Editorial — Chapter Opener
-  'the-destination',            // Travel
+  'styled-shoot',               // Styled Shoot Story
+  'planning-edit',              // Planning Edit (3-column checklist)
+  'behind-scenes',              // Behind the Scenes (4-image strip)
+
+  // ── Travel ───────────────────────────────────────────────────────────────────
+  'the-destination',            // Destination
+  'regional-opener',            // Regional Feature Opener
+  'honeymoon-diary',            // Honeymoon Diary
+
+  // ── Fashion & Beauty ─────────────────────────────────────────────────────────
   'the-runway',                 // Fashion
   'the-gown',                   // Bridal
   'the-jewel',                  // Jewellery
@@ -680,18 +696,27 @@ const ORDERED_IDS = [
   'floral-spread',              // Florals
   'invitation-suite',           // Stationery
   'cake-moment',                // Food & Cake
+
+  // ── Couple & Real Wedding ────────────────────────────────────────────────────
   'couple-story',               // Couple
-  'couple-gallery',             // Couple — Gallery variant
-  'the-portrait',               // Real Wedding
+  'couple-gallery',             // Couple — Gallery mosaic
+  'the-portrait',               // Real Wedding portrait
+  'wedding-gallery',            // Real Wedding Gallery (asymmetric grid)
   'ceremony-aisle',             // Ceremony
   'reception-table',            // Reception
+
+  // ── Venue ────────────────────────────────────────────────────────────────────
   'the-hotel',                  // Venue
-  'venue-skyline',              // Venue — Skyline variant
+  'venue-skyline',              // Venue — Skyline (specs grid)
   'venue-portrait',             // Venue Portrait
-  'venue-essay',                // Venue Portrait — Essay variant
+  'venue-essay',                // Venue Portrait — Essay (CNT)
+
+  // ── Commercial ───────────────────────────────────────────────────────────────
   'product-showcase-ad',        // Product Showcase Ad
   'venue-advertisement',        // Venue Advertisement
-  'the-triptych',               // Detail
+
+  // ── Detail & Close ───────────────────────────────────────────────────────────
+  'the-triptych',               // Detail triptych
   'back-cover',                 // Back Cover
 ];
 
@@ -824,6 +849,153 @@ const STORY_CHAPTER_TEMPLATE = {
   ],
 };
 
+// ── Phase 3: New editorial categories ────────────────────────────────────────
+
+const STYLED_SHOOT_TEMPLATE = {
+  id: 'styled-shoot',
+  name: 'Styled Shoot',
+  category: 'Editorial',
+  palette: 'white',
+  description: 'Three-image editorial strip with headline, intro, and full team credits.',
+  fields: [
+    { id: 'image1',       type: 'image',    label: 'Image 1 (left)',    required: true },
+    { id: 'image2',       type: 'image',    label: 'Image 2 (centre)' },
+    { id: 'image3',       type: 'image',    label: 'Image 3 (right)' },
+    { id: 'kicker',       type: 'text',     label: 'Kicker',            default: 'STYLED SHOOT' },
+    { id: 'headline',     type: 'text',     label: 'Headline',          default: 'In Full Bloom' },
+    { id: 'intro',        type: 'textarea', label: 'Intro',             maxLength: 160 },
+    { id: 'photographer', type: 'text',     label: 'Photographer' },
+    { id: 'florist',      type: 'text',     label: 'Florist' },
+    { id: 'planner',      type: 'text',     label: 'Planner' },
+    { id: 'venue',        type: 'text',     label: 'Venue' },
+  ],
+};
+
+const WEDDING_GALLERY_TEMPLATE = {
+  id: 'wedding-gallery',
+  name: 'Real Wedding Gallery',
+  category: 'Real Wedding',
+  palette: 'white',
+  description: 'Asymmetric gallery grid — hero image left, two stacked right. Real wedding opener.',
+  fields: [
+    { id: 'names',        type: 'text',     label: 'Couple Names',     default: 'Isabella & James', required: true },
+    { id: 'image_hero',   type: 'image',    label: 'Hero Image (large left)', required: true },
+    { id: 'image_tl',     type: 'image',    label: 'Image 2 (top right)' },
+    { id: 'image_bl',     type: 'image',    label: 'Image 3 (bottom right)' },
+    { id: 'date',         type: 'text',     label: 'Date',             default: '15 September 2026' },
+    { id: 'venue',        type: 'text',     label: 'Venue' },
+    { id: 'photographer', type: 'text',     label: 'Photography' },
+  ],
+};
+
+const SUPPLIER_CREDITS_TEMPLATE = {
+  id: 'supplier-credits',
+  name: 'Supplier Credits',
+  category: 'Navigation',
+  palette: 'ivory',
+  description: 'Four-column typographic credits page. Photography, venue, fashion, florals.',
+  fields: [
+    { id: 'headline',    type: 'text',     label: 'Headline',          default: 'The Team' },
+    { id: 'issue_label', type: 'text',     label: 'Issue Label',       default: 'LUXURY WEDDING DIRECTORY' },
+    { id: 'col1_title',  type: 'text',     label: 'Column 1 Title',    default: 'PHOTOGRAPHY' },
+    { id: 'col1_entries',type: 'textarea', label: 'Column 1 Credits',  hint: 'One entry per line' },
+    { id: 'col2_title',  type: 'text',     label: 'Column 2 Title',    default: 'VENUE' },
+    { id: 'col2_entries',type: 'textarea', label: 'Column 2 Credits' },
+    { id: 'col3_title',  type: 'text',     label: 'Column 3 Title',    default: 'GOWN & FASHION' },
+    { id: 'col3_entries',type: 'textarea', label: 'Column 3 Credits' },
+    { id: 'col4_title',  type: 'text',     label: 'Column 4 Title',    default: 'FLOWERS & CAKE' },
+    { id: 'col4_entries',type: 'textarea', label: 'Column 4 Credits' },
+  ],
+};
+
+const REGIONAL_OPENER_TEMPLATE = {
+  id: 'regional-opener',
+  name: 'Regional Feature Opener',
+  category: 'Travel',
+  palette: 'midnight',
+  description: 'Full-bleed landscape with ghost region name and editorial headline. Perfect for destination features.',
+  fields: [
+    { id: 'image',    type: 'image',    label: 'Landscape / Aerial Image', required: true },
+    { id: 'region',   type: 'text',     label: 'Ghost Region Name', default: 'TUSCANY',    hint: 'Shown as large ghost watermark' },
+    { id: 'kicker',   type: 'text',     label: 'Kicker',           default: 'THE REGION' },
+    { id: 'headline', type: 'text',     label: 'Headline',         default: 'Eternal Tuscany', required: true },
+    { id: 'intro',    type: 'textarea', label: 'Intro',            maxLength: 180 },
+    { id: 'byline',   type: 'text',     label: 'Byline' },
+  ],
+};
+
+const PLANNING_EDIT_TEMPLATE = {
+  id: 'planning-edit',
+  name: 'Planning Edit',
+  category: 'Editorial',
+  palette: 'ivory',
+  description: 'Three-column planning checklist with numbered steps. Perfect for planning guides.',
+  fields: [
+    { id: 'headline',    type: 'text',     label: 'Headline',          default: 'Six Months to Perfect' },
+    { id: 'image',       type: 'image',    label: 'Small Image',       hint: 'Optional top-right inset' },
+    { id: 'col1_title',  type: 'text',     label: 'Column 1 Title',    default: 'FIND YOUR VENUE' },
+    { id: 'col1_steps',  type: 'textarea', label: 'Column 1 Steps',    hint: 'One step per line' },
+    { id: 'col2_title',  type: 'text',     label: 'Column 2 Title',    default: 'BUILD YOUR TEAM' },
+    { id: 'col2_steps',  type: 'textarea', label: 'Column 2 Steps' },
+    { id: 'col3_title',  type: 'text',     label: 'Column 3 Title',    default: 'THE FINAL MONTH' },
+    { id: 'col3_steps',  type: 'textarea', label: 'Column 3 Steps' },
+  ],
+};
+
+const SEASON_OPENER_TEMPLATE = {
+  id: 'season-opener',
+  name: 'Season Opener',
+  category: 'Cover',
+  palette: 'obsidian',
+  description: 'Dark typographic season announcement. No photography required. Gold frame, giant spaced caps.',
+  fields: [
+    { id: 'season',   type: 'textarea', label: 'Season (line 1 / line 2)', default: 'SPRING\nSUMMER',     hint: 'Use line break to split across two lines' },
+    { id: 'year',     type: 'text',     label: 'Year',                     default: '2  0  2  6' },
+    { id: 'subtitle', type: 'text',     label: 'Subtitle',                 default: 'THE DEFINITIVE GUIDE' },
+    { id: 'issue',    type: 'text',     label: 'Issue Label',              default: 'ISSUE 01' },
+  ],
+};
+
+const BEHIND_SCENES_TEMPLATE = {
+  id: 'behind-scenes',
+  name: 'Behind the Scenes',
+  category: 'Editorial',
+  palette: 'white',
+  description: 'Four-wide image strip with production notes in two columns. BTS editorial.',
+  fields: [
+    { id: 'image1',      type: 'image',    label: 'Image 1', required: true },
+    { id: 'image2',      type: 'image',    label: 'Image 2' },
+    { id: 'image3',      type: 'image',    label: 'Image 3' },
+    { id: 'image4',      type: 'image',    label: 'Image 4' },
+    { id: 'kicker',      type: 'text',     label: 'Kicker',        default: 'BEHIND THE SCENES' },
+    { id: 'headline',    type: 'text',     label: 'Headline',      default: 'The Making of a Perfect Day' },
+    { id: 'caption',     type: 'text',     label: 'Strip Caption', default: 'Morning preparations — four hours before the ceremony.' },
+    { id: 'notes_col1',  type: 'textarea', label: 'Notes Column 1', maxLength: 280 },
+    { id: 'notes_col2',  type: 'textarea', label: 'Notes Column 2', maxLength: 280 },
+    { id: 'byline',      type: 'text',     label: 'Credits' },
+  ],
+};
+
+const HONEYMOON_DIARY_TEMPLATE = {
+  id: 'honeymoon-diary',
+  name: 'Honeymoon Diary',
+  category: 'Travel',
+  palette: 'midnight',
+  description: 'Left destination image with coordinates. Right travel diary entry with property and practical details.',
+  fields: [
+    { id: 'image',       type: 'image',    label: 'Destination Image',  required: true },
+    { id: 'destination', type: 'text',     label: 'Destination',        default: 'THE MALDIVES' },
+    { id: 'coordinates', type: 'text',     label: 'Coordinates',        default: '3.2028° N  ·  73.2207° E' },
+    { id: 'headline',    type: 'text',     label: 'Diary Headline',     default: 'Five Days in Paradise' },
+    { id: 'property',    type: 'text',     label: 'Property Name',      default: 'Soneva Jani' },
+    { id: 'entry',       type: 'textarea', label: 'Diary Entry',        maxLength: 500 },
+    { id: 'nights',      type: 'text',     label: 'Nights',             default: '7' },
+    { id: 'price_guide', type: 'text',     label: 'Price Guide',        default: 'From £14,000' },
+    { id: 'website',     type: 'text',     label: 'Website',            default: 'soneva.com' },
+    { id: 'photographer',type: 'text',     label: 'Photography' },
+  ],
+};
+
 const NEW_TEMPLATES_BY_ID = {
   'editors-letter':       EDITORS_LETTER_TEMPLATE,
   'about-page':           ABOUT_PAGE_TEMPLATE,
@@ -840,6 +1012,15 @@ const NEW_TEMPLATES_BY_ID = {
   'venue-essay':          VENUE_ESSAY_TEMPLATE,
   'couple-gallery':       COUPLE_GALLERY_TEMPLATE,
   'story-chapter':        STORY_CHAPTER_TEMPLATE,
+  // Phase 3 new categories
+  'styled-shoot':         STYLED_SHOOT_TEMPLATE,
+  'wedding-gallery':      WEDDING_GALLERY_TEMPLATE,
+  'supplier-credits':     SUPPLIER_CREDITS_TEMPLATE,
+  'regional-opener':      REGIONAL_OPENER_TEMPLATE,
+  'planning-edit':        PLANNING_EDIT_TEMPLATE,
+  'season-opener':        SEASON_OPENER_TEMPLATE,
+  'behind-scenes':        BEHIND_SCENES_TEMPLATE,
+  'honeymoon-diary':      HONEYMOON_DIARY_TEMPLATE,
 };
 
 // Build the ordered list, then append any BASE_TEMPLATES that weren't
