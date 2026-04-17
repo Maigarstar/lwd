@@ -2571,11 +2571,10 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
 
     const dims = PAGE_SIZES['A4'];
 
-    // ── Preload all template fonts before the loop ───────────────────────────
-    // document.fonts.ready only confirms CSS parsing. For canvas text to render
-    // with the actual typeface (not a fallback), each font variant must be
-    // explicitly loaded via document.fonts.load(). We do this ONCE before the
-    // loop so every per-page toDataURL() gets crisp editorial typography.
+    // ── Preload fonts + images before the loop ───────────────────────────────
+    // Both font variants and template images are loaded ONCE here so every
+    // per-page capture gets crisp editorial typography AND real photography.
+    // Per-page waitForImgLoads() then resolves from cache (near-instant).
     const TEMPLATE_FONTS = [
       "italic 400 84px 'Bodoni Moda'",   "700 84px 'Bodoni Moda'",
       "italic 400 54px 'Playfair Display'",
@@ -2588,9 +2587,26 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       "italic 400 44px 'DM Serif Display'",
       "400 32px 'Libre Baskerville'",
     ];
+    const fontPreload = Promise.all(
+      TEMPLATE_FONTS.map(f => document.fonts.load(f).catch(() => {}))
+    );
+
+    // Warm the browser image cache for every template photo so FabricImage.fromURL
+    // resolves from memory (not network) during the build loop.
+    const imgPreload = Promise.all(
+      Object.values(IMG).map(url =>
+        new Promise(res => {
+          const i = new Image();
+          i.crossOrigin = 'anonymous';
+          i.onload = i.onerror = res;
+          i.src = url;
+        })
+      )
+    );
+
     await Promise.race([
-      Promise.all(TEMPLATE_FONTS.map(f => document.fonts.load(f).catch(() => {}))),
-      new Promise(r => setTimeout(r, 1500)), // hard cap — never stall the build
+      Promise.all([fontPreload, imgPreload]),
+      new Promise(r => setTimeout(r, 4000)), // hard cap — never stall forever
     ]);
 
     // Create ONE off-screen canvas at reference dimensions, reuse for all pages
@@ -2611,6 +2627,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         const pageSpec = structure[i];
         const template = TEMPLATES.find(t => t.id === pageSpec.template_id);
         if (!template) continue;
+
+        // Reset the image-promise tracker so we only await THIS page's loads.
+        clearImgLoadPromises();
 
         if (pageSpec.listing_data) {
           // Living Template: real listing imagery fills the canvas
@@ -2653,8 +2672,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         if (pageSpec.body     && bodyObj)     bodyObj.set('text',     pageSpec.body);
         if (pageSpec.byline   && bylineObj)   bylineObj.set('text',   pageSpec.byline);
 
-        // Fonts are already loaded (preloaded before the loop) — render is instant.
-        // Images use grey placeholder rects; they paint in when the user opens the page.
+        // Fonts + images are both preloaded — FabricImage.fromURL resolves from
+        // browser cache, so this wait is typically <50ms. Hard cap at 800ms.
+        await waitForImgLoads(800);
         fc.renderAll();
 
         const canvasJSON       = fc.toJSON(['id']);
