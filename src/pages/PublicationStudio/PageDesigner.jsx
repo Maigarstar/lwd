@@ -1189,6 +1189,10 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   const [exportingScreen, setExportingScreen] = useState(false);
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
+  // Dirty flag — true when canvas has unsaved edits. Triggers beforeunload + auto-save.
+  const [isDirty, setIsDirty] = useState(false);
+  // Publish progress — null when idle, { current, total } while publishing.
+  const [publishProgress, setPublishProgress] = useState(null);
 
   // Page background colour
   const [pageBg, setPageBg] = useState('#ffffff');
@@ -1301,6 +1305,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     const json = fc.toJSON(['id', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker']);
     setUndoStack(prev => [...prev.slice(-29), json]);
     setRedoStack([]);
+    setIsDirty(true); // mark unsaved changes
   }, [getActiveCanvas]);
 
   // ── Image picker selection ─────────────────────────────────────────────────
@@ -1480,6 +1485,19 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       setPagesLoaded(true);
     });
   }, [issue?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Unsaved-changes guard ────────────────────────────────────────────────────
+  // Warn before the browser navigates away when there are unsaved edits.
+  // Works for tab-close, browser back, and navigation to a new page.
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (!isDirty) return;
+      e.preventDefault();
+      e.returnValue = ''; // Chrome requires returnValue to be set
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   // ── Canvas init ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -2215,9 +2233,16 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       // Sync local state so further edits start from the saved snapshot
       setPages(freshPages);
       setLastSaved(savedAt);
+      setIsDirty(false); // clear unsaved-changes flag
     } catch (e) {
       console.error('Save failed:', e);
-      alert('Save failed: ' + (e.message || e));
+      const msg = e.message || String(e);
+      const friendly = msg.includes('JWT') || msg.includes('auth')
+        ? 'Save failed: session expired — please refresh and sign in again.'
+        : msg.includes('network') || msg.includes('fetch')
+        ? 'Save failed: network error — check your connection and try again.'
+        : `Save failed: ${msg}`;
+      alert(friendly);
     } finally {
       setSaving(false);
     }
@@ -2230,6 +2255,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   const handleExportDigital = useCallback(async () => {
     if (!issue?.id) return;
     setExportingDigital(true);
+    setPublishProgress({ current: 0, total: pages.length });
     console.log('[publish] starting for issue', issue.id, 'pages:', pages.length);
     try {
       // ── Auth-context diagnostic ────────────────────────────────────────────
@@ -2259,7 +2285,15 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       saveCurrentPageToState();
       await new Promise(r => setTimeout(r, 150));
 
-      const renderVersion = (issue.render_version || 1) + 1;
+      // ── Optimistic lock ──────────────────────────────────────────────────────
+      // Record the current render_version before we start. At the end we do a
+      // conditional DB update (WHERE render_version = expectedVersion) to detect
+      // if another tab published between when we started and when we finish.
+      const expectedVersion = issue.render_version || 1;
+      const renderVersion = expectedVersion + 1;
+
+      // Re-import supabase client for the conditional update at the end.
+      const { supabase: sbClient } = await import('./../../lib/supabaseClient');
 
       // Create a fresh off-screen Fabric canvas at true 1:1 scale for rendering.
       // We CANNOT reuse fabricRef.current because it is zoomed (e.g. 0.6×) and
@@ -2283,6 +2317,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
         const pageNumber = i + 1;
+        setPublishProgress({ current: i, total: pages.length });
         console.log(`[publish] page ${pageNumber}/${pages.length}: rendering`);
 
         // Clear and reload this page's canvas JSON
@@ -2341,46 +2376,59 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
 
       // Clean up off-screen canvas
       offscreen.dispose();
+      setPublishProgress({ current: pages.length, total: pages.length });
 
       // Auto-populate issue cover from page 1 if no cover was uploaded manually.
-      // This ensures the All Issues listing always has a cover image for
-      // published magazines — users who skip the cover-upload step in Overview
-      // still get a usable cover from their published page 1 design.
       if (!issue.cover_image && firstPagePublicUrl) {
         try {
-          const upd = await updateIssue(issue.id, { cover_image: firstPagePublicUrl });
-          if (upd?.error) {
-            console.warn('[publish] cover auto-set returned error:', upd.error);
-          } else {
-            console.log('[publish] auto-set cover_image from page 1');
-          }
+          await updateIssue(issue.id, { cover_image: firstPagePublicUrl });
+          console.log('[publish] auto-set cover_image from page 1');
         } catch (coverErr) {
           console.warn('[publish] cover auto-set failed (pages still published):', coverErr);
         }
       }
 
-      // Persist publish state so the Live state survives reload
+      // ── Optimistic lock: conditional update ─────────────────────────────────
+      // Only commits if render_version in DB still equals expectedVersion.
+      // If another tab republished while this loop was running, rows-returned = 0
+      // and we abort with an error — pages are already uploaded but the issue
+      // metadata stays at the previous render_version, preventing version skew.
       const publishPatch = {
         render_version:   renderVersion,
         page_count:       pages.length,
         processing_state: 'ready',
         status:           'published',
         published_at:     new Date().toISOString(),
+        ...(issue.cover_image ? {} : firstPagePublicUrl ? { cover_image: firstPagePublicUrl } : {}),
       };
-      try {
-        const upd = await updateIssue(issue.id, publishPatch);
-        if (upd?.error) console.warn('[publish] updateIssue returned error:', upd.error);
-      } catch (dbErr) {
-        console.warn('[publish] updateIssue failed (pages still published):', dbErr);
+      const { data: lockData, error: lockErr } = await sbClient
+        .from('magazine_issues')
+        .update(publishPatch)
+        .eq('id', issue.id)
+        .eq('render_version', expectedVersion)
+        .select('id');
+
+      if (lockErr) {
+        throw new Error(`Failed to save publish state: ${lockErr.message}`);
       }
+      if (!lockData?.length) {
+        throw new Error(
+          'Publish conflict — this issue was republished in another tab or session while yours was running. ' +
+          'Refresh and try again. Your pages have been uploaded but will appear on the next successful publish.'
+        );
+      }
+
       onIssueUpdate?.(publishPatch);
+      setIsDirty(false); // pages are now published and match DB
       console.log('[publish] done');
       alert(`✓ ${pages.length} page${pages.length !== 1 ? 's' : ''} published to reader`);
     } catch (e) {
       console.error('[publish] fatal:', e);
-      alert('Publish failed: ' + e.message + '\n\nCheck browser console for details.');
+      const msg = e.message || String(e);
+      alert('Publish failed: ' + msg + (msg.includes('conflict') ? '' : '\n\nCheck browser console for details.'));
     } finally {
       setExportingDigital(false);
+      setPublishProgress(null);
     }
   }, [issue, pages, dims, saveCurrentPageToState, onIssueUpdate]);
 
@@ -2415,7 +2463,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         await new Promise(r => setTimeout(r, 60));
         offscreen.renderAll();
         const blob = await canvasToPrintJpegBlob(offscreen);
-        printPages.push({ blob, pageSize });
+        // Pass canvasJSON so generatePrintPDF can embed an invisible text layer
+        // (enables PDF search / copy-paste of magazine text)
+        printPages.push({ blob, pageSize, canvasJSON: page.canvasJSON ?? null });
       }
 
       offscreen.dispose();
@@ -2459,7 +2509,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         await new Promise(r => setTimeout(r, 60));
         offscreen.renderAll();
         const blob = await canvasToJpegBlob(offscreen, 2);
-        screenPages.push({ blob, pageSize });
+        // Pass canvasJSON so generateScreenPDF can embed an invisible text layer
+        // (enables PDF search / copy-paste of magazine text)
+        screenPages.push({ blob, pageSize, canvasJSON: page.canvasJSON ?? null });
       }
 
       offscreen.dispose();
@@ -2476,6 +2528,11 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   // ── Page management ─────────────────────────────────────────────────────────
   function handleSelectPage(i) {
     saveCurrentPageToState();
+    // Auto-save to DB when switching pages so edits aren't lost if the tab is
+    // closed before the user clicks Save. Non-blocking — runs in background.
+    if (isDirty) {
+      handleSave().catch(e => console.warn('[auto-save on page switch]', e));
+    }
     setCurrentPageIndex(i);
     if (spreadView) {
       // Determine which side of the spread was clicked and activate it
@@ -2767,6 +2824,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         lastSaved={lastSaved}
         onExportDigital={handleExportDigital}
         exportingDigital={exportingDigital}
+        publishProgress={publishProgress}
+        isDirty={isDirty}
         onExportScreen={handleExportScreen}
         exportingScreen={exportingScreen}
         onExportPrint={handleExportPrint}

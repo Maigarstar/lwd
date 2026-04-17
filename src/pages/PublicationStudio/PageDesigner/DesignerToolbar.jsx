@@ -83,8 +83,10 @@ export default function DesignerToolbar({
   onSave,
   saving,
   lastSaved,
+  isDirty,
   onExportDigital,
   exportingDigital,
+  publishProgress,
   onExportScreen,
   exportingScreen,
   onExportPrint,
@@ -495,8 +497,8 @@ export default function DesignerToolbar({
           {saving ? 'Saving…' : '💾 Save'}
         </button>
 
-        {/* Last saved timestamp */}
-        {savedAgo && !saving && (
+        {/* Last saved timestamp + unsaved indicator */}
+        {(savedAgo && !saving) && (
           <span
             title={lastSaved ? `Last saved ${lastSaved.toLocaleString('en-GB')}` : ''}
             style={{
@@ -505,31 +507,54 @@ export default function DesignerToolbar({
               fontWeight: 500,
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
-              color: 'rgba(255,255,255,0.4)',
+              color: isDirty ? 'rgba(201,169,110,0.7)' : 'rgba(255,255,255,0.4)',
               padding: '0 4px',
               whiteSpace: 'nowrap',
               userSelect: 'none',
             }}
           >
-            ✓ Saved {savedAgo}
+            {isDirty ? '● Unsaved' : `✓ Saved ${savedAgo}`}
           </span>
         )}
 
-        {/* Publish digital */}
-        <button
-          onClick={onExportDigital}
-          disabled={exportingDigital}
-          style={{
-            background: exportingDigital ? 'rgba(201,169,110,0.2)' : 'rgba(201,169,110,0.12)',
-            border: `1px solid ${exportingDigital ? 'rgba(201,169,110,0.3)' : 'rgba(201,169,110,0.35)'}`,
-            borderRadius: 3, color: GOLD,
-            fontFamily: NU, fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-            padding: '5px 12px', cursor: exportingDigital ? 'default' : 'pointer',
-          }}
-        >
-          {exportingDigital ? 'Publishing…' : (issue?.render_version ? '↻ Republish' : '▶ Publish Digital')}
-        </button>
+        {/* Publish digital — with inline progress bar when publishing */}
+        <div style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
+          <button
+            onClick={onExportDigital}
+            disabled={exportingDigital}
+            style={{
+              background: exportingDigital ? 'rgba(201,169,110,0.2)' : 'rgba(201,169,110,0.12)',
+              border: `1px solid ${exportingDigital ? 'rgba(201,169,110,0.3)' : 'rgba(201,169,110,0.35)'}`,
+              borderRadius: 3, color: GOLD,
+              fontFamily: NU, fontSize: 10, fontWeight: 700,
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+              padding: '5px 12px', cursor: exportingDigital ? 'default' : 'pointer',
+              minWidth: 120,
+            }}
+          >
+            {exportingDigital && publishProgress
+              ? `Publishing ${publishProgress.current}/${publishProgress.total}…`
+              : exportingDigital
+              ? 'Publishing…'
+              : (issue?.render_version ? '↻ Republish' : '▶ Publish Digital')}
+          </button>
+          {/* Progress bar — only visible while publishing */}
+          {exportingDigital && publishProgress && publishProgress.total > 0 && (
+            <div style={{
+              position: 'absolute', bottom: -5, left: 0, right: 0,
+              height: 2, background: 'rgba(201,169,110,0.15)', borderRadius: 1,
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%',
+                width: `${(publishProgress.current / publishProgress.total) * 100}%`,
+                background: GOLD,
+                borderRadius: 1,
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+          )}
+        </div>
 
         {/* PREVIEW — always visible if the issue has a slug (draft or live).
             Opens the reader with ?preview=1 so the draft banner shows. */}

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { jsPDF } from 'jspdf';
 import { GOLD, DARK, CARD, BORDER, MUTED, NU, GD } from './designerConstants';
 import { sendEmail } from '../../../services/emailSendService';
+import { uploadViaEdgeFunction } from '../../../services/magazinePageService';
 
 function generateInvoicePDF(slot, issueName, pageLabel) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -398,16 +399,16 @@ export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageNa
         } catch (err) { reject(err); }
       });
 
-      // Upload to Supabase storage
+      // Upload via edge function (matches all other publication uploads — avoids
+      // direct browser → storage path that fails under RLS on the magazine-pages bucket)
       const proofPath = `${issueId}/proofs/proof-${Date.now()}.jpg`;
-      const { error: upErr } = await supabase.storage
-        .from('magazine-pages')
-        .upload(proofPath, blob, { contentType: 'image/jpeg', upsert: true });
-      if (upErr) throw upErr;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('magazine-pages')
-        .getPublicUrl(proofPath);
+      const uploadResult = await uploadViaEdgeFunction({
+        bucket:      'magazine-pages',
+        path:        proofPath,
+        blob,
+        contentType: 'image/jpeg',
+      });
+      const publicUrl = uploadResult.publicUrl;
 
       // Generate approval URL
       const approvalToken = btoa([issueId, pageNum || 1, email].join(':'));
