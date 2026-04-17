@@ -302,16 +302,6 @@ export default function DesignerToolbar({
           )}
           {onBack && <Sep />}
 
-          {/* Taigenic.ai wordmark */}
-          <div style={{ lineHeight: 1, flexShrink: 0 }}>
-            <div style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: GOLD, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
-              Taigenic.ai
-            </div>
-            <div style={{ fontFamily: NU, fontSize: 7, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 1 }}>
-              Studio
-            </div>
-          </div>
-
           <Sep />
 
           {/* Issue title */}

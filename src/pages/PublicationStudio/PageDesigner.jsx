@@ -3293,6 +3293,23 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
           }}
         />
       )}
+
+      {/* Taigenic.ai Studio wordmark — fixed bottom-right */}
+      <div style={{
+        position: 'fixed', bottom: 14, right: 18,
+        zIndex: 50,
+        pointerEvents: 'none',
+        lineHeight: 1,
+        textAlign: 'right',
+        userSelect: 'none',
+      }}>
+        <div style={{ fontFamily: "'Jost', 'Nunito Sans', sans-serif", fontSize: 9, fontWeight: 700, color: 'rgba(201,169,110,0.55)', letterSpacing: '0.22em', textTransform: 'uppercase' }}>
+          Taigenic.ai
+        </div>
+        <div style={{ fontFamily: "'Jost', 'Nunito Sans', sans-serif", fontSize: 7, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 2 }}>
+          Studio
+        </div>
+      </div>
     </div>
   );
 }
