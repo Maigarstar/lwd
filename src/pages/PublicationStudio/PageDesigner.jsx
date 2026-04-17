@@ -195,8 +195,10 @@ function applyBrandToCanvas(fc, brand) {
 
   if (!newHex && !hFont && !bFont) return;
 
-  fc.getObjects().forEach(obj => {
-    // ── Color substitution ────────────────────────────────────────────────
+  // Recursive visitor — descends into Groups so nested objects are also branded.
+  // fabric.Group.getObjects() returns direct children; recurse for nested groups.
+  function visitObj(obj) {
+    // ── Color substitution ──────────────────────────────────────────────
     if (newHex && newRgb) {
       // fill
       if (obj.fill === DEFAULT_GOLD_HEX) obj.set('fill', newHex);
@@ -221,7 +223,7 @@ function applyBrandToCanvas(fc, brand) {
         }
       }
     }
-    // ── Font substitution (Textbox / IText) ───────────────────────────────
+    // ── Font substitution (Textbox / IText) ──────────────────────────────
     if (obj.type === 'textbox' || obj.type === 'i-text') {
       if (hFont && HEADING_FONT_SET.has(obj.fontFamily)) {
         obj.set('fontFamily', hFont);
@@ -231,7 +233,13 @@ function applyBrandToCanvas(fc, brand) {
         try { loadGoogleFont(bFont); } catch { /* noop */ }
       }
     }
-  });
+    // ── Recurse into groups ───────────────────────────────────────────────
+    if (obj.type === 'group' && typeof obj.getObjects === 'function') {
+      obj.getObjects().forEach(visitObj);
+    }
+  }
+
+  fc.getObjects().forEach(visitObj);
 }
 
 export function applyTemplate(fc, template, dims, brand = {}) {

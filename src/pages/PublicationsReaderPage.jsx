@@ -6,7 +6,7 @@
 //           reader mode (dark/sepia), cinematic intro, reading progress bar,
 //           enhanced page counter, keyboard shortcuts, pinch-to-zoom
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { fetchIssueBySlug } from '../services/magazineIssuesService';
 import { fetchPages }       from '../services/magazinePageService';
@@ -696,12 +696,17 @@ function PageVideoOverlay({ page }) {
   );
 }
 
+// ── Prefers-reduced-motion (computed once at module level) ────────────────────
+// Avoids creating a new MediaQueryList object on every component render/nav.
+// Re-reads correctly on hard refresh; for live system-pref changes during a
+// session the user would need to reload the page — acceptable for this use case.
+const prefersReducedMotion =
+  typeof window !== 'undefined' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 // ── Page flip wrapper (desktop only) ─────────────────────────────────────────
 function PageFlipWrapper({ flipDir, isFlipping, children }) {
-  const prefersReduced = typeof window !== 'undefined'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  if (prefersReduced) return <>{children}</>;
+  if (prefersReducedMotion) return <>{children}</>;
 
   return (
     <div style={{
@@ -739,7 +744,9 @@ function PageFlipWrapper({ flipDir, isFlipping, children }) {
 }
 
 // ── Page image ────────────────────────────────────────────────────────────────
-function PageImage({ page, side, pageBg, onHotspotClick, isPreview }) {
+// Memoised: re-renders only when page data, preview flag, or theme changes.
+// Avoids re-rendering every image when the reader theme or current-page changes.
+const PageImage = React.memo(function PageImage({ page, side, pageBg, onHotspotClick, isPreview }) {
   const [loaded, setLoaded]     = useState(false);
   const [liveDataUrl, setLive]  = useState(null); // preview-only live render
 
@@ -848,7 +855,7 @@ function PageImage({ page, side, pageBg, onHotspotClick, isPreview }) {
       <PageVideoOverlay page={page} />
     </div>
   );
-}
+}); // React.memo — PageImage
 
 // ── Nav button ────────────────────────────────────────────────────────────────
 function NavButton({ direction, onClick, disabled, T }) {
@@ -1567,19 +1574,16 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     firePageTurn(clamped);
     setCurrentPage(clamped);
     resetZoom();
-    // URL sync
-    if (slug) {
-      window.history.replaceState({}, '', `/publications/${slug}?page=${clamped}`);
-    }
-  }, [totalPages, firePageTurn, resetZoom, slug]);
+    // URL sync is handled by the debounced useEffect below — no inline replaceState
+    // to avoid double-fire when both goToPage and the useEffect run on the same tick.
+  }, [totalPages, firePageTurn, resetZoom]);
 
   const goPrev = useCallback(() => {
     if (!canPrev) return;
     if (gateOpen && !gateUnlocked) return; // block nav while email gate is showing
     if (flipLockRef.current || isFlipping) return;
     if (zoom > 1) { goToPage(Math.max(1, currentPage - step)); return; }
-    const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) { goToPage(Math.max(1, currentPage - step)); return; }
+    if (prefersReducedMotion) { goToPage(Math.max(1, currentPage - step)); return; }
     const newPage = Math.max(1, currentPage - step);
     setFlipDir('prev');
     setIsFlipping(true);
@@ -1611,8 +1615,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       }
     }
     if (zoom > 1) { goToPage(Math.min(totalPages, currentPage + step)); return; }
-    const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) { goToPage(Math.min(totalPages, currentPage + step)); return; }
+    if (prefersReducedMotion) { goToPage(Math.min(totalPages, currentPage + step)); return; }
     const newPage = Math.min(totalPages, currentPage + step);
     setFlipDir('next');
     setIsFlipping(true);
@@ -1628,10 +1631,16 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     }, 300);
   }, [canNext, paywallBlocking, currentPage, step, totalPages, goToPage, isFlipping, zoom, gateOpen, gateUnlocked, triggerGateByIntent]);
 
-  // ── URL sync on page change ──────────────────────────────────────────────────
+  // ── URL sync on page change (debounced 200ms) ────────────────────────────────
+  // Debounced to avoid spamming history entries during rapid keyboard navigation.
+  // Also eliminates the double-fire that occurred when goToPage called replaceState
+  // directly AND this effect ran on the same currentPage state change.
   useEffect(() => {
     if (!slug || !issue) return;
-    window.history.replaceState({}, '', `/publications/${slug}?page=${currentPage}`);
+    const t = setTimeout(() => {
+      window.history.replaceState({}, '', `/publications/${slug}?page=${currentPage}`);
+    }, 200);
+    return () => clearTimeout(t);
   }, [currentPage, slug, issue]);
 
   // ── Close credits drawer on page navigation ───────────────────────────────────
