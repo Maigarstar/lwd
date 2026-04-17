@@ -1470,6 +1470,9 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const forceSpreadEarly   = issue?.spread_layout !== 'single';
   const useDoubleSpread    = isDesktop && forceSpreadEarly;
 
+  // ── Paywall gate: declared here too so goNext (below) can reference it ───────
+  const paywallBlocking    = (issue?.paywall_enabled === true) && currentPage > (issue?.free_page_count ?? 3);
+
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const totalPages = pages.length;
   const step = useDoubleSpread ? 2 : 1;
@@ -1781,10 +1784,11 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     }
   }, [issue?.id, currentPage]);
 
-  // ── Paywall ──────────────────────────────────────────────────────────────────
+  // ── Paywall (moved earlier — see "before Helpers" above) ─────────────────────
+  // paywallBlocking is referenced inside goNext's useCallback, so must be declared
+  // before that callback to avoid a TDZ ReferenceError.
   const paywallEnabled  = issue?.paywall_enabled === true;
   const freePageCount   = issue?.free_page_count ?? 3;
-  const paywallBlocking = paywallEnabled && currentPage > freePageCount;
 
   // ── Page size → aspect ratio ─────────────────────────────────────────────────
   // Used to set correct proportions when no image is loaded yet
