@@ -7,9 +7,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { fetchIssueById } from '../services/magazineIssuesService';
-import { fetchPages } from '../services/magazinePageService';
 import { sendEmail } from '../services/emailSendService';
+// fetchIssueById / fetchPages are no longer called directly — collaboration
+// access now goes through get_collab_data() and add_collab_comment() RPC
+// functions that validate the token server-side and bypass RLS safely.
 
 function buildCommentNotificationEmail({ authorName, authorEmail, issueName, pageNumber, content }) {
   return `<!DOCTYPE html>
@@ -157,40 +158,26 @@ export default function MagazineCollaboratePage({ token, onBack }) {
   useEffect(() => {
     if (!token) { setState('invalid'); return; }
     (async () => {
-      // 1. Look up collaborator by token
-      const { data: collab, error } = await supabase
-        .from('magazine_collaborators')
-        .select('*')
-        .eq('token', token)
-        .single();
+      // Single RPC call: validates token, marks active, returns issue + pages + comments.
+      // Uses SECURITY DEFINER so it can bypass RLS to read draft issues —
+      // anon users on a collab link should see the draft, not a blank page.
+      const { data: bundle, error } = await supabase.rpc('get_collab_data', { p_token: token });
 
-      if (error || !collab) { setState('invalid'); return; }
+      if (error || !bundle) { setState('invalid'); return; }
+
+      const collab = bundle.collaborator;
+      if (!collab) { setState('invalid'); return; }
       if (collab.status === 'revoked') { setState('revoked'); return; }
 
-      // 2. Mark active
-      await supabase
-        .from('magazine_collaborators')
-        .update({ status: 'active', last_active: new Date().toISOString() })
-        .eq('id', collab.id);
+      setCollab(collab);
+      if (!bundle.issue) { setState('invalid'); return; }
+      setIssue(bundle.issue);
 
-      setCollab({ ...collab, status: 'active' });
+      const pagesData = Array.isArray(bundle.pages) ? bundle.pages : [];
+      setPages(pagesData.sort((a, b) => a.page_number - b.page_number));
 
-      // 3. Fetch issue
-      const { data: issueData } = await fetchIssueById(collab.issue_id);
-      if (!issueData) { setState('invalid'); return; }
-      setIssue(issueData);
-
-      // 4. Fetch pages
-      const { data: pagesData } = await fetchPages(collab.issue_id);
-      if (pagesData) setPages(pagesData.sort((a, b) => a.page_number - b.page_number));
-
-      // 5. Fetch existing comments
-      const { data: cData } = await supabase
-        .from('magazine_page_comments')
-        .select('*')
-        .eq('issue_id', collab.issue_id)
-        .order('created_at', { ascending: false });
-      if (cData) setComments(cData);
+      const commentsData = Array.isArray(bundle.comments) ? bundle.comments : [];
+      setComments(commentsData);
 
       setState('valid');
     })();
@@ -202,17 +189,14 @@ export default function MagazineCollaboratePage({ token, onBack }) {
     if (!newComment.trim() || !collaborator) return;
     setSubmitting(true);
     try {
-      const { data: inserted } = await supabase
-        .from('magazine_page_comments')
-        .insert({
-          issue_id:    collaborator.issue_id,
-          page_number: currentPage,
-          content:     newComment.trim(),
-          author_name: collaborator.name || collaborator.email || 'Collaborator',
-          author_email: collaborator.email || null,
-        })
-        .select()
-        .single();
+      const { data: inserted, error: rpcErr } = await supabase.rpc('add_collab_comment', {
+        p_token:        token,
+        p_page_number:  currentPage,
+        p_content:      newComment.trim(),
+        p_author_name:  collaborator.name || collaborator.email || 'Collaborator',
+        p_author_email: collaborator.email || null,
+      });
+      if (rpcErr) throw rpcErr;
       if (inserted) {
         setComments(prev => [inserted, ...prev]);
         setNewComment('');
