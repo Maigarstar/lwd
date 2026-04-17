@@ -1239,8 +1239,8 @@ function App() {
         {/* ── Global compare strip + modal — persists across all pages ── */}
         <GlobalCompare />
 
-        {/* ── GDPR cookie banner ── */}
-        <CookieBanner />
+        {/* ── GDPR cookie banner — hidden on thumbnail renderer ── */}
+        {page !== "studio-thumbnail" && <CookieBanner />}
 
         {/* ── Site-wide SEO head tags — RSS discovery + verification codes ── */}
         <GlobalSeoHead />

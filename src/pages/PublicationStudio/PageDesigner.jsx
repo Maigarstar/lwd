@@ -1,6 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Canvas, Textbox, FabricImage, Rect, Circle, Line } from 'fabric';
+import { Canvas, Textbox, FabricImage, Rect, Circle, Line, FabricObject } from 'fabric';
 import { loadGoogleFont } from './templates/fontCatalog';
+
+// ── Fabric v7 origin defaults ────────────────────────────────────────────────
+// Fabric v7 changed the default originX/originY from 'left'/'top' to 'center'.
+// All templates in this module are authored using the classic top-left
+// convention (left:0, top:0 = corner). Restoring the legacy defaults once at
+// module load keeps every object — whether placed by applyTemplate or created
+// later by the toolbar — positioned by its top-left corner, which is what
+// every coordinate in this file and in PageDesigner/* expects.
+FabricObject.ownDefaults.originX = 'left';
+FabricObject.ownDefaults.originY = 'top';
 import { PAGE_SIZES, ELEMENT_DEFAULTS, GOLD, DARK, CARD, BORDER, MUTED, NU, GD } from './PageDesigner/designerConstants';
 import { TEMPLATES } from './templates/definitions';
 import ElementsPanel from './PageDesigner/ElementsPanel';
@@ -124,7 +134,18 @@ function addImagePlaceholder(fc, { left, top, width, height, imageUrl, fill = '#
         });
         img.set({ isImagePlaceholder: true });
         img.id = genId();
-        fc.add(img);
+        // Insert just above the placeholder Rect rather than appending to the
+        // top of the stack. FabricImage.fromURL resolves asynchronously, so a
+        // naive fc.add() would land the image above every overlay chrome
+        // (shade rects, rules, text) added synchronously after this helper.
+        // Finding the rect's current index and inserting at rect_index + 1
+        // preserves the authored z-order: backdrop rect → image → overlay.
+        const rectIndex = fc.getObjects().indexOf(rect);
+        if (rectIndex >= 0 && typeof fc.insertAt === 'function') {
+          fc.insertAt(rectIndex + 1, img);
+        } else {
+          fc.add(img);
+        }
         fc.requestRenderAll();
       })
       .catch(() => { /* silently leave placeholder rect */ });

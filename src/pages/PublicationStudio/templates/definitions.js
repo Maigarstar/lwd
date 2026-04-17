@@ -707,4 +707,9 @@ const extras = BASE_TEMPLATES.filter(t => !orderedIdsSet.has(t.id));
 export const TEMPLATES = [...orderedPrimary, ...extras];
 
 export const CATEGORIES = [...new Set(TEMPLATES.map(t => t.category))];
+
+// Canonical list of template ids — consumed by scripts/generate-template-thumbnails.mjs
+// so the script never drifts out of sync with the real template list.
+export const TEMPLATE_IDS = TEMPLATES.map(t => t.id);
+
 export default TEMPLATES;
