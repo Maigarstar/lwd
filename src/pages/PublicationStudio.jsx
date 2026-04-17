@@ -1436,7 +1436,7 @@ const TABS = [
   { key: 'settings',     label: 'Settings'      },
 ];
 
-function IssueWorkspace({ issueId, onDelete }) {
+function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
   const [issue,     setIssue]     = useState(null);
   const [formData,  setFormData]  = useState({});
   const [tab,       setTab]       = useState('overview');
@@ -1687,7 +1687,20 @@ function IssueWorkspace({ issueId, onDelete }) {
           </span>
         )}
 
-        {/* View on site */}
+        {/* Read / View buttons */}
+        {issue.slug && (
+          <button
+            onClick={() => onReadIssue?.(issue.slug)}
+            style={{
+              fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+              textTransform: 'uppercase', color: '#0A0908',
+              background: GOLD, border: 'none',
+              padding: '5px 12px', borderRadius: 2, cursor: 'pointer',
+            }}
+          >
+            ▶ Read
+          </button>
+        )}
         {issue.status === 'published' && (
           <a href={`/publications/${issue.slug}`} target="_blank" rel="noopener noreferrer"
             style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GOLD, textDecoration: 'none', border: `1px solid rgba(201,168,76,0.3)`, padding: '4px 10px', borderRadius: 2 }}>
@@ -1963,7 +1976,7 @@ function CreateModal({ onCreated, onClose }) {
 
 // ── Main Publication Studio ───────────────────────────────────────────────────
 
-export default function PublicationStudio({ onBack }) {
+export default function PublicationStudio({ onBack, onReadIssue }) {
   const [issues,          setIssues]          = useState([]);
   const [loading,         setLoading]         = useState(true);
   const [activeId,        setActiveId]        = useState(null);
@@ -2111,6 +2124,7 @@ export default function PublicationStudio({ onBack }) {
             key={activeId}
             issueId={activeId}
             onDelete={handleDeleted}
+            onReadIssue={onReadIssue}
           />
         ) : (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>

@@ -215,6 +215,7 @@ function stateToPath(pg, opts = {}) {
     case "publications-reader":    return `/publications/${opts.publicationsSlug || ''}`;
     case "publications-embed":     return `/publications/embed/${opts.publicationsEmbedSlug || ''}`;
     case "publication-studio":     return "/publication-studio";
+    case "magazine-reader":        return `/magazine/read/${opts.magazineIssueSlug || ''}`;
     case "studio-edit": {
       const { entityType, slug, from } = opts;
       if (!entityType || !slug) return "/";
@@ -336,6 +337,7 @@ function pathToState(pathname) {
   if (parts[0] === "publications" && parts[1] === "embed" && parts.length === 3) return { page: "publications-embed", publicationsEmbedSlug: parts[2] };
   if (parts[0] === "publications" && parts.length === 2) return { page: "publications-reader", publicationsSlug: parts[1] };
   if (parts[0] === "publication-studio") return { page: "publication-studio" };
+  if (parts[0] === "magazine" && parts[1] === "read" && parts.length === 3) return { page: "magazine-reader", magazineIssueSlug: parts[2] };
   // Dev-only renderer for thumbnail generation — see scripts/generate-template-thumbnails.mjs
   if (parts[0] === "studio-thumbnail" && parts.length === 2) return { page: "studio-thumbnail", templateId: parts[1] };
   if (parts[0] === "magazine" && parts.length === 1) return { page: "magazine" };
@@ -457,6 +459,7 @@ function App() {
   const [activeMagazineSlug, setActiveMagazineSlug] = useState(initial.magazineSlug || null);
   const [activePublicationsSlug, setActivePublicationsSlug] = useState(initial.publicationsSlug || null);
   const [activeEmbedSlug,        setActiveEmbedSlug]        = useState(initial.publicationsEmbedSlug || null);
+  const [activeMagazineIssueSlug, setActiveMagazineIssueSlug] = useState(initial.magazineIssueSlug || null);
   const [studioThumbnailId,      setStudioThumbnailId]      = useState(initial.templateId || null);
   const [studioEntityType, setStudioEntityType] = useState(initial.entityType || null);
   const [studioSlug, setStudioSlug] = useState(initial.slug || null);
@@ -505,6 +508,7 @@ function App() {
       magazineCategoryId: activeMagazineCategoryId,
       magazineSlug: activeMagazineSlug,
       publicationsSlug: activePublicationsSlug,
+      magazineIssueSlug: activeMagazineIssueSlug,
       venueSlug: activeVenueSlug,
       vendorSlug: activeVendorSlug,
       showcaseSlug: activeShowcaseSlug,
@@ -537,6 +541,7 @@ function App() {
       setActivationToken(s.activationToken || null);
       setActiveMagazineCategoryId(s.magazineCategoryId || null);
       setActiveMagazineSlug(s.magazineSlug || null);
+      setActiveMagazineIssueSlug(s.magazineIssueSlug || null);
       setActiveVenueSlug(s.venueSlug || null);
       setActiveVendorSlug(s.vendorSlug || null);
       setActiveShowcaseSlug(s.showcaseSlug || null);
@@ -683,6 +688,7 @@ function App() {
   const goMagazineArticle = (slug) => { setActiveMagazineSlug(slug); setActiveMagazineCategoryId(null); setPage("magazine-article"); };
   const goPublications      = () => { setActivePublicationsSlug(null); setPage("publications"); };
   const goPublicationsReader = (slug) => { setActivePublicationsSlug(slug); setPage("publications-reader"); };
+  const goMagazineReader     = (slug) => { setActiveMagazineIssueSlug(slug); setPage("magazine-reader"); };
   const goPublicationsEmbed  = (slug) => { setActiveEmbedSlug(slug); setPage("publications-embed"); };
   const goPublicationStudio  = () => { setPage("publication-studio"); };
   const goMagazineFashion = () => { setActiveMagazineSlug(null); setActiveMagazineCategoryId(null); setPage("magazine-fashion"); };
@@ -886,12 +892,19 @@ function App() {
             onBack={goPublications}
           />
         )}
+        {page === "magazine-reader" && (
+          <PublicationsReaderPage
+            slug={activeMagazineIssueSlug}
+            onBack={() => setPage("publication-studio")}
+          />
+        )}
         {page === "publications-embed" && (
           <PublicationsEmbedPage slug={activeEmbedSlug} />
         )}
         {page === "publication-studio" && (
           <PublicationStudio
             onBack={goHome}
+            onReadIssue={goMagazineReader}
           />
         )}
         {page === "studio-thumbnail" && (
@@ -1209,7 +1222,7 @@ function App() {
             Rendered here for ALL pages except auth/dashboard pages listed below.
             RULE: Never import or render <SiteFooter> inside a page component that
             is served through this main.jsx render tree — it will double-render. ── */}
-        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review","publications-reader","publications-embed","publication-studio","studio-thumbnail"].includes(page) && (
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review","publications-reader","publications-embed","publication-studio","studio-thumbnail","magazine-reader"].includes(page) && (
           <SiteFooter onNavigateAdmin={goAdmin} />
         )}
 
