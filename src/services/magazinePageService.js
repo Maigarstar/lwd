@@ -162,9 +162,90 @@ export async function deletePage(issueId, pageNumber) {
 }
 
 // ── Storage Upload ─────────────────────────────────────────────────────────────
+//
+// All writes to magazine-* storage buckets go through the `upload-magazine-page`
+// edge function. The browser NEVER calls supabase.storage.from(...).upload()
+// directly — dashboard-created buckets have no INSERT policy on storage.objects,
+// so direct writes 400 with "new row violates row-level security policy".
+//
+// The edge function:
+//   1. Verifies the user's JWT (authenticated sessions only)
+//   2. Validates bucket allow-list, path pattern, size, and MIME type
+//   3. Uploads with service role (bypasses storage.objects RLS)
+//   4. Returns the public URL
+//
+// See: supabase/functions/upload-magazine-page/index.ts
+// ──────────────────────────────────────────────────────────────────────────────
 
 /**
- * Upload a single page image blob to storage.
+ * Internal — POST a blob to the upload-magazine-page edge function.
+ *
+ * Supabase Edge Functions require TWO headers:
+ *   Authorization: Bearer <user-jwt>   — identifies the caller
+ *   apikey: <anon-key>                 — identifies the project (platform-level gate)
+ *
+ * The original raw fetch only sent Authorization, causing a platform-level 401.
+ * supabase.supabaseKey exposes the anon key used when the client was created,
+ * so we can add it without duplicating the env var.
+ *
+ * Throws on any non-2xx response (fail-fast; no silent retries).
+ */
+export async function uploadViaEdgeFunction({ bucket, path, blob, contentType = 'image/jpeg' }) {
+  // Read session for user JWT
+  const { data: sessionRes, error: sessionErr } = await supabase.auth.getSession();
+  if (sessionErr) throw new Error(`Could not read auth session: ${sessionErr.message}`);
+  const token = sessionRes?.session?.access_token;
+  if (!token) {
+    throw new Error('Not authenticated — sign in with an admin account before publishing.');
+  }
+
+  const form = new FormData();
+  form.append('bucket',      bucket);
+  form.append('path',        path);
+  form.append('contentType', contentType);
+  form.append('file',        blob, path.split('/').pop());
+
+  // supabase.supabaseKey is the anon key passed to createClient() — same value
+  // as VITE_SUPABASE_ANON_KEY without needing to re-read import.meta.env.
+  const supabaseUrl  = supabase.supabaseUrl  || import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey  = supabase.supabaseKey  || import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const url = `${supabaseUrl}/functions/v1/upload-magazine-page`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      // ES256 user JWTs are rejected by Supabase's platform-level JWT gate.
+      // Use the anon key (HS256) as the Bearer token — the platform always
+      // accepts it. The user JWT is passed separately as x-user-token so the
+      // edge function can log who triggered the upload.
+      Authorization:  `Bearer ${supabaseKey}`,
+      apikey:          supabaseKey,
+      'x-user-token':  token,
+      // NOTE: do NOT set Content-Type — browser sets multipart boundary for FormData.
+    },
+    body: form,
+  });
+
+  // Extract actual error body for clear diagnostics (not just the status code)
+  let payload;
+  try {
+    payload = await res.json();
+  } catch {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`Edge function returned non-JSON (${res.status}): ${txt.slice(0, 300)}`);
+  }
+
+  if (!res.ok || !payload?.success) {
+    throw new Error(
+      `Edge upload failed (${res.status}): ${payload?.error || payload?.message || JSON.stringify(payload).slice(0, 200)}`
+    );
+  }
+
+  return payload.data; // { publicUrl, storagePath, bucket, sizeBytes, uploadedBy }
+}
+
+/**
+ * Upload a single page image blob to storage via the upload-magazine-page edge function.
  * @param {string} issueId
  * @param {number} renderVersion
  * @param {number} pageNumber
@@ -174,47 +255,31 @@ export async function deletePage(issueId, pageNumber) {
 export async function uploadPageImage(issueId, renderVersion, pageNumber, imageBlob) {
   try {
     const path = pagePath(issueId, renderVersion, pageNumber);
-
-    const { error: uploadErr } = await supabase.storage
-      .from(PAGES_BUCKET)
-      .upload(path, imageBlob, {
-        upsert:       true,
-        cacheControl: '31536000',
-        contentType:  'image/jpeg',
-      });
-    if (uploadErr) throw uploadErr;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from(PAGES_BUCKET)
-      .getPublicUrl(path);
-
-    return { publicUrl, storagePath: path, error: null };
+    const data = await uploadViaEdgeFunction({
+      bucket:      PAGES_BUCKET,
+      path,
+      blob:        imageBlob,
+      contentType: 'image/jpeg',
+    });
+    return { publicUrl: data.publicUrl, storagePath: data.storagePath, error: null };
   } catch (error) {
     return { publicUrl: null, storagePath: null, error };
   }
 }
 
 /**
- * Upload a thumbnail blob to storage.
+ * Upload a thumbnail blob to storage via the upload-magazine-page edge function.
  */
 export async function uploadThumbImage(issueId, renderVersion, pageNumber, thumbBlob) {
   try {
     const path = thumbPath(issueId, renderVersion, pageNumber);
-
-    const { error: uploadErr } = await supabase.storage
-      .from(THUMBS_BUCKET)
-      .upload(path, thumbBlob, {
-        upsert:       true,
-        cacheControl: '31536000',
-        contentType:  'image/jpeg',
-      });
-    if (uploadErr) throw uploadErr;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from(THUMBS_BUCKET)
-      .getPublicUrl(path);
-
-    return { publicUrl, storagePath: path, error: null };
+    const data = await uploadViaEdgeFunction({
+      bucket:      THUMBS_BUCKET,
+      path,
+      blob:        thumbBlob,
+      contentType: 'image/jpeg',
+    });
+    return { publicUrl: data.publicUrl, storagePath: data.storagePath, error: null };
   } catch (error) {
     return { publicUrl: null, storagePath: null, error };
   }

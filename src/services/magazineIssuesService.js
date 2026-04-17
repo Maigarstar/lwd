@@ -5,6 +5,7 @@
  */
 
 import { supabase } from '../lib/supabaseClient';
+import { uploadViaEdgeFunction } from './magazinePageService';
 
 const ISSUES_TABLE  = 'magazine_issues';
 const PDF_BUCKET    = 'magazine-pdfs';
@@ -252,27 +253,9 @@ export async function deleteIssue(id) {
 export async function uploadIssuePdf(issueId, file) {
   try {
     const path = uploadPath(PDF_BUCKET, issueId, 'original.pdf');
-
-    const { error: uploadErr } = await supabase.storage
-      .from(PDF_BUCKET)
-      .upload(path, file, {
-        upsert:       true,
-        cacheControl: '3600',
-        contentType:  'application/pdf',
-      });
-    if (uploadErr) throw uploadErr;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from(PDF_BUCKET)
-      .getPublicUrl(path);
-
-    // Update issue record
-    await updateIssue(issueId, {
-      pdf_url:          publicUrl,
-      pdf_storage_path: path,
-    });
-
-    return { publicUrl, storagePath: path, error: null };
+    const result = await uploadViaEdgeFunction({ bucket: PDF_BUCKET, path, blob: file, contentType: 'application/pdf' });
+    await updateIssue(issueId, { pdf_url: result.publicUrl, pdf_storage_path: path });
+    return { publicUrl: result.publicUrl, storagePath: path, error: null };
   } catch (error) {
     return { publicUrl: null, storagePath: null, error };
   }
@@ -289,26 +272,9 @@ export async function uploadIssueCover(issueId, file) {
   try {
     const ext  = file.type === 'image/png' ? 'png' : 'jpg';
     const path = `${issueId}/cover.${ext}`;
-
-    const { error: uploadErr } = await supabase.storage
-      .from(COVER_BUCKET)
-      .upload(path, file, {
-        upsert:       true,
-        cacheControl: '31536000',
-        contentType:  file.type || 'image/jpeg',
-      });
-    if (uploadErr) throw uploadErr;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from(COVER_BUCKET)
-      .getPublicUrl(path);
-
-    await updateIssue(issueId, {
-      cover_image:         publicUrl,
-      cover_storage_path:  path,
-    });
-
-    return { publicUrl, storagePath: path, error: null };
+    const result = await uploadViaEdgeFunction({ bucket: COVER_BUCKET, path, blob: file, contentType: file.type || 'image/jpeg' });
+    await updateIssue(issueId, { cover_image: result.publicUrl, cover_storage_path: path });
+    return { publicUrl: result.publicUrl, storagePath: path, error: null };
   } catch (error) {
     return { publicUrl: null, storagePath: null, error };
   }
@@ -344,26 +310,9 @@ export async function uploadIssueBackCover(issueId, file) {
   try {
     const ext  = file.type === 'image/png' ? 'png' : 'jpg';
     const path = `${issueId}/back-cover.${ext}`;
-
-    const { error: uploadErr } = await supabase.storage
-      .from(COVER_BUCKET)
-      .upload(path, file, {
-        upsert:       true,
-        cacheControl: '31536000',
-        contentType:  file.type || 'image/jpeg',
-      });
-    if (uploadErr) throw uploadErr;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from(COVER_BUCKET)
-      .getPublicUrl(path);
-
-    await updateIssue(issueId, {
-      back_cover_image:         publicUrl,
-      back_cover_storage_path:  path,
-    });
-
-    return { publicUrl, storagePath: path, error: null };
+    const result = await uploadViaEdgeFunction({ bucket: COVER_BUCKET, path, blob: file, contentType: file.type || 'image/jpeg' });
+    await updateIssue(issueId, { back_cover_image: result.publicUrl, back_cover_storage_path: path });
+    return { publicUrl: result.publicUrl, storagePath: path, error: null };
   } catch (error) {
     return { publicUrl: null, storagePath: null, error };
   }
@@ -380,26 +329,9 @@ export async function uploadIssueAltCover(issueId, file) {
   try {
     const ext  = file.type === 'image/png' ? 'png' : 'jpg';
     const path = `${issueId}/alt-cover.${ext}`;
-
-    const { error: uploadErr } = await supabase.storage
-      .from(COVER_BUCKET)
-      .upload(path, file, {
-        upsert:       true,
-        cacheControl: '31536000',
-        contentType:  file.type || 'image/jpeg',
-      });
-    if (uploadErr) throw uploadErr;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from(COVER_BUCKET)
-      .getPublicUrl(path);
-
-    await updateIssue(issueId, {
-      alt_cover_image:         publicUrl,
-      alt_cover_storage_path:  path,
-    });
-
-    return { publicUrl, storagePath: path, error: null };
+    const result = await uploadViaEdgeFunction({ bucket: COVER_BUCKET, path, blob: file, contentType: file.type || 'image/jpeg' });
+    await updateIssue(issueId, { alt_cover_image: result.publicUrl, alt_cover_storage_path: path });
+    return { publicUrl: result.publicUrl, storagePath: path, error: null };
   } catch (error) {
     return { publicUrl: null, storagePath: null, error };
   }

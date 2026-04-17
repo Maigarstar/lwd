@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { GOLD, DARK, CARD, BORDER, MUTED, NU, GD } from './PageDesigner/designerConstants';
 import { sendEmail } from '../../services/emailSendService';
 import { supabase }  from '../../lib/supabaseClient';
+import { uploadViaEdgeFunction } from '../../services/magazinePageService';
 
 const inputStyle = {
   width: '100%',
@@ -252,9 +253,14 @@ export default function PersonalisePanel({ issueId, issueSlug, issueName, onClos
       fc.dispose();
 
       const path = `${issueIdParam}/personalised/${personalisedId}-cover.jpg`;
-      const { error } = await supabase.storage.from('magazine-pages').upload(path, blob, { contentType: 'image/jpeg', upsert: true });
-      if (error) return null;
-      const { data: { publicUrl } } = supabase.storage.from('magazine-pages').getPublicUrl(path);
+      let publicUrl;
+      try {
+        const result = await uploadViaEdgeFunction({ bucket: 'magazine-pages', path, blob, contentType: 'image/jpeg' });
+        publicUrl = result.publicUrl;
+      } catch (uploadErr) {
+        console.warn('[PersonalisePanel] Cover upload failed:', uploadErr.message);
+        return null;
+      }
 
       // Update the record with cover_url
       await supabase.from('magazine_personalised_issues').update({ cover_url: publicUrl }).eq('id', personalisedId);
