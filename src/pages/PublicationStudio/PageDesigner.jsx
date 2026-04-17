@@ -23,6 +23,7 @@ import { fetchBrandKit } from '../../services/magazineBrandKitService';
 import ImagePickerModal from './PageDesigner/ImagePickerModal';
 import BrandKitPanel from './BrandKitPanel';
 import SmartFillPanel from './PageDesigner/SmartFillPanel';
+import AIIssueBuilderPanel from './PageDesigner/AIIssueBuilderPanel';
 
 function genId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID
@@ -1135,6 +1136,9 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
 
   // Smart Fill panel
   const [showSmartFill, setShowSmartFill] = useState(false);
+
+  // AI Issue Builder panel
+  const [showAIBuilder, setShowAIBuilder] = useState(false);
   useEffect(() => {
     fetchBrandKit().then(({ data }) => { if (data) setBrand(data); });
   }, []);
@@ -1798,6 +1802,105 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     setCurrentPageIndex(pages.length);
   }
 
+  // ── AI Issue Builder ────────────────────────────────────────────────────────
+  // Builds all pages from the AI-generated structure off-screen, then inserts
+  // them in one batch — same pattern as handleExportDigital but for building.
+  async function handleAIBuildIssue(structure, onProgress) {
+    if (!structure?.length) return;
+    saveCurrentPageToState();
+
+    const { Canvas: FabricCanvas } = await import('fabric');
+    const dims = PAGE_SIZES['A4'];
+
+    const newPages = [];
+    for (let i = 0; i < structure.length; i++) {
+      if (onProgress) onProgress(i + 1);
+
+      const pageSpec = structure[i];
+      const template = TEMPLATES.find(t => t.id === pageSpec.template_id);
+      if (!template) continue;
+
+      // Off-screen canvas at reference dimensions
+      const el = document.createElement('canvas');
+      el.width = TEMPLATE_REF_W;
+      el.height = TEMPLATE_REF_H;
+      const fc = new FabricCanvas(el, {
+        width: TEMPLATE_REF_W,
+        height: TEMPLATE_REF_H,
+        enableRetinaScaling: false,
+      });
+
+      applyTemplate(fc, template, dims, brand);
+
+      // ── Text injection ─────────────────────────────────────────────────────
+      // Heuristic: sort textboxes by vertical position, then identify slots by
+      // fontSize / charSpacing / fontFamily characteristics.
+      const textObjs = fc.getObjects().filter(o => o.type === 'textbox');
+      textObjs.sort((a, b) => a.top - b.top);
+
+      // Kicker: small text (≤14px) with high letter-spacing or ALL-CAPS content
+      const kickerObj = textObjs.find(o =>
+        o.fontSize <= 14 && (o.charSpacing > 150 || (o.text || '').toUpperCase() === (o.text || ''))
+      );
+
+      // Headline: largest fontSize among all textboxes
+      const headlineObj = textObjs.reduce((max, o) =>
+        (!max || o.fontSize > max.fontSize) ? o : max, null);
+
+      // Body: medium size (12-22px), different from headline, italic or Cormorant font
+      const bodyObj = textObjs.find(o =>
+        o !== headlineObj &&
+        o !== kickerObj &&
+        o.fontSize >= 12 && o.fontSize <= 22 &&
+        ((o.fontStyle === 'italic') || (o.fontFamily || '').toLowerCase().includes('cormorant'))
+      );
+
+      // Byline: small (≤13px), near the bottom, different from kicker
+      const sortedByBottom = [...textObjs].sort((a, b) => b.top - a.top);
+      const bylineObj = sortedByBottom.find(o =>
+        o !== headlineObj && o !== kickerObj && o !== bodyObj && o.fontSize <= 13
+      );
+
+      if (pageSpec.kicker && kickerObj)   kickerObj.set('text', pageSpec.kicker.toUpperCase());
+      if (pageSpec.headline && headlineObj) headlineObj.set('text', pageSpec.headline.replace(/\\n/g, '\n'));
+      if (pageSpec.body && bodyObj)         bodyObj.set('text', pageSpec.body);
+      if (pageSpec.byline && bylineObj)     bylineObj.set('text', pageSpec.byline);
+
+      fc.renderAll();
+      // Small settle — lets font-face load finish if needed
+      await new Promise(r => setTimeout(r, 80));
+      fc.renderAll();
+
+      const canvasJSON = fc.toJSON(['id']);
+      fc.dispose();
+
+      const pageNumber = pages.length + newPages.length + 1;
+      newPages.push({
+        id: genId(),
+        pageNumber,
+        canvasJSON,
+        thumbnailDataUrl: null,
+        name: `Page ${pageNumber}`,
+        templateName: pageSpec.page_label || template.name || template.id,
+      });
+    }
+
+    if (newPages.length === 0) return;
+
+    // Batch insert, renumber everything
+    setPages(prev => {
+      const combined = [...prev, ...newPages];
+      return combined.map((p, idx) => ({ ...p, pageNumber: idx + 1, name: `Page ${idx + 1}` }));
+    });
+
+    // Navigate to first newly-inserted page
+    setCurrentPageIndex(prev => prev + 0); // keep current; new pages are appended
+    // Small delay then jump to first new page
+    setTimeout(() => setCurrentPageIndex(pages.length), 120);
+
+    setShowAIBuilder(false);
+  }
+
   // ── Undo / Redo ─────────────────────────────────────────────────────────────
   const handleUndo = useCallback(() => {
     const fc = getActiveCanvas();
@@ -2325,6 +2428,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         onBrandKit={() => setShowBrandKit(true)}
         brandPrimaryColor={brand?.primary_color || null}
         onSmartFill={() => setShowSmartFill(true)}
+        onAIBuild={() => setShowAIBuilder(true)}
       />
 
       {/* Brand kit panel overlay */}
@@ -2342,6 +2446,14 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         <SmartFillPanel
           onSelect={handleSmartFillSelect}
           onClose={() => setShowSmartFill(false)}
+        />
+      )}
+
+      {/* AI Issue Builder overlay */}
+      {showAIBuilder && (
+        <AIIssueBuilderPanel
+          onBuild={handleAIBuildIssue}
+          onClose={() => setShowAIBuilder(false)}
         />
       )}
 

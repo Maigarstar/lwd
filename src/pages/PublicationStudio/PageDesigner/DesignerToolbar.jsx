@@ -99,6 +99,7 @@ export default function DesignerToolbar({
   onBrandKit,
   brandPrimaryColor,
   onSmartFill,
+  onAIBuild,
 }) {
   const [printConfirm, setPrintConfirm] = useState(false);
   const [showPageNumPopover, setShowPageNumPopover] = useState(false);
@@ -338,6 +339,22 @@ export default function DesignerToolbar({
         )}
 
         <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
+
+        {/* AI Build Issue */}
+        <button
+          onClick={onAIBuild}
+          title="AI Issue Builder — generate a full magazine issue structure from a brief"
+          style={{
+            background: 'rgba(201,169,110,0.12)',
+            border: '1px solid rgba(201,169,110,0.4)',
+            borderRadius: 3, color: GOLD,
+            fontFamily: NU, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+            padding: '5px 12px', cursor: 'pointer',
+          }}
+        >
+          ✦ AI Build
+        </button>
 
         {/* Smart Fill */}
         <button
