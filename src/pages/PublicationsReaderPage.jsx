@@ -1936,12 +1936,19 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
-        {/* ② Spread wrapper with zoom + pan transform */}
+        {/* ② Spread wrapper with zoom + pan transform
+            Uses aspect-ratio + height:100% + maxWidth:100% so the page/spread
+            always fills the available area without collapsing or letterboxing.
+            aspect-ratio = (width units)/(height units):
+              • single page   → 1 / pageAspect
+              • double spread → 2 / pageAspect  (two pages side-by-side)
+        */}
         <div style={{
           display: 'flex',
-          height: '100%', maxHeight: '100%',
-          width: useDoubleSpread ? (displayedPage === 1 ? '50%' : '100%') : 'auto',
-          maxWidth: useDoubleSpread ? 1400 : `calc(100vh * ${1 / pageAspect})`,
+          height: '100%', maxHeight: '100%', maxWidth: '100%',
+          aspectRatio: (useDoubleSpread && displayedPage > 1)
+            ? `${2 / pageAspect} / 1`
+            : `${1 / pageAspect} / 1`,
           gap: isDoubleSpread ? 2 : 0,
           boxShadow: T.pageShad,
           background: T.pageBg,

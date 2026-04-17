@@ -20,6 +20,7 @@ import PageListPanel from './PageDesigner/PageListPanel';
 import DesignerToolbar from './PageDesigner/DesignerToolbar';
 import { canvasToJpegBlob, canvasToPrintJpegBlob, generatePrintPDF, generateScreenPDF, downloadPDF } from './PageDesigner/exportUtils';
 import { upsertPages, upsertPage, fetchPages, uploadPageImage, uploadThumbImage } from '../../services/magazinePageService';
+import { updateIssue } from '../../services/magazineIssuesService';
 import { fetchBrandKit } from '../../services/magazineBrandKitService';
 import ImagePickerModal from './PageDesigner/ImagePickerModal';
 import BrandKitPanel from './BrandKitPanel';
@@ -1076,7 +1077,7 @@ function buildLayers(fc) {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
+export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBack }) {
   // Canvas element refs
   const canvasElRef     = useRef(null); // right / single
   const canvasElRefLeft = useRef(null); // left (spread view only)
@@ -1096,6 +1097,60 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
   const pendingTemplateRef    = useRef(null); // set by handleInsertTemplate, consumed by page-switch effect
   const pendingSmartFillRef   = useRef(null); // set by handleSmartFillSelect, consumed by page-switch effect
 
+  // ── Imperative canvas creation helpers (Fabric v7 ↔ React DOM isolation) ──────
+  // Each "host" div is empty from React's perspective — canvas created imperatively.
+  // CRITICAL: Fabric disposal happens in the null-branch of these callback refs.
+  // React's mutation phase calls ref(null) BEFORE removing the DOM element, so the
+  // canvas is still attached when we call dispose() — avoiding the removeChild crash
+  // that occurs when useEffect cleanup runs AFTER the DOM is already gone.
+  const leftCanvasHostCallbackRef = useCallback((el) => {
+    if (el) {
+      const c = document.createElement('canvas');
+      el.appendChild(c);
+      canvasElRefLeft.current = c;
+    } else {
+      // DOM still attached here — safe to dispose Fabric
+      if (fabricRefLeft.current) {
+        try { fabricRefLeft.current.dispose(); } catch (_) {}
+        fabricRefLeft.current = null;
+      }
+      canvasElRefLeft.current = null;
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const rightSpreadCanvasHostCallbackRef = useCallback((el) => {
+    if (el) {
+      const c = document.createElement('canvas');
+      el.appendChild(c);
+      canvasElRef.current = c;
+    } else {
+      // DOM still attached here — safe to dispose Fabric
+      if (fabricRef.current) {
+        try { fabricRef.current.dispose(); } catch (_) {}
+        fabricRef.current = null;
+      }
+      canvasElRef.current = null;
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Single-mode canvas host — same pattern as spread hosts.
+  // Without this, toggling spread ON → OFF → ON leaves a stale Fabric instance
+  // (disposal deferred to useEffect cleanup which runs after DOM removal),
+  // corrupting state for the next spread mount → black screen.
+  const singleCanvasHostCallbackRef = useCallback((el) => {
+    if (el) {
+      const c = document.createElement('canvas');
+      el.appendChild(c);
+      canvasElRef.current = c;
+    } else {
+      if (fabricRef.current) {
+        try { fabricRef.current.dispose(); } catch (_) {}
+        fabricRef.current = null;
+      }
+      canvasElRef.current = null;
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [pages, setPages] = useState([{
     id: genId(),
     pageNumber: 1,
@@ -1106,6 +1161,10 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
     slot: null,
   }]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+
+  // Keep a ref in sync so the spread page-switch effect can read pages without stale closures
+  const pagesRef = useRef(pages);
+  useEffect(() => { pagesRef.current = pages; }, [pages]);
 
   // Notify parent whenever pages change (used by IssueWorkspace for Revenue panel)
   useEffect(() => {
@@ -1429,10 +1488,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
       // ── Single page mode ──
       if (!canvasElRef.current) return;
 
-      if (fabricRef.current) {
-        fabricRef.current.dispose();
-        fabricRef.current = null;
-      }
+      // Note: single-mode canvas disposal happens in singleCanvasHostCallbackRef
+      // null-branch (fires while DOM still attached). Guard here prevents double-dispose.
+      if (fabricRef.current) { try { fabricRef.current.dispose(); } catch (_) {} fabricRef.current = null; }
 
       const fc = initCanvas(
         canvasElRef.current,
@@ -1444,49 +1502,40 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
       fabricRef.current = fc;
 
       return () => {
+        // Disposal already handled by callback ref while DOM is live.
+        // Guarded null-assignment to prevent stale refs if cleanup somehow runs first.
         if (fabricRef.current === fc) {
-          fc.dispose();
+          try { fc.dispose(); } catch (_) {}
           fabricRef.current = null;
         }
       };
     } else {
-      // ── Spread mode ──
-      const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pages.length);
+      // ── Spread mode: create canvas instances ──────────────────
+      // Content is loaded by the separate spread page-switch effect below.
 
-      // Dispose existing instances
-      if (fabricRef.current) {
-        fabricRef.current.dispose();
-        fabricRef.current = null;
-      }
-      if (fabricRefLeft.current) {
-        fabricRefLeft.current.dispose();
-        fabricRefLeft.current = null;
-      }
+      // Note: spread canvas disposal happens in leftCanvasHostCallbackRef / rightSpreadCanvasHostCallbackRef
+      // null-branches (fires while DOM still attached). Guards here prevent double-dispose.
+      if (fabricRef.current)     { try { fabricRef.current.dispose(); } catch (_) {}     fabricRef.current = null; }
+      if (fabricRefLeft.current) { try { fabricRefLeft.current.dispose(); } catch (_) {} fabricRefLeft.current = null; }
 
       // Init right canvas (always present)
       if (canvasElRef.current) {
         const fcRight = initCanvas(
           canvasElRef.current,
-          rightIndex !== null ? pages[rightIndex]?.canvasJSON : null,
-          (obj) => {
-            setActiveSpreadSide('right');
-            setSelectedObject(obj);
-          },
+          null, // content loaded by page-switch effect
+          (obj) => { setActiveSpreadSide('right'); setSelectedObject(obj); },
           pushUndo,
           setLayers,
         );
         fabricRef.current = fcRight;
       }
 
-      // Init left canvas (only when leftIndex is valid and element is mounted)
-      if (leftIndex !== null && canvasElRefLeft.current) {
+      // Init left canvas (always created so ref is always valid)
+      if (canvasElRefLeft.current) {
         const fcLeft = initCanvas(
           canvasElRefLeft.current,
-          pages[leftIndex]?.canvasJSON,
-          (obj) => {
-            setActiveSpreadSide('left');
-            setSelectedObject(obj);
-          },
+          null, // content loaded by page-switch effect
+          (obj) => { setActiveSpreadSide('left'); setSelectedObject(obj); },
           pushUndo,
           setLayers,
         );
@@ -1494,18 +1543,58 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
       }
 
       return () => {
-        if (fabricRef.current) {
-          fabricRef.current.dispose();
-          fabricRef.current = null;
-        }
-        if (fabricRefLeft.current) {
-          fabricRefLeft.current.dispose();
-          fabricRefLeft.current = null;
-        }
+        // Disposal already handled by callback refs while DOM is live.
+        // These null-assignments prevent stale references if effect cleanup
+        // somehow runs before the callback ref null-branch (edge case guard).
+        if (fabricRef.current)     { try { fabricRef.current.dispose(); } catch (_) {}     fabricRef.current = null; }
+        if (fabricRefLeft.current) { try { fabricRefLeft.current.dispose(); } catch (_) {} fabricRefLeft.current = null; }
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spreadView, pageSize, currentPageIndex, pagesLoaded]);
+  }, [spreadView, pageSize, pagesLoaded]);
+
+  // ── Spread page-switch: load page content when navigating in spread mode ──────
+  useEffect(() => {
+    if (!spreadView || !pagesLoaded) return;
+    const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pagesRef.current.length);
+
+    // Load into left canvas
+    if (fabricRefLeft.current) {
+      const fc = fabricRefLeft.current;
+      try {
+        fc.clear();
+        fc.backgroundColor = '#ffffff';
+        const leftJson = leftIndex !== null ? pagesRef.current[leftIndex]?.canvasJSON : null;
+        if (leftJson) {
+          fc.loadFromJSON(leftJson).then(() => {
+            // Guard: canvas may have been disposed while Promise was in-flight
+            if (fabricRefLeft.current === fc) { fc.renderAll?.(); setLayers(buildLayers(fc)); }
+          }).catch(() => {});
+        } else {
+          fc.renderAll();
+          setLayers([]);
+        }
+      } catch (_) {}
+    }
+
+    // Load into right canvas
+    if (fabricRef.current) {
+      const fc = fabricRef.current;
+      try {
+        fc.clear();
+        fc.backgroundColor = '#ffffff';
+        const rightJson = rightIndex !== null ? pagesRef.current[rightIndex]?.canvasJSON : null;
+        if (rightJson) {
+          fc.loadFromJSON(rightJson).then(() => {
+            if (fabricRef.current === fc) { fc.renderAll?.(); setLayers(buildLayers(fc)); }
+          }).catch(() => {});
+        } else {
+          fc.renderAll();
+          setLayers([]);
+        }
+      } catch (_) {}
+    }
+  }, [currentPageIndex, spreadView, pagesLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Sync selectedObject when active spread side changes ────────────────────
   useEffect(() => {
@@ -2135,10 +2224,38 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
   }, [issue, pages, spreadView, currentPageIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Digital Export ──────────────────────────────────────────────────────────
+  // Uploads all page + thumb images via the `upload-magazine-page` edge
+  // function (server-side, service-role). Fails fast on the first upload
+  // error — no silent retries, no partial-publish corruption.
   const handleExportDigital = useCallback(async () => {
     if (!issue?.id) return;
     setExportingDigital(true);
+    console.log('[publish] starting for issue', issue.id, 'pages:', pages.length);
     try {
+      // ── Auth-context diagnostic ────────────────────────────────────────────
+      // Log who is attempting the publish. If they're anon / unauthenticated
+      // the edge function will reject with 401 — this line makes that obvious
+      // in the console instead of requiring a Network-tab deep dive.
+      try {
+        const { supabase: sb } = await import('./../../lib/supabaseClient');
+        const { data: sess } = await sb.auth.getSession();
+        const u = sess?.session?.user;
+        console.log('[publish] auth-context →', {
+          authenticated: !!u,
+          userId:        u?.id ?? null,
+          email:         u?.email ?? null,
+          role:          u?.role ?? (u ? 'authenticated' : 'anon'),
+          hasToken:      !!sess?.session?.access_token,
+        });
+        if (!u) {
+          throw new Error('You are not signed in. Please sign in with an admin account before publishing.');
+        }
+      } catch (authLogErr) {
+        // Re-throw signed-out error; other errors are non-fatal diagnostics
+        if (String(authLogErr.message || '').includes('not signed in')) throw authLogErr;
+        console.warn('[publish] auth-context log failed:', authLogErr);
+      }
+
       saveCurrentPageToState();
       await new Promise(r => setTimeout(r, 150));
 
@@ -2161,6 +2278,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
 
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
+        const pageNumber = i + 1;
+        console.log(`[publish] page ${pageNumber}/${pages.length}: rendering`);
 
         // Clear and reload this page's canvas JSON
         offscreen.clear();
@@ -2173,34 +2292,70 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
         await new Promise(r => setTimeout(r, 60));
         offscreen.renderAll();
 
-        // Export at true size (multiplier:1 because canvas is already full-res)
-        const pageBlob  = await canvasToJpegBlob(offscreen, 1);
+        // Export at 2× for retina-crisp display in the reader.
+        // A4 canvas is 794×1123 at multiplier 1, which is blurry on HiDPI.
+        // Multiplier 2 → 1588×2246 — sharp on any common display.
+        // Thumb stays at 0.35 (≈278×393) — fine for TOC/pages-panel.
+        const pageBlob  = await canvasToJpegBlob(offscreen, 2);
         const thumbBlob = await canvasToJpegBlob(offscreen, 0.35);
 
-        const { publicUrl: imageUrl, storagePath: imagePath } = await uploadPageImage(issue.id, renderVersion, i + 1, pageBlob);
-        const { publicUrl: thumbUrl, storagePath: thumbPath } = await uploadThumbImage(issue.id, renderVersion, i + 1, thumbBlob);
+        // ── Fail-fast uploads ────────────────────────────────────────────────
+        // uploadPageImage/uploadThumbImage now return {error} on failure
+        // instead of throwing. We check explicitly and abort the entire
+        // publish on the first failure — no silent retries, no broken pages
+        // in the DB.
+        const pageRes  = await uploadPageImage(issue.id, renderVersion, pageNumber, pageBlob);
+        if (pageRes.error) {
+          offscreen.dispose();
+          throw new Error(`Page ${pageNumber} upload failed — aborting publish.\n\n${pageRes.error.message || pageRes.error}`);
+        }
+        const thumbRes = await uploadThumbImage(issue.id, renderVersion, pageNumber, thumbBlob);
+        if (thumbRes.error) {
+          offscreen.dispose();
+          throw new Error(`Thumb ${pageNumber} upload failed — aborting publish.\n\n${thumbRes.error.message || thumbRes.error}`);
+        }
 
-        await upsertPage({
+        const dbRes = await upsertPage({
           issue_id: issue.id,
-          page_number: i + 1,
+          page_number: pageNumber,
           source_type: 'template',
-          image_url: imageUrl,
-          image_storage_path: imagePath,
-          thumbnail_url: thumbUrl,
-          thumbnail_storage_path: thumbPath,
+          image_url: pageRes.publicUrl,
+          image_storage_path: pageRes.storagePath,
+          thumbnail_url: thumbRes.publicUrl,
+          thumbnail_storage_path: thumbRes.storagePath,
           render_version: renderVersion,
           template_data: { engine: 'designer-v1', canvasJSON: page.canvasJSON },
         });
+        if (dbRes?.error) {
+          offscreen.dispose();
+          throw new Error(`Page ${pageNumber} DB row write failed.\n\n${dbRes.error.message || dbRes.error}`);
+        }
+        console.log(`[publish] page ${pageNumber} uploaded + DB row written`);
       }
 
       // Clean up off-screen canvas
       offscreen.dispose();
 
-      onIssueUpdate?.({ render_version: renderVersion, page_count: pages.length, processing_state: 'ready' });
+      // Persist publish state so the Live state survives reload
+      const publishPatch = {
+        render_version:   renderVersion,
+        page_count:       pages.length,
+        processing_state: 'ready',
+        status:           'published',
+        published_at:     new Date().toISOString(),
+      };
+      try {
+        const upd = await updateIssue(issue.id, publishPatch);
+        if (upd?.error) console.warn('[publish] updateIssue returned error:', upd.error);
+      } catch (dbErr) {
+        console.warn('[publish] updateIssue failed (pages still published):', dbErr);
+      }
+      onIssueUpdate?.(publishPatch);
+      console.log('[publish] done');
       alert(`✓ ${pages.length} page${pages.length !== 1 ? 's' : ''} published to reader`);
     } catch (e) {
-      console.error(e);
-      alert('Export failed: ' + e.message);
+      console.error('[publish] fatal:', e);
+      alert('Publish failed: ' + e.message + '\n\nCheck browser console for details.');
     } finally {
       setExportingDigital(false);
     }
@@ -2557,6 +2712,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
     }}>
       {/* Toolbar */}
       <DesignerToolbar
+        onBack={onBack}
         issue={issue}
         pages={pages}
         currentPageIndex={currentPageIndex}
@@ -2788,37 +2944,41 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
                         </div>
                       )}
 
-                      {spreadIndices.leftIndex !== null ? (
-                        // Real left page — show canvas
-                        <div ref={canvasContainerRefLeft} style={{ position: 'relative' }}>
-                          <canvas ref={canvasElRefLeft} style={{ display: 'block' }} />
-                          {showGrid && activeSpreadSide === 'left' && (
-                            <GridOverlay width={dims.w} height={dims.h} />
-                          )}
-                          {showBleed && <BleedOverlay />}
-                          {activeSpreadSide === 'left' && (
-                            <GuideLines
-                              guides={guides}
-                              onMoveGuide={handleMoveGuide}
-                            />
-                          )}
-                        </div>
-                      ) : (
-                        // Cover — show grey placeholder
-                        <div style={{
-                          width: dims.w, height: dims.h,
-                          background: '#1E1B17',
-                          display: 'flex', flexDirection: 'column',
-                          alignItems: 'center', justifyContent: 'center',
-                          gap: 8,
-                        }}>
+                      <div
+                        ref={canvasContainerRefLeft}
+                        style={{ position: 'relative', width: dims.w, height: dims.h }}
+                      >
+                        {/* Fabric-isolated canvas host — empty div, canvas appended imperatively.
+                            React never reconciles children here, so Fabric v7 cannot conflict. */}
+                        <div ref={leftCanvasHostCallbackRef} style={{ position: 'absolute', top: 0, left: 0 }} />
+
+                        {/* Overlays — React-managed siblings, safe to add/remove */}
+                        {/* Cover page overlay — shown when this is the cover (left side is empty) */}
+                        {spreadIndices.leftIndex === null && (
                           <div style={{
-                            fontSize: 11, color: 'rgba(255,255,255,0.12)',
-                            fontFamily: "'Jost',sans-serif", letterSpacing: '0.15em',
-                            textTransform: 'uppercase',
-                          }}>Cover page</div>
-                        </div>
-                      )}
+                            position: 'absolute', inset: 0,
+                            background: '#1E1B17', pointerEvents: 'none',
+                            display: 'flex', flexDirection: 'column',
+                            alignItems: 'center', justifyContent: 'center', gap: 8,
+                          }}>
+                            <div style={{
+                              fontSize: 11, color: 'rgba(255,255,255,0.12)',
+                              fontFamily: "'Jost',sans-serif", letterSpacing: '0.15em',
+                              textTransform: 'uppercase',
+                            }}>Cover page</div>
+                          </div>
+                        )}
+                        {showGrid && activeSpreadSide === 'left' && spreadIndices.leftIndex !== null && (
+                          <GridOverlay width={dims.w} height={dims.h} />
+                        )}
+                        {showBleed && <BleedOverlay />}
+                        {activeSpreadSide === 'left' && spreadIndices.leftIndex !== null && (
+                          <GuideLines
+                            guides={guides}
+                            onMoveGuide={handleMoveGuide}
+                          />
+                        )}
+                      </div>
                     </div>
 
                     {/* SPINE — 4px dark gap between pages */}
@@ -2851,8 +3011,14 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
                         </div>
                       )}
 
-                      <div ref={canvasContainerRef} style={{ position: 'relative' }}>
-                        <canvas ref={canvasElRef} style={{ display: 'block' }} />
+                      <div
+                        ref={canvasContainerRef}
+                        style={{ position: 'relative', width: dims.w, height: dims.h }}
+                      >
+                        {/* Fabric-isolated canvas host */}
+                        <div ref={rightSpreadCanvasHostCallbackRef} style={{ position: 'absolute', top: 0, left: 0 }} />
+
+                        {/* Overlays */}
                         {showGrid && activeSpreadSide === 'right' && (
                           <GridOverlay width={dims.w} height={dims.h} />
                         )}
@@ -2881,7 +3047,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
                       transition: 'opacity 0.15s ease',
                     }}
                   >
-                    <canvas ref={canvasElRef} />
+                    <div ref={singleCanvasHostCallbackRef} />
                     {showGrid && (
                       <GridOverlay
                         width={dims.w * zoom}
