@@ -57,6 +57,7 @@ const popoverSelectStyle = {
 };
 
 export default function DesignerToolbar({
+  onBack,
   issue,
   pages,
   currentPageIndex,
@@ -137,6 +138,33 @@ export default function DesignerToolbar({
       gap: 8,
       zIndex: 10,
     }}>
+      {/* Back to issues */}
+      {onBack && (
+        <button
+          onClick={onBack}
+          title="Back to issues list"
+          style={{
+            background: 'none',
+            border: 'none',
+            color: MUTED,
+            cursor: 'pointer',
+            lineHeight: 1,
+            padding: '0 6px 0 0',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            fontFamily: NU,
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: '0.05em',
+          }}
+        >
+          ← Issues
+        </button>
+      )}
+      {onBack && <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />}
+
       {/* Left: issue title */}
       <div style={{
         fontFamily: NU,
@@ -500,8 +528,71 @@ export default function DesignerToolbar({
             padding: '5px 12px', cursor: exportingDigital ? 'default' : 'pointer',
           }}
         >
-          {exportingDigital ? 'Publishing…' : '▶ Publish Digital'}
+          {exportingDigital ? 'Publishing…' : (issue?.render_version ? '↻ Republish' : '▶ Publish Digital')}
         </button>
+
+        {/* PREVIEW — always visible if the issue has a slug (draft or live).
+            Opens the reader with ?preview=1 so the draft banner shows. */}
+        {issue?.slug && (
+          <a
+            href={`/publications/${issue.slug}?preview=1`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Preview in flipbook reader (draft mode)"
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: 3,
+              color: 'rgba(255,255,255,0.6)',
+              fontFamily: NU,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              padding: '5px 12px',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              cursor: 'pointer',
+            }}
+          >
+            ⬡ Preview
+          </a>
+        )}
+
+        {/* LIVE indicator — green pill linking to the flipbook reader.
+            Visible once the issue has been published at least once. */}
+        {issue?.render_version && issue?.slug && !exportingDigital && (
+          <a
+            href={`/publications/${issue.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open live flipbook reader"
+            style={{
+              background: 'rgba(52,211,153,0.12)',
+              border: '1px solid rgba(52,211,153,0.5)',
+              borderRadius: 3,
+              color: '#34d399',
+              fontFamily: NU,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              padding: '5px 12px',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              cursor: 'pointer',
+              transition: 'background 0.15s, border-color 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(52,211,153,0.2)'; e.currentTarget.style.borderColor = 'rgba(52,211,153,0.7)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(52,211,153,0.12)'; e.currentTarget.style.borderColor = 'rgba(52,211,153,0.5)'; }}
+          >
+            ● Live ↗
+          </a>
+        )}
 
         {/* Screen PDF */}
         <button

@@ -1480,7 +1480,7 @@ const TABS = [
   { key: 'settings',     label: 'Settings'      },
 ];
 
-function IssueWorkspace({ issueId, onDelete, onReadIssue, onCloned }) {
+function IssueWorkspace({ issueId, onDelete, onReadIssue, onCloned, onBack }) {
   const [issue,     setIssue]     = useState(null);
   const [formData,  setFormData]  = useState({});
   const [tab,       setTab]       = useState('overview');
@@ -1998,7 +1998,7 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue, onCloned }) {
       {/* ── Tab content ── */}
       <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
         {tab === 'design' && (
-          <PageDesigner issue={issue} onIssueUpdate={handleIssueUpdate} onPagesChange={setDesignerPages} onSnapshotSaved={handleSnapshotSaved} />
+          <PageDesigner issue={issue} onIssueUpdate={handleIssueUpdate} onPagesChange={setDesignerPages} onSnapshotSaved={handleSnapshotSaved} onBack={onBack} />
         )}
 
         {tab === 'overview' && (
@@ -2775,6 +2775,7 @@ export default function PublicationStudio({ onBack, onReadIssue }) {
             issueId={activeId}
             onDelete={handleDeleted}
             onReadIssue={onReadIssue}
+            onBack={() => setActiveId(null)}
             onCloned={(newIssue) => {
               setIssues(prev => [newIssue, ...prev]);
               setActiveId(newIssue.id);

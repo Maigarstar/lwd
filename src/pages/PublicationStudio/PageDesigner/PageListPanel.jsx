@@ -74,7 +74,12 @@ export default function PageListPanel({
   // ── Context menu ───────────────────────────────────────────────────────────
   function handleContextMenu(e, i) {
     e.preventDefault();
-    setContextMenu({ index: i, x: e.clientX, y: e.clientY });
+    // Clamp to viewport so menu never gets cut off at right/bottom edges
+    const menuW = 180;
+    const menuH = 200;
+    const x = Math.min(e.clientX, window.innerWidth  - menuW - 8);
+    const y = Math.min(e.clientY, window.innerHeight - menuH - 8);
+    setContextMenu({ index: i, x, y });
   }
 
   function closeContext() {
