@@ -1467,12 +1467,14 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   }, [issue?.title]);
 
   // ── Spread mode: declared here — before Helpers — because step/canNext reference it
+  // Honour the user's Settings choice regardless of viewport. We only force
+  // single-page on very narrow phones (< 640px) where a double spread would be
+  // unreadable. Above that, trust spread_layout from the DB.
   const forceSpreadEarly   = issue?.spread_layout !== 'single';
-  const useDoubleSpread    = isDesktop && forceSpreadEarly;
+  const viewportWide       = typeof window === 'undefined' ? true : window.innerWidth >= 640;
+  const useDoubleSpread    = forceSpreadEarly && viewportWide;
 
   // Diagnostic — check console if the reader isn't showing a 2-page spread:
-  //   • isDesktop=false  → viewport under 900px, force full-screen or widen
-  //   • spread_layout='single' → change it in Studio → Settings → "Reader Layout"
   useEffect(() => {
     if (issue) {
       console.log('[reader] layout:', {
