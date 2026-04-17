@@ -91,47 +91,58 @@ export default function PageListPanel({
     <div
       ref={stripRef}
       style={{
-        height: 112,
+        height: 136,
         flexShrink: 0,
-        background: '#141210',
-        borderTop: `1px solid ${BORDER}`,
+        background: '#0E0C0A',
+        borderTop: `1px solid rgba(255,255,255,0.07)`,
         display: 'flex',
         alignItems: 'center',
         overflowX: 'auto',
         overflowY: 'hidden',
-        padding: '0 16px',
+        padding: '0 20px',
         gap: 0,
         position: 'relative',
         userSelect: 'none',
+        // Thin gold accent at very top
+        boxShadow: `inset 0 1px 0 rgba(201,169,110,0.12)`,
       }}
       onClick={closeContext}
     >
       {pages.map((page, i) => {
-        const isActive  = currentPageIndex === i;
+        const isActive   = currentPageIndex === i;
         const isDragging = dragFrom === i;
+        const isDropZone = dropTarget === i && dragFrom !== null && dragFrom !== i;
 
-        // Drop indicator: gold bar before this tile when it's the drop target
-        // — before if we're moving right (dragFrom < i)
-        // — after  if we're moving left  (dragFrom > i)
-        const showBarBefore = dropTarget === i && dragFrom !== null && dragFrom !== i && dragFrom > i;
-        const showBarAfter  = dropTarget === i && dragFrom !== null && dragFrom !== i && dragFrom < i;
+        const showBarBefore = isDropZone && dragFrom > i;
+        const showBarAfter  = isDropZone && dragFrom < i;
 
-        const label = getPageLabel(i, pages.length);
+        const label        = getPageLabel(i, pages.length);
+        // Template name — truncated, shown below thumbnail
+        const templateName = page?.templateName
+          ? page.templateName.replace(/^(the |a )/i, '').slice(0, 18)
+          : null;
+
+        // Slot status colour
+        const slot = page?.slot;
+        const dotColor = !slot?.tier ? null :
+          (slot.status === 'paid' || slot.status === 'published') ? '#34d399' :
+          slot.status === 'offered' ? GOLD :
+          'rgba(255,255,255,0.28)';
 
         return (
           <div
             key={page.id || i}
             style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
           >
-            {/* Drop indicator — BEFORE this tile */}
+            {/* Drop indicator — BEFORE */}
             <div style={{
               width: showBarBefore ? 3 : 0,
-              height: 80,
+              height: 96,
               background: GOLD,
               borderRadius: 2,
-              marginRight: showBarBefore ? 5 : 0,
+              marginRight: showBarBefore ? 6 : 0,
               flexShrink: 0,
-              boxShadow: showBarBefore ? `0 0 8px ${GOLD}` : 'none',
+              boxShadow: showBarBefore ? `0 0 10px ${GOLD}` : 'none',
               transition: 'width 0.1s, margin 0.1s',
             }} />
 
@@ -144,86 +155,140 @@ export default function PageListPanel({
               onDragOver={e => handleDragOver(e, i)}
               onDrop={e => handleDrop(e, i)}
               onDragEnd={handleDragEnd}
+              title={page?.templateName || label}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 4,
-                cursor: isDragging ? 'grabbing' : 'grab',
-                padding: '0 7px',
+                gap: 5,
+                cursor: isDragging ? 'grabbing' : 'pointer',
+                padding: '0 6px',
                 flexShrink: 0,
-                opacity: isDragging ? 0.35 : 1,
+                opacity: isDragging ? 0.3 : 1,
                 transition: 'opacity 0.15s',
               }}
             >
-              {/* Thumbnail */}
+              {/* ── Thumbnail frame ── */}
               <div style={{
-                width: 56,
-                height: 80,
-                background: '#2A2520',
-                border: `1.5px solid ${isActive ? GOLD : (dropTarget === i && !isDragging ? 'rgba(201,169,110,0.45)' : '#3A3530')}`,
-                borderRadius: 2,
-                overflow: 'hidden',
-                boxShadow: isActive ? `0 0 0 1px ${GOLD}` : 'none',
-                backgroundImage: page?.thumbnailDataUrl ? `url(${page.thumbnailDataUrl})` : 'none',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                display: page?.thumbnailDataUrl ? 'block' : 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'rgba(255,255,255,0.18)',
-                fontFamily: NU,
-                fontSize: 10,
-                transition: 'border-color 0.12s',
                 position: 'relative',
+                // Active: gold ring + glow; hover-zone: subtle gold ring
+                borderRadius: 3,
+                boxShadow: isActive
+                  ? `0 0 0 2px ${GOLD}, 0 4px 20px rgba(201,169,110,0.35)`
+                  : isDropZone && !isDragging
+                  ? `0 0 0 1.5px rgba(201,169,110,0.5)`
+                  : '0 2px 8px rgba(0,0,0,0.5)',
+                transition: 'box-shadow 0.15s',
               }}>
-                {!page?.thumbnailDataUrl && (i + 1)}
-                {/* Slot status dot */}
-                {(() => {
-                  const slot = page?.slot;
-                  if (!slot?.tier) return null;
-                  const s = slot.status;
-                  const dotColor =
-                    s === 'paid' || s === 'published' ? '#34d399' :
-                    s === 'offered' ? GOLD :
-                    'rgba(255,255,255,0.35)';
-                  return (
+                <div style={{
+                  width: 64,
+                  height: 91,        // A4 ratio 1.4142
+                  borderRadius: 3,
+                  overflow: 'hidden',
+                  position: 'relative',
+                  background: page?.thumbnailDataUrl
+                    ? 'transparent'
+                    : 'linear-gradient(160deg, #2A2520 0%, #1A1612 100%)',
+                }}>
+                  {/* Thumbnail image */}
+                  {page?.thumbnailDataUrl
+                    ? <img
+                        src={page.thumbnailDataUrl}
+                        alt=""
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      />
+                    : (
+                      // Empty-state: elegant page number + subtle grid
+                      <>
+                        <div style={{
+                          position: 'absolute', inset: 0,
+                          backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 11px, rgba(255,255,255,0.025) 11px, rgba(255,255,255,0.025) 12px), repeating-linear-gradient(90deg, transparent, transparent 11px, rgba(255,255,255,0.025) 11px, rgba(255,255,255,0.025) 12px)`,
+                        }} />
+                        <div style={{
+                          position: 'absolute', inset: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexDirection: 'column', gap: 2,
+                        }}>
+                          <div style={{
+                            fontFamily: `'Cormorant Garamond', Georgia, serif`,
+                            fontSize: 20, fontStyle: 'italic', fontWeight: 400,
+                            color: 'rgba(201,169,110,0.4)',
+                            lineHeight: 1,
+                          }}>
+                            {i + 1}
+                          </div>
+                          <div style={{
+                            width: 16, height: 1,
+                            background: 'rgba(201,169,110,0.2)',
+                          }} />
+                        </div>
+                      </>
+                    )
+                  }
+
+                  {/* Bottom gradient + label overlay on thumbnail */}
+                  {page?.thumbnailDataUrl && (
                     <div style={{
-                      position: 'absolute',
-                      bottom: 4,
-                      left: 4,
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
+                      position: 'absolute', bottom: 0, left: 0, right: 0,
+                      height: 28,
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%)',
+                      display: 'flex', alignItems: 'flex-end',
+                      padding: '0 4px 3px',
+                    }}>
+                      <span style={{
+                        fontFamily: `'Jost', sans-serif`,
+                        fontSize: 6.5, fontWeight: 700,
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                        color: isActive ? GOLD : 'rgba(255,255,255,0.55)',
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        maxWidth: '100%',
+                      }}>
+                        {label}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Slot status dot */}
+                  {dotColor && (
+                    <div style={{
+                      position: 'absolute', top: 4, right: 4,
+                      width: 6, height: 6, borderRadius: '50%',
                       background: dotColor,
                       boxShadow: `0 0 4px ${dotColor}`,
                     }} />
-                  );
-                })()}
+                  )}
+                </div>
               </div>
 
-              {/* Label */}
+              {/* Below-thumbnail: page label (no thumbnail) OR template name */}
               <span style={{
-                fontSize: 8,
-                fontFamily: `'Jost', ${NU}, sans-serif`,
-                fontWeight: 700,
+                fontSize: 7.5,
+                fontFamily: `'Jost', sans-serif`,
+                fontWeight: 600,
                 letterSpacing: '0.1em',
-                color: isActive ? GOLD : 'rgba(255,255,255,0.35)',
                 textTransform: 'uppercase',
+                color: isActive ? GOLD : 'rgba(255,255,255,0.28)',
+                maxWidth: 72,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                textAlign: 'center',
+                transition: 'color 0.15s',
               }}>
-                {label}
+                {page?.thumbnailDataUrl ? (templateName || label) : label}
               </span>
             </div>
 
-            {/* Drop indicator — AFTER this tile */}
+            {/* Drop indicator — AFTER */}
             <div style={{
               width: showBarAfter ? 3 : 0,
-              height: 80,
+              height: 96,
               background: GOLD,
               borderRadius: 2,
-              marginLeft: showBarAfter ? 5 : 0,
+              marginLeft: showBarAfter ? 6 : 0,
               flexShrink: 0,
-              boxShadow: showBarAfter ? `0 0 8px ${GOLD}` : 'none',
+              boxShadow: showBarAfter ? `0 0 10px ${GOLD}` : 'none',
               transition: 'width 0.1s, margin 0.1s',
             }} />
           </div>
@@ -235,27 +300,29 @@ export default function PageListPanel({
         onClick={e => { e.stopPropagation(); onAddPage?.(); }}
         style={{
           flexShrink: 0,
-          width: 60,
-          height: 80,
-          marginLeft: 12,
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px dashed rgba(255,255,255,0.15)',
+          width: 64,
+          height: 91,
+          marginLeft: 14,
+          background: 'rgba(255,255,255,0.025)',
+          border: '1px dashed rgba(201,169,110,0.2)',
           borderRadius: 3,
-          color: 'rgba(255,255,255,0.3)',
-          fontSize: 22,
+          color: 'rgba(201,169,110,0.3)',
+          fontSize: 20,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          transition: 'border-color 0.15s, color 0.15s',
+          transition: 'border-color 0.15s, color 0.15s, background 0.15s',
         }}
         onMouseEnter={e => {
-          e.currentTarget.style.borderColor = 'rgba(201,169,110,0.4)';
+          e.currentTarget.style.borderColor = 'rgba(201,169,110,0.55)';
           e.currentTarget.style.color = GOLD;
+          e.currentTarget.style.background = 'rgba(201,169,110,0.06)';
         }}
         onMouseLeave={e => {
-          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
-          e.currentTarget.style.color = 'rgba(255,255,255,0.3)';
+          e.currentTarget.style.borderColor = 'rgba(201,169,110,0.2)';
+          e.currentTarget.style.color = 'rgba(201,169,110,0.3)';
+          e.currentTarget.style.background = 'rgba(255,255,255,0.025)';
         }}
         title="Add page"
       >
