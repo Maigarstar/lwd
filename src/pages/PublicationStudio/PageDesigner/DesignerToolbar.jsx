@@ -1,24 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
-import { GOLD, DARK, CARD, BORDER, MUTED, NU } from './designerConstants';
+import { GOLD, BORDER, MUTED, NU } from './designerConstants';
 import { PAGE_SIZES } from './designerConstants';
 
 const ZOOM_PRESETS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 
 // ── Relative time formatter ──────────────────────────────────────────────────
-// Returns a short human string for how long ago `date` was (e.g. "just now", "2m ago", "1h ago").
 function formatSavedAgo(date) {
   if (!date) return null;
   const secs = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-  if (secs < 10)    return 'just now';
-  if (secs < 60)    return `${secs}s ago`;
+  if (secs < 10)   return 'just now';
+  if (secs < 60)   return `${secs}s ago`;
   const mins = Math.floor(secs / 60);
-  if (mins < 60)    return `${mins}m ago`;
+  if (mins < 60)   return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24)     return `${hrs}h ago`;
+  if (hrs < 24)    return `${hrs}h ago`;
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-// Re-renders every 30s so the "Xm ago" label stays fresh.
 function useSavedAgo(date) {
   const [, tick] = useState(0);
   useEffect(() => {
@@ -29,6 +27,7 @@ function useSavedAgo(date) {
   return formatSavedAgo(date);
 }
 
+// ── Shared style helpers ─────────────────────────────────────────────────────
 const popoverLabelStyle = {
   display: 'block',
   fontFamily: NU,
@@ -37,7 +36,6 @@ const popoverLabelStyle = {
   marginBottom: 3,
   marginTop: 10,
 };
-
 const popoverInputStyle = {
   width: '100%',
   boxSizing: 'border-box',
@@ -50,12 +48,152 @@ const popoverInputStyle = {
   padding: '5px 8px',
   outline: 'none',
 };
+const popoverSelectStyle = { ...popoverInputStyle, cursor: 'pointer' };
 
-const popoverSelectStyle = {
-  ...popoverInputStyle,
-  cursor: 'pointer',
-};
+// ── Sub-components ───────────────────────────────────────────────────────────
+function ToolBtn({ children, onClick, disabled, active, title }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        background: active ? 'rgba(201,169,110,0.15)' : hov && !disabled ? 'rgba(255,255,255,0.06)' : 'none',
+        border: `1px solid ${active ? 'rgba(201,169,110,0.35)' : 'rgba(255,255,255,0.08)'}`,
+        borderRadius: 3,
+        color: active ? GOLD : disabled ? 'rgba(255,255,255,0.2)' : hov ? '#fff' : 'rgba(255,255,255,0.6)',
+        fontFamily: NU, fontSize: 11,
+        padding: '4px 8px',
+        cursor: disabled ? 'default' : 'pointer',
+        transition: 'all 0.12s',
+        whiteSpace: 'nowrap',
+        lineHeight: 1,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
 
+function Sep() {
+  return <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />;
+}
+
+// Dropdown chevron button that opens a popover panel
+function DropBtn({ label, active, children, align = 'left', minWidth = 220 }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    function handler(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          background: open || active ? 'rgba(201,169,110,0.12)' : 'none',
+          border: `1px solid ${open || active ? 'rgba(201,169,110,0.3)' : 'rgba(255,255,255,0.08)'}`,
+          borderRadius: 3,
+          color: open || active ? GOLD : 'rgba(255,255,255,0.6)',
+          fontFamily: NU, fontSize: 11,
+          padding: '4px 9px',
+          cursor: 'pointer',
+          transition: 'all 0.12s',
+          whiteSpace: 'nowrap',
+          display: 'flex', alignItems: 'center', gap: 4,
+          lineHeight: 1,
+        }}
+      >
+        {label}
+        <span style={{ fontSize: 7, opacity: 0.6, lineHeight: 1 }}>▾</span>
+      </button>
+      {open && (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            [align === 'right' ? 'right' : 'left']: 0,
+            zIndex: 400,
+            background: '#1E1B16',
+            border: `1px solid ${BORDER}`,
+            borderRadius: 4,
+            padding: '8px 0',
+            minWidth,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          }}
+        >
+          {/* Inject close function via context trick — pass setOpen via render prop */}
+          {typeof children === 'function' ? children(() => setOpen(false)) : children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Menu row inside a dropdown
+function MenuItem({ icon, label, active, onClick, hint, disabled }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        width: '100%', padding: '7px 14px',
+        background: hov && !disabled ? 'rgba(255,255,255,0.05)' : 'none',
+        border: 'none', cursor: disabled ? 'default' : 'pointer',
+        textAlign: 'left',
+      }}
+    >
+      <span style={{ width: 16, textAlign: 'center', fontSize: 11, color: active ? GOLD : 'rgba(255,255,255,0.45)', flexShrink: 0 }}>
+        {icon}
+      </span>
+      <span style={{ flex: 1 }}>
+        <span style={{ fontFamily: NU, fontSize: 11, color: disabled ? 'rgba(255,255,255,0.2)' : active ? GOLD : '#fff', fontWeight: active ? 700 : 400, letterSpacing: '0.02em' }}>
+          {label}
+        </span>
+        {hint && (
+          <span style={{ fontFamily: NU, fontSize: 9, color: MUTED, letterSpacing: '0.04em', marginLeft: 6, opacity: 0.7 }}>
+            {hint}
+          </span>
+        )}
+      </span>
+      {active && <span style={{ fontSize: 10, color: GOLD }}>✓</span>}
+    </button>
+  );
+}
+
+function MenuDivider() {
+  return <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '4px 0' }} />;
+}
+
+function MenuLabel({ children }) {
+  return (
+    <div style={{
+      padding: '6px 14px 3px',
+      fontFamily: NU, fontSize: 8, fontWeight: 700,
+      color: GOLD, letterSpacing: '0.14em', textTransform: 'uppercase',
+    }}>
+      {children}
+    </div>
+  );
+}
+
+// ── Main export ───────────────────────────────────────────────────────────────
 export default function DesignerToolbar({
   onBack,
   issue,
@@ -112,17 +250,16 @@ export default function DesignerToolbar({
   const [printConfirm, setPrintConfirm] = useState(false);
   const [showPageNumPopover, setShowPageNumPopover] = useState(false);
   const pageBgInputRef = useRef(null);
-
   const savedAgo = useSavedAgo(lastSaved);
-
   const zoomPct = Math.round(zoom * 100);
+
+  const anyViewActive = showGrid || snapToGrid || showRuler || showBleed || lightsOff || spreadView;
 
   function decreaseZoom() {
     const idx = ZOOM_PRESETS.findIndex(z => z >= zoom);
     const prev = idx > 0 ? ZOOM_PRESETS[idx - 1] : ZOOM_PRESETS[0];
     onZoomChange(prev);
   }
-
   function increaseZoom() {
     const idx = ZOOM_PRESETS.findIndex(z => z > zoom);
     const next = idx >= 0 ? ZOOM_PRESETS[idx] : ZOOM_PRESETS[ZOOM_PRESETS.length - 1];
@@ -130,533 +267,468 @@ export default function DesignerToolbar({
   }
 
   return (
-    <div style={{
-      height: 48,
-      flexShrink: 0,
-      background: '#141210',
-      borderBottom: `1px solid ${BORDER}`,
-      display: 'flex',
-      alignItems: 'center',
-      padding: '0 16px',
-      gap: 8,
-      zIndex: 10,
-    }}>
-      {/* Back to issues */}
-      {onBack && (
-        <button
-          onClick={onBack}
-          title="Back to issues list"
-          style={{
-            background: 'none',
-            border: 'none',
-            color: MUTED,
-            cursor: 'pointer',
-            lineHeight: 1,
-            padding: '0 6px 0 0',
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            fontFamily: NU,
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: '0.05em',
-          }}
-        >
-          ← Issues
-        </button>
-      )}
-      {onBack && <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />}
-
-      {/* Left: issue title */}
+    <>
       <div style={{
-        fontFamily: NU,
-        fontSize: 11,
-        color: MUTED,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        maxWidth: 180,
+        height: 48,
         flexShrink: 0,
+        background: '#0E0D0B',
+        borderBottom: `1px solid ${BORDER}`,
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 12px',
+        gap: 6,
+        zIndex: 10,
+        overflow: 'visible',
       }}>
-        {issue?.title || 'Untitled Issue'}
-      </div>
 
-      <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />
+        {/* ── LEFT: Brand + nav ──────────────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {/* Back button */}
+          {onBack && (
+            <button
+              onClick={onBack}
+              title="Back to issues list"
+              style={{
+                background: 'none', border: 'none',
+                color: MUTED, cursor: 'pointer',
+                padding: '0 4px 0 0',
+                display: 'flex', alignItems: 'center', gap: 3,
+                fontFamily: NU, fontSize: 10, fontWeight: 600,
+                letterSpacing: '0.04em', flexShrink: 0,
+              }}
+            >
+              ← Issues
+            </button>
+          )}
+          {onBack && <Sep />}
 
-      {/* Center controls */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          {/* Taigenic.ai wordmark */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
+          }}>
+            {/* T-mark icon */}
+            <div style={{
+              width: 22, height: 22,
+              background: `linear-gradient(135deg, ${GOLD} 0%, rgba(201,169,110,0.6) 100%)`,
+              borderRadius: 3,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <span style={{ fontFamily: "'Georgia',serif", fontSize: 13, fontStyle: 'italic', fontWeight: 700, color: '#0E0D0B', lineHeight: 1, userSelect: 'none' }}>
+                T
+              </span>
+            </div>
+            <div style={{ lineHeight: 1 }}>
+              <div style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: GOLD, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+                Taigenic.ai
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 7, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 1 }}>
+                Studio
+              </div>
+            </div>
+          </div>
 
-        {/* Undo / Redo */}
-        <ToolBtn onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">←</ToolBtn>
-        <ToolBtn onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Y)">→</ToolBtn>
+          <Sep />
 
-        <Sep />
+          {/* Issue title */}
+          <div style={{
+            fontFamily: NU, fontSize: 11, color: 'rgba(255,255,255,0.5)',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            maxWidth: 160, flexShrink: 0,
+          }}>
+            {issue?.title || 'Untitled Issue'}
+          </div>
+        </div>
 
-        {/* Grid toggle */}
-        <ToolBtn onClick={onToggleGrid} active={showGrid} title="Toggle grid">⊞ Grid</ToolBtn>
+        {/* ── CENTER: Tools ─────────────────────────────────────────────── */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, minWidth: 0 }}>
 
-        {/* Snap to grid */}
-        <ToolBtn
-          onClick={onToggleSnap}
-          active={snapToGrid}
-          title={snapToGrid ? 'Snap to grid ON — objects snap to 40px grid' : 'Snap to grid OFF'}
-        >
-          ⊹ Snap
-        </ToolBtn>
+          {/* Undo / Redo */}
+          <ToolBtn onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">⟵</ToolBtn>
+          <ToolBtn onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Y)">⟶</ToolBtn>
 
-        {/* Ruler toggle */}
-        <ToolBtn onClick={onToggleRuler} active={showRuler} title="Toggle ruler">⊟ Ruler</ToolBtn>
+          <Sep />
 
-        {/* Bleed + safe zone guides */}
-        <ToolBtn onClick={onToggleBleed} active={showBleed} title="Toggle bleed and safe zone guides">⊞ Bleed</ToolBtn>
-
-        {/* Lights off — focus mode */}
-        <ToolBtn
-          onClick={onToggleLightsOff}
-          active={lightsOff}
-          title={lightsOff ? 'Lights On — restore panels' : 'Lights Off — focus on canvas'}
-        >
-          {lightsOff ? '◉ Lights On' : '◎ Lights Off'}
-        </ToolBtn>
-
-        {/* Spread view toggle */}
-        <ToolBtn onClick={onToggleSpread} active={spreadView} title="Toggle double-page spread editing view">⊠ Spread</ToolBtn>
-
-        {/* Spread preview — clean read-only render of the current spread */}
-        <ToolBtn onClick={onSpreadPreview} title="Preview spread as printed — see both pages without editing handles">◫ Preview</ToolBtn>
-
-        {/* Clear guides */}
-        {onClearGuides && (
-          <ToolBtn onClick={onClearGuides} disabled={!hasGuides} title="Clear all guide lines">⊘ Guides</ToolBtn>
-        )}
-
-        <Sep />
-
-        {/* Zoom */}
-        <ToolBtn onClick={decreaseZoom} title="Zoom out">−</ToolBtn>
-        <select
-          value={zoomPct}
-          onChange={e => onZoomChange(Number(e.target.value) / 100)}
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 3, color: '#fff',
-            fontFamily: NU, fontSize: 11,
-            padding: '3px 6px', outline: 'none', cursor: 'pointer',
-            width: 70,
-          }}
-        >
-          {ZOOM_PRESETS.map(z => (
-            <option key={z} value={Math.round(z * 100)}>
-              {Math.round(z * 100)}%
-            </option>
-          ))}
-        </select>
-        <ToolBtn onClick={increaseZoom} title="Zoom in">+</ToolBtn>
-
-        {/* Fit page */}
-        {onFitPage && (
-          <ToolBtn onClick={onFitPage} title="Fit page to screen">⊡ Fit</ToolBtn>
-        )}
-      </div>
-
-      {/* Right controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-
-        {/* Page size picker (Feature E) */}
-        {onPageSizeChange && PAGE_SIZES && (
-          <select
-            value={pageSize || 'A4'}
-            onChange={e => onPageSizeChange(e.target.value)}
-            title="Change page size"
+          {/* Smart Fill — primary creation tool */}
+          <button
+            onClick={onSmartFill}
+            title="Auto-build a page from a venue, article or showcase"
             style={{
-              background: 'rgba(201,169,110,0.08)',
-              border: '1px solid rgba(201,169,110,0.3)',
-              borderRadius: 3, color: '#C9A96E',
-              fontFamily: NU, fontSize: 11, fontWeight: 500,
-              padding: '3px 6px',
-              letterSpacing: '0.04em',
-              cursor: 'pointer',
-              outline: 'none',
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.14)',
+              borderRadius: 3, color: 'rgba(255,255,255,0.85)',
+              fontFamily: NU, fontSize: 10, fontWeight: 700,
+              letterSpacing: '0.05em', textTransform: 'uppercase',
+              padding: '5px 11px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 4,
+              whiteSpace: 'nowrap',
             }}
           >
-            {Object.entries(PAGE_SIZES).map(([key, val]) => (
-              <option key={key} value={key} style={{ background: '#1A1712', color: '#fff' }}>
-                {val.label || key}
+            ✦ Smart Fill
+          </button>
+
+          {/* AI Build */}
+          <button
+            onClick={onAIBuild}
+            title="AI Issue Builder — generate a full magazine issue structure"
+            style={{
+              background: 'rgba(201,169,110,0.1)',
+              border: '1px solid rgba(201,169,110,0.35)',
+              borderRadius: 3, color: GOLD,
+              fontFamily: NU, fontSize: 10, fontWeight: 700,
+              letterSpacing: '0.05em', textTransform: 'uppercase',
+              padding: '5px 11px', cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ✦ AI Build
+          </button>
+
+          {/* Brand Kit */}
+          <button
+            onClick={onBrandKit}
+            title="Open Brand Kit"
+            style={{
+              background: brandPrimaryColor
+                ? `rgba(${parseInt(brandPrimaryColor.slice(1,3),16)},${parseInt(brandPrimaryColor.slice(3,5),16)},${parseInt(brandPrimaryColor.slice(5,7),16)},0.12)`
+                : 'rgba(201,169,110,0.07)',
+              border: `1px solid ${brandPrimaryColor ? brandPrimaryColor + '55' : 'rgba(201,169,110,0.25)'}`,
+              borderRadius: 3,
+              color: brandPrimaryColor || GOLD,
+              fontFamily: NU, fontSize: 10, fontWeight: 700,
+              letterSpacing: '0.05em', textTransform: 'uppercase',
+              padding: '5px 11px', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 5,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span style={{
+              width: 9, height: 9, borderRadius: '50%',
+              background: brandPrimaryColor || GOLD,
+              display: 'inline-block', flexShrink: 0,
+            }} />
+            Brand
+          </button>
+
+          {/* Page Slot */}
+          <button
+            onClick={onSlot}
+            title="Assign a vendor page slot to this page"
+            style={{
+              background: currentSlot ? 'rgba(201,169,110,0.15)' : 'rgba(255,255,255,0.05)',
+              border: `1px solid ${currentSlot ? 'rgba(201,169,110,0.45)' : 'rgba(255,255,255,0.12)'}`,
+              borderRadius: 3,
+              color: currentSlot ? GOLD : 'rgba(255,255,255,0.6)',
+              fontFamily: NU, fontSize: 10, fontWeight: 700,
+              letterSpacing: '0.05em', textTransform: 'uppercase',
+              padding: '5px 11px', cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {currentSlot ? '◆ Slot ✓' : '◆ Slot'}
+          </button>
+
+          <Sep />
+
+          {/* Zoom */}
+          <ToolBtn onClick={decreaseZoom} title="Zoom out">−</ToolBtn>
+          <select
+            value={zoomPct}
+            onChange={e => onZoomChange(Number(e.target.value) / 100)}
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 3, color: 'rgba(255,255,255,0.7)',
+              fontFamily: NU, fontSize: 11,
+              padding: '3px 4px', outline: 'none', cursor: 'pointer',
+              width: 62,
+            }}
+          >
+            {ZOOM_PRESETS.map(z => (
+              <option key={z} value={Math.round(z * 100)} style={{ background: '#1A1712', color: '#fff' }}>
+                {Math.round(z * 100)}%
               </option>
             ))}
           </select>
-        )}
+          <ToolBtn onClick={increaseZoom} title="Zoom in">+</ToolBtn>
+          {onFitPage && <ToolBtn onClick={onFitPage} title="Fit page to screen">⊡</ToolBtn>}
 
-        {/* Page background colour picker */}
-        {onPageBgChange && (
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <button
-              title="Page background colour"
-              onClick={() => pageBgInputRef.current?.click()}
+          <Sep />
+
+          {/* ── VIEW dropdown ───────────────────────────────────────────── */}
+          <DropBtn label="View" active={anyViewActive} align="left" minWidth={230}>
+            {(close) => (
+              <>
+                <MenuLabel>Canvas</MenuLabel>
+                <MenuItem icon="⊞" label="Grid"       active={showGrid}   onClick={() => { onToggleGrid?.(); }}   />
+                <MenuItem icon="⊹" label="Snap to Grid" active={snapToGrid} onClick={() => { onToggleSnap?.(); }}   hint="Ctrl+Shift+;" />
+                <MenuItem icon="⊟" label="Ruler"      active={showRuler}  onClick={() => { onToggleRuler?.(); }}  />
+                <MenuItem icon="⊞" label="Bleed + Safe Zone" active={showBleed} onClick={() => { onToggleBleed?.(); }} />
+                <MenuItem icon="⊘" label="Clear Guides" disabled={!hasGuides} onClick={() => { onClearGuides?.(); close(); }} />
+
+                <MenuDivider />
+                <MenuLabel>View Mode</MenuLabel>
+                <MenuItem icon="◎" label={lightsOff ? 'Lights On' : 'Lights Off'} active={lightsOff} onClick={() => { onToggleLightsOff?.(); }} hint="Focus mode" />
+                <MenuItem icon="⊠" label="Spread View" active={spreadView} onClick={() => { onToggleSpread?.(); }} />
+                <MenuItem icon="◫" label="Spread Preview" onClick={() => { onSpreadPreview?.(); close(); }} hint="Read-only render" />
+
+                <MenuDivider />
+                <MenuLabel>Page</MenuLabel>
+
+                {/* Page size inline select */}
+                {onPageSizeChange && PAGE_SIZES && (
+                  <div style={{ padding: '4px 14px 6px' }}>
+                    <div style={{ fontFamily: NU, fontSize: 9, color: MUTED, marginBottom: 4 }}>Page Size</div>
+                    <select
+                      value={pageSize || 'A4'}
+                      onChange={e => onPageSizeChange(e.target.value)}
+                      style={{ ...popoverSelectStyle, marginTop: 0 }}
+                    >
+                      {Object.entries(PAGE_SIZES).map(([key, val]) => (
+                        <option key={key} value={key} style={{ background: '#1A1712', color: '#fff' }}>
+                          {val.label || key}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Page background colour */}
+                {onPageBgChange && (
+                  <div style={{ padding: '4px 14px 6px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontFamily: NU, fontSize: 9, color: MUTED }}>Page Background</span>
+                    <button
+                      title="Page background colour"
+                      onClick={() => pageBgInputRef.current?.click()}
+                      style={{
+                        width: 20, height: 20,
+                        background: pageBg || '#ffffff',
+                        border: `1px solid ${BORDER}`,
+                        borderRadius: 2,
+                        cursor: 'pointer', padding: 0, flexShrink: 0,
+                      }}
+                    />
+                    <input
+                      ref={pageBgInputRef}
+                      type="color"
+                      value={pageBg || '#ffffff'}
+                      onChange={e => onPageBgChange(e.target.value)}
+                      style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+                      tabIndex={-1}
+                    />
+                  </div>
+                )}
+
+                {/* Page numbering — opens its own sub-section */}
+                {pageNumberSettings && (
+                  <div style={{ padding: '4px 14px 6px' }}>
+                    <div style={{ fontFamily: NU, fontSize: 9, color: MUTED, marginBottom: 4 }}>Page Numbering</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div>
+                        <div style={{ ...popoverLabelStyle, marginTop: 0 }}>Format</div>
+                        <select value={pageNumberSettings.format} onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, format: e.target.value })} style={popoverSelectStyle}>
+                          <option value="arabic">1, 2, 3 (Arabic)</option>
+                          <option value="roman">i, ii, iii (Roman)</option>
+                          <option value="none">None</option>
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={popoverLabelStyle}>Prefix</div>
+                          <input value={pageNumberSettings.prefix} onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, prefix: e.target.value })} placeholder="e.g. — " style={popoverInputStyle} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={popoverLabelStyle}>Suffix</div>
+                          <input value={pageNumberSettings.suffix} onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, suffix: e.target.value })} placeholder="e.g. —" style={popoverInputStyle} />
+                        </div>
+                      </div>
+                      <div>
+                        <div style={popoverLabelStyle}>Start from</div>
+                        <input type="number" min={1} value={pageNumberSettings.startFrom} onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, startFrom: parseInt(e.target.value) || 1 })} style={{ ...popoverInputStyle, width: 80 }} />
+                      </div>
+                      <label style={{ ...popoverLabelStyle, display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                        <input type="checkbox" checked={pageNumberSettings.excludeCover} onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, excludeCover: e.target.checked })} />
+                        No number on cover
+                      </label>
+                      <label style={{ ...popoverLabelStyle, display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                        <input type="checkbox" checked={pageNumberSettings.excludeBackCover} onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, excludeBackCover: e.target.checked })} />
+                        No number on back cover
+                      </label>
+                      <button
+                        onClick={() => { onApplyPageNumbers?.(); close(); }}
+                        style={{
+                          marginTop: 8, width: '100%',
+                          background: 'rgba(201,169,110,0.15)',
+                          border: '1px solid rgba(201,169,110,0.4)',
+                          borderRadius: 3, color: GOLD,
+                          fontFamily: NU, fontSize: 10, fontWeight: 700,
+                          letterSpacing: '0.06em', textTransform: 'uppercase',
+                          padding: '7px 0', cursor: 'pointer',
+                        }}
+                      >
+                        ✦ Apply to All Pages
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </DropBtn>
+
+          {/* ── EXPORT dropdown ─────────────────────────────────────────── */}
+          <DropBtn label="Export" active={false} align="left" minWidth={200}>
+            {(close) => (
+              <>
+                <MenuLabel>Download</MenuLabel>
+                <MenuItem
+                  icon="↓"
+                  label="PDF (Screen)"
+                  hint={exportingScreen ? 'Exporting…' : undefined}
+                  disabled={exportingScreen}
+                  onClick={() => { onExportScreen?.(); close(); }}
+                />
+                <MenuItem
+                  icon="🖨"
+                  label="PDF (Print-ready)"
+                  hint="3mm bleed + crop marks"
+                  disabled={exportingPrint}
+                  onClick={() => { setPrintConfirm(true); close(); }}
+                />
+              </>
+            )}
+          </DropBtn>
+        </div>
+
+        {/* ── RIGHT: Workflow actions ───────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <Sep />
+
+          {/* Save + timestamp */}
+          <button
+            onClick={onSave}
+            disabled={saving}
+            title="Save (Ctrl+S)"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 3,
+              color: saving ? GOLD : isDirty ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.45)',
+              fontFamily: NU, fontSize: 10, fontWeight: 700,
+              letterSpacing: '0.05em', textTransform: 'uppercase',
+              padding: '5px 11px', cursor: saving ? 'default' : 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {saving ? '⋯ Saving' : isDirty ? '💾 Save' : '✓ Saved'}
+          </button>
+
+          {/* Saved-ago / unsaved indicator — small, unobtrusive */}
+          {savedAgo && !saving && (
+            <span
+              title={lastSaved ? `Last saved ${lastSaved.toLocaleString('en-GB')}` : ''}
               style={{
-                width: 18, height: 18,
-                background: pageBg || '#ffffff',
-                border: `1px solid ${BORDER}`,
-                borderRadius: 2,
-                cursor: 'pointer',
-                padding: 0,
-                flexShrink: 0,
+                fontFamily: NU, fontSize: 9, fontWeight: 500,
+                letterSpacing: '0.04em', textTransform: 'uppercase',
+                color: isDirty ? 'rgba(201,169,110,0.6)' : 'rgba(255,255,255,0.3)',
+                whiteSpace: 'nowrap', userSelect: 'none',
               }}
-            />
-            <input
-              ref={pageBgInputRef}
-              type="color"
-              value={pageBg || '#ffffff'}
-              onChange={e => onPageBgChange(e.target.value)}
-              style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
-              tabIndex={-1}
-            />
-          </div>
-        )}
+            >
+              {isDirty ? '●' : savedAgo}
+            </span>
+          )}
 
-        {/* Page numbering popover */}
-        {pageNumberSettings && (
-          <div style={{ position: 'relative' }}>
-            <ToolBtn onClick={() => setShowPageNumPopover(v => !v)} active={showPageNumPopover} title="Page numbering settings">
-              № Numbering
-            </ToolBtn>
-            {showPageNumPopover && (
-              <div
-                style={{
-                  position: 'absolute', top: '100%', right: 0, zIndex: 300,
-                  background: '#2A2520', border: `1px solid ${BORDER}`, borderRadius: 3,
-                  padding: 16, width: 240, marginTop: 4,
-                }}
-              >
-                <div style={{ marginBottom: 10, fontSize: 10, color: GOLD, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: "'Jost',sans-serif" }}>
-                  Page Numbering
-                </div>
+          <Sep />
 
-                <label style={popoverLabelStyle}>Format</label>
-                <select
-                  value={pageNumberSettings.format}
-                  onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, format: e.target.value })}
-                  style={popoverSelectStyle}
-                >
-                  <option value="arabic">1, 2, 3 (Arabic)</option>
-                  <option value="roman">i, ii, iii (Roman)</option>
-                  <option value="none">None (no numbers)</option>
-                </select>
-
-                <label style={popoverLabelStyle}>Prefix</label>
-                <input
-                  value={pageNumberSettings.prefix}
-                  onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, prefix: e.target.value })}
-                  placeholder="e.g. — "
-                  style={popoverInputStyle}
-                />
-
-                <label style={popoverLabelStyle}>Suffix</label>
-                <input
-                  value={pageNumberSettings.suffix}
-                  onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, suffix: e.target.value })}
-                  placeholder="e.g. —"
-                  style={popoverInputStyle}
-                />
-
-                <label style={popoverLabelStyle}>Start from</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={pageNumberSettings.startFrom}
-                  onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, startFrom: parseInt(e.target.value) || 1 })}
-                  style={popoverInputStyle}
-                />
-
-                <label style={{ ...popoverLabelStyle, display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-                  <input
-                    type="checkbox"
-                    checked={pageNumberSettings.excludeCover}
-                    onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, excludeCover: e.target.checked })}
-                  />
-                  No number on cover
-                </label>
-
-                <label style={{ ...popoverLabelStyle, display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={pageNumberSettings.excludeBackCover}
-                    onChange={e => onPageNumSettingsChange({ ...pageNumberSettings, excludeBackCover: e.target.checked })}
-                  />
-                  No number on back cover
-                </label>
-
-                <button
-                  onClick={() => { onApplyPageNumbers?.(); setShowPageNumPopover(false); }}
-                  style={{
-                    marginTop: 14, width: '100%',
-                    background: 'rgba(201,169,110,0.15)',
-                    border: '1px solid rgba(201,169,110,0.4)',
-                    borderRadius: 3, color: GOLD,
-                    fontFamily: NU, fontSize: 10, fontWeight: 700,
-                    letterSpacing: '0.06em', textTransform: 'uppercase',
-                    padding: '7px 0', cursor: 'pointer',
-                  }}
-                >
-                  ✦ Apply to All Pages
-                </button>
+          {/* PUBLISH — primary CTA, always visible */}
+          <div style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column' }}>
+            <button
+              onClick={onExportDigital}
+              disabled={exportingDigital}
+              title="Publish issue to the live flipbook reader"
+              style={{
+                background: exportingDigital ? 'rgba(201,169,110,0.25)' : `linear-gradient(135deg, rgba(201,169,110,0.22) 0%, rgba(201,169,110,0.14) 100%)`,
+                border: `1px solid ${exportingDigital ? 'rgba(201,169,110,0.4)' : 'rgba(201,169,110,0.55)'}`,
+                borderRadius: 3, color: GOLD,
+                fontFamily: NU, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.07em', textTransform: 'uppercase',
+                padding: '5px 14px', cursor: exportingDigital ? 'default' : 'pointer',
+                minWidth: 130, whiteSpace: 'nowrap',
+              }}
+            >
+              {exportingDigital && publishProgress
+                ? `▶ ${publishProgress.current}/${publishProgress.total} Publishing…`
+                : exportingDigital
+                ? '▶ Publishing…'
+                : (issue?.render_version ? '↻ Republish' : '▶ Publish')}
+            </button>
+            {exportingDigital && publishProgress && publishProgress.total > 0 && (
+              <div style={{
+                position: 'absolute', bottom: -4, left: 0, right: 0,
+                height: 2, background: 'rgba(201,169,110,0.15)', borderRadius: 1, overflow: 'hidden',
+              }}>
+                <div style={{
+                  height: '100%',
+                  width: `${(publishProgress.current / publishProgress.total) * 100}%`,
+                  background: GOLD, borderRadius: 1, transition: 'width 0.3s ease',
+                }} />
               </div>
             )}
           </div>
-        )}
 
-        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
+          {/* PREVIEW — draft reader */}
+          {issue?.slug && (
+            <a
+              href={`/publications/${issue.slug}?preview=1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Preview in flipbook reader (draft mode)"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 3,
+                color: 'rgba(255,255,255,0.55)',
+                fontFamily: NU, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.05em', textTransform: 'uppercase',
+                padding: '5px 11px',
+                textDecoration: 'none',
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ⬡ Preview
+            </a>
+          )}
 
-        {/* AI Build Issue */}
-        <button
-          onClick={onAIBuild}
-          title="AI Issue Builder — generate a full magazine issue structure from a brief"
-          style={{
-            background: 'rgba(201,169,110,0.12)',
-            border: '1px solid rgba(201,169,110,0.4)',
-            borderRadius: 3, color: GOLD,
-            fontFamily: NU, fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-            padding: '5px 12px', cursor: 'pointer',
-          }}
-        >
-          ✦ AI Build
-        </button>
-
-        {/* Page Slot */}
-        <button
-          onClick={onSlot}
-          title="Assign a vendor page slot to this page"
-          style={{
-            background: currentSlot ? 'rgba(201,169,110,0.18)' : 'rgba(255,255,255,0.06)',
-            border: `1px solid ${currentSlot ? 'rgba(201,169,110,0.5)' : 'rgba(255,255,255,0.14)'}`,
-            borderRadius: 3,
-            color: currentSlot ? GOLD : 'rgba(255,255,255,0.8)',
-            fontFamily: NU, fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-            padding: '5px 12px', cursor: 'pointer',
-          }}
-        >
-          {currentSlot ? '◆ Slot ✓' : '◆ Slot'}
-        </button>
-
-        {/* Smart Fill */}
-        <button
-          onClick={onSmartFill}
-          title="Auto-build a page from a venue or planner"
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.14)',
-            borderRadius: 3, color: 'rgba(255,255,255,0.8)',
-            fontFamily: NU, fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-            padding: '5px 12px', cursor: 'pointer',
-          }}
-        >
-          ✦ Smart Fill
-        </button>
-
-        {/* Brand Kit */}
-        <button
-          onClick={onBrandKit}
-          title="Open Brand Kit"
-          style={{
-            background: brandPrimaryColor
-              ? `rgba(${parseInt(brandPrimaryColor.slice(1,3),16)},${parseInt(brandPrimaryColor.slice(3,5),16)},${parseInt(brandPrimaryColor.slice(5,7),16)},0.15)`
-              : 'rgba(201,169,110,0.1)',
-            border: `1px solid ${brandPrimaryColor || 'rgba(201,169,110,0.3)'}`,
-            borderRadius: 3,
-            color: brandPrimaryColor || GOLD,
-            fontFamily: NU, fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-            padding: '5px 12px', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 5,
-          }}
-        >
-          <span style={{
-            width: 10, height: 10, borderRadius: '50%',
-            background: brandPrimaryColor || GOLD,
-            display: 'inline-block', flexShrink: 0,
-          }} />
-          Brand
-        </button>
-
-        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
-
-        {/* Save */}
-        <button
-          onClick={onSave}
-          disabled={saving}
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 3, color: saving ? GOLD : 'rgba(255,255,255,0.75)',
-            fontFamily: NU, fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-            padding: '5px 12px', cursor: saving ? 'default' : 'pointer',
-          }}
-        >
-          {saving ? 'Saving…' : '💾 Save'}
-        </button>
-
-        {/* Last saved timestamp + unsaved indicator */}
-        {(savedAgo && !saving) && (
-          <span
-            title={lastSaved ? `Last saved ${lastSaved.toLocaleString('en-GB')}` : ''}
-            style={{
-              fontFamily: NU,
-              fontSize: 9,
-              fontWeight: 500,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: isDirty ? 'rgba(201,169,110,0.7)' : 'rgba(255,255,255,0.4)',
-              padding: '0 4px',
-              whiteSpace: 'nowrap',
-              userSelect: 'none',
-            }}
-          >
-            {isDirty ? '● Unsaved' : `✓ Saved ${savedAgo}`}
-          </span>
-        )}
-
-        {/* Publish digital — with inline progress bar when publishing */}
-        <div style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
-          <button
-            onClick={onExportDigital}
-            disabled={exportingDigital}
-            style={{
-              background: exportingDigital ? 'rgba(201,169,110,0.2)' : 'rgba(201,169,110,0.12)',
-              border: `1px solid ${exportingDigital ? 'rgba(201,169,110,0.3)' : 'rgba(201,169,110,0.35)'}`,
-              borderRadius: 3, color: GOLD,
-              fontFamily: NU, fontSize: 10, fontWeight: 700,
-              letterSpacing: '0.06em', textTransform: 'uppercase',
-              padding: '5px 12px', cursor: exportingDigital ? 'default' : 'pointer',
-              minWidth: 120,
-            }}
-          >
-            {exportingDigital && publishProgress
-              ? `Publishing ${publishProgress.current}/${publishProgress.total}…`
-              : exportingDigital
-              ? 'Publishing…'
-              : (issue?.render_version ? '↻ Republish' : '▶ Publish Digital')}
-          </button>
-          {/* Progress bar — only visible while publishing */}
-          {exportingDigital && publishProgress && publishProgress.total > 0 && (
-            <div style={{
-              position: 'absolute', bottom: -5, left: 0, right: 0,
-              height: 2, background: 'rgba(201,169,110,0.15)', borderRadius: 1,
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                height: '100%',
-                width: `${(publishProgress.current / publishProgress.total) * 100}%`,
-                background: GOLD,
-                borderRadius: 1,
-                transition: 'width 0.3s ease',
-              }} />
-            </div>
+          {/* LIVE — green pill; only when published */}
+          {issue?.render_version && issue?.slug && !exportingDigital && (
+            <a
+              href={`/publications/${issue.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open live flipbook reader"
+              style={{
+                background: 'rgba(52,211,153,0.1)',
+                border: '1px solid rgba(52,211,153,0.45)',
+                borderRadius: 3,
+                color: '#34d399',
+                fontFamily: NU, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.05em', textTransform: 'uppercase',
+                padding: '5px 11px',
+                textDecoration: 'none',
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                whiteSpace: 'nowrap',
+                transition: 'background 0.15s, border-color 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(52,211,153,0.18)'; e.currentTarget.style.borderColor = 'rgba(52,211,153,0.65)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(52,211,153,0.1)'; e.currentTarget.style.borderColor = 'rgba(52,211,153,0.45)'; }}
+            >
+              ● Live ↗
+            </a>
           )}
         </div>
-
-        {/* PREVIEW — always visible if the issue has a slug (draft or live).
-            Opens the reader with ?preview=1 so the draft banner shows. */}
-        {issue?.slug && (
-          <a
-            href={`/publications/${issue.slug}?preview=1`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Preview in flipbook reader (draft mode)"
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: 3,
-              color: 'rgba(255,255,255,0.6)',
-              fontFamily: NU,
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              padding: '5px 12px',
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              cursor: 'pointer',
-            }}
-          >
-            ⬡ Preview
-          </a>
-        )}
-
-        {/* LIVE indicator — green pill linking to the flipbook reader.
-            Visible once the issue has been published at least once. */}
-        {issue?.render_version && issue?.slug && !exportingDigital && (
-          <a
-            href={`/publications/${issue.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Open live flipbook reader"
-            style={{
-              background: 'rgba(52,211,153,0.12)',
-              border: '1px solid rgba(52,211,153,0.5)',
-              borderRadius: 3,
-              color: '#34d399',
-              fontFamily: NU,
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              padding: '5px 12px',
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              cursor: 'pointer',
-              transition: 'background 0.15s, border-color 0.15s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(52,211,153,0.2)'; e.currentTarget.style.borderColor = 'rgba(52,211,153,0.7)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(52,211,153,0.12)'; e.currentTarget.style.borderColor = 'rgba(52,211,153,0.5)'; }}
-          >
-            ● Live ↗
-          </a>
-        )}
-
-        {/* Screen PDF */}
-        <button
-          onClick={onExportScreen}
-          disabled={exportingScreen}
-          style={{
-            background: 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(255,255,255,0.18)',
-            borderRadius: 3, color: 'rgba(255,255,255,0.85)',
-            fontFamily: NU, fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-            padding: '5px 12px', cursor: exportingScreen ? 'default' : 'pointer',
-          }}
-        >
-          {exportingScreen ? 'Exporting…' : '↓ PDF'}
-        </button>
-
-        {/* Print PDF */}
-        <button
-          onClick={() => setPrintConfirm(true)}
-          disabled={exportingPrint}
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 3, color: 'rgba(255,255,255,0.7)',
-            fontFamily: NU, fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-            padding: '5px 12px', cursor: exportingPrint ? 'default' : 'pointer',
-          }}
-        >
-          {exportingPrint ? 'Exporting…' : '🖨 Export Print'}
-        </button>
       </div>
 
-      {/* Print confirm modal */}
+      {/* ── Print confirm modal ──────────────────────────────────────────────── */}
       {printConfirm && (
         <div
           style={{
@@ -668,12 +740,8 @@ export default function DesignerToolbar({
         >
           <div
             style={{
-              background: '#2A2520',
-              border: `1px solid ${BORDER}`,
-              borderRadius: 6,
-              padding: 28,
-              maxWidth: 400,
-              width: '90%',
+              background: '#2A2520', border: `1px solid ${BORDER}`,
+              borderRadius: 6, padding: 28, maxWidth: 400, width: '90%',
             }}
             onClick={e => e.stopPropagation()}
           >
@@ -688,8 +756,7 @@ export default function DesignerToolbar({
               <button
                 onClick={() => setPrintConfirm(false)}
                 style={{
-                  flex: 1,
-                  background: 'rgba(255,255,255,0.06)',
+                  flex: 1, background: 'rgba(255,255,255,0.06)',
                   border: '1px solid rgba(255,255,255,0.1)',
                   borderRadius: 3, color: MUTED,
                   fontFamily: NU, fontSize: 10, fontWeight: 700,
@@ -701,9 +768,7 @@ export default function DesignerToolbar({
               <button
                 onClick={() => { setPrintConfirm(false); onExportPrint?.(); }}
                 style={{
-                  flex: 1,
-                  background: GOLD,
-                  border: 'none',
+                  flex: 1, background: GOLD, border: 'none',
                   borderRadius: 3, color: '#1a1208',
                   fontFamily: NU, fontSize: 10, fontWeight: 700,
                   padding: '8px 0', cursor: 'pointer',
@@ -716,36 +781,6 @@ export default function DesignerToolbar({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
-}
-
-function ToolBtn({ children, onClick, disabled, active, title }) {
-  const [hov, setHov] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        background: active ? 'rgba(201,169,110,0.15)' : hov && !disabled ? 'rgba(255,255,255,0.06)' : 'none',
-        border: `1px solid ${active ? 'rgba(201,169,110,0.35)' : 'rgba(255,255,255,0.08)'}`,
-        borderRadius: 3,
-        color: active ? GOLD : disabled ? 'rgba(255,255,255,0.2)' : hov ? '#fff' : 'rgba(255,255,255,0.6)',
-        fontFamily: NU, fontSize: 11,
-        padding: '4px 8px',
-        cursor: disabled ? 'default' : 'pointer',
-        transition: 'all 0.12s',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Sep() {
-  return <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />;
 }
