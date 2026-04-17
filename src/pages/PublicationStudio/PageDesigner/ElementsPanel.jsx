@@ -858,6 +858,19 @@ export default function ElementsPanel({ onAddElement, onAddImage, onInsertTempla
   const [aiLayoutPrompt, setAiLayoutPrompt] = useState('');
   const [aiLayoutLoading, setAiLayoutLoading] = useState(false);
 
+  // ── P7 Rich Media state ────────────────────────────────────────────────────
+  const [ctaOpen,    setCtaOpen]    = useState(false);
+  const [ctaLabel,   setCtaLabel]   = useState('EXPLORE NOW');
+  const [ctaUrl,     setCtaUrl]     = useState('');
+  const [ctaStyle,   setCtaStyle]   = useState('gold');   // 'gold' | 'outline' | 'text'
+  const [videoOpen,  setVideoOpen]  = useState(false);
+  const [videoUrl,   setVideoUrl]   = useState('');
+  const [linkOpen,   setLinkOpen]   = useState(false);
+  const [linkUrl,    setLinkUrl]    = useState('');
+  const [linkFetching, setLinkFetching] = useState(false);
+  const [linkPreview,  setLinkPreview]  = useState(null);  // { title, description, imageUrl, domain }
+  const [linkError,    setLinkError]    = useState('');
+
   // ── Template management state ──────────────────────────────────────────────
   const [templateSearch, setTemplateSearch]   = useState('');
   const [templateCat,    setTemplateCat]      = useState('All');  // category filter
@@ -1146,6 +1159,164 @@ export default function ElementsPanel({ onAddElement, onAddImage, onInsertTempla
             }
             onClick={() => onAddElement('divider')}
           />
+
+          <Divider />
+
+          {/* ── Rich Media ───────────────────────────────────────────────── */}
+          <div style={SECTION_STYLE}>Rich Media</div>
+
+          {/* CTA Button */}
+          <ElemButton
+            label="CTA Button"
+            preview={
+              <svg width="28" height="14" viewBox="0 0 28 14">
+                <rect x="1" y="1" width="26" height="12" fill={GOLD} rx="2" />
+                <text x="14" y="9.5" textAnchor="middle" fill="#18120A" fontSize="6" fontFamily="sans-serif" fontWeight="bold">CTA</text>
+              </svg>
+            }
+            onClick={() => { setCtaOpen(v => !v); setVideoOpen(false); setLinkOpen(false); }}
+          />
+          {ctaOpen && (
+            <div style={{ padding: '8px 14px 12px', background: 'rgba(0,0,0,0.25)' }}>
+              <input
+                placeholder="Button label…"
+                value={ctaLabel}
+                onChange={e => setCtaLabel(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.06)', border: `1px solid rgba(255,255,255,0.12)`, borderRadius: 3, color: '#fff', fontFamily: NU, fontSize: 11, padding: '6px 8px', outline: 'none', marginBottom: 8 }}
+              />
+              {/* Style pills */}
+              <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
+                {[['gold','Gold Fill'],['outline','Outline'],['text','Text Only']].map(([s, lbl]) => (
+                  <button key={s} onClick={() => setCtaStyle(s)} style={{
+                    flex: 1, fontFamily: NU, fontSize: 8.5, fontWeight: 600,
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                    background: ctaStyle === s ? 'rgba(201,168,76,0.18)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${ctaStyle === s ? GOLD : 'rgba(255,255,255,0.1)'}`,
+                    color: ctaStyle === s ? GOLD : MUTED,
+                    borderRadius: 2, padding: '5px 0', cursor: 'pointer',
+                  }}>{lbl}</button>
+                ))}
+              </div>
+              <input
+                placeholder="https://… (optional)"
+                value={ctaUrl}
+                onChange={e => setCtaUrl(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.06)', border: `1px solid rgba(255,255,255,0.12)`, borderRadius: 3, color: '#fff', fontFamily: NU, fontSize: 11, padding: '6px 8px', outline: 'none', marginBottom: 8 }}
+              />
+              <button
+                onClick={() => {
+                  onAddElement('cta-button', JSON.stringify({ label: ctaLabel || 'EXPLORE NOW', url: ctaUrl, style: ctaStyle }));
+                  setCtaOpen(false);
+                }}
+                style={{ width: '100%', background: GOLD, border: 'none', borderRadius: 3, color: '#18120A', fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '7px 0', cursor: 'pointer' }}
+              >
+                Insert Button
+              </button>
+            </div>
+          )}
+
+          {/* Video Embed */}
+          <ElemButton
+            label="Video Embed"
+            preview={
+              <svg width="28" height="18" viewBox="0 0 28 18">
+                <rect x="1" y="1" width="26" height="16" fill="#1A1612" rx="2" stroke={GOLD} strokeWidth="0.8" />
+                <circle cx="14" cy="9" r="5" fill={GOLD} opacity="0.85" />
+                <polygon points="12,7 12,11 17,9" fill="#18120A" />
+              </svg>
+            }
+            onClick={() => { setVideoOpen(v => !v); setCtaOpen(false); setLinkOpen(false); }}
+          />
+          {videoOpen && (
+            <div style={{ padding: '8px 14px 12px', background: 'rgba(0,0,0,0.25)' }}>
+              <input
+                placeholder="YouTube or Vimeo URL…"
+                value={videoUrl}
+                onChange={e => setVideoUrl(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.06)', border: `1px solid rgba(255,255,255,0.12)`, borderRadius: 3, color: '#fff', fontFamily: NU, fontSize: 11, padding: '6px 8px', outline: 'none', marginBottom: 8 }}
+              />
+              <button
+                disabled={!videoUrl.trim()}
+                onClick={() => {
+                  onAddElement('video-block', videoUrl.trim());
+                  setVideoOpen(false);
+                  setVideoUrl('');
+                }}
+                style={{ width: '100%', background: videoUrl.trim() ? GOLD : 'rgba(201,168,76,0.3)', border: 'none', borderRadius: 3, color: '#18120A', fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '7px 0', cursor: videoUrl.trim() ? 'pointer' : 'default' }}
+              >
+                Insert Video
+              </button>
+            </div>
+          )}
+
+          {/* Link Card */}
+          <ElemButton
+            label="Link Card"
+            preview={
+              <svg width="28" height="18" viewBox="0 0 28 18">
+                <rect x="1" y="1" width="26" height="16" fill="#1A1612" rx="2" stroke={GOLD} strokeWidth="0.8" />
+                <rect x="2" y="2" width="10" height="15" fill="#2A2520" rx="1.5" />
+                <rect x="14" y="4" width="13" height="2" fill={GOLD} rx="1" opacity="0.7" />
+                <rect x="14" y="8" width="13" height="1.5" fill="rgba(255,255,255,0.3)" rx="1" />
+                <rect x="14" y="11" width="9" height="1.5" fill="rgba(255,255,255,0.2)" rx="1" />
+              </svg>
+            }
+            onClick={() => { setLinkOpen(v => !v); setCtaOpen(false); setVideoOpen(false); setLinkError(''); }}
+          />
+          {linkOpen && (
+            <div style={{ padding: '8px 14px 12px', background: 'rgba(0,0,0,0.25)' }}>
+              <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
+                <input
+                  placeholder="https://…"
+                  value={linkUrl}
+                  onChange={e => { setLinkUrl(e.target.value); setLinkPreview(null); setLinkError(''); }}
+                  style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: `1px solid rgba(255,255,255,0.12)`, borderRadius: 3, color: '#fff', fontFamily: NU, fontSize: 11, padding: '6px 8px', outline: 'none' }}
+                />
+                <button
+                  disabled={!linkUrl.trim() || linkFetching}
+                  onClick={async () => {
+                    setLinkFetching(true); setLinkError(''); setLinkPreview(null);
+                    try {
+                      const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(linkUrl.trim())}`);
+                      const data = await res.json();
+                      if (data.status === 'success') {
+                        setLinkPreview({
+                          title:       data.data.title       || linkUrl,
+                          description: data.data.description || '',
+                          imageUrl:    data.data.image?.url  || '',
+                          domain:      data.data.url ? new URL(data.data.url).hostname : linkUrl,
+                        });
+                      } else {
+                        setLinkError('Could not fetch preview.');
+                      }
+                    } catch { setLinkError('Network error.'); }
+                    setLinkFetching(false);
+                  }}
+                  style={{ flexShrink: 0, background: 'rgba(201,168,76,0.15)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 3, color: GOLD, fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '6px 10px', cursor: linkUrl.trim() && !linkFetching ? 'pointer' : 'default' }}
+                >
+                  {linkFetching ? '…' : 'Fetch'}
+                </button>
+              </div>
+              {linkError && <div style={{ fontFamily: NU, fontSize: 10, color: '#f87171', marginBottom: 6 }}>{linkError}</div>}
+              {linkPreview && (
+                <div style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 3, padding: '8px 10px', marginBottom: 8 }}>
+                  <div style={{ fontFamily: NU, fontSize: 8, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 3 }}>{linkPreview.domain}</div>
+                  <div style={{ fontFamily: GD, fontSize: 12, fontStyle: 'italic', color: '#F0EBE0', lineHeight: 1.3, marginBottom: 3 }}>{linkPreview.title}</div>
+                  {linkPreview.description && <div style={{ fontFamily: NU, fontSize: 9.5, color: MUTED, lineHeight: 1.4 }}>{linkPreview.description.slice(0, 90)}{linkPreview.description.length > 90 ? '…' : ''}</div>}
+                </div>
+              )}
+              <button
+                disabled={!linkPreview}
+                onClick={() => {
+                  onAddElement('link-card', JSON.stringify({ ...linkPreview, linkUrl: linkUrl.trim() }));
+                  setLinkOpen(false); setLinkUrl(''); setLinkPreview(null);
+                }}
+                style={{ width: '100%', background: linkPreview ? GOLD : 'rgba(201,168,76,0.3)', border: 'none', borderRadius: 3, color: '#18120A', fontFamily: NU, fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '7px 0', cursor: linkPreview ? 'pointer' : 'default' }}
+              >
+                Insert Card
+              </button>
+            </div>
+          )}
 
           <Divider />
 

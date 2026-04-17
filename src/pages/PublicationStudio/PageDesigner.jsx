@@ -2301,7 +2301,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     if (!spreadView) {
       const fc = fabricRef.current;
       if (!fc) return;
-      const json = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker']);
+      const json = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']);
       const thumb = fc.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
       setPages(prev => prev.map((p, i) =>
         i === currentPageIndex ? { ...p, canvasJSON: json, thumbnailDataUrl: thumb } : p
@@ -2310,12 +2310,12 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pages.length);
       setPages(prev => prev.map((p, i) => {
         if (i === leftIndex && fabricRefLeft.current) {
-          const json  = fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker']);
+          const json  = fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']);
           const thumb = fabricRefLeft.current.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
           return { ...p, canvasJSON: json, thumbnailDataUrl: thumb };
         }
         if (i === rightIndex && fabricRef.current) {
-          const json  = fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker']);
+          const json  = fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']);
           const thumb = fabricRef.current.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
           return { ...p, canvasJSON: json, thumbnailDataUrl: thumb };
         }
@@ -2455,6 +2455,276 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     pushUndo();
   }
 
+  // ── CTA Button ───────────────────────────────────────────────────────────────
+  // Inserts a branded call-to-action button as a Fabric Group.
+  // payload = JSON string: { label, url, style: 'gold'|'outline'|'text' }
+  const addCTAButton = useCallback((payload) => {
+    const fc = getActiveCanvas();
+    if (!fc) return;
+    let label = 'EXPLORE NOW', url = '', style = 'gold';
+    try {
+      const p = typeof payload === 'string' ? JSON.parse(payload) : (payload || {});
+      if (p.label) label = p.label;
+      if (p.url)   url   = p.url;
+      if (p.style) style = p.style;
+    } catch { /* use defaults */ }
+
+    const W = Math.round(dims.w * 0.38);
+    const H = 52;
+    const isFill    = style === 'gold';
+    const isOutline = style === 'outline';
+
+    const btnRect = new Rect({
+      width: W, height: H,
+      fill:        isFill    ? DEFAULT_GOLD_HEX : 'transparent',
+      stroke:      isOutline ? DEFAULT_GOLD_HEX : 'transparent',
+      strokeWidth: isOutline ? 1.5 : 0,
+      rx: 2, ry: 2,
+      originX: 'left', originY: 'top',
+      left: 0, top: 0,
+      selectable: false, evented: false,
+    });
+    const btnText = new Textbox(label, {
+      width: W, height: H,
+      textAlign: 'center',
+      fontSize: 10, fontFamily: 'Jost', fontWeight: '700', charSpacing: 200,
+      fill: isFill ? '#18120A' : DEFAULT_GOLD_HEX,
+      originX: 'left', originY: 'top',
+      left: 0, top: 0,
+      evented: false, selectable: false, padding: 0,
+    });
+    const group = new Group([btnRect, btnText], {
+      left: Math.round(dims.w / 2 - W / 2),
+      top: 120,
+      subTargetCheck: false,
+    });
+    group.customType = 'cta-button';
+    group.ctaUrl     = url;
+    group.ctaStyle   = style;
+
+    loadGoogleFont('Jost');
+    fc.add(group);
+    fc.setActiveObject(group);
+    fc.renderAll();
+    pushUndo();
+  }, [getActiveCanvas, dims, pushUndo]);
+
+  // ── Video Block ───────────────────────────────────────────────────────────────
+  // Inserts a video frame (thumbnail + play overlay) from a YouTube / Vimeo URL.
+  const addVideoBlock = useCallback(async (rawUrl = '') => {
+    const fc = getActiveCanvas();
+    if (!fc) return;
+
+    // Extract platform + ID from URL
+    const ytMatch  = rawUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    const vmMatch  = rawUrl.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    const platform = ytMatch ? 'youtube' : vmMatch ? 'vimeo' : null;
+    const videoId  = ytMatch?.[1] ?? vmMatch?.[1] ?? null;
+
+    const W = Math.round(dims.w * 0.9);
+    const H = Math.round(W * 9 / 16); // 16:9
+    const X = Math.round((dims.w - W) / 2);
+    const Y = 80;
+
+    // Dark background rect — always added synchronously
+    const bg = new Rect({
+      left: X, top: Y, width: W, height: H,
+      fill: '#0E0C0A', rx: 3, selectable: false, evented: false,
+    });
+    bg.customType = 'video-block-part';
+    fc.add(bg);
+
+    // Thumbnail image (async — best-effort)
+    let thumbUrl = null;
+    if (platform === 'youtube' && videoId)
+      thumbUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+    else if (platform === 'vimeo' && videoId)
+      thumbUrl = `https://vumbnail.com/${videoId}.jpg`;
+
+    if (thumbUrl) {
+      try {
+        const img = await FabricImage.fromURL(thumbUrl, { crossOrigin: 'anonymous' });
+        const scale = Math.max(W / img.width, H / img.height);
+        img.set({
+          left: X, top: Y, scaleX: scale, scaleY: scale,
+          clipPath: new Rect({ left: X, top: Y, width: W, height: H, absolutePositioned: true }),
+          selectable: false, evented: false,
+        });
+        img.customType = 'video-block-part';
+        const bgIdx = fc.getObjects().indexOf(bg);
+        fc.insertAt(bgIdx + 1, img);
+      } catch { /* leave dark bg */ }
+    }
+
+    // Semi-transparent dark scrim
+    const scrim = new Rect({
+      left: X, top: Y, width: W, height: H,
+      fill: 'rgba(0,0,0,0.38)', rx: 3,
+      selectable: false, evented: false,
+    });
+    scrim.customType = 'video-block-part';
+    fc.add(scrim);
+
+    // Play circle
+    const cx = X + W / 2, cy = Y + H / 2;
+    const playCircle = new Circle({
+      left: cx - 36, top: cy - 36, radius: 36,
+      fill: 'rgba(201,168,76,0.88)', stroke: 'transparent',
+      selectable: false, evented: false,
+    });
+    playCircle.customType = 'video-block-part';
+    fc.add(playCircle);
+
+    // Play triangle (simple Path — pointing right)
+    const { Path } = await import('fabric');
+    const tri = new Path('M 0 0 L 22 14 L 0 28 Z', {
+      left: cx - 8, top: cy - 14,
+      fill: '#18120A',
+      selectable: false, evented: false,
+    });
+    tri.customType = 'video-block-part';
+    fc.add(tri);
+
+    // Caption bar at bottom of frame
+    const domain = platform === 'youtube' ? 'youtube.com'
+      : platform === 'vimeo' ? 'vimeo.com'
+      : (rawUrl ? new URL(rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`).hostname : 'video');
+    const caption = new Textbox(domain, {
+      left: X + 12, top: Y + H - 26, width: W - 24,
+      fontSize: 9, fontFamily: 'Jost', fontWeight: '600',
+      fill: 'rgba(255,255,255,0.5)', charSpacing: 60,
+      selectable: false, evented: false,
+    });
+    caption.customType = 'video-block-part';
+    fc.add(caption);
+
+    // Invisible hit-area Group wrapper so the whole block is selectable as one
+    const allParts = fc.getObjects().filter(o => o.customType === 'video-block-part');
+    allParts.forEach(o => { o.customType = undefined; o.selectable = false; });
+    const wrapper = new Rect({
+      left: X, top: Y, width: W, height: H,
+      fill: 'transparent', stroke: 'transparent',
+      customType: 'video-block', videoUrl: rawUrl,
+    });
+    wrapper.customType = 'video-block';
+    wrapper.videoUrl   = rawUrl;
+    fc.add(wrapper);
+    fc.setActiveObject(wrapper);
+
+    fc.renderAll();
+    pushUndo();
+  }, [getActiveCanvas, dims, pushUndo]);
+
+  // ── Smart Link Card ───────────────────────────────────────────────────────────
+  // payload = JSON string: { title, description, imageUrl, linkUrl, domain }
+  // OG data is pre-fetched in ElementsPanel before calling this.
+  const addLinkCard = useCallback(async (payload) => {
+    const fc = getActiveCanvas();
+    if (!fc) return;
+    let title = '', description = '', imageUrl = '', linkUrl = '', domain = '';
+    try {
+      const p = typeof payload === 'string' ? JSON.parse(payload) : (payload || {});
+      title       = p.title       || 'Untitled';
+      description = p.description || '';
+      imageUrl    = p.imageUrl    || '';
+      linkUrl     = p.linkUrl     || '';
+      domain      = p.domain      || (linkUrl ? new URL(linkUrl.startsWith('http') ? linkUrl : `https://${linkUrl}`).hostname : '');
+    } catch { title = 'Link'; }
+
+    const W = Math.round(dims.w * 0.88);
+    const H = 148;
+    const IMGW = Math.round(W * 0.34);
+    const X = Math.round((dims.w - W) / 2);
+    const Y = 80;
+
+    // Card background
+    const cardBg = new Rect({
+      left: X, top: Y, width: W, height: H,
+      fill: '#1A1612', stroke: DEFAULT_GOLD_HEX, strokeWidth: 0.8,
+      rx: 3, selectable: false, evented: false,
+    });
+    fc.add(cardBg);
+
+    // Left image zone
+    const imgBg = new Rect({
+      left: X, top: Y, width: IMGW, height: H,
+      fill: '#2A2520', rx: 3, selectable: false, evented: false,
+    });
+    fc.add(imgBg);
+
+    if (imageUrl) {
+      try {
+        const img = await FabricImage.fromURL(imageUrl, { crossOrigin: 'anonymous' });
+        const scale = Math.max(IMGW / img.width, H / img.height);
+        img.set({
+          left: X, top: Y, scaleX: scale, scaleY: scale,
+          clipPath: new Rect({ left: X, top: Y, width: IMGW, height: H, absolutePositioned: true }),
+          selectable: false, evented: false,
+        });
+        const imgBgIdx = fc.getObjects().indexOf(imgBg);
+        fc.insertAt(imgBgIdx + 1, img);
+      } catch { /* leave placeholder */ }
+    }
+
+    // Hairline separator
+    const sep = new Line([0, 0, 0, H - 24], {
+      left: X + IMGW, top: Y + 12,
+      stroke: `rgba(201,168,76,0.22)`, strokeWidth: 1,
+      selectable: false, evented: false,
+    });
+    fc.add(sep);
+
+    const TX = X + IMGW + 16;
+    const TW = W - IMGW - 24;
+
+    // Domain pill
+    const domainTb = new Textbox(domain.toUpperCase(), {
+      left: TX, top: Y + 14, width: TW,
+      fontSize: 8, fontFamily: 'Jost', fontWeight: '700',
+      fill: DEFAULT_GOLD_HEX, charSpacing: 180,
+      selectable: false, evented: false,
+    });
+    fc.add(domainTb);
+
+    // Title
+    const titleTb = new Textbox(title, {
+      left: TX, top: Y + 30, width: TW,
+      fontSize: 16, fontFamily: 'Cormorant Garamond', fontWeight: '400', fontStyle: 'italic',
+      fill: '#F0EBE0', lineHeight: 1.2,
+      selectable: false, evented: false,
+    });
+    fc.add(titleTb);
+
+    // Description
+    if (description) {
+      const descTb = new Textbox(description.slice(0, 120) + (description.length > 120 ? '…' : ''), {
+        left: TX, top: Y + 70, width: TW,
+        fontSize: 10, fontFamily: 'Jost', fontWeight: '400',
+        fill: 'rgba(240,235,224,0.55)', lineHeight: 1.5,
+        selectable: false, evented: false,
+      });
+      fc.add(descTb);
+    }
+
+    // Invisible hit-area
+    const wrapper = new Rect({
+      left: X, top: Y, width: W, height: H,
+      fill: 'transparent', stroke: 'transparent',
+    });
+    wrapper.customType = 'link-card';
+    wrapper.linkUrl    = linkUrl;
+    wrapper.ogTitle    = title;
+    wrapper.ogDesc     = description;
+    wrapper.ogDomain   = domain;
+    fc.add(wrapper);
+    fc.setActiveObject(wrapper);
+
+    loadGoogleFont('Cormorant Garamond');
+    loadGoogleFont('Jost');
+    fc.renderAll();
+    pushUndo();
+  }, [getActiveCanvas, dims, pushUndo]);
+
   function handleAddElement(variant, text) {
     if (['text', 'heading', 'caption', 'pullquote', 'subheading', 'aitext'].includes(variant)) {
       addElement(variant, text);
@@ -2462,6 +2732,12 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       addShape(variant);
     } else if (variant === 'pagenumber') {
       addPageNumber();
+    } else if (variant === 'cta-button') {
+      addCTAButton(text);
+    } else if (variant === 'video-block') {
+      addVideoBlock(text);
+    } else if (variant === 'link-card') {
+      addLinkCard(text);
     }
   }
 
@@ -2784,13 +3060,13 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pages.length);
       const freshPages = pages.map((page, i) => {
         if (!spreadView && i === currentPageIndex && fabricRef.current) {
-          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker']) };
+          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']) };
         }
         if (spreadView && i === leftIndex && fabricRefLeft.current) {
-          return { ...page, canvasJSON: fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker']) };
+          return { ...page, canvasJSON: fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']) };
         }
         if (spreadView && i === rightIndex && fabricRef.current) {
-          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker']) };
+          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']) };
         }
         return page;
       });
