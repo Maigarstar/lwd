@@ -29,11 +29,28 @@ import SmartFillPanel from './PageDesigner/SmartFillPanel';
 import AIIssueBuilderPanel from './PageDesigner/AIIssueBuilderPanel';
 import StudioVoicePanel from './PageDesigner/StudioVoicePanel';
 import PageSlotPanel from './PageDesigner/PageSlotPanel';
+import FillIssuePanelModal from './PageDesigner/FillIssuePanelModal';
+import ArticleReflowPanel from './PageDesigner/ArticleReflowPanel';
 
 function genId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+// ── Article body extractor (P9c) ──────────────────────────────────────────────
+// Converts article content (array of blocks or raw string) to plain text.
+function extractReflowBody(content) {
+  if (!content) return '';
+  if (typeof content === 'string') return content.slice(0, 1200);
+  if (Array.isArray(content)) {
+    return content
+      .filter(b => b.text || b.content)
+      .map(b => b.text || b.content || '')
+      .join('\n\n')
+      .slice(0, 1200);
+  }
+  return '';
 }
 
 // ── Template layout engine ────────────────────────────────────────────────────
@@ -1696,6 +1713,17 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   // Page Slot panel
   const [showSlotPanel, setShowSlotPanel] = useState(false);
 
+  // P9a: Fill Issue Panel
+  const [showFillIssue, setShowFillIssue] = useState(false);
+  // P9a picker target from FillIssuePanelModal (separate from regular image picker)
+  const fillIssuePickerRef = useRef(null); // { pageIndex, slotId }
+  // Ref to handleFillIssueAssign so handleImagePickerSelect can call it
+  // before the callback is defined (avoids hoisting issue)
+  const handleFillIssueAssignRef = useRef(null);
+
+  // P9c: Article Reflow Panel
+  const [showArticleReflow, setShowArticleReflow] = useState(false);
+
   // Crop mode state (Feature C)
   const [cropMode, setCropMode] = useState(null); // null | { active: true, targetObj, cropRect }
 
@@ -1817,6 +1845,16 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   }, [getActiveCanvas, dims, pushUndo]);
 
   const handleImagePickerSelect = useCallback(async (url) => {
+    // ── P9a route: picker was opened from FillIssuePanel ──────────────────────
+    const fillCtx = fillIssuePickerRef.current;
+    if (fillCtx) {
+      fillIssuePickerRef.current = null;
+      setImagePickerOpen(false);
+      imagePickerTargetRef.current = null;
+      if (url) handleFillIssueAssignRef.current?.(fillCtx.pageIndex, fillCtx.slotId, url);
+      return;
+    }
+
     const fc = getActiveCanvas();
     const target = imagePickerTargetRef.current;
     setImagePickerOpen(false);
@@ -3452,6 +3490,231 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     setShowSlotPanel(false);
   }
 
+  // ── P9a: Assign a placeholder image from the Fill Issue panel ────────────────
+  // Uses an offscreen Fabric canvas so we can patch pages that are NOT currently
+  // active without touching the live designer canvas.
+  const handleFillIssueAssign = useCallback(async (pageIndex, slotId, url) => {
+    try {
+      const { Canvas: FC, FabricImage: FI, Rect: FR, FabricObject: FO } = await import('fabric');
+      FO.ownDefaults.originX = 'left';
+      FO.ownDefaults.originY = 'top';
+
+      const page = pages[pageIndex];
+      if (!page) return;
+
+      // ── If this is the active page, work directly on the live canvas ────────
+      if (pageIndex === currentPageIndex && !spreadView) {
+        const fc = fabricRef.current;
+        if (fc) {
+          const target = fc.getObjects().find(o => o.id === slotId);
+          if (target) {
+            const left   = target.left;
+            const top    = target.top;
+            const width  = (target.width  ?? 100) * (target.scaleX ?? 1);
+            const height = (target.height ?? 100) * (target.scaleY ?? 1);
+            try {
+              const img = await FI.fromURL(url, { crossOrigin: 'anonymous' });
+              const scale = Math.max(width / img.width, height / img.height);
+              img.set({
+                left, top, scaleX: scale, scaleY: scale,
+                clipPath: new FR({ left, top, width, height, absolutePositioned: true }),
+                isImagePlaceholder: true,
+                id: genId(),
+              });
+              fc.remove(target);
+              fc.add(img);
+              fc.requestRenderAll();
+              pushUndo();
+            } catch (_) { /* noop */ }
+          }
+          return;
+        }
+      }
+
+      // ── Offscreen patching for other pages ──────────────────────────────────
+      const el = document.createElement('canvas');
+      el.width  = dims.w;
+      el.height = dims.h;
+      const fc = new FC(el, {
+        width: dims.w, height: dims.h,
+        backgroundColor: '#ffffff',
+        enableRetinaScaling: false,
+      });
+
+      if (page.canvasJSON) {
+        await fc.loadFromJSON(page.canvasJSON);
+      }
+
+      const target = fc.getObjects().find(o => o.id === slotId);
+      if (target) {
+        const left   = target.left;
+        const top    = target.top;
+        const width  = (target.width  ?? 100) * (target.scaleX ?? 1);
+        const height = (target.height ?? 100) * (target.scaleY ?? 1);
+        try {
+          const img = await FI.fromURL(url, { crossOrigin: 'anonymous' });
+          const scale = Math.max(width / img.width, height / img.height);
+          img.set({
+            left, top, scaleX: scale, scaleY: scale,
+            clipPath: new FR({ left, top, width, height, absolutePositioned: true }),
+            isImagePlaceholder: true,
+            id: genId(),
+          });
+          fc.remove(target);
+          fc.add(img);
+        } catch (_) { /* noop */ }
+      }
+
+      fc.renderAll();
+      await new Promise(r => setTimeout(r, 80));
+      fc.renderAll();
+
+      const json  = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']);
+      const thumb = fc.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
+      fc.dispose();
+
+      setPages(prev => prev.map((p, i) =>
+        i === pageIndex ? { ...p, canvasJSON: json, thumbnailDataUrl: thumb } : p
+      ));
+    } catch (e) {
+      console.warn('[P9a] handleFillIssueAssign failed:', e);
+    }
+  }, [pages, currentPageIndex, spreadView, dims, pushUndo]);
+
+  // Keep ref in sync so handleImagePickerSelect can call it without stale closure
+  useEffect(() => { handleFillIssueAssignRef.current = handleFillIssueAssign; }, [handleFillIssueAssign]);
+
+  // ── P9a: Open the full ImagePickerModal from the Fill Issue panel ─────────────
+  const handleFillIssueOpenPicker = useCallback((pageIndex, slotId) => {
+    // Store context so when picker fires onSelect we know which page/slot to update
+    fillIssuePickerRef.current = { pageIndex, slotId };
+    // Close the Fill Issue panel temporarily so the picker can sit on top
+    // Actually keep fill panel open and just also open picker
+    setImagePickerOpen(true);
+    imagePickerTargetRef.current = null; // let picker select handler check fillIssuePickerRef
+  }, []);
+
+  // ── P9c: Article Reflow ────────────────────────────────────────────────────────
+  // Creates new pages with the article's content reflowed into the chosen templates.
+  // Mirrors handleAIBuildIssue: single offscreen canvas at TEMPLATE_REF dims,
+  // uses applyTemplate + text-slot heuristics to inject article content.
+  const handleArticleReflow = useCallback(async (article, plan) => {
+    if (!plan?.pages?.length) return;
+    saveCurrentPageToState();
+
+    // Preload fonts (same list as AI Build)
+    const REFLOW_FONTS = [
+      "italic 400 84px 'Bodoni Moda'", "700 84px 'Bodoni Moda'",
+      "italic 400 54px 'Playfair Display'",
+      "italic 400 40px 'Cormorant Garamond'", "400 13px 'Cormorant Garamond'",
+      "400 11px 'Jost'", "600 11px 'Jost'",
+    ];
+    await Promise.race([
+      Promise.all(REFLOW_FONTS.map(f => document.fonts.load(f).catch(() => {}))),
+      new Promise(r => setTimeout(r, 2000)),
+    ]);
+
+    // Extract article fields
+    const articleTitle    = article.title    || 'Article Title';
+    const articleExcerpt  = article.excerpt  || '';
+    const articleBody     = extractReflowBody(article.content);
+    const articleCategory = (article.category || 'Editorial').toUpperCase();
+
+    // One offscreen canvas at reference A4 dimensions (matches applyTemplate authoring)
+    const a4Dims = PAGE_SIZES['A4'];
+    const offscreenEl = document.createElement('canvas');
+    offscreenEl.width  = TEMPLATE_REF_W;
+    offscreenEl.height = TEMPLATE_REF_H;
+    const fc = new Canvas(offscreenEl, {
+      width: TEMPLATE_REF_W, height: TEMPLATE_REF_H,
+      enableRetinaScaling: false,
+    });
+
+    const newPages = [];
+    try {
+      for (const pageDef of plan.pages) {
+        const tpl = TEMPLATES.find(t => t.id === pageDef.template);
+        if (!tpl) continue;
+
+        clearImgLoadPromises();
+        applyTemplate(fc, tpl, a4Dims, brand);
+
+        await waitForImgLoads(800);
+        fc.renderAll();
+        await new Promise(r => setTimeout(r, 60));
+        fc.renderAll();
+
+        // ── Text injection ──────────────────────────────────────────────────
+        const textObjs = fc.getObjects()
+          .filter(o => o.type === 'textbox' && o.selectable !== false)
+          .sort((a, b) => b.top - a.top); // bottom to top so slice from content
+
+        // Identify roles by fontSize (same heuristic as AI Build)
+        const headlineObj = textObjs.reduce((max, o) =>
+          (!max || o.fontSize > max.fontSize) ? o : max, null);
+
+        const kickerObj = textObjs.find(o =>
+          o !== headlineObj &&
+          o.fontSize <= 14 && (o.charSpacing > 150 || (o.text || '').toUpperCase() === o.text)
+        );
+
+        const excerptObj = textObjs.find(o =>
+          o !== headlineObj && o !== kickerObj &&
+          o.fontSize >= 11 && o.fontSize <= 22 &&
+          (o.fontStyle === 'italic' || (o.fontFamily || '').toLowerCase().includes('cormorant'))
+        );
+
+        const bodyObj = textObjs.find(o =>
+          o !== headlineObj && o !== kickerObj && o !== excerptObj &&
+          o.fontSize >= 9 && o.fontSize <= 14 &&
+          (o.width || 0) > 150
+        );
+
+        if (pageDef.role === 'opener') {
+          if (headlineObj) headlineObj.set('text', articleTitle);
+          if (kickerObj)   kickerObj.set('text', articleCategory);
+          if (excerptObj && articleExcerpt) excerptObj.set('text', articleExcerpt);
+        } else if (pageDef.role === 'body') {
+          if (headlineObj && headlineObj.fontSize > 28) headlineObj.set('text', articleTitle);
+          if (bodyObj && articleBody) bodyObj.set('text', articleBody.slice(0, 900));
+          else if (excerptObj && articleBody) excerptObj.set('text', articleBody.slice(0, 500));
+        } else if (pageDef.role === 'close') {
+          if (kickerObj) kickerObj.set('text', `FROM THE ARTICLE`);
+          if (headlineObj) headlineObj.set('text', articleTitle);
+        }
+
+        fc.renderAll();
+        await new Promise(r => setTimeout(r, 60));
+        fc.renderAll();
+
+        const json  = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']);
+        const thumb = fc.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
+
+        newPages.push({
+          id: genId(),
+          pageNumber: 0, // renumbered below
+          canvasJSON: json,
+          thumbnailDataUrl: thumb,
+          name: pageDef.label,
+          templateName: tpl.name || pageDef.template,
+          slot: null,
+        });
+      }
+    } finally {
+      fc.dispose();
+    }
+
+    if (newPages.length === 0) return;
+
+    // Append new pages, renumber all, jump to first new page
+    setPages(prev => {
+      const updated = [...prev, ...newPages].map((p, i) => ({ ...p, pageNumber: i + 1 }));
+      return updated;
+    });
+    setCurrentPageIndex(prev => prev + 1);
+    setShowArticleReflow(false);
+  }, [brand, saveCurrentPageToState]);
+
   // ── Page size change ────────────────────────────────────────────────────────
   function handlePageSizeChange(size) {
     saveCurrentPageToState();
@@ -3706,6 +3969,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         onAIBuild={() => setShowAIBuilder(true)}
         onVoice={() => setShowVoicePanel(true)}
         onSlot={() => setShowSlotPanel(true)}
+        onFillSlots={() => { saveCurrentPageToState(); setShowFillIssue(true); }}
+        onArticleReflow={() => setShowArticleReflow(true)}
         currentSlot={pages[currentPageIndex]?.slot ?? null}
         pageBg={pageBg}
         onPageBgChange={handlePageBgChange}
@@ -3763,6 +4028,26 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
           canvasJSON={pages[currentPageIndex]?.canvasJSON ?? null}
           issueId={issue?.id ?? null}
           pageNum={pages[currentPageIndex]?.pageNumber ?? (currentPageIndex + 1)}
+        />
+      )}
+
+      {/* P9a: Fill Issue Panel overlay */}
+      {showFillIssue && (
+        <FillIssuePanelModal
+          pages={pages}
+          dims={dims}
+          issue={issue}
+          onAssign={handleFillIssueAssign}
+          onOpenPicker={handleFillIssueOpenPicker}
+          onClose={() => setShowFillIssue(false)}
+        />
+      )}
+
+      {/* P9c: Article Reflow Panel overlay */}
+      {showArticleReflow && (
+        <ArticleReflowPanel
+          onReflow={handleArticleReflow}
+          onClose={() => setShowArticleReflow(false)}
         />
       )}
 

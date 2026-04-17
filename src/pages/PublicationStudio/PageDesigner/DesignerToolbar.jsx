@@ -247,6 +247,8 @@ export default function DesignerToolbar({
   currentSlot,
   pageBg,
   onPageBgChange,
+  onFillSlots,
+  onArticleReflow,
 }) {
   const [printConfirm, setPrintConfirm] = useState(false);
   const [showPageNumPopover, setShowPageNumPopover] = useState(false);
@@ -403,6 +405,44 @@ export default function DesignerToolbar({
             }} />
             Brand
           </button>
+
+          {/* Fill Slots — P9a */}
+          {onFillSlots && (
+            <button
+              onClick={onFillSlots}
+              title="Fill all image slots across every page"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 3, color: 'rgba(255,255,255,0.65)',
+                fontFamily: NU, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.05em', textTransform: 'uppercase',
+                padding: '5px 11px', cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ⬡ Fill Slots
+            </button>
+          )}
+
+          {/* Article Reflow — P9c */}
+          {onArticleReflow && (
+            <button
+              onClick={onArticleReflow}
+              title="Import an article and reflow text into magazine pages"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 3, color: 'rgba(255,255,255,0.65)',
+                fontFamily: NU, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.05em', textTransform: 'uppercase',
+                padding: '5px 11px', cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ⤴ Reflow
+            </button>
+          )}
 
           {/* Page Slot */}
           <button
