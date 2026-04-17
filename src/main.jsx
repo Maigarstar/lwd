@@ -80,6 +80,7 @@ import ArtistryPage from "./pages/Artistry/ArtistryPage.jsx";
 import PublicationsPage       from "./pages/PublicationsPage.jsx";
 import PublicationsReaderPage    from "./pages/PublicationsReaderPage.jsx";
 import MagazineCollaboratePage   from "./pages/MagazineCollaboratePage.jsx";
+import VendorProofApprovalPage   from "./pages/VendorProofApprovalPage.jsx";
 import VendorReachPage           from "./pages/VendorReachPage.jsx";
 import PublicationsEmbedPage  from "./pages/PublicationsEmbedPage.jsx";
 import PublicationStudio      from "./pages/PublicationStudio.jsx";
@@ -218,6 +219,7 @@ function stateToPath(pg, opts = {}) {
     case "publications-embed":     return `/publications/embed/${opts.publicationsEmbedSlug || ''}`;
     case "publication-studio":       return "/publication-studio";
     case "magazine-collaborate":     return `/magazine/collaborate/${opts.collaborateToken || ''}`;
+    case "magazine-proof-approval":  return `/magazine/proof-approval/${opts.proofToken || ''}`;
     case "magazine-reach":           return `/magazine/reach/${opts.reachIssueSlug || ''}/${opts.reachVendorSlug || ''}`;
     case "magazine-reader":          return `/magazine/read/${opts.magazineIssueSlug || ''}`;
     case "studio-edit": {
@@ -342,6 +344,7 @@ function pathToState(pathname) {
   if (parts[0] === "publications" && parts.length === 2) return { page: "publications-reader", publicationsSlug: parts[1] };
   if (parts[0] === "publication-studio") return { page: "publication-studio" };
   if (parts[0] === "magazine" && parts[1] === "collaborate" && parts.length === 3) return { page: "magazine-collaborate", collaborateToken: parts[2] };
+  if (parts[0] === "magazine" && parts[1] === "proof-approval" && parts[2]) return { page: "magazine-proof-approval", proofToken: parts[2] };
   if (parts[0] === "magazine" && parts[1] === "reach" && parts.length === 4) return { page: "magazine-reach", reachIssueSlug: parts[2], reachVendorSlug: parts[3] };
   if (parts[0] === "magazine" && parts[1] === "read" && parts.length === 3) return { page: "magazine-reader", magazineIssueSlug: parts[2] };
   // Dev-only renderer for thumbnail generation — see scripts/generate-template-thumbnails.mjs
@@ -467,6 +470,7 @@ function App() {
   const [activeEmbedSlug,        setActiveEmbedSlug]        = useState(initial.publicationsEmbedSlug || null);
   const [activeMagazineIssueSlug, setActiveMagazineIssueSlug] = useState(initial.magazineIssueSlug || null);
   const [activeCollaborateToken,  setActiveCollaborateToken]  = useState(initial.collaborateToken  || null);
+  const [activeProofToken,        setActiveProofToken]        = useState(initial.proofToken        || null);
   const [activeReachIssueSlug,    setActiveReachIssueSlug]    = useState(initial.reachIssueSlug    || null);
   const [activeReachVendorSlug,   setActiveReachVendorSlug]   = useState(initial.reachVendorSlug   || null);
   const [studioThumbnailId,      setStudioThumbnailId]      = useState(initial.templateId || null);
@@ -925,6 +929,12 @@ function App() {
             onBack={() => setPage("publication-studio")}
           />
         )}
+        {page === "magazine-proof-approval" && (
+          <VendorProofApprovalPage
+            token={activeProofToken}
+            onBack={() => setPage("home")}
+          />
+        )}
         {page === "magazine-reach" && (
           <VendorReachPage
             issueSlug={activeReachIssueSlug}
@@ -1247,7 +1257,7 @@ function App() {
             Rendered here for ALL pages except auth/dashboard pages listed below.
             RULE: Never import or render <SiteFooter> inside a page component that
             is served through this main.jsx render tree — it will double-render. ── */}
-        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review","publications-reader","publications-embed","publication-studio","studio-thumbnail","magazine-reader","magazine-collaborate","magazine-reach"].includes(page) && (
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review","publications-reader","publications-embed","publication-studio","studio-thumbnail","magazine-reader","magazine-collaborate","magazine-reach","magazine-proof-approval"].includes(page) && (
           <SiteFooter onNavigateAdmin={goAdmin} />
         )}
 

@@ -3,8 +3,54 @@
 // currently-open page in PageDesigner. Part of the Revenue Engine.
 
 import { useState } from 'react';
+import { jsPDF } from 'jspdf';
 import { GOLD, DARK, CARD, BORDER, MUTED, NU, GD } from './designerConstants';
 import { sendEmail } from '../../../services/emailSendService';
+
+function generateInvoicePDF(slot, issueName, pageLabel) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const G = [201, 168, 76];
+  const W = 210, M = 24;
+  doc.setFillColor(...G); doc.rect(0, 0, W, 3, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...G);
+  doc.text('LUXURY WEDDING DIRECTORY', M, 20);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,100,80);
+  doc.text('editorial@luxuryweddingdirectory.com', M, 26);
+  doc.setFont('helvetica','bold'); doc.setFontSize(22); doc.setTextColor(20,16,10);
+  doc.text('INVOICE', W - M, 24, { align: 'right' });
+  const invNum = 'LWD-' + Date.now().toString(36).toUpperCase();
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(120,100,80);
+  doc.text('No: ' + invNum, W - M, 31, { align: 'right' });
+  doc.text('Date: ' + new Date().toLocaleDateString('en-GB', { day:'numeric',month:'long',year:'numeric' }), W - M, 37, { align: 'right' });
+  doc.setDrawColor(...G); doc.setLineWidth(0.3); doc.line(M, 44, W - M, 44);
+  doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...G);
+  doc.text('BILL TO', M, 54);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(20,16,10);
+  doc.text(slot.vendor_name || 'Vendor', M, 61);
+  if (slot.vendor_email) { doc.setFontSize(8); doc.setTextColor(100,80,60); doc.text(slot.vendor_email, M, 67); }
+  const TY = 88;
+  doc.setFillColor(245,240,230); doc.rect(M, TY-6, W-M*2, 10, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(20,16,10);
+  doc.text('Description', M+2, TY); doc.text('Publication', 110, TY); doc.text('Amount', W-M-2, TY, { align:'right' });
+  doc.setDrawColor(200,180,140); doc.line(M, TY+2, W-M, TY+2);
+  const tierLabels = { standard:'Standard Page Feature', featured:'Featured Placement', showcase:'Showcase Spread' };
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(20,16,10);
+  doc.text(tierLabels[slot.tier] || 'Editorial Feature', M+2, TY+12);
+  doc.text(pageLabel || 'Editorial Page', M+2, TY+18);
+  doc.setTextColor(100,80,60); doc.setFontSize(8);
+  doc.text(issueName || 'Issue', 110, TY+12);
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...G);
+  doc.text('£' + Number(slot.price||0).toLocaleString(), W-M-2, TY+12, { align:'right' });
+  doc.setDrawColor(...G); doc.line(M, TY+28, W-M, TY+28);
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(20,16,10);
+  doc.text('Total Due', M+2, TY+38);
+  doc.setTextColor(...G); doc.setFontSize(14);
+  doc.text('£' + Number(slot.price||0).toLocaleString(), W-M-2, TY+38, { align:'right' });
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(150,130,100);
+  doc.text('Payment confirms editorial placement in ' + (issueName||'our next issue') + '.', M, 250);
+  doc.text('© ' + new Date().getFullYear() + ' Luxury Wedding Directory · luxuryweddingdirectory.com', M, 256);
+  doc.save('lwd-invoice-' + (slot.vendor_name||'vendor').toLowerCase().replace(/\s+/g,'-') + '.pdf');
+}
 
 const TIER_DEFAULTS = {
   standard:  850,
@@ -52,7 +98,7 @@ const labelStyle = {
 };
 
 // ── Proof email HTML builder ──────────────────────────────────────────────────
-function buildProofEmail({ vendorName, issueName, proofUrl }) {
+function buildProofEmail({ vendorName, issueName, proofUrl, approvalUrl }) {
   const displayName  = vendorName  || 'there';
   const displayIssue = issueName   || 'our next issue';
 
@@ -88,8 +134,19 @@ function buildProofEmail({ vendorName, issueName, proofUrl }) {
       </a>
     </div>` : ''}
 
+    ${approvalUrl ? `
+    <!-- Approval buttons -->
+    <div style="text-align:center;margin:24px 0 16px;">
+      <a href="${approvalUrl}" style="display:inline-block;padding:12px 28px;background:#34d399;color:#0A0908;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;border-radius:2px;margin-right:10px;">
+        ✓ Approve
+      </a>
+      <a href="${approvalUrl}?action=changes" style="display:inline-block;padding:12px 28px;background:transparent;border:1px solid rgba(240,235,224,0.3);color:rgba(240,235,224,0.7);font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;border-radius:2px;">
+        Request Changes
+      </a>
+    </div>` : ''}
+
     <p style="font-size:13px;color:rgba(240,235,224,0.5);line-height:1.7;margin:0 0 8px;">
-      To approve, simply reply to this email with "Approved". For changes, describe what you'd like adjusted.
+      To approve, click the button above or reply to this email with "Approved". For changes, describe what you'd like adjusted.
     </p>
     <p style="font-size:12px;color:rgba(240,235,224,0.35);line-height:1.7;margin:0;">
       Please respond within 48 hours to keep your placement on schedule.
@@ -173,7 +230,7 @@ function buildOfferEmail({ vendorName, tier, price, issueName, pageName }) {
 </html>`;
 }
 
-export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageName, canvasJSON, issueId }) {
+export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageName, canvasJSON, issueId, pageNum }) {
   const [tier,        setTier]        = useState(slot?.tier        || 'standard');
   const [status,      setStatus]      = useState(slot?.status      || 'available');
   const [vendorName,  setVendorName]  = useState(slot?.vendor_name || '');
@@ -186,6 +243,12 @@ export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageNa
 
   const [proofSending, setProofSending] = useState(false);
   const [proofResult,  setProofResult]  = useState(null); // 'sent' | 'error' | null
+
+  // Stripe payment link state
+  const [paymentLink,        setPaymentLink]        = useState(slot?.payment_link_url || '');
+  const [paymentLinkLoading, setPaymentLinkLoading] = useState(false);
+  const [paymentLinkError,   setPaymentLinkError]   = useState('');
+  const [paymentLinkCopied,  setPaymentLinkCopied]  = useState(false);
 
   // When tier changes, clear custom price so the default is used
   function handleTierChange(t) {
@@ -203,12 +266,69 @@ export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageNa
     const slotData = {
       tier,
       status,
-      vendor_name:  vendorName.trim(),
-      vendor_email: vendorEmail.trim(),
-      price:        getEffectivePrice(),
-      notes:        notes.trim(),
+      vendor_name:       vendorName.trim(),
+      vendor_email:      vendorEmail.trim(),
+      price:             getEffectivePrice(),
+      notes:             notes.trim(),
+      ...(paymentLink ? { payment_link_url: paymentLink } : {}),
     };
     onSave(slotData);
+  }
+
+  async function handleGeneratePaymentLink() {
+    if (!vendorEmail.trim() || !tier) return;
+    setPaymentLinkLoading(true);
+    setPaymentLinkError('');
+    try {
+      const { supabase } = await import('../../../lib/supabaseClient');
+      const tierLabels = { standard: 'Standard Page Feature', featured: 'Featured Placement', showcase: 'Showcase Spread' };
+      const { data, error } = await supabase.functions.invoke('generate-payment-link', {
+        body: {
+          amount: getEffectivePrice() * 100,
+          currency: 'gbp',
+          description: (tierLabels[tier] || tier) + ' — ' + (issueName || 'LWD Issue'),
+          vendor_email: vendorEmail.trim(),
+          vendor_name: vendorName.trim(),
+        },
+      });
+      if (error || !data?.url) {
+        throw new Error(data?.error || error?.message || 'Unknown error');
+      }
+      setPaymentLink(data.url);
+    } catch (err) {
+      if (err.message?.includes('STRIPE_SECRET_KEY') || err.message?.includes('not configured') || err.message?.includes('FunctionsHttpError')) {
+        setPaymentLinkError('Deploy the generate-payment-link edge function and add STRIPE_SECRET_KEY to Supabase secrets to activate');
+      } else {
+        setPaymentLinkError(err.message || 'Failed to generate payment link');
+      }
+    } finally {
+      setPaymentLinkLoading(false);
+    }
+  }
+
+  async function handleCopyPaymentLink() {
+    try {
+      await navigator.clipboard.writeText(paymentLink);
+      setPaymentLinkCopied(true);
+      setTimeout(() => setPaymentLinkCopied(false), 2000);
+    } catch {}
+  }
+
+  async function handleSendPaymentLinkToVendor() {
+    if (!vendorEmail.trim() || !paymentLink) return;
+    try {
+      const tierLabels = { standard: 'Standard Page Feature', featured: 'Featured Placement', showcase: 'Showcase Spread' };
+      await sendEmail({
+        subject: 'Your editorial placement payment link — LWD',
+        fromName: 'Luxury Wedding Directory',
+        fromEmail: 'editorial@luxuryweddingdirectory.com',
+        html: `<!DOCTYPE html><html><body style="background:#0A0908;font-family:sans-serif;margin:0;padding:0"><div style="max-width:560px;margin:0 auto;padding:40px 24px"><div style="border-top:3px solid #C9A84C;padding-top:32px;margin-bottom:24px"><p style="font-size:10px;font-weight:700;letter-spacing:0.14em;color:#C9A84C;text-transform:uppercase;margin:0 0 12px">Luxury Wedding Directory — Editorial</p><h1 style="font-family:Georgia,serif;font-size:26px;font-style:italic;font-weight:400;color:#F0EBE0;margin:0;line-height:1.3">Your payment link is ready.</h1></div><p style="font-size:14px;color:rgba(240,235,224,0.8);line-height:1.7;margin:0 0 20px">Dear ${vendorName.trim() || 'there'},</p><p style="font-size:14px;color:rgba(240,235,224,0.8);line-height:1.7;margin:0 0 24px">Please use the link below to complete payment for your <em>${tierLabels[tier] || tier}</em> placement in <em>${issueName || 'our next issue'}</em>.</p><div style="text-align:center;margin:28px 0"><a href="${paymentLink}" style="display:inline-block;padding:14px 36px;background:#C9A84C;color:#0A0908;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;border-radius:2px">Complete Payment ✦</a></div><p style="font-size:11px;color:rgba(240,235,224,0.35);line-height:1.7;margin:0">Amount: £${getEffectivePrice().toLocaleString()}</p></div></body></html>`,
+        recipients: [{ email: vendorEmail.trim(), name: vendorName.trim() || undefined }],
+        type: 'campaign',
+      });
+    } catch (err) {
+      console.error('[PageSlotPanel] Send payment link email failed:', err);
+    }
   }
 
   function handleClear() {
@@ -289,8 +409,12 @@ export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageNa
         .from('magazine-pages')
         .getPublicUrl(proofPath);
 
+      // Generate approval URL
+      const approvalToken = btoa([issueId, pageNum || 1, email].join(':'));
+      const approvalUrl = 'https://luxuryweddingdirectory.com/magazine/proof-approval/' + approvalToken;
+
       // Send email
-      const html = buildProofEmail({ vendorName: vendorName.trim(), issueName, proofUrl: publicUrl });
+      const html = buildProofEmail({ vendorName: vendorName.trim(), issueName, proofUrl: publicUrl, approvalUrl });
       await sendEmail({
         subject:    'Your editorial proof is ready — LWD',
         fromName:   'Luxury Wedding Directory',
@@ -586,6 +710,100 @@ export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageNa
               letterSpacing: '0.06em', textTransform: 'uppercase',
             }}>
               ✕ Proof delivery failed — check console for details
+            </div>
+          )}
+
+          {/* Invoice download — shown when status is 'paid' or 'proof_sent' */}
+          {(status === 'paid' || status === 'proof_sent') && vendorName.trim() && (
+            <button
+              onClick={() => generateInvoicePDF(
+                { tier, status, vendor_name: vendorName.trim(), vendor_email: vendorEmail.trim(), price: getEffectivePrice(), notes: notes.trim() },
+                issueName,
+                pageName
+              )}
+              style={{
+                width: '100%', padding: '10px 0', borderRadius: 3, cursor: 'pointer',
+                background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.25)',
+                color: '#34d399',
+                fontFamily: NU, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                marginBottom: 8, transition: 'all 0.15s',
+              }}
+            >
+              ↓ Download Invoice PDF
+            </button>
+          )}
+
+          {/* Stripe Payment Link — shown when email and tier are set */}
+          {vendorEmail.trim() && tier && (
+            <div style={{ marginBottom: 8 }}>
+              <button
+                onClick={handleGeneratePaymentLink}
+                disabled={paymentLinkLoading}
+                style={{
+                  width: '100%', padding: '10px 0', borderRadius: 3,
+                  cursor: paymentLinkLoading ? 'not-allowed' : 'pointer',
+                  background: paymentLinkLoading ? 'rgba(96,165,250,0.04)' : 'rgba(96,165,250,0.1)',
+                  border: `1px solid ${paymentLinkLoading ? 'rgba(96,165,250,0.15)' : 'rgba(96,165,250,0.35)'}`,
+                  color: paymentLinkLoading ? 'rgba(96,165,250,0.4)' : '#60a5fa',
+                  fontFamily: NU, fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  marginBottom: paymentLink || paymentLinkError ? 8 : 0, transition: 'all 0.15s',
+                }}
+              >
+                {paymentLinkLoading ? '⋯ Generating…' : '💳 Generate Payment Link'}
+              </button>
+              {paymentLinkError && (
+                <div style={{
+                  padding: '8px 12px', borderRadius: 4,
+                  background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)',
+                  fontFamily: NU, fontSize: 10, color: '#f87171', lineHeight: 1.5,
+                }}>
+                  {paymentLinkError}
+                </div>
+              )}
+              {paymentLink && (
+                <div style={{
+                  padding: '10px 12px', borderRadius: 4,
+                  background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.2)',
+                }}>
+                  <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: '#60a5fa', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>
+                    ✓ Payment Link Generated
+                  </div>
+                  <code style={{
+                    display: 'block', fontFamily: 'monospace', fontSize: 10, color: 'rgba(255,255,255,0.65)',
+                    background: 'rgba(255,255,255,0.05)', padding: '6px 8px', borderRadius: 3,
+                    wordBreak: 'break-all', marginBottom: 8, lineHeight: 1.4,
+                  }}>
+                    {paymentLink}
+                  </code>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      onClick={handleCopyPaymentLink}
+                      style={{
+                        flex: 1, padding: '6px 0', borderRadius: 3, cursor: 'pointer',
+                        background: paymentLinkCopied ? 'rgba(52,211,153,0.1)' : 'rgba(96,165,250,0.08)',
+                        border: `1px solid ${paymentLinkCopied ? 'rgba(52,211,153,0.3)' : 'rgba(96,165,250,0.25)'}`,
+                        color: paymentLinkCopied ? '#34d399' : '#60a5fa',
+                        fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                      }}
+                    >
+                      {paymentLinkCopied ? '✓ Copied' : '⎘ Copy'}
+                    </button>
+                    <button
+                      onClick={handleSendPaymentLinkToVendor}
+                      style={{
+                        flex: 1, padding: '6px 0', borderRadius: 3, cursor: 'pointer',
+                        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                        color: 'rgba(255,255,255,0.55)',
+                        fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                      }}
+                    >
+                      ✉ Send to Vendor
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

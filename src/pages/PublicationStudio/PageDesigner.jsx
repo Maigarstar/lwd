@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Canvas, Textbox, FabricImage, Rect, Circle, Line, FabricObject, Group } from 'fabric';
+import { Canvas, Textbox, FabricImage, Rect, Circle, Line, FabricObject, Group, loadSVGFromString, util as fabricUtil } from 'fabric';
+import { callAiGenerate } from '../../lib/aiGenerate';
 import { loadGoogleFont } from './templates/fontCatalog';
 
 // ── Fabric v7 origin defaults ────────────────────────────────────────────────
@@ -1150,6 +1151,13 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
 
   // Page Slot panel
   const [showSlotPanel, setShowSlotPanel] = useState(false);
+
+  // Crop mode state (Feature C)
+  const [cropMode, setCropMode] = useState(null); // null | { active: true, targetObj, cropRect }
+
+  // AI Layout toast (Feature D)
+  const [aiLayoutToast, setAiLayoutToast] = useState(null);
+
   useEffect(() => {
     fetchBrandKit().then(({ data }) => { if (data) setBrand(data); });
   }, []);
@@ -1320,6 +1328,61 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
         scaleY: h / obj.height,
       });
     });
+
+    // ── Feature B: Smart Guides ──────────────────────────────────────────────
+    const SMART_SNAP_THRESHOLD = 8;
+    let smartGuideLines = [];
+
+    function clearSmartGuides() {
+      smartGuideLines.forEach(l => { try { fc.remove(l); } catch { /* noop */ } });
+      smartGuideLines = [];
+    }
+
+    fc.on('object:moving', ({ target }) => {
+      clearSmartGuides();
+      if (!target) return;
+      const objs = fc.getObjects().filter(o => o !== target && !o.isPlaceholderMarker);
+      const tl = target.getBoundingRect();
+      const tCentreX = tl.left + tl.width / 2;
+      const tCentreY = tl.top + tl.height / 2;
+
+      objs.forEach(obj => {
+        const ol = obj.getBoundingRect();
+        const oCentreX = ol.left + ol.width / 2;
+        const oCentreY = ol.top + ol.height / 2;
+
+        // Vertical guides
+        [[ol.left, 'left'], [oCentreX, 'centreX'], [ol.left + ol.width, 'right']].forEach(([x]) => {
+          if (Math.abs(tl.left - x) < SMART_SNAP_THRESHOLD) {
+            target.set('left', target.left + (x - tl.left));
+            const ln = new Line([x, 0, x, fc.height], { stroke: 'rgba(201,168,76,0.7)', strokeWidth: 1, selectable: false, evented: false, strokeDashArray: [4, 4] });
+            ln._isSmartGuide = true;
+            fc.add(ln); smartGuideLines.push(ln);
+          }
+          if (Math.abs(tCentreX - x) < SMART_SNAP_THRESHOLD) {
+            target.set('left', target.left + (x - tCentreX));
+            const ln = new Line([x, 0, x, fc.height], { stroke: 'rgba(201,168,76,0.7)', strokeWidth: 1, selectable: false, evented: false, strokeDashArray: [4, 4] });
+            ln._isSmartGuide = true;
+            fc.add(ln); smartGuideLines.push(ln);
+          }
+        });
+
+        // Horizontal guides
+        [[ol.top, 'top'], [oCentreY, 'centreY'], [ol.top + ol.height, 'bottom']].forEach(([y]) => {
+          if (Math.abs(tl.top - y) < SMART_SNAP_THRESHOLD) {
+            target.set('top', target.top + (y - tl.top));
+            const ln = new Line([0, y, fc.width, y], { stroke: 'rgba(201,168,76,0.7)', strokeWidth: 1, selectable: false, evented: false, strokeDashArray: [4, 4] });
+            ln._isSmartGuide = true;
+            fc.add(ln); smartGuideLines.push(ln);
+          }
+        });
+      });
+      fc.renderAll();
+    });
+
+    fc.on('object:modified', clearSmartGuides);
+    fc.on('mouse:up', clearSmartGuides);
+    // ── End Smart Guides ─────────────────────────────────────────────────────
 
     if (pageJSON) {
       fc.loadFromJSON(pageJSON).then(() => { fc.renderAll(); syncL(); });

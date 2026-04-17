@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { GOLD, DARK, CARD, BORDER, MUTED, GD, NU } from './designerConstants';
 import { TEMPLATES } from '../templates/definitions';
+import { callAiGenerate } from '../../../lib/aiGenerate';
 
 // Premium templates get a visual elevation even without hover
 const PREMIUM_IDS = new Set(['vogue-cover', 'feature-spread']);
@@ -469,14 +470,29 @@ function TemplateRow({ template, globalIndex, onInsert, onReplace, isActive }) {
 
 // ── Main ElementsPanel export ─────────────────────────────────────────────────
 
-export default function ElementsPanel({ onAddElement, onAddImage, onInsertTemplate, onReplaceTemplate, activeTemplateId, issue, layers, onSelectLayer, onToggleLayerVisibility, onToggleLayerLock, onReorderLayer }) {
+export default function ElementsPanel({ onAddElement, onAddImage, onInsertTemplate, onReplaceTemplate, activeTemplateId, issue, layers, onSelectLayer, onToggleLayerVisibility, onToggleLayerLock, onReorderLayer, onAddSVG, onAddArcText, onAILayout }) {
   const [panelTab, setPanelTab] = useState('elements');
   const [aiBrief, setAiBrief] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const fileRef = useRef(null);
+  const svgFileRef = useRef(null);
   const [urlOpen, setUrlOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
+
+  // SVG import state
+  const [svgOpen, setSvgOpen] = useState(false);
+  const [svgCode, setSvgCode] = useState('');
+
+  // Arc text state
+  const [arcOpen, setArcOpen] = useState(false);
+  const [arcText, setArcText] = useState('');
+  const [arcDeg, setArcDeg] = useState(60);
+
+  // AI Layout state
+  const [aiLayoutOpen, setAiLayoutOpen] = useState(false);
+  const [aiLayoutPrompt, setAiLayoutPrompt] = useState('');
+  const [aiLayoutLoading, setAiLayoutLoading] = useState(false);
 
   async function handleAIWrite() {
     if (!aiBrief.trim()) return;
@@ -512,6 +528,46 @@ export default function ElementsPanel({ onAddElement, onAddImage, onInsertTempla
     reader.onload = (ev) => onAddImage(ev.target.result);
     reader.readAsDataURL(file);
     e.target.value = '';
+  }
+
+  function handleSVGFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (onAddSVG && ev.target.result) onAddSVG(ev.target.result);
+      setSvgOpen(false);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  function handleSVGCodeInsert() {
+    if (!svgCode.trim() || !onAddSVG) return;
+    onAddSVG(svgCode.trim());
+    setSvgCode('');
+    setSvgOpen(false);
+  }
+
+  function handleArcTextInsert() {
+    if (!arcText.trim() || !onAddArcText) return;
+    onAddArcText(arcText.trim(), arcDeg);
+    setArcText('');
+    setArcOpen(false);
+  }
+
+  async function handleAILayout() {
+    if (!aiLayoutPrompt.trim() || !onAILayout) return;
+    setAiLayoutLoading(true);
+    try {
+      await onAILayout(aiLayoutPrompt.trim());
+      setAiLayoutPrompt('');
+      setAiLayoutOpen(false);
+    } catch (e) {
+      console.error('AI Layout error:', e);
+    } finally {
+      setAiLayoutLoading(false);
+    }
   }
 
   function handleAddFromUrl() {
@@ -599,6 +655,56 @@ export default function ElementsPanel({ onAddElement, onAddImage, onInsertTempla
             preview={<span style={{ fontFamily: NU, fontSize: 13, color: GOLD }}>№</span>}
             onClick={() => onAddElement('pagenumber')}
           />
+          <ElemButton
+            label="Arc Text"
+            preview={<span style={{ fontFamily: GD, fontSize: 14, color: GOLD, fontStyle: 'italic' }}>∩</span>}
+            onClick={() => setArcOpen(v => !v)}
+          />
+          {arcOpen && (
+            <div style={{ padding: '8px 16px', background: 'rgba(0,0,0,0.2)' }}>
+              <input
+                type="text"
+                placeholder="Your arc text…"
+                value={arcText}
+                onChange={e => setArcText(e.target.value)}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: `1px solid rgba(255,255,255,0.12)`,
+                  borderRadius: 3, color: '#fff',
+                  fontFamily: NU, fontSize: 11,
+                  padding: '6px 8px', outline: 'none',
+                  marginBottom: 8,
+                }}
+              />
+              <label style={{ fontFamily: NU, fontSize: 10, color: MUTED, display: 'block', marginBottom: 4 }}>
+                Arc amount: {arcDeg}°
+              </label>
+              <input
+                type="range"
+                min={-180}
+                max={180}
+                value={arcDeg}
+                onChange={e => setArcDeg(Number(e.target.value))}
+                style={{ width: '100%', accentColor: GOLD, marginBottom: 8 }}
+              />
+              <button
+                onClick={handleArcTextInsert}
+                disabled={!arcText.trim()}
+                style={{
+                  width: '100%',
+                  background: arcText.trim() ? GOLD : 'rgba(201,169,110,0.3)',
+                  border: 'none', borderRadius: 3,
+                  color: '#1a1208', fontFamily: NU,
+                  fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  padding: '6px 0', cursor: arcText.trim() ? 'pointer' : 'default',
+                }}
+              >
+                Insert Arc Text
+              </button>
+            </div>
+          )}
 
           <Divider />
 
@@ -646,6 +752,7 @@ export default function ElementsPanel({ onAddElement, onAddImage, onInsertTempla
           {/* Image */}
           <div style={SECTION_STYLE}>Image</div>
           <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
+          <input ref={svgFileRef} type="file" accept=".svg" style={{ display: 'none' }} onChange={handleSVGFileChange} />
           <ElemButton
             label="Upload Image"
             preview={<span style={{ fontSize: 16 }}>↑</span>}
@@ -685,6 +792,61 @@ export default function ElementsPanel({ onAddElement, onAddImage, onInsertTempla
                 }}
               >
                 Add Image
+              </button>
+            </div>
+          )}
+
+          {/* SVG Import */}
+          <ElemButton
+            label="SVG"
+            preview={<span style={{ fontFamily: NU, fontSize: 10, color: GOLD, fontWeight: 700 }}>SVG</span>}
+            onClick={() => setSvgOpen(v => !v)}
+          />
+          {svgOpen && (
+            <div style={{ padding: '8px 16px', background: 'rgba(0,0,0,0.2)' }}>
+              <button
+                onClick={() => svgFileRef.current?.click()}
+                style={{
+                  width: '100%', marginBottom: 6,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: `1px solid rgba(255,255,255,0.12)`,
+                  borderRadius: 3, color: '#fff',
+                  fontFamily: NU, fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.05em', textTransform: 'uppercase',
+                  padding: '6px 0', cursor: 'pointer',
+                }}
+              >
+                ↑ Upload .svg file
+              </button>
+              <textarea
+                placeholder="Or paste SVG code here…"
+                value={svgCode}
+                onChange={e => setSvgCode(e.target.value)}
+                rows={4}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: `1px solid rgba(255,255,255,0.12)`,
+                  borderRadius: 3, color: '#fff',
+                  fontFamily: NU, fontSize: 10,
+                  padding: '6px 8px', outline: 'none',
+                  resize: 'vertical',
+                }}
+              />
+              <button
+                onClick={handleSVGCodeInsert}
+                disabled={!svgCode.trim()}
+                style={{
+                  marginTop: 6, width: '100%',
+                  background: svgCode.trim() ? GOLD : 'rgba(201,169,110,0.3)',
+                  border: 'none', borderRadius: 3,
+                  color: '#1a1208', fontFamily: NU,
+                  fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  padding: '6px 0', cursor: svgCode.trim() ? 'pointer' : 'default',
+                }}
+              >
+                Insert SVG
               </button>
             </div>
           )}
@@ -730,6 +892,47 @@ export default function ElementsPanel({ onAddElement, onAddImage, onInsertTempla
                 }}
               >
                 {aiLoading ? 'Writing...' : '✦ Generate Text'}
+              </button>
+            </div>
+          )}
+
+          <ElemButton
+            label="✦ AI Layout"
+            preview={<span style={{ fontSize: 14, color: GOLD }}>✦</span>}
+            onClick={() => setAiLayoutOpen(v => !v)}
+          />
+          {aiLayoutOpen && (
+            <div style={{ padding: '8px 16px', background: 'rgba(0,0,0,0.2)' }}>
+              <textarea
+                placeholder="Describe a layout (e.g. 'editorial feature with large left image and pull quote on the right')"
+                value={aiLayoutPrompt}
+                onChange={e => setAiLayoutPrompt(e.target.value)}
+                rows={3}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: `1px solid rgba(255,255,255,0.12)`,
+                  borderRadius: 3, color: '#fff',
+                  fontFamily: NU, fontSize: 11,
+                  padding: '6px 8px', outline: 'none',
+                  resize: 'vertical',
+                }}
+              />
+              <button
+                onClick={handleAILayout}
+                disabled={aiLayoutLoading || !aiLayoutPrompt.trim()}
+                style={{
+                  marginTop: 6, width: '100%',
+                  background: aiLayoutLoading ? 'rgba(201,169,110,0.4)' : GOLD,
+                  border: 'none', borderRadius: 3,
+                  color: '#1a1208', fontFamily: NU,
+                  fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  padding: '6px 0', cursor: aiLayoutLoading ? 'default' : 'pointer',
+                  opacity: !aiLayoutPrompt.trim() ? 0.5 : 1,
+                }}
+              >
+                {aiLayoutLoading ? 'Applying...' : '✦ Apply Layout'}
               </button>
             </div>
           )}

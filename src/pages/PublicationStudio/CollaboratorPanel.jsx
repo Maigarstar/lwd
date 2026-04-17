@@ -133,6 +133,15 @@ export default function CollaboratorPanel({ issueId, issueName, onClose }) {
   const [loading,       setLoading]       = useState(true);
   const [revoking,      setRevoking]      = useState(null);
 
+  // Comment state
+  const [newComment,    setNewComment]    = useState('');
+  const [commentSending, setCommentSending] = useState(false);
+
+  // @Mentions state
+  const [mentionQuery,  setMentionQuery]  = useState('');
+  const [showMentions,  setShowMentions]  = useState(false);
+  const [mentionCursor, setMentionCursor] = useState(0);
+
   // Fetch collaborators + comments on mount
   useEffect(() => {
     if (!issueId) return;
@@ -204,6 +213,71 @@ export default function CollaboratorPanel({ issueId, issueName, onClose }) {
       console.error('[CollaboratorPanel] Revoke failed:', err);
     }
     setRevoking(null);
+  }
+
+  function handleCommentChange(e) {
+    const val = e.target.value;
+    setNewComment(val);
+    const pos = e.target.selectionStart;
+    const before = val.slice(0, pos);
+    const m = before.match(/@(\w*)$/);
+    if (m) { setMentionQuery(m[1].toLowerCase()); setShowMentions(true); setMentionCursor(pos); }
+    else setShowMentions(false);
+  }
+
+  function insertMention(collabName) {
+    const before = newComment.slice(0, mentionCursor).replace(/@\w*$/, '@' + collabName + ' ');
+    setNewComment(before + newComment.slice(mentionCursor));
+    setShowMentions(false);
+  }
+
+  const filteredMentions = showMentions
+    ? collaborators.filter(c => {
+        const n = (c.name || c.email || '').toLowerCase();
+        return mentionQuery === '' || n.startsWith(mentionQuery);
+      }).slice(0, 6)
+    : [];
+
+  async function handleSubmitComment() {
+    if (!newComment.trim() || !issueId) return;
+    setCommentSending(true);
+    try {
+      const { data: row, error } = await supabase
+        .from('magazine_page_comments')
+        .insert({
+          issue_id:    issueId,
+          content:     newComment.trim(),
+          page_number: 0,
+          author_name: 'Editorial Team',
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      setComments(prev => [row, ...prev]);
+
+      // Send @mention notifications
+      const mentions = [...newComment.matchAll(/@(\w+(?:\s+\w+)?)/g)].map(m => m[1].toLowerCase());
+      if (mentions.length > 0) {
+        collaborators
+          .filter(c => c.status !== 'revoked' && mentions.some(m => (c.name || '').toLowerCase().startsWith(m)))
+          .forEach(c => {
+            sendEmail({
+              subject: `You were mentioned in a comment — ${issueName}`,
+              fromName: 'Luxury Wedding Directory',
+              fromEmail: 'editorial@luxuryweddingdirectory.com',
+              html: `<div style="background:#0A0908;padding:32px;font-family:sans-serif"><div style="border-top:3px solid #C9A84C;padding-top:20px"><p style="color:#C9A84C;font-size:10px;letter-spacing:0.12em;text-transform:uppercase">LWD · Collaboration</p><h2 style="color:#F0EBE0;font-family:Georgia,serif;font-style:italic;font-weight:400">You were mentioned</h2><p style="color:rgba(240,235,224,0.7)">In a comment on <em>${issueName}</em>:</p><blockquote style="border-left:2px solid #C9A84C;margin:16px 0;padding:8px 16px;color:rgba(240,235,224,0.8)">${newComment.trim()}</blockquote></div></div>`,
+              recipients: [{ email: c.email, name: c.name }],
+              type: 'campaign',
+            }).catch(() => {});
+          });
+      }
+
+      setNewComment('');
+      setShowMentions(false);
+    } catch (err) {
+      console.error('[CollaboratorPanel] Comment submit failed:', err);
+    }
+    setCommentSending(false);
   }
 
   async function handleToggleResolved(commentId, current) {
@@ -383,6 +457,53 @@ export default function CollaboratorPanel({ issueId, issueName, onClose }) {
           <div style={{ marginTop: 28, borderTop: `1px solid ${BORDER}`, paddingTop: 18 }}>
             <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 14 }}>
               ✎ Page Comments
+            </div>
+
+            {/* New comment input with @mention support */}
+            <div style={{ marginBottom: 16, position: 'relative' }}>
+              {filteredMentions.length > 0 && (
+                <div style={{
+                  position: 'absolute', bottom: '100%', left: 0, right: 0, zIndex: 10,
+                  background: '#1e1c18', border: `1px solid ${BORDER}`, borderRadius: 4,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.5)', marginBottom: 4, overflow: 'hidden',
+                }}>
+                  {filteredMentions.map(c => (
+                    <div
+                      key={c.id}
+                      onClick={() => insertMention(c.name || c.email.split('@')[0])}
+                      style={{
+                        padding: '8px 12px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        transition: 'background 0.1s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(201,168,76,0.08)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <span style={{ fontFamily: NU, fontSize: 11, color: '#fff' }}>{c.name || c.email}</span>
+                      {c.name && <span style={{ fontFamily: NU, fontSize: 10, color: MUTED }}>{c.email}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <textarea
+                value={newComment}
+                onChange={handleCommentChange}
+                placeholder="Add a comment… Use @name to mention collaborators"
+                rows={2}
+                style={{ ...inputStyle, resize: 'vertical', minHeight: 56, lineHeight: 1.5, marginBottom: 6 }}
+              />
+              <button
+                onClick={handleSubmitComment}
+                disabled={commentSending || !newComment.trim()}
+                style={{
+                  fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase',
+                  padding: '6px 14px', borderRadius: 3, cursor: !newComment.trim() ? 'not-allowed' : 'pointer',
+                  background: 'rgba(201,168,76,0.1)', border: `1px solid rgba(201,168,76,0.3)`,
+                  color: GOLD, opacity: !newComment.trim() ? 0.45 : 1, transition: 'all 0.15s',
+                }}
+              >
+                {commentSending ? '⋯' : '+ Post Comment'}
+              </button>
             </div>
 
             {loading ? (

@@ -3,6 +3,71 @@
 // Shows stats strip + pages table with slot data.
 // Part of the Revenue Engine.
 
+import { jsPDF } from 'jspdf';
+
+function generateInvoicePDF(slot, issueName, pageLabel) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const G = [201, 168, 76]; // gold RGB
+  const W = 210, M = 24;
+
+  // Gold top bar
+  doc.setFillColor(...G); doc.rect(0, 0, W, 3, 'F');
+
+  // Brand
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...G);
+  doc.text('LUXURY WEDDING DIRECTORY', M, 20);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,100,80);
+  doc.text('editorial@luxuryweddingdirectory.com', M, 26);
+
+  // Invoice header (right)
+  doc.setFont('helvetica','bold'); doc.setFontSize(22); doc.setTextColor(20,16,10);
+  doc.text('INVOICE', W - M, 24, { align: 'right' });
+  const invNum = 'LWD-' + Date.now().toString(36).toUpperCase();
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(120,100,80);
+  doc.text('No: ' + invNum, W - M, 31, { align: 'right' });
+  doc.text('Date: ' + new Date().toLocaleDateString('en-GB', { day:'numeric',month:'long',year:'numeric' }), W - M, 37, { align: 'right' });
+
+  // Divider
+  doc.setDrawColor(...G); doc.setLineWidth(0.3); doc.line(M, 44, W - M, 44);
+
+  // Bill to
+  doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...G);
+  doc.text('BILL TO', M, 54);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(20,16,10);
+  doc.text(slot.vendor_name || 'Vendor', M, 61);
+  if (slot.vendor_email) { doc.setFontSize(8); doc.setTextColor(100,80,60); doc.text(slot.vendor_email, M, 67); }
+
+  // Table
+  const TY = 88;
+  doc.setFillColor(245,240,230); doc.rect(M, TY-6, W-M*2, 10, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(20,16,10);
+  doc.text('Description', M+2, TY); doc.text('Publication', 110, TY); doc.text('Amount', W-M-2, TY, { align:'right' });
+  doc.setDrawColor(200,180,140); doc.line(M, TY+2, W-M, TY+2);
+
+  const tierLabels = { standard:'Standard Page Feature', featured:'Featured Placement', showcase:'Showcase Spread' };
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(20,16,10);
+  doc.text(tierLabels[slot.tier] || 'Editorial Feature', M+2, TY+12);
+  doc.text(pageLabel || 'Editorial Page', M+2, TY+18);
+  doc.setTextColor(100,80,60); doc.setFontSize(8);
+  doc.text(issueName || 'Issue', 110, TY+12);
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...G);
+  doc.text('£' + Number(slot.price||0).toLocaleString(), W-M-2, TY+12, { align:'right' });
+
+  // Total
+  doc.setDrawColor(...G); doc.line(M, TY+28, W-M, TY+28);
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(20,16,10);
+  doc.text('Total Due', M+2, TY+38);
+  doc.setTextColor(...G); doc.setFontSize(14);
+  doc.text('£' + Number(slot.price||0).toLocaleString(), W-M-2, TY+38, { align:'right' });
+
+  // Footer
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(150,130,100);
+  doc.text('Payment confirms editorial placement in ' + (issueName||'our next issue') + '.', M, 250);
+  doc.text('© ' + new Date().getFullYear() + ' Luxury Wedding Directory · luxuryweddingdirectory.com', M, 256);
+
+  doc.save('lwd-invoice-' + (slot.vendor_name||'vendor').toLowerCase().replace(/\s+/g,'-') + '.pdf');
+}
+
 const GOLD   = '#C9A96E';
 const BORDER = '#3A3530';
 const MUTED  = 'rgba(255,255,255,0.45)';
@@ -270,10 +335,29 @@ export default function IssueRevenuePanel({ pages, issueName, onClose, onSendPro
                         : hasSlot ? MUTED : 'rgba(255,255,255,0.2)',
                       whiteSpace: 'nowrap',
                     }}>
-                      {hasSlot && slot.price != null
-                        ? `£${slot.price.toLocaleString()}`
-                        : <span style={{ opacity: 0.4 }}>—</span>
-                      }
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {hasSlot && slot.price != null
+                          ? `£${slot.price.toLocaleString()}`
+                          : <span style={{ opacity: 0.4 }}>—</span>
+                        }
+                        {hasSlot && (slot.status === 'paid' || slot.status === 'proof_sent') && (
+                          <button
+                            onClick={() => generateInvoicePDF(slot, issueName, page.templateName || page.name || label)}
+                            title="Download invoice PDF"
+                            style={{
+                              fontFamily: NU, fontSize: 8, fontWeight: 700,
+                              letterSpacing: '0.06em', textTransform: 'uppercase',
+                              padding: '3px 8px', borderRadius: 2, cursor: 'pointer',
+                              background: 'rgba(201,168,76,0.08)',
+                              border: '1px solid rgba(201,168,76,0.3)',
+                              color: GOLD, whiteSpace: 'nowrap',
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            ↓ Invoice
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

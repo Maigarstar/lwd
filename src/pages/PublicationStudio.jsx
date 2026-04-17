@@ -906,6 +906,10 @@ function SettingsTab({ issue, pages, onPublish, onUnpublish, onArchive, onDelete
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [scheduleDate, setScheduleDate]   = useState(issue?.scheduled_publish_at ? new Date(issue.scheduled_publish_at).toISOString().slice(0, 16) : '');
   const [scheduling, setScheduling]       = useState(false);
+  const [webhookUrl, setWebhookUrl]       = useState(() => {
+    try { return localStorage.getItem('lwd_publish_webhook') || ''; } catch { return ''; }
+  });
+  const [webhookSaved, setWebhookSaved]   = useState(false);
 
   const preflight      = runPreflight(issue, pages);
   const criticalFails  = preflight.filter(c => c.critical && !c.pass);
@@ -1127,6 +1131,41 @@ function SettingsTab({ issue, pages, onPublish, onUnpublish, onArchive, onDelete
               <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.notes || '—'}</div>
             </div>
           ))}
+        </div>
+      )}
+
+      <Hr />
+      <SectionHead>Publish Webhook</SectionHead>
+      <div style={{ fontFamily: NU, fontSize: 11, color: MUTED, marginBottom: 12, lineHeight: 1.6 }}>
+        Optionally fire a webhook after each publish. Stored locally in your browser.
+      </div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: webhookSaved ? 8 : 0 }}>
+        <input
+          type="url"
+          value={webhookUrl}
+          onChange={e => setWebhookUrl(e.target.value)}
+          placeholder="https://hooks.example.com/publish"
+          style={{ ...INPUT, flex: 1, fontFamily: 'monospace', fontSize: 11 }}
+        />
+        <Btn
+          onClick={() => {
+            try {
+              if (webhookUrl.trim()) {
+                localStorage.setItem('lwd_publish_webhook', webhookUrl.trim());
+              } else {
+                localStorage.removeItem('lwd_publish_webhook');
+              }
+              setWebhookSaved(true);
+              setTimeout(() => setWebhookSaved(false), 2000);
+            } catch {}
+          }}
+        >
+          {webhookSaved ? '✓ Saved' : 'Save'}
+        </Btn>
+      </div>
+      {webhookSaved && (
+        <div style={{ fontFamily: NU, fontSize: 10, color: '#34d399' }}>
+          ✓ Webhook URL saved — will fire on next publish
         </div>
       )}
 
@@ -1473,6 +1512,13 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue, onCloned }) {
   const [snapshots,          setSnapshots]          = useState([]);
   const [snapshotToast,      setSnapshotToast]      = useState('');
 
+  // Issue templates state
+  const [showSaveTemplate,   setShowSaveTemplate]   = useState(false);
+  const [templateName,       setTemplateName]       = useState('');
+  const [templateDesc,       setTemplateDesc]       = useState('');
+  const [templateSaving,     setTemplateSaving]     = useState(false);
+  const [templateSaved,      setTemplateSaved]      = useState(false);
+
   // load issue
   useEffect(() => {
     if (!issueId) return;
@@ -1618,6 +1664,15 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue, onCloned }) {
       setIssue(data);
       setFormData(data);
       sendIssueEmail(data).catch(() => {}); // fire and forget
+      // Non-blocking publish webhook
+      try {
+        const webhookUrl = localStorage.getItem('lwd_publish_webhook');
+        if (webhookUrl) {
+          supabase.functions.invoke('publish-webhook', {
+            body: { issue_id: data.id, title: data.title, slug: data.slug, published_at: data.published_at },
+          }).catch(() => {});
+        }
+      } catch {}
     }
     setPublishing(false);
   };
@@ -1653,6 +1708,34 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue, onCloned }) {
     const { error } = await deleteIssue(issueId);
     if (!error) onDelete(issueId);
     setDeleting(false);
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!templateName.trim()) return;
+    setTemplateSaving(true);
+    try {
+      const pagesSnap = designerPages.map(p => ({
+        pageNumber:   p.pageNumber,
+        canvasJSON:   p.canvasJSON,
+        templateName: p.templateName,
+      }));
+      await supabase.from('magazine_issue_templates').insert({
+        name:        templateName.trim(),
+        description: templateDesc.trim() || null,
+        page_count:  pagesSnap.length,
+        pages_data:  pagesSnap,
+      });
+      setTemplateSaved(true);
+      setTimeout(() => {
+        setShowSaveTemplate(false);
+        setTemplateName('');
+        setTemplateDesc('');
+        setTemplateSaved(false);
+      }, 1500);
+    } catch (err) {
+      console.error('[IssueWorkspace] Save template failed:', err);
+    }
+    setTemplateSaving(false);
   };
 
   const handleClone = async () => {
@@ -1860,6 +1943,20 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue, onCloned }) {
           }}
         >
           ⊕ Duplicate
+        </button>
+
+        {/* Save as Template button */}
+        <button
+          onClick={() => setShowSaveTemplate(true)}
+          style={{
+            fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+            textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)',
+            background: 'none',
+            border: `1px solid rgba(255,255,255,0.15)`,
+            padding: '4px 10px', borderRadius: 2, cursor: 'pointer',
+          }}
+        >
+          💾 Save Template
         </button>
 
         {/* Version history button */}
@@ -2135,6 +2232,42 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue, onCloned }) {
         />
       )}
 
+      {/* Save as Template modal */}
+      {showSaveTemplate && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onMouseDown={e => e.target === e.currentTarget && setShowSaveTemplate(false)}>
+          <div style={{ width: 420, background: SURF, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 28 }}>
+            <div style={{ fontFamily: GD, fontSize: 20, color: '#fff', marginBottom: 6 }}>Save as Template</div>
+            <div style={{ fontFamily: NU, fontSize: 11, color: MUTED, marginBottom: 20, lineHeight: 1.6 }}>
+              Saves the current issue's {designerPages.length} page{designerPages.length !== 1 ? 's' : ''} as a reusable template for new issues.
+            </div>
+            <Field label="Template Name" hint="required">
+              <input
+                autoFocus value={templateName} onChange={e => setTemplateName(e.target.value)}
+                placeholder="e.g. Standard 12-Page Issue"
+                style={INPUT}
+              />
+            </Field>
+            <Field label="Description">
+              <input
+                value={templateDesc} onChange={e => setTemplateDesc(e.target.value)}
+                placeholder="Optional description…"
+                style={INPUT}
+              />
+            </Field>
+            {templateSaved && (
+              <div style={{ fontFamily: NU, fontSize: 11, color: '#34d399', marginBottom: 12 }}>✓ Template saved</div>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+              <Btn onClick={() => setShowSaveTemplate(false)}>Cancel</Btn>
+              <Btn gold onClick={handleSaveTemplate} disabled={templateSaving || !templateName.trim()}>
+                {templateSaving ? 'Saving…' : '💾 Save Template'}
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Clone confirm modal */}
       {cloneConfirm && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -2198,24 +2331,48 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue, onCloned }) {
 // ── Create issue modal ─────────────────────────────────────────────────────────
 
 function CreateModal({ onCreated, onClose }) {
-  const [title, setTitle]   = useState('');
-  const [num,   setNum]     = useState('');
-  const [year,  setYear]    = useState(CURR_YEAR);
-  const [busy,  setBusy]    = useState(false);
-  const [err,   setErr]     = useState('');
+  const [title,       setTitle]       = useState('');
+  const [num,         setNum]         = useState('');
+  const [year,        setYear]        = useState(CURR_YEAR);
+  const [busy,        setBusy]        = useState(false);
+  const [err,         setErr]         = useState('');
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templates,   setTemplates]   = useState([]);
+  const [loadingTpls, setLoadingTpls] = useState(false);
+  const [selectedTpl, setSelectedTpl] = useState(null);
+
+  const loadTemplates = async () => {
+    setLoadingTpls(true);
+    const { data } = await supabase.from('magazine_issue_templates').select('*').order('created_at', { ascending: false });
+    setTemplates(data || []);
+    setLoadingTpls(false);
+  };
 
   const handleCreate = async () => {
     if (!title.trim()) { setErr('Title is required.'); return; }
     setBusy(true); setErr('');
     const { data, error } = await createIssue({ title: title.trim(), issue_number: num ? parseInt(num) : null, year });
     if (error) { setErr(error.message); setBusy(false); return; }
+    // If a template was selected, insert pages from template
+    if (selectedTpl && selectedTpl.pages_data?.length > 0) {
+      try {
+        const pageInserts = selectedTpl.pages_data.map(p => ({
+          issue_id:      data.id,
+          page_number:   p.pageNumber,
+          template_data: { canvasJSON: p.canvasJSON, templateName: p.templateName },
+        }));
+        await supabase.from('magazine_issue_pages').insert(pageInserts);
+      } catch (tplErr) {
+        console.warn('[CreateModal] Template page insert failed:', tplErr);
+      }
+    }
     onCreated(data);
   };
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onMouseDown={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ width: 400, background: SURF, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 28 }}>
+      <div style={{ width: 460, background: SURF, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 28, maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ fontFamily: GD, fontSize: 22, color: '#fff', marginBottom: 20 }}>New Issue</div>
 
         <Field label="Title" hint="required">
@@ -2235,6 +2392,55 @@ function CreateModal({ onCreated, onClose }) {
               {YEAR_OPTS.map(y => <option key={y} value={y} style={{ background: '#1a1a18' }}>{y}</option>)}
             </select>
           </Field>
+        </div>
+
+        {/* Template picker */}
+        <div style={{ marginBottom: 18 }}>
+          <Btn
+            small
+            onClick={() => {
+              setShowTemplates(s => !s);
+              if (!showTemplates && templates.length === 0) loadTemplates();
+            }}
+          >
+            {showTemplates ? '▾ Hide Templates' : '▸ Start from Template'}
+          </Btn>
+          {selectedTpl && (
+            <span style={{ fontFamily: NU, fontSize: 10, color: GOLD, marginLeft: 10 }}>
+              ✓ {selectedTpl.name} ({selectedTpl.page_count || 0} pages)
+              <button onClick={() => setSelectedTpl(null)} style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', marginLeft: 6, fontSize: 11 }}>✕</button>
+            </span>
+          )}
+          {showTemplates && (
+            <div style={{ marginTop: 10, border: `1px solid ${BORDER}`, borderRadius: 4, overflow: 'hidden', maxHeight: 200, overflowY: 'auto' }}>
+              {loadingTpls ? (
+                <div style={{ padding: '14px 16px', fontFamily: NU, fontSize: 11, color: MUTED }}>Loading templates…</div>
+              ) : templates.length === 0 ? (
+                <div style={{ padding: '14px 16px', fontFamily: NU, fontSize: 11, color: MUTED }}>No templates saved yet. Open an issue and click "Save Template".</div>
+              ) : (
+                templates.map(t => (
+                  <div
+                    key={t.id}
+                    onClick={() => { setSelectedTpl(t); setShowTemplates(false); }}
+                    style={{
+                      padding: '10px 14px', cursor: 'pointer',
+                      background: selectedTpl?.id === t.id ? 'rgba(201,168,76,0.1)' : 'transparent',
+                      borderBottom: `1px solid ${BORDER}`,
+                      transition: 'background 0.1s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+                    onMouseLeave={e => e.currentTarget.style.background = selectedTpl?.id === t.id ? 'rgba(201,168,76,0.1)' : 'transparent'}
+                  >
+                    <div style={{ fontFamily: NU, fontSize: 12, color: '#fff', marginBottom: 2 }}>{t.name}</div>
+                    <div style={{ fontFamily: NU, fontSize: 10, color: MUTED }}>
+                      {t.page_count || 0} page{t.page_count !== 1 ? 's' : ''}
+                      {t.description && ` · ${t.description}`}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
         {err && <div style={{ fontFamily: NU, fontSize: 11, color: '#f87171', marginBottom: 12 }}>{err}</div>}

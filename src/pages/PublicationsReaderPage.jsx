@@ -1388,15 +1388,26 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   }
   const _browserName = _browser();
 
+  // ── Geography: detect country via ipapi.co ───────────────────────────────────
+  async function getCountry() {
+    try {
+      const r = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3000) });
+      const d = await r.json(); return d.country_name || null;
+    } catch { return null; }
+  }
+
   // ── Read events: issue_open on mount, issue_close on unmount ─────────────────
   useEffect(() => {
     if (!issue?.id) return;
     const sid = sessionId.current;
     mountTimeRef.current = Date.now();
-    // Fire-and-forget issue_open
-    supabase.from('magazine_read_events').insert({
-      issue_id: issue.id, session_id: sid, event_type: 'issue_open', page_number: 1,
-      referrer: _referrer, device: _device, browser: _browserName,
+    // Fire-and-forget issue_open (with country detection)
+    getCountry().then(country => {
+      supabase.from('magazine_read_events').insert({
+        issue_id: issue.id, session_id: sid, event_type: 'issue_open', page_number: 1,
+        referrer: _referrer, device: _device, browser: _browserName,
+        ...(country ? { country } : {}),
+      });
     });
     return () => {
       // Fire-and-forget issue_close

@@ -101,6 +101,14 @@ export default function PersonalisePanel({ issueId, issueSlug, issueName, onClos
   const [previous, setPrevious] = useState([]);
   const [loadingPrev, setLoadingPrev] = useState(true);
 
+  // Bulk import tab
+  const [activeTab,     setActiveTab]     = useState('single'); // 'single' | 'bulk'
+  const [csvRows,       setCsvRows]       = useState([]);
+  const [csvError,      setCsvError]      = useState('');
+  const [bulkProgress,  setBulkProgress]  = useState(null); // { done, total } | null
+  const [bulkResults,   setBulkResults]   = useState([]);
+  const [bulkSendAll,   setBulkSendAll]   = useState(false);
+
   useEffect(() => {
     if (!issueId) return;
     supabase
@@ -121,6 +129,137 @@ export default function PersonalisePanel({ issueId, issueSlug, issueName, onClos
     const parts = [p1, p2].filter(Boolean);
     if (parts.length === 0) return `${base}-for-couple-${Date.now()}`;
     return `${base}-for-${parts.join('-and-')}`;
+  }
+
+  function parseCSV(text) {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,'').toLowerCase());
+    return lines.slice(1).map(line => {
+      const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g,''));
+      return Object.fromEntries(headers.map((h,i) => [h, vals[i]||'']));
+    }).filter(r => r.partner1_name || r.partner2_name);
+  }
+
+  function handleCsvFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvError(''); setCsvRows([]);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const rows = parseCSV(ev.target.result || '');
+        if (rows.length === 0) { setCsvError('No valid rows found. Expected headers: partner1_name, partner2_name, wedding_date, venue_name, email'); return; }
+        setCsvRows(rows);
+      } catch(err) {
+        setCsvError('Failed to parse CSV: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  async function handleBulkCreate() {
+    if (csvRows.length === 0) return;
+    setBulkProgress({ done: 0, total: csvRows.length });
+    setBulkResults([]);
+    const results = [];
+    for (let i = 0; i < csvRows.length; i++) {
+      const row = csvRows[i];
+      try {
+        const p1 = row.partner1_name || '';
+        const p2 = row.partner2_name || '';
+        const base = issueSlug || 'issue';
+        const s1 = p1.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+        const s2 = p2.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+        const parts = [s1,s2].filter(Boolean);
+        const slug = parts.length > 0 ? `${base}-for-${parts.join('-and-')}-${Date.now()}` : `${base}-for-couple-${Date.now()}`;
+        const url = `https://luxuryweddingdirectory.com/magazine/read/${slug}?personalised=true`;
+
+        const { data: record, error } = await supabase
+          .from('magazine_personalised_issues')
+          .insert({
+            issue_id:      issueId,
+            slug,
+            partner1_name: p1 || null,
+            partner2_name: p2 || null,
+            wedding_date:  row.wedding_date || null,
+            venue_name:    row.venue_name || null,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        results.push({ row, url, id: record.id, success: true });
+        setPrevious(prev => [record, ...prev]);
+      } catch (err) {
+        results.push({ row, url: '', success: false, error: err.message });
+      }
+      setBulkProgress({ done: i + 1, total: csvRows.length });
+    }
+    setBulkResults(results);
+    setBulkProgress(null);
+  }
+
+  async function handleBulkSendEmails() {
+    setBulkSendAll(true);
+    for (const result of bulkResults) {
+      if (!result.success || !result.row.email) continue;
+      try {
+        const html = buildCoupleEmail({
+          partner1: result.row.partner1_name || '',
+          partner2: result.row.partner2_name || '',
+          issueName,
+          url: result.url,
+        });
+        await sendEmail({
+          subject: 'Your personal wedding edition is ready — LWD',
+          fromName: 'Luxury Wedding Directory',
+          fromEmail: 'editorial@luxuryweddingdirectory.com',
+          html,
+          recipients: [{ email: result.row.email }],
+          type: 'campaign',
+        });
+      } catch {}
+    }
+    setBulkSendAll(false);
+  }
+
+  async function generatePersonalisedCover(issueIdParam, personalisedId, p1, p2) {
+    try {
+      // Fetch page 1 canvasJSON
+      const { data: pageRow } = await supabase.from('magazine_issue_pages')
+        .select('template_data').eq('issue_id', issueIdParam).eq('page_number', 1).single();
+      if (!pageRow?.template_data?.canvasJSON) return null;
+
+      const { Canvas: FC, FabricObject } = await import('fabric');
+      FabricObject.ownDefaults.originX = 'left';
+      FabricObject.ownDefaults.originY = 'top';
+      const el = document.createElement('canvas');
+      el.width = 794; el.height = 1123;
+      const fc = new FC(el, { width: 794, height: 1123, enableRetinaScaling: false });
+      await fc.loadFromJSON(pageRow.template_data.canvasJSON);
+      fc.renderAll();
+
+      // Find headline (largest textbox) and inject couple names
+      const textObjs = fc.getObjects().filter(o => o.type === 'textbox').sort((a, b) => b.fontSize - a.fontSize);
+      if (textObjs[0]) textObjs[0].set('text', p1 + ' & ' + p2);
+
+      await new Promise(r => setTimeout(r, 80));
+      fc.renderAll();
+
+      const blob = await new Promise((res, rej) => {
+        el.toBlob(b => b ? res(b) : rej(new Error('toBlob failed')), 'image/jpeg', 0.9);
+      });
+      fc.dispose();
+
+      const path = `${issueIdParam}/personalised/${personalisedId}-cover.jpg`;
+      const { error } = await supabase.storage.from('magazine-pages').upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+      if (error) return null;
+      const { data: { publicUrl } } = supabase.storage.from('magazine-pages').getPublicUrl(path);
+
+      // Update the record with cover_url
+      await supabase.from('magazine_personalised_issues').update({ cover_url: publicUrl }).eq('id', personalisedId);
+      return publicUrl;
+    } catch(e) { console.warn('[PersonalisePanel] Cover re-render failed:', e); return null; }
   }
 
   async function handleCreate() {
@@ -150,6 +289,17 @@ export default function PersonalisePanel({ issueId, issueSlug, issueName, onClos
       setCreatedSlug(slug);
       setCreatedUrl(url);
       setPrevious(prev => [row, ...prev]);
+
+      // Generate personalised cover in background (fire-and-forget)
+      if (partner1.trim() || partner2.trim()) {
+        generatePersonalisedCover(issueId, row.id, partner1.trim() || '', partner2.trim() || '')
+          .then(coverUrl => {
+            if (coverUrl) {
+              setPrevious(prev => prev.map(p => p.id === row.id ? { ...p, cover_url: coverUrl } : p));
+            }
+          })
+          .catch(() => {});
+      }
     } catch (err) {
       console.error('[PersonalisePanel] Create failed:', err);
       setCreateErr(err.message || 'Failed to create personalised issue');
@@ -231,11 +381,149 @@ export default function PersonalisePanel({ issueId, issueSlug, issueName, onClos
           </button>
         </div>
 
+        {/* Tab switcher */}
+        <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
+          {[['single', '✦ Single'], ['bulk', '◈ Bulk Import']].map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              style={{
+                flex: 1, padding: '10px 0', cursor: 'pointer',
+                background: 'none', border: 'none',
+                borderBottom: `2px solid ${activeTab === key ? GOLD : 'transparent'}`,
+                color: activeTab === key ? GOLD : MUTED,
+                fontFamily: NU, fontSize: 9, fontWeight: 700,
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                transition: 'all 0.15s', marginBottom: -1,
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Body */}
         <div style={{ flex: 1, padding: '0 18px 24px', overflowY: 'auto' }}>
 
-          {/* ── Create form ── */}
-          {!createdUrl ? (
+          {/* ── Bulk Import tab ── */}
+          {activeTab === 'bulk' && (
+            <div style={{ paddingTop: 18 }}>
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>
+                ◈ Upload CSV
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 11, color: MUTED, lineHeight: 1.6, marginBottom: 12 }}>
+                CSV must have headers: <code style={{ color: 'rgba(255,255,255,0.6)' }}>partner1_name, partner2_name, wedding_date, venue_name, email</code>
+              </div>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleCsvFile}
+                style={{ fontFamily: NU, fontSize: 11, color: MUTED, marginBottom: 12, display: 'block' }}
+              />
+              {csvError && (
+                <div style={{ fontFamily: NU, fontSize: 11, color: '#f87171', marginBottom: 10 }}>✕ {csvError}</div>
+              )}
+
+              {csvRows.length > 0 && (
+                <div>
+                  <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, marginBottom: 8 }}>
+                    {csvRows.length} row{csvRows.length !== 1 ? 's' : ''} parsed
+                  </div>
+                  <div style={{ maxHeight: 160, overflowY: 'auto', border: `1px solid ${BORDER}`, borderRadius: 4, marginBottom: 12 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NU, fontSize: 10 }}>
+                      <thead>
+                        <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
+                          {['Partner 1', 'Partner 2', 'Date', 'Email'].map(h => (
+                            <th key={h} style={{ padding: '6px 10px', textAlign: 'left', color: MUTED, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', fontSize: 8, borderBottom: `1px solid ${BORDER}` }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {csvRows.map((r, i) => (
+                          <tr key={i} style={{ borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+                            <td style={{ padding: '5px 10px', color: '#fff' }}>{r.partner1_name || '—'}</td>
+                            <td style={{ padding: '5px 10px', color: '#fff' }}>{r.partner2_name || '—'}</td>
+                            <td style={{ padding: '5px 10px', color: MUTED }}>{r.wedding_date || '—'}</td>
+                            <td style={{ padding: '5px 10px', color: MUTED }}>{r.email || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {bulkProgress !== null && (
+                    <div style={{ fontFamily: NU, fontSize: 10, color: GOLD, marginBottom: 10 }}>
+                      Creating {bulkProgress.done}/{bulkProgress.total}…
+                    </div>
+                  )}
+
+                  {bulkResults.length === 0 && bulkProgress === null && (
+                    <button
+                      onClick={handleBulkCreate}
+                      style={{
+                        width: '100%', padding: '10px 0', borderRadius: 3, cursor: 'pointer',
+                        background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.4)`,
+                        color: GOLD, fontFamily: NU, fontSize: 10, fontWeight: 700,
+                        letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8,
+                      }}
+                    >
+                      ◈ Create All ({csvRows.length})
+                    </button>
+                  )}
+
+                  {bulkResults.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily: NU, fontSize: 10, color: '#34d399', marginBottom: 10, fontWeight: 700 }}>
+                        ✓ {bulkResults.filter(r => r.success).length} created · {bulkResults.filter(r => !r.success).length} failed
+                      </div>
+                      <div style={{ maxHeight: 140, overflowY: 'auto', border: `1px solid ${BORDER}`, borderRadius: 4, marginBottom: 12 }}>
+                        {bulkResults.map((r, i) => (
+                          <div key={i} style={{
+                            padding: '6px 10px', borderBottom: `1px solid rgba(255,255,255,0.04)`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                          }}>
+                            <div style={{ fontFamily: NU, fontSize: 10, color: r.success ? '#fff' : '#f87171', flex: 1 }}>
+                              {[r.row.partner1_name, r.row.partner2_name].filter(Boolean).join(' & ') || 'Unnamed'}
+                            </div>
+                            {r.success && r.url && (
+                              <button
+                                onClick={() => navigator.clipboard?.writeText(r.url).catch(()=>{})}
+                                style={{
+                                  fontFamily: NU, fontSize: 8, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                                  padding: '2px 6px', borderRadius: 2, cursor: 'pointer',
+                                  background: 'rgba(201,168,76,0.08)', border: `1px solid rgba(201,168,76,0.25)`, color: GOLD,
+                                }}
+                              >
+                                ⎘ Copy
+                              </button>
+                            )}
+                            {!r.success && <span style={{ fontFamily: NU, fontSize: 9, color: '#f87171' }}>✕</span>}
+                          </div>
+                        ))}
+                      </div>
+                      {bulkResults.some(r => r.success && r.row.email) && (
+                        <button
+                          onClick={handleBulkSendEmails}
+                          disabled={bulkSendAll}
+                          style={{
+                            width: '100%', padding: '10px 0', borderRadius: 3, cursor: bulkSendAll ? 'not-allowed' : 'pointer',
+                            background: 'rgba(255,255,255,0.04)', border: `1px solid rgba(255,255,255,0.12)`,
+                            color: 'rgba(255,255,255,0.6)', fontFamily: NU, fontSize: 10, fontWeight: 700,
+                            letterSpacing: '0.08em', textTransform: 'uppercase', opacity: bulkSendAll ? 0.5 : 1,
+                          }}
+                        >
+                          {bulkSendAll ? '⋯ Sending…' : '✉ Send All Emails'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Create form (single) ── */}
+          {activeTab === 'single' && !createdUrl ? (
             <div style={{ paddingTop: 18 }}>
               <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 14 }}>
                 ✦ Create Personalised Edition
@@ -375,7 +663,19 @@ export default function PersonalisePanel({ issueId, issueSlug, issueName, onClos
                     <div key={p.id} style={{
                       padding: '10px 12px', borderRadius: 4,
                       background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`,
+                      display: 'flex', gap: 10, alignItems: 'flex-start',
                     }}>
+                      {p.cover_url && (
+                        <img
+                          src={p.cover_url}
+                          alt={names || 'cover'}
+                          style={{
+                            width: 40, height: 57, objectFit: 'cover', borderRadius: 2, flexShrink: 0,
+                            border: `1px solid rgba(201,168,76,0.2)`,
+                          }}
+                        />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: GD, fontSize: 13, fontStyle: 'italic', color: '#fff', marginBottom: 2 }}>
                         {names || 'Unnamed couple'}
                       </div>
@@ -413,6 +713,7 @@ export default function PersonalisePanel({ issueId, issueSlug, issueName, onClos
                           Preview ↗
                         </a>
                       </div>
+                      </div>{/* end inner flex div */}
                     </div>
                   );
                 })}

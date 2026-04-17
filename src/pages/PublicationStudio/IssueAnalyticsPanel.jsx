@@ -60,16 +60,17 @@ export default function IssueAnalyticsPanel({ issueId, issueName, issueSlug, pag
   const [avgDuration, setAvgDuration] = useState(null); // ms
   const [allEvents,  setAllEvents]  = useState([]);   // raw events for trend + audience
   const [copiedSlug, setCopiedSlug] = useState(null); // vendor slug that was just copied
+  const [topCountries, setTopCountries] = useState([]); // { country, count }
 
   useEffect(() => {
     if (!issueId) return;
     (async () => {
       setLoading(true);
 
-      // 1. All read events for this issue (include device/browser/referrer for Feature 11)
+      // 1. All read events for this issue (include device/browser/referrer/country)
       const { data: events } = await supabase
         .from('magazine_read_events')
-        .select('session_id, event_type, page_number, duration_ms, created_at, device, browser, referrer')
+        .select('session_id, event_type, page_number, duration_ms, created_at, device, browser, referrer, country')
         .eq('issue_id', issueId);
 
       if (!events) { setLoading(false); return; }
@@ -97,6 +98,17 @@ export default function IssueAnalyticsPanel({ issueId, issueName, issueSlug, pag
         const avg = Math.round(durations.reduce((s, d) => s + d, 0) / durations.length);
         setAvgDuration(avg);
       }
+
+      // Top countries from issue_open events
+      const countryMap = {};
+      events
+        .filter(e => e.event_type === 'issue_open' && e.country)
+        .forEach(e => { countryMap[e.country] = (countryMap[e.country] || 0) + 1; });
+      const countriesArr = Object.entries(countryMap)
+        .map(([country, count]) => ({ country, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
+      setTopCountries(countriesArr);
 
       setLoading(false);
     })();
@@ -519,6 +531,36 @@ export default function IssueAnalyticsPanel({ issueId, issueName, issueSlug, pag
                       {audienceData.referrers.length === 0 && <span style={{ fontFamily: NU, fontSize: 10, color: MUTED }}>No data</span>}
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Top Countries ── */}
+            {topCountries.length > 0 && (
+              <div style={{ marginBottom: 32 }}>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 16 }}>
+                  ◎ Top Countries
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {topCountries.map((c) => {
+                    const maxCount = topCountries[0]?.count || 1;
+                    const pct = Math.round((c.count / sessions.length) * 100);
+                    return (
+                      <div key={c.country} style={{
+                        fontFamily: NU, fontSize: 10, padding: '5px 12px', borderRadius: 20,
+                        background: 'rgba(255,255,255,0.05)', border: `1px solid ${BORDER}`, color: '#fff',
+                        display: 'flex', alignItems: 'center', gap: 8,
+                      }}>
+                        <div style={{
+                          height: 6, width: Math.max(12, (c.count / maxCount) * 60),
+                          background: 'rgba(201,168,76,0.55)', borderRadius: 3,
+                          display: 'inline-block',
+                        }} />
+                        {c.country} <span style={{ color: GOLD }}>{pct}%</span>
+                        <span style={{ color: MUTED, fontSize: 9 }}>({c.count})</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
