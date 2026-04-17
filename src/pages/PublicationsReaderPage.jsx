@@ -736,7 +736,7 @@ function PageFlipWrapper({ flipDir, isFlipping, children }) {
 }
 
 // ── Page image ────────────────────────────────────────────────────────────────
-function PageImage({ page, side, pageBg, onHotspotClick }) {
+function PageImage({ page, side, pageBg, onHotspotClick, isPreview }) {
   const [loaded, setLoaded] = useState(false);
   if (!page) {
     return <div style={{ flex: 1, background: pageBg, border: '1px solid rgba(255,255,255,0.04)' }} />;
@@ -745,7 +745,9 @@ function PageImage({ page, side, pageBg, onHotspotClick }) {
   // Page was designed in PageDesigner but not yet published via "▶ Publish Digital"
   const hasCanvas = page.template_data?.canvasJSON;
   const hasImage  = !!page.image_url;
-  if (!hasImage && hasCanvas) {
+  if (!hasImage) {
+    // In preview mode: show the page number but explain images need a publish run
+    // In live mode: this shouldn't happen (status gate blocks non-published issues)
     return (
       <div style={{
         flex: 1, position: 'relative', background: pageBg,
@@ -758,10 +760,13 @@ function PageImage({ page, side, pageBg, onHotspotClick }) {
           fontFamily: "'Jost',sans-serif", fontSize: 10,
           color: 'rgba(255,255,255,0.3)', textAlign: 'center',
           letterSpacing: '0.1em', textTransform: 'uppercase', lineHeight: 1.6,
-          maxWidth: 180,
+          maxWidth: 200,
         }}>
           Page {page.page_number}<br />
-          <span style={{ color: '#C9A84C', opacity: 0.7 }}>Click ▶ Publish Digital<br />in the studio to render</span>
+          {isPreview
+            ? <span style={{ color: '#C9A84C', opacity: 0.8 }}>Not yet rendered —<br />click ▶ Publish Digital<br />in the studio</span>
+            : <span style={{ color: '#C9A84C', opacity: 0.7 }}>Image rendering…</span>
+          }
         </div>
       </div>
     );
@@ -1187,6 +1192,9 @@ function InReaderEnquiryModal({ hotspot, onClose }) {
 
 // ── Main reader component ─────────────────────────────────────────────────────
 export default function PublicationsReaderPage({ slug, onBack }) {
+  // ?preview=1 in URL → show draft banner, skip intro, allow draft issues
+  const isPreview = new URLSearchParams(window.location.search).get('preview') === '1';
+
   const [issue,   setIssue]   = useState(null);
   const [pages,   setPages]   = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1286,10 +1294,32 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         setLoading(false);
         return;
       }
+
+      // ── Status gate: only published issues are visible to public ─────────────
+      const previewFlag = new URLSearchParams(window.location.search).get('preview') === '1';
+      console.log('[reader] issue loaded:', {
+        id:              issueData.id,
+        slug:            issueData.slug,
+        status:          issueData.status,
+        render_version:  issueData.render_version,
+        processing_state: issueData.processing_state,
+        isPreview:       previewFlag,
+      });
+      if (!previewFlag && issueData.status !== 'published') {
+        setError('This issue is not yet published.');
+        setLoading(false);
+        return;
+      }
+
       setIssue(issueData);
 
       const { data: pagesData } = await fetchPages(issueData.id);
       if (cancelled) return;
+      console.log('[reader] pages loaded:', (pagesData || []).length, (pagesData || []).map(p => ({
+        n:        p.page_number,
+        hasImage: !!p.image_url,
+        url:      p.image_url ? p.image_url.slice(0, 80) : null,
+      })));
       setPages(pagesData || []);
       setLoading(false);
 
@@ -1435,6 +1465,10 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     document.title = parts.join(" · ");
     return () => { document.title = "Luxury Wedding Directory"; };
   }, [issue?.title]);
+
+  // ── Spread mode: declared here — before Helpers — because step/canNext reference it
+  const forceSpreadEarly   = issue?.spread_layout !== 'single';
+  const useDoubleSpread    = isDesktop && forceSpreadEarly;
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const totalPages = pages.length;
@@ -1757,9 +1791,8 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const PAGE_RATIOS = { A4: 1.414, A5: 1.414, US_LETTER: 1.294, SQUARE: 1.0, TABLOID: 1.545 };
   const pageAspect = PAGE_RATIOS[issue?.page_size || 'A4'] || 1.414;
 
-  // ── Spread mode: double unless issue sets single, or mobile ──────────────────
-  const forceSpread   = issue?.spread_layout !== 'single';
-  const useDoubleSpread = isDesktop && forceSpread;
+  // ── Spread mode (declared earlier — see "before Helpers" above) ─────────────
+  const forceSpread = forceSpreadEarly; // alias kept for readability below
 
   // ── Derive spread pages ──────────────────────────────────────────────────────
   // displayedPage drives what's shown inside the flip wrapper.
@@ -1784,7 +1817,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   if (error)   return <ErrorScreen message={error} onBack={onBack} />;
   if (!issue)  return <ErrorScreen message="Issue not found." onBack={onBack} />;
   if (pages.length === 0) {
-    return <ErrorScreen message="This issue has no pages yet. Check back soon." onBack={onBack} />;
+    return <ErrorScreen message={isPreview ? "No pages published yet — publish the issue first, then preview." : "This issue has no pages yet. Check back soon."} onBack={onBack} />;
   }
 
   const isBookmarkedCurrent = bookmarks.includes(currentPage);
@@ -1802,6 +1835,26 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
     >
+      {/* ── Draft preview banner ──────────────────────────────────────────── */}
+      {isPreview && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, zIndex: 9999,
+          background: 'rgba(201,169,110,0.95)',
+          color: '#1a1714',
+          fontFamily: "'Jost', sans-serif",
+          fontSize: 11, fontWeight: 700, letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          padding: '6px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 8,
+        }}>
+          <span>◆ Draft Preview — not visible to the public</span>
+          <span style={{ opacity: 0.6, fontWeight: 400, letterSpacing: '0.04em', textTransform: 'none', fontSize: 10 }}>
+            Publish to make live
+          </span>
+        </div>
+      )}
+
       {/* ① Reading progress bar */}
       <ProgressBar currentPage={currentPage} totalPages={totalPages} />
 
@@ -1895,16 +1948,16 @@ export default function PublicationsReaderPage({ slug, onBack }) {
           {isDesktop ? (
             <PageFlipWrapper flipDir={flipDir} isFlipping={isFlipping}>
               {useDoubleSpread && displayedPage > 1 && (
-                <PageImage page={leftPage} side="left" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
+                <PageImage page={leftPage} side="left" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} isPreview={isPreview} />
               )}
-              <PageImage page={rightPage} side="right" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
+              <PageImage page={rightPage} side="right" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} isPreview={isPreview} />
             </PageFlipWrapper>
           ) : (
             <>
               {useDoubleSpread && displayedPage > 1 && (
-                <PageImage page={leftPage} side="left" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
+                <PageImage page={leftPage} side="left" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} isPreview={isPreview} />
               )}
-              <PageImage page={rightPage} side="right" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
+              <PageImage page={rightPage} side="right" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} isPreview={isPreview} />
             </>
           )}
         </div>
