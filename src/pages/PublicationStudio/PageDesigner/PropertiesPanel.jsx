@@ -297,6 +297,145 @@ function isGradientFill(fill) {
   return fill && typeof fill === 'object' && fill.type === 'linear';
 }
 
+// ── P7 Rich Media sub-panels ──────────────────────────────────────────────────
+
+const GOLD_HEX = '#C9A84C';
+
+function CTAProperties({ obj, canvas, onUpdate }) {
+  const [label, setLabel] = useState(obj?.getObjects?.()?.find(o => o.type === 'textbox')?.text || 'EXPLORE NOW');
+  const [url,   setUrl]   = useState(obj?.ctaUrl   || '');
+  const [style, setStyle] = useState(obj?.ctaStyle || 'gold');
+
+  // Re-sync when selection changes
+  useEffect(() => {
+    setLabel(obj?.getObjects?.()?.find(o => o.type === 'textbox')?.text || 'EXPLORE NOW');
+    setUrl(obj?.ctaUrl || '');
+    setStyle(obj?.ctaStyle || 'gold');
+  }, [obj]);
+
+  function applyStyle(newStyle) {
+    setStyle(newStyle);
+    const isFill    = newStyle === 'gold';
+    const isOutline = newStyle === 'outline';
+    const bgRect  = obj.getObjects?.()?.find(o => o.type === 'rect');
+    const labelTb = obj.getObjects?.()?.find(o => o.type === 'textbox');
+    if (bgRect)  bgRect.set({ fill: isFill ? GOLD_HEX : 'transparent', stroke: isOutline ? GOLD_HEX : 'transparent', strokeWidth: isOutline ? 1.5 : 0 });
+    if (labelTb) labelTb.set({ fill: isFill ? '#18120A' : GOLD_HEX });
+    obj.ctaStyle = newStyle;
+    canvas?.renderAll();
+    onUpdate?.();
+  }
+
+  function applyLabel(v) {
+    setLabel(v);
+    const labelTb = obj?.getObjects?.()?.find(o => o.type === 'textbox');
+    if (labelTb) { labelTb.set('text', v); canvas?.renderAll(); onUpdate?.(); }
+  }
+
+  function applyUrl(v) {
+    setUrl(v);
+    obj.ctaUrl = v;
+    onUpdate?.();
+  }
+
+  return (
+    <>
+      <div style={SECTION}>CTA Button</div>
+      <PropField label="Label">
+        <input value={label} onChange={e => applyLabel(e.target.value)} style={INPUT_STYLE} placeholder="EXPLORE NOW" />
+      </PropField>
+      <PropField label="Style">
+        <div style={{ display: 'flex', gap: 5 }}>
+          {[['gold','Gold'],['outline','Outline'],['text','Text']].map(([s, lbl]) => (
+            <button key={s} onClick={() => applyStyle(s)} style={{
+              flex: 1, fontFamily: NU, fontSize: 9, fontWeight: 700,
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+              background: style === s ? 'rgba(201,168,76,0.18)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${style === s ? GOLD : 'rgba(255,255,255,0.1)'}`,
+              color: style === s ? GOLD : MUTED,
+              borderRadius: 2, padding: '5px 0', cursor: 'pointer',
+            }}>{lbl}</button>
+          ))}
+        </div>
+      </PropField>
+      <PropField label="URL">
+        <input value={url} onChange={e => applyUrl(e.target.value)} style={INPUT_STYLE} placeholder="https://…" />
+      </PropField>
+    </>
+  );
+}
+
+function VideoProperties({ obj, canvas, onUpdate }) {
+  const [url, setUrl] = useState(obj?.videoUrl || '');
+  useEffect(() => { setUrl(obj?.videoUrl || ''); }, [obj]);
+
+  return (
+    <>
+      <div style={SECTION}>Video Embed</div>
+      <PropField label="Video URL">
+        <input
+          value={url}
+          onChange={e => { setUrl(e.target.value); obj.videoUrl = e.target.value; onUpdate?.(); }}
+          style={INPUT_STYLE}
+          placeholder="YouTube or Vimeo URL"
+        />
+      </PropField>
+      <div style={{ padding: '0 16px 12px' }}>
+        <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, lineHeight: 1.5 }}>
+          To update the thumbnail, delete this block and re-insert with the new URL.
+        </div>
+      </div>
+    </>
+  );
+}
+
+function LinkCardProperties({ obj, canvas, onUpdate }) {
+  const [url,    setUrl]    = useState(obj?.linkUrl  || '');
+  const [title,  setTitle]  = useState(obj?.ogTitle  || '');
+  const [domain, setDomain] = useState(obj?.ogDomain || '');
+  useEffect(() => {
+    setUrl(obj?.linkUrl  || '');
+    setTitle(obj?.ogTitle  || '');
+    setDomain(obj?.ogDomain || '');
+  }, [obj]);
+
+  return (
+    <>
+      <div style={SECTION}>Link Card</div>
+      <PropField label="Link URL">
+        <input
+          value={url}
+          onChange={e => { setUrl(e.target.value); obj.linkUrl = e.target.value; onUpdate?.(); }}
+          style={INPUT_STYLE}
+          placeholder="https://…"
+        />
+      </PropField>
+      <PropField label="Title">
+        <input
+          value={title}
+          onChange={e => { setTitle(e.target.value); obj.ogTitle = e.target.value; onUpdate?.(); }}
+          style={INPUT_STYLE}
+        />
+      </PropField>
+      <PropField label="Domain">
+        <input
+          value={domain}
+          onChange={e => { setDomain(e.target.value); obj.ogDomain = e.target.value; onUpdate?.(); }}
+          style={INPUT_STYLE}
+          placeholder="example.com"
+        />
+      </PropField>
+      <div style={{ padding: '0 16px 12px' }}>
+        <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, lineHeight: 1.5 }}>
+          To update the image, delete and re-insert with the new URL.
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Main panel ────────────────────────────────────────────────────────────────
+
 export default function PropertiesPanel({ selectedObject, selectedObjects, canvas, onUpdate, onGroup, onUngroup, onRemoveBg, removingBg }) {
   const [aiImproveLoading, setAiImproveLoading] = useState(false);
   const [aiRewriteLoading, setAiRewriteLoading] = useState(false);
@@ -548,6 +687,20 @@ export default function PropertiesPanel({ selectedObject, selectedObjects, canva
 
       {obj && (
         <>
+          {/* ── P7 Rich Media panels (shown instead of generic type panels) ──── */}
+          {obj.customType === 'cta-button' && (
+            <CTAProperties obj={obj} canvas={canvas} onUpdate={onUpdate} />
+          )}
+          {obj.customType === 'video-block' && (
+            <VideoProperties obj={obj} canvas={canvas} onUpdate={onUpdate} />
+          )}
+          {obj.customType === 'link-card' && (
+            <LinkCardProperties obj={obj} canvas={canvas} onUpdate={onUpdate} />
+          )}
+
+          {/* Generic type-specific panels — hidden for P7 blocks */}
+          {!['cta-button', 'video-block', 'link-card'].includes(obj.customType) && (<>
+
           {/* ── FEATURE H: Paragraph Styles (text only) ──────────────────────────── */}
           {isText && (
             <>
@@ -987,7 +1140,10 @@ export default function PropertiesPanel({ selectedObject, selectedObjects, canva
           )}
           <Hr />
 
-          {/* Common: position, size, rotation */}
+          {/* close the !p7 guard opened above */}
+          </>)}
+
+          {/* Common: position, size, rotation — always shown */}
           <div style={SECTION}>Transform</div>
 
           <div style={{ padding: '4px 16px 8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
