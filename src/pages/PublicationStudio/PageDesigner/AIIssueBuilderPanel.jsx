@@ -9,68 +9,219 @@ import { GOLD, BORDER, MUTED, NU, GD } from './designerConstants';
 import { getVoiceInjection } from '../../../services/studioVoiceService';
 import { useSpeechInput } from './useSpeechInput';
 
-// ── Available templates the AI can choose from ────────────────────────────────
+// ── Full template registry with visual density + zone metadata ────────────────
+// visual: 'image-heavy' | 'text-heavy' | 'mixed'
+// zone:   'open' | 'feature' | 'fashion' | 'story' | 'venue' | 'close' | 'any'
 const VALID_TEMPLATES = [
-  { id: 'vogue-cover',      label: 'Cover',               category: 'Cover'       },
-  { id: 'editors-letter',   label: "Editor's Letter",     category: 'Editorial'   },
-  { id: 'table-of-contents',label: 'Contents Page',       category: 'Navigation'  },
-  { id: 'feature-spread',   label: 'Feature Spread',      category: 'Editorial'   },
-  { id: 'the-destination',  label: 'Destination Page',    category: 'Travel'      },
-  { id: 'the-runway',       label: 'Fashion Runway',      category: 'Fashion'     },
-  { id: 'the-gown',         label: 'The Gown',            category: 'Bridal'      },
-  { id: 'the-jewel',        label: 'Jewellery Page',      category: 'Jewellery'   },
-  { id: 'beauty-edit',      label: 'Beauty Edit',         category: 'Beauty'      },
-  { id: 'floral-spread',    label: 'Floral Spread',       category: 'Florals'     },
-  { id: 'invitation-suite', label: 'Invitation Suite',    category: 'Stationery'  },
-  { id: 'cake-moment',      label: 'Cake Moment',         category: 'Food & Cake' },
-  { id: 'couple-story',     label: 'Couple Story',        category: 'Couple'      },
-  { id: 'the-portrait',     label: 'Portrait Page',       category: 'Real Wedding'},
-  { id: 'ceremony-aisle',   label: 'Ceremony Aisle',      category: 'Ceremony'    },
-  { id: 'reception-table',  label: 'Reception Table',     category: 'Reception'   },
-  { id: 'the-hotel',        label: 'Venue Feature',       category: 'Venue'       },
-  { id: 'venue-portrait',   label: 'Venue Portrait',      category: 'Venue'       },
-  { id: 'the-triptych',     label: 'Detail Triptych',     category: 'Detail'      },
-  { id: 'full-bleed',       label: 'Full Bleed',          category: 'Editorial'   },
-  { id: 'lux-grid',         label: 'Luxury Grid',         category: 'Editorial'   },
-  { id: 'pull-quote',       label: 'Pull Quote',          category: 'Editorial'   },
-  { id: 'planner-spotlight',label: 'Planner Spotlight',   category: 'Editorial'   },
-  { id: 'honeymoon-edit',   label: 'Honeymoon Edit',      category: 'Editorial'   },
-  { id: 'ring-edit',        label: 'Ring Edit',           category: 'Editorial'   },
-  { id: 'back-cover',       label: 'Back Cover',          category: 'Back Cover'  },
+  // Cover & Navigation
+  { id: 'vogue-cover',          label: 'The Cover',            category: 'Cover',        visual: 'image-heavy', zone: 'open'    },
+  { id: 'cover-split',          label: 'Cover — Split',        category: 'Cover',        visual: 'image-heavy', zone: 'open'    },
+  { id: 'cover-typographic',    label: 'Cover — Typographic',  category: 'Cover',        visual: 'text-heavy',  zone: 'open'    },
+  { id: 'season-opener',        label: 'Season Opener',        category: 'Cover',        visual: 'text-heavy',  zone: 'open'    },
+  { id: 'editors-letter',       label: "Editor's Letter",      category: 'Navigation',   visual: 'mixed',       zone: 'open'    },
+  { id: 'about-page',           label: 'About Page',           category: 'Navigation',   visual: 'text-heavy',  zone: 'open'    },
+  { id: 'table-of-contents',    label: 'Contents Page',        category: 'Navigation',   visual: 'text-heavy',  zone: 'open'    },
+  { id: 'supplier-credits',     label: 'Supplier Credits',     category: 'Navigation',   visual: 'text-heavy',  zone: 'close'   },
+  // Feature Editorial
+  { id: 'feature-spread',       label: 'Feature Spread',       category: 'Editorial',    visual: 'image-heavy', zone: 'feature' },
+  { id: 'feature-cinematic',    label: 'Feature — Cinematic',  category: 'Editorial',    visual: 'image-heavy', zone: 'feature' },
+  { id: 'feature-minimal',      label: 'Feature — Minimal',    category: 'Editorial',    visual: 'mixed',       zone: 'feature' },
+  { id: 'story-chapter',        label: 'Story Chapter',        category: 'Editorial',    visual: 'text-heavy',  zone: 'feature' },
+  { id: 'styled-shoot',         label: 'Styled Shoot',         category: 'Editorial',    visual: 'image-heavy', zone: 'feature' },
+  { id: 'planning-edit',        label: 'Planning Edit',        category: 'Editorial',    visual: 'text-heavy',  zone: 'any'     },
+  { id: 'behind-scenes',        label: 'Behind the Scenes',    category: 'Editorial',    visual: 'mixed',       zone: 'any'     },
+  { id: 'pull-quote',           label: 'Pull Quote',           category: 'Editorial',    visual: 'text-heavy',  zone: 'any'     },
+  { id: 'planner-spotlight',    label: 'Planner Spotlight',    category: 'Editorial',    visual: 'mixed',       zone: 'feature' },
+  { id: 'the-interview',        label: 'The Interview',        category: 'Editorial',    visual: 'mixed',       zone: 'feature' },
+  { id: 'lux-grid',             label: 'Luxury Grid',          category: 'Editorial',    visual: 'image-heavy', zone: 'any'     },
+  { id: 'full-bleed',           label: 'Full Bleed',           category: 'Editorial',    visual: 'image-heavy', zone: 'any'     },
+  // Travel
+  { id: 'the-destination',      label: 'Destination',          category: 'Travel',       visual: 'image-heavy', zone: 'feature' },
+  { id: 'regional-opener',      label: 'Regional Opener',      category: 'Travel',       visual: 'image-heavy', zone: 'feature' },
+  { id: 'honeymoon-diary',      label: 'Honeymoon Diary',      category: 'Travel',       visual: 'mixed',       zone: 'story'   },
+  { id: 'honeymoon-edit',       label: 'Honeymoon Edit',       category: 'Travel',       visual: 'mixed',       zone: 'story'   },
+  // Fashion & Beauty
+  { id: 'the-runway',           label: 'Fashion Runway',       category: 'Fashion',      visual: 'image-heavy', zone: 'fashion' },
+  { id: 'the-gown',             label: 'The Gown',             category: 'Bridal',       visual: 'image-heavy', zone: 'fashion' },
+  { id: 'the-jewel',            label: 'Jewellery',            category: 'Jewellery',    visual: 'image-heavy', zone: 'fashion' },
+  { id: 'beauty-edit',          label: 'Beauty Edit',          category: 'Beauty',       visual: 'mixed',       zone: 'fashion' },
+  { id: 'floral-spread',        label: 'Floral Spread',        category: 'Florals',      visual: 'image-heavy', zone: 'fashion' },
+  { id: 'invitation-suite',     label: 'Invitation Suite',     category: 'Stationery',   visual: 'image-heavy', zone: 'any'     },
+  { id: 'cake-moment',          label: 'Cake Moment',          category: 'Food & Cake',  visual: 'image-heavy', zone: 'story'   },
+  { id: 'ring-edit',            label: 'Ring Edit',            category: 'Jewellery',    visual: 'image-heavy', zone: 'fashion' },
+  { id: 'dress-detail',         label: 'Dress Detail',         category: 'Bridal',       visual: 'image-heavy', zone: 'fashion' },
+  { id: 'fashion-plate',        label: 'Fashion Plate',        category: 'Fashion',      visual: 'image-heavy', zone: 'fashion' },
+  { id: 'dress-flat-lay',       label: 'Dress Flat Lay',       category: 'Fashion',      visual: 'image-heavy', zone: 'fashion' },
+  // Couple & Real Wedding
+  { id: 'couple-story',         label: 'Couple Story',         category: 'Couple',       visual: 'image-heavy', zone: 'story'   },
+  { id: 'couple-gallery',       label: 'Couple — Gallery',     category: 'Couple',       visual: 'image-heavy', zone: 'story'   },
+  { id: 'the-portrait',         label: 'Portrait Page',        category: 'Real Wedding', visual: 'image-heavy', zone: 'story'   },
+  { id: 'wedding-gallery',      label: 'Real Wedding Gallery', category: 'Real Wedding', visual: 'image-heavy', zone: 'story'   },
+  { id: 'ceremony-aisle',       label: 'Ceremony Aisle',       category: 'Ceremony',     visual: 'image-heavy', zone: 'story'   },
+  { id: 'reception-table',      label: 'Reception Table',      category: 'Reception',    visual: 'mixed',       zone: 'story'   },
+  // Venue
+  { id: 'the-hotel',            label: 'Venue Feature',        category: 'Venue',        visual: 'mixed',       zone: 'venue'   },
+  { id: 'venue-skyline',        label: 'Venue — Skyline',      category: 'Venue',        visual: 'mixed',       zone: 'venue'   },
+  { id: 'venue-portrait',       label: 'Venue Portrait',       category: 'Venue',        visual: 'image-heavy', zone: 'venue'   },
+  { id: 'venue-essay',          label: 'Venue — Essay',        category: 'Venue',        visual: 'mixed',       zone: 'venue'   },
+  { id: 'aerial-venue',         label: 'Aerial Venue',         category: 'Venue',        visual: 'image-heavy', zone: 'venue'   },
+  { id: 'venue-directory',      label: 'Venue Directory',      category: 'Venue',        visual: 'mixed',       zone: 'venue'   },
+  // Commercial
+  { id: 'full-page-ad',         label: 'Full-Page Ad',         category: 'Commercial',   visual: 'image-heavy', zone: 'any'     },
+  { id: 'product-showcase-ad',  label: 'Product Showcase Ad',  category: 'Commercial',   visual: 'mixed',       zone: 'close'   },
+  { id: 'venue-advertisement',  label: 'Venue Ad',             category: 'Commercial',   visual: 'image-heavy', zone: 'close'   },
+  // Detail & Back
+  { id: 'the-triptych',         label: 'Detail Triptych',      category: 'Detail',       visual: 'image-heavy', zone: 'any'     },
+  { id: 'back-cover',           label: 'Back Cover',           category: 'Back Cover',   visual: 'mixed',       zone: 'close'   },
 ];
 
 const TEMPLATE_IDS_LIST = VALID_TEMPLATES.map(t => t.id).join(', ');
 
 const PAGE_COUNTS = [6, 8, 10, 12, 16];
 
-const SYSTEM_PROMPT = `You are the creative director and editor-in-chief of Luxury Wedding Directory — a world-class editorial wedding publication, peer of Vogue Weddings and Condé Nast Traveller. Your task is to plan a bespoke magazine issue with genuine editorial intelligence.
+const PAGE_COUNT_META = {
+  6:  { label: 'Quick Read',       desc: 'Cover + hero feature + couple + close' },
+  8:  { label: 'Standard Issue',   desc: 'Opening sequence + 2 features + fashion + close' },
+  10: { label: 'Full Feature',     desc: 'Full editorial arc across all 5 zones' },
+  12: { label: 'Premium Issue',    desc: 'Extended arc — travel, real wedding + venue feature' },
+  16: { label: 'Flagship Edition', desc: 'All zones — BTS, planning guide, honeymoon + full credits' },
+};
+
+// ── Issue Moods ───────────────────────────────────────────────────────────────
+const MOODS = [
+  {
+    id: 'classic',
+    label: 'The Classic Issue',
+    icon: '◆',
+    desc: 'Balanced luxury. Every category, perfect proportion.',
+    moodPrompt: `This is a CLASSIC BALANCED ISSUE. The arc should feel like Vogue Weddings: aspirational but accessible, covering fashion, venues, real weddings, and beauty in equal measure. Template variety is paramount — no zone should dominate.`,
+  },
+  {
+    id: 'destination',
+    label: 'Destination Issue',
+    icon: '✈',
+    desc: 'Travel-first. Regional openers, honeymoon diaries, venue essays.',
+    moodPrompt: `This is a DESTINATION-FIRST ISSUE. Lead with a regional-opener in Zone 2. Include the-destination, honeymoon-diary, venue-essay, and aerial-venue. The geographic identity should be felt on every spread — specific locations, local details, atmosphere.`,
+  },
+  {
+    id: 'fashion',
+    label: 'Fashion Issue',
+    icon: '✦',
+    desc: 'Editorial-first. Runway, beauty, styled shoots, cinematic features.',
+    moodPrompt: `This is a HIGH-FASHION EDITORIAL ISSUE. Prioritise feature-cinematic, the-runway, styled-shoot, the-gown, beauty-edit, and ring-edit. The visual language should be dramatic and image-led. Include fashion-plate and dress-flat-lay. Minimise text-heavy pages — use pull-quote as the only text breath.`,
+  },
+  {
+    id: 'wedding',
+    label: 'Real Wedding Issue',
+    icon: '♡',
+    desc: 'Story-forward. Couple gallery, ceremony, BTS, supplier credits.',
+    moodPrompt: `This is a REAL WEDDING STORY ISSUE. The emotional arc is paramount: story-chapter opener for the real wedding → couple-gallery → ceremony-aisle → behind-scenes → reception-table. Include wedding-gallery and supplier-credits. The issue should feel like you are living the day.`,
+  },
+];
+
+// ── Editorial Arc Engine — System Prompt ─────────────────────────────────────
+function buildSystemPrompt(mood, pageCount) {
+  const moodBlock = mood?.moodPrompt || MOODS[0].moodPrompt;
+
+  const sizeGuide = {
+    6:  `6-PAGE ARC: p1=cover, p2=editors-letter, p3=feature-spread OR the-destination, p4=fashion OR the-gown OR the-jewel, p5=couple-story OR the-portrait OR the-hotel, p6=back-cover`,
+    8:  `8-PAGE ARC: p1=cover, p2=editors-letter, p3=table-of-contents, p4=feature-spread, p5=the-runway OR the-gown, p6=couple-story OR the-portrait, p7=the-hotel OR venue-portrait, p8=back-cover`,
+    10: `10-PAGE ARC: p1=cover, p2=editors-letter, p3=table-of-contents, p4=feature-spread OR feature-cinematic, p5=IMAGE-HEAVY travel OR fashion, p6=TEXT-HEAVY breath (pull-quote OR story-chapter OR planning-edit), p7=IMAGE-HEAVY fashion OR beauty, p8=couple-story OR wedding-gallery, p9=the-hotel OR venue-essay, p10=back-cover`,
+    12: `12-PAGE ARC: p1=cover, p2=season-opener OR editors-letter, p3=table-of-contents, p4=regional-opener OR feature-cinematic, p5=the-destination OR feature-spread, p6=TEXT breath (pull-quote OR feature-minimal), p7=the-runway OR styled-shoot, p8=the-gown OR beauty-edit, p9=couple-gallery OR wedding-gallery, p10=ceremony-aisle OR the-portrait, p11=venue-essay OR the-hotel, p12=back-cover`,
+    16: `16-PAGE ARC: p1=cover, p2=season-opener, p3=editors-letter, p4=table-of-contents, p5=regional-opener OR feature-cinematic, p6=the-destination, p7=TEXT breath (story-chapter OR pull-quote), p8=styled-shoot OR feature-spread, p9=the-runway OR the-gown, p10=beauty-edit OR ring-edit, p11=behind-scenes OR planning-edit, p12=couple-gallery OR wedding-gallery, p13=ceremony-aisle, p14=the-hotel OR venue-skyline, p15=supplier-credits OR venue-advertisement, p16=back-cover`,
+  }[pageCount] || `Build a ${pageCount}-page arc with the 5-zone structure described below.`;
+
+  return `You are the creative director and editor-in-chief of Luxury Wedding Directory — a world-class editorial wedding publication, peer of Vogue Weddings and Condé Nast Traveller. Your task is to plan a bespoke magazine issue with genuine editorial intelligence and a precisely calibrated page arc.
 
 You must return ONLY a valid JSON array. No markdown, no explanation, just the raw JSON array.
 
 Each item represents one page:
 {
-  "template_id": "one of the valid template ids",
+  "template_id": "one of the valid template ids below",
   "page_label": "short descriptive label for this page",
-  "kicker": "SHORT KICKER — 3-5 words, ALL CAPS, specific to this page's angle",
-  "headline": "Evocative editorial headline — 3-8 words, italic-friendly, specific and poetic",
-  "body": "2-3 sentences of luxury editorial copy. Specific to the location/theme/product. Reads like Condé Nast Traveller. Never generic.",
+  "kicker": "SHORT KICKER — 3-5 words, ALL CAPS, completely specific to this page",
+  "headline": "Evocative editorial headline — 3-8 words, italic-friendly, never generic",
+  "body": "2-3 sentences of luxury editorial copy. Specific details — location, time of day, fabric, architecture, emotion. Reads like Condé Nast Traveller. Never templated.",
   "location": "City, Region or Country if relevant",
   "byline": "Optional: 'Photography · Studio Name' or 'Words · Editor Name'"
 }
 
-Valid template_id values: ${TEMPLATE_IDS_LIST}
+Valid template_id values (choose ONLY from this list):
+${TEMPLATE_IDS_LIST}
 
-CREATIVE DIRECTION RULES — these are non-negotiable:
-1. First page MUST be "vogue-cover", last page MUST be "back-cover"
-2. NEVER repeat the same template_id more than ONCE (every page must be visually different)
-3. Build a genuine editorial arc: opening sequence → feature content → fashion/beauty → real wedding → venue → closing
-4. Visual rhythm: alternate between image-heavy pages (full-bleed, feature-spread) and text-forward pages (pull-quote, editors-letter)
-5. Each page must have its OWN specific angle — no two pages should feel similar in theme OR layout
-6. Headlines must be specific to the brief: "Sunlit Terraces at Dusk" not "Beautiful Wedding Venue"
-7. Kickers must be punchy and unique per page: not all "THE WEDDING", "THE VENUE", "THE DRESS"
-8. Body copy: name specific details — flowers, fabrics, time of day, architectural features, emotions
-9. Think like a real magazine: surprise the reader every turn of the page
-10. Return EXACTLY the number of pages requested — no more, no less`;
+═══════════════════════════════════════════════════════
+ISSUE MOOD: ${mood?.label || 'The Classic Issue'}
+${moodBlock}
+═══════════════════════════════════════════════════════
+
+STRUCTURAL ARC — 5 EDITORIAL ZONES:
+
+ZONE 1 — OPENING (pages 1–3): Sets the issue's identity.
+  Must include: vogue-cover OR cover-split OR cover-typographic (page 1 ALWAYS)
+  Should include 1–2 of: editors-letter, table-of-contents, season-opener, about-page
+  Never use: story-chapter, the-gown, couple-story, back-cover in Zone 1
+
+ZONE 2 — FEATURE (middle 30–40% of pages): The intellectual and visual climax.
+  Must include: at least ONE of: feature-spread, feature-cinematic, feature-minimal
+  Should include: travel (the-destination, regional-opener) and editorial depth
+  Introduce the issue's geographic identity here
+
+ZONE 3 — FASHION / SPECIALIST (middle 20–30% of pages): Showcases beauty and craft.
+  Must include: at least ONE of: the-runway, the-gown, beauty-edit, the-jewel, floral-spread
+  Can include: styled-shoot, behind-scenes, ring-edit, planner-spotlight
+
+ZONE 4 — STORY (middle 20–30% of pages): The emotional heart.
+  Must include: at least ONE real wedding or couple template
+  Should include: one of: couple-gallery, wedding-gallery, couple-story, the-portrait
+  Can include: ceremony-aisle, reception-table, cake-moment, story-chapter
+
+ZONE 5 — CLOSE (last 2–3 pages): Graceful resolution.
+  Must include: back-cover as the FINAL page
+  Should include 1 of: the-hotel, venue-essay, venue-skyline, venue-portrait
+  Can include: supplier-credits, venue-advertisement, product-showcase-ad, honeymoon-diary
+
+${sizeGuide}
+
+═══════════════════════════════════════════════════════
+VISUAL RHYTHM RULES (non-negotiable):
+Image-heavy templates: vogue-cover, cover-split, feature-spread, feature-cinematic, the-destination, regional-opener, the-runway, the-gown, the-jewel, floral-spread, invitation-suite, cake-moment, couple-story, couple-gallery, the-portrait, wedding-gallery, ceremony-aisle, venue-portrait, aerial-venue, styled-shoot, full-bleed, lux-grid, ring-edit, dress-detail, fashion-plate, dress-flat-lay, the-triptych, full-page-ad, venue-advertisement
+Text-heavy templates: pull-quote, editors-letter, planning-edit, supplier-credits, about-page, story-chapter, season-opener, table-of-contents, cover-typographic
+Mixed templates: beauty-edit, the-hotel, venue-essay, venue-skyline, feature-minimal, behind-scenes, planner-spotlight, the-interview, reception-table, honeymoon-diary, honeymoon-edit, venue-directory, product-showcase-ad, back-cover
+
+RULE 1: Never place 3+ image-heavy pages in a row without a text-heavy or mixed page between them
+RULE 2: Never place 2+ text-heavy pages in a row
+RULE 3: Every image-heavy run of 3+ pages MUST be broken by a pull-quote, story-chapter, or feature-minimal
+RULE 4: The issue must contain at least one pull-quote, story-chapter, OR feature-minimal as a "breath" page
+
+═══════════════════════════════════════════════════════
+VARIANT TEMPLATE SELECTION GUIDE:
+- vogue-cover: maximum glamour, full-bleed hero portrait — the default luxury cover
+- cover-split: editorial split-panel — use when the issue has strong graphic identity
+- cover-typographic: pure type, no photo — use for seasonal special editions ONLY
+- season-opener: use as page 2 of a seasonal edition, NOT as the cover
+- feature-spread: versatile editorial feature — safe choice for Zone 2
+- feature-cinematic: high-drama, Harper's Bazaar register — use for fashion or travel features
+- feature-minimal: Kinfolk/Cereal register — use for lifestyle, planning, or softer features
+- story-chapter: opens a multi-page narrative arc — place before a real wedding section
+- styled-shoot: aspirational image grid — place between fashion and real wedding zones
+- behind-scenes: production access — use as a rhythm break after a dense image run
+- regional-opener: destination feature opener — place at the START of a travel section
+- wedding-gallery: asymmetric real wedding opener — more modern than the-portrait
+- couple-gallery: 2×2 mosaic — use when you want a more editorial couple spread
+- venue-skyline: spec-forward venue feature — use when the brief mentions a specific venue
+- venue-essay: literary venue narrative — use for atmospheric destination features
+
+═══════════════════════════════════════════════════════
+COPY RULES:
+1. First page MUST be vogue-cover OR cover-split OR cover-typographic
+2. Last page MUST ALWAYS be back-cover — no exceptions
+3. NEVER repeat the same template_id (every page must be visually different)
+4. Headlines: specific, poetic, italic-friendly — "Sunlit Terraces at Dusk" not "Beautiful Venue"
+5. Kickers: unique per page — never repeat the same kicker across 2+ pages
+6. Body copy: name specific details — fabrics, flowers, time of day, architecture, emotion
+7. Think like a real magazine editor: surprise on every turn of the page
+8. Return EXACTLY ${pageCount} pages — no more, no less`;
+}
 
 // ── Category colour map ────────────────────────────────────────────────────────
 const CAT_COLOURS = {
@@ -87,6 +238,7 @@ function catColour(cat) { return CAT_COLOURS[cat] || 'rgba(255,255,255,0.4)'; }
 export default function AIIssueBuilderPanel({ onBuild, onClose }) {
   const [brief,     setBrief]     = useState('');
   const [pageCount, setPageCount] = useState(10);
+  const [mood,      setMood]      = useState(MOODS[0]);
   const [generating, setGenerating] = useState(false);
   const [structure,  setStructure]  = useState(null); // parsed AI page plan
   const [error,      setError]      = useState('');
@@ -116,9 +268,10 @@ Return exactly ${pageCount} pages. Remember: first page = vogue-cover, last page
 
     try {
       const voiceBlock  = getVoiceInjection();
+      const baseSystem  = buildSystemPrompt(mood, pageCount);
       const fullSystem  = voiceBlock
-        ? `${SYSTEM_PROMPT}\n\n── YOUR TRAINED EDITORIAL VOICE ──\n${voiceBlock}\n──────────────────────────────────\nApply this voice to ALL text fields (kicker, headline, body, byline).`
-        : SYSTEM_PROMPT;
+        ? `${baseSystem}\n\n── YOUR TRAINED EDITORIAL VOICE ──\n${voiceBlock}\n──────────────────────────────────\nApply this voice to ALL text fields (kicker, headline, body, byline).`
+        : baseSystem;
 
       const res = await callAiGenerate({
         feature: 'magazine-issue-builder',
@@ -270,6 +423,39 @@ Return exactly ${pageCount} pages. Remember: first page = vogue-cover, last page
 
           {/* ── BRIEF INPUT + build flow (hidden after success) ── */}
           {!(builtCount > 0 && !building) && <div>
+
+          {/* ── MOOD SELECTOR ── */}
+          <div style={{ marginBottom: 18 }}>
+            <label style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+              Issue Mood
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              {MOODS.map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => { setMood(m); setStructure(null); }}
+                  style={{
+                    background: mood.id === m.id ? 'rgba(201,168,76,0.12)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${mood.id === m.id ? 'rgba(201,168,76,0.5)' : BORDER}`,
+                    borderRadius: 4, padding: '9px 12px',
+                    cursor: 'pointer', textAlign: 'left',
+                    transition: 'all 0.12s',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                    <span style={{ fontSize: 13, lineHeight: 1 }}>{m.icon}</span>
+                    <span style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: mood.id === m.id ? GOLD : 'rgba(255,255,255,0.7)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                      {m.label}
+                    </span>
+                  </div>
+                  <div style={{ fontFamily: NU, fontSize: 9, color: MUTED, lineHeight: 1.4 }}>
+                    {m.desc}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
               <label style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
@@ -322,24 +508,36 @@ Return exactly ${pageCount} pages. Remember: first page = vogue-cover, last page
             <label style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
               Pages
             </label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {PAGE_COUNTS.map(n => (
-                <button
-                  key={n}
-                  onClick={() => { setPageCount(n); setStructure(null); }}
-                  style={{
-                    fontFamily: NU, fontSize: 12, fontWeight: 700,
-                    padding: '6px 16px', borderRadius: 3, cursor: 'pointer',
-                    background: pageCount === n ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${pageCount === n ? 'rgba(201,168,76,0.5)' : BORDER}`,
-                    color: pageCount === n ? GOLD : MUTED,
-                    transition: 'all 0.12s',
-                  }}
-                >
-                  {n}
-                </button>
-              ))}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {PAGE_COUNTS.map(n => {
+                const meta = PAGE_COUNT_META[n];
+                const active = pageCount === n;
+                return (
+                  <button
+                    key={n}
+                    onClick={() => { setPageCount(n); setStructure(null); }}
+                    style={{
+                      fontFamily: NU, borderRadius: 3, cursor: 'pointer',
+                      background: active ? 'rgba(201,168,76,0.12)' : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${active ? 'rgba(201,168,76,0.5)' : BORDER}`,
+                      color: active ? GOLD : MUTED,
+                      padding: '7px 14px',
+                      textAlign: 'left',
+                      transition: 'all 0.12s',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1, marginBottom: 2 }}>{n}</div>
+                    <div style={{ fontSize: 8, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.8 }}>{meta?.label}</div>
+                  </button>
+                );
+              })}
             </div>
+            {PAGE_COUNT_META[pageCount] && (
+              <div style={{ fontFamily: NU, fontSize: 9, color: MUTED, marginTop: 6, lineHeight: 1.4 }}>
+                {PAGE_COUNT_META[pageCount].desc}
+              </div>
+            )}
           </div>
 
           {/* Error */}
@@ -352,9 +550,53 @@ Return exactly ${pageCount} pages. Remember: first page = vogue-cover, last page
           {/* ── GENERATED STRUCTURE PREVIEW ── */}
           {structure && (
             <div style={{ marginBottom: 8 }}>
-              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
                 Page Structure — {structure.length} pages
               </div>
+
+              {/* Pacing rhythm strip */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontFamily: NU, fontSize: 8, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5, opacity: 0.6 }}>
+                  Visual Rhythm
+                </div>
+                <div style={{ display: 'flex', gap: 3, flexWrap: 'nowrap', alignItems: 'flex-end' }}>
+                  {structure.map((p, i) => {
+                    const tpl  = VALID_TEMPLATES.find(t => t.id === p.template_id);
+                    const vis  = tpl?.visual || 'mixed';
+                    const col  = vis === 'image-heavy' ? '#C9A96E'
+                               : vis === 'text-heavy'  ? '#64748b'
+                               : '#6ee7b7';
+                    const h    = vis === 'image-heavy' ? 28
+                               : vis === 'text-heavy'  ? 14
+                               : 21;
+                    return (
+                      <div
+                        key={i}
+                        title={`p${i+1} · ${tpl?.label || p.template_id} · ${vis}`}
+                        style={{
+                          width: `${Math.floor(100 / structure.length) - 1}%`,
+                          maxWidth: 28,
+                          height: h,
+                          background: col,
+                          borderRadius: 2,
+                          opacity: 0.75,
+                          flexShrink: 0,
+                          transition: 'height 0.2s',
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: 12, marginTop: 5 }}>
+                  {[['image-heavy', '#C9A96E', 'Image-led'], ['mixed', '#6ee7b7', 'Mixed'], ['text-heavy', '#64748b', 'Text breath']].map(([id, col, lbl]) => (
+                    <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <div style={{ width: 8, height: 8, background: col, borderRadius: 1, opacity: 0.75 }} />
+                      <span style={{ fontFamily: NU, fontSize: 8, color: MUTED, letterSpacing: '0.04em' }}>{lbl}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {structure.map((p, i) => {
                   const tpl = VALID_TEMPLATES.find(t => t.id === p.template_id);
