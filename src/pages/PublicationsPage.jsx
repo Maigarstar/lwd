@@ -638,12 +638,12 @@ export default function PublicationsPage({ onRead, onBack, footerNav }) {
       const needsFallback = published.filter(i => !i.cover_image).map(i => i.id);
       if (needsFallback.length > 0) {
         const { data: firstPages } = await supabase
-          .from('magazine_pages')
-          .select('issue_id, image_url')
+          .from('magazine_issue_pages')
+          .select('issue_id, image_url, thumbnail_url')
           .in('issue_id', needsFallback)
           .eq('page_number', 1);
         const coverByIssue = Object.fromEntries(
-          (firstPages || []).map(p => [p.issue_id, p.image_url])
+          (firstPages || []).map(p => [p.issue_id, p.image_url || p.thumbnail_url])
         );
         published.forEach(i => {
           if (!i.cover_image && coverByIssue[i.id]) {
