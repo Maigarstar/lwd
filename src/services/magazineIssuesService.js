@@ -106,14 +106,29 @@ export async function createIssue(fields = {}) {
       page_count:     0,
     };
 
-    const { data, error } = await supabase
+    console.log('[createIssue] inserting slug:', slug, 'payload keys:', Object.keys(payload));
+
+    // Race the DB call against a 12-second timeout so the UI never hangs silently
+    const dbCall = supabase
       .from(ISSUES_TABLE)
       .insert(payload)
       .select()
       .single();
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(
+        'Create timed out after 12 s — Supabase did not respond.\n\n' +
+        'Possible causes: project paused, network issue, or slug collision.\n' +
+        `Slug attempted: "${slug}"`
+      )), 12000)
+    );
+
+    const { data, error } = await Promise.race([dbCall, timeoutPromise]);
+    console.log('[createIssue] result:', { data: !!data, error: error?.message });
     if (error) throw error;
     return { data, error: null };
   } catch (error) {
+    console.error('[createIssue] failed:', error);
     return { data: null, error };
   }
 }
