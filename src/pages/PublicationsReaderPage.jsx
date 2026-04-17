@@ -7,6 +7,7 @@
 //           enhanced page counter, keyboard shortcuts, pinch-to-zoom
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { fetchIssueBySlug } from '../services/magazineIssuesService';
 import { fetchPages }       from '../services/magazinePageService';
 import { trackIssueView, trackPageTurn, trackDownload } from '../services/publicationsAnalyticsService';
@@ -1882,7 +1883,42 @@ export default function PublicationsReaderPage({ slug, onBack }) {
 
   const isBookmarkedCurrent = bookmarks.includes(currentPage);
 
+  // ── SEO meta tags ─────────────────────────────────────────────────────────────
+  const canonicalUrl  = `https://luxuryweddingdirectory.com/publications/${issue.slug}`;
+  const ogImage       = issue.og_image_url || issue.cover_image || '';
+  const metaTitle     = issue.seo_title    || issue.title       || 'LWD Magazine';
+  const metaDesc      = issue.seo_description || issue.intro
+    || `Read ${issue.title} — the luxury wedding editorial magazine from Luxury Wedding Directory.`;
+  const pageTitle     = `${metaTitle} | Luxury Wedding Directory Magazine`;
+
   return (
+    <>
+    <Helmet>
+      <title>{pageTitle}</title>
+      <meta name="description" content={metaDesc} />
+      <link rel="canonical" href={canonicalUrl} />
+
+      {/* Open Graph */}
+      <meta property="og:type"        content="article" />
+      <meta property="og:title"       content={metaTitle} />
+      <meta property="og:description" content={metaDesc} />
+      <meta property="og:url"         content={canonicalUrl} />
+      {ogImage && <meta property="og:image" content={ogImage} />}
+      {ogImage && <meta property="og:image:width"  content="1200" />}
+      {ogImage && <meta property="og:image:height" content="630" />}
+      <meta property="og:site_name"   content="Luxury Wedding Directory" />
+
+      {/* Twitter card */}
+      <meta name="twitter:card"        content="summary_large_image" />
+      <meta name="twitter:title"       content={metaTitle} />
+      <meta name="twitter:description" content={metaDesc} />
+      {ogImage && <meta name="twitter:image" content={ogImage} />}
+
+      {/* RSS autodiscovery */}
+      <link rel="alternate" type="application/rss+xml"
+            title="LWD — The Magazine"
+            href="https://luxuryweddingdirectory.com/magazine-feed.xml" />
+    </Helmet>
     <div
       style={{
         position: 'fixed', inset: 0,
@@ -2260,5 +2296,6 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         </div>
       )}
     </div>
+    </>
   );
 }

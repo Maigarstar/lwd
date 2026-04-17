@@ -4,6 +4,7 @@
 // Cinematic hero with latest cover + premium issue grid.
 
 import { useState, useEffect, useRef } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { fetchIssues } from '../services/magazineIssuesService';
 import { supabase } from '../lib/supabaseClient';
 
@@ -666,6 +667,20 @@ export default function PublicationsPage({ onRead, onBack, footerNav }) {
   const featured = issues[0] || null;
 
   return (
+    <>
+    <Helmet>
+      <title>The Magazine | Luxury Wedding Directory</title>
+      <meta name="description" content="Discover the Luxury Wedding Directory editorial magazine — inspiring couples planning exceptional weddings with exclusive venues, fashion, and destination features." />
+      <link rel="canonical" href="https://luxuryweddingdirectory.com/publications" />
+      <meta property="og:title"       content="LWD — The Magazine" />
+      <meta property="og:description" content="Luxury editorial magazine for discerning couples planning exceptional weddings." />
+      <meta property="og:type"        content="website" />
+      <meta property="og:url"         content="https://luxuryweddingdirectory.com/publications" />
+      {/* RSS autodiscovery — lets feed readers and Google Discover find the feed */}
+      <link rel="alternate" type="application/rss+xml"
+            title="LWD — The Magazine"
+            href="https://luxuryweddingdirectory.com/magazine-feed.xml" />
+    </Helmet>
     <div style={{ background: BG, minHeight: '100vh', color: '#fff', fontFamily: NU }}>
       {/* Fixed back link */}
       <BackLink onBack={onBack} />
@@ -767,5 +782,6 @@ export default function PublicationsPage({ onRead, onBack, footerNav }) {
       {/* Footer strip */}
       <FooterStrip />
     </div>
+    </>
   );
 }
