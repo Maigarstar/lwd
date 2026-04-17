@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { fetchIssues } from '../services/magazineIssuesService';
+import { supabase } from '../lib/supabaseClient';
 
 const GOLD = '#C9A84C';
 const GD   = "var(--font-heading-primary, 'Cormorant Garamond', Georgia, serif)";
@@ -614,7 +615,7 @@ export default function PublicationsPage({ onRead, onBack, footerNav }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetchIssues().then(({ data, error: err }) => {
+    fetchIssues().then(async ({ data, error: err }) => {
       if (cancelled) return;
       if (err) {
         setError('Failed to load issues.');
@@ -630,6 +631,28 @@ export default function PublicationsPage({ onRead, onBack, footerNav }) {
           if (nb !== na) return nb - na;
           return new Date(b.created_at || 0) - new Date(a.created_at || 0);
         });
+
+      // Fallback: for issues without a cover_image, use page 1's image_url.
+      // This fixes older published issues that were published before cover
+      // auto-population was added — no re-publish required.
+      const needsFallback = published.filter(i => !i.cover_image).map(i => i.id);
+      if (needsFallback.length > 0) {
+        const { data: firstPages } = await supabase
+          .from('magazine_pages')
+          .select('issue_id, image_url')
+          .in('issue_id', needsFallback)
+          .eq('page_number', 1);
+        const coverByIssue = Object.fromEntries(
+          (firstPages || []).map(p => [p.issue_id, p.image_url])
+        );
+        published.forEach(i => {
+          if (!i.cover_image && coverByIssue[i.id]) {
+            i.cover_image = coverByIssue[i.id];
+          }
+        });
+      }
+
+      if (cancelled) return;
       setIssues(published);
       setLoading(false);
     });

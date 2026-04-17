@@ -2276,6 +2276,10 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         enableRetinaScaling: false,
       });
 
+      // Capture page 1's public URL so we can auto-populate issue.cover_image
+      // after the loop if the user hasn't uploaded a manual cover.
+      let firstPagePublicUrl = null;
+
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
         const pageNumber = i + 1;
@@ -2309,6 +2313,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
           offscreen.dispose();
           throw new Error(`Page ${pageNumber} upload failed — aborting publish.\n\n${pageRes.error.message || pageRes.error}`);
         }
+        if (pageNumber === 1) firstPagePublicUrl = pageRes.publicUrl;
         const thumbRes = await uploadThumbImage(issue.id, renderVersion, pageNumber, thumbBlob);
         if (thumbRes.error) {
           offscreen.dispose();
@@ -2335,6 +2340,23 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
 
       // Clean up off-screen canvas
       offscreen.dispose();
+
+      // Auto-populate issue cover from page 1 if no cover was uploaded manually.
+      // This ensures the All Issues listing always has a cover image for
+      // published magazines — users who skip the cover-upload step in Overview
+      // still get a usable cover from their published page 1 design.
+      if (!issue.cover_image && firstPagePublicUrl) {
+        try {
+          const upd = await updateIssue(issue.id, { cover_image: firstPagePublicUrl });
+          if (upd?.error) {
+            console.warn('[publish] cover auto-set returned error:', upd.error);
+          } else {
+            console.log('[publish] auto-set cover_image from page 1');
+          }
+        } catch (coverErr) {
+          console.warn('[publish] cover auto-set failed (pages still published):', coverErr);
+        }
+      }
 
       // Persist publish state so the Live state survives reload
       const publishPatch = {

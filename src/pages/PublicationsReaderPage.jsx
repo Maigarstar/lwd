@@ -128,7 +128,9 @@ function ErrorScreen({ message, onBack }) {
 // ── Cinematic intro overlay ───────────────────────────────────────────────────
 function IntroOverlay({ issue, onDismiss }) {
   const [fading, setFading] = useState(false);
-  const coverUrl = issue.cover_image_url || issue.cover_url || null;
+  // cover_image is the actual schema column; cover_image_url / cover_url are
+  // older aliases kept as fallback in case any legacy data still has them.
+  const coverUrl = issue.cover_image || issue.cover_image_url || issue.cover_url || null;
 
   const dismiss = useCallback(() => {
     if (fading) return;
