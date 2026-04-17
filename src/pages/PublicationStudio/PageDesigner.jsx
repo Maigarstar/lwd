@@ -2490,6 +2490,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
           slot={pages[currentPageIndex]?.slot ?? null}
           onSave={handleSlotSave}
           onClose={() => setShowSlotPanel(false)}
+          issueName={issue?.title || issue?.slug || 'our next issue'}
+          pageName={pages[currentPageIndex]?.templateName || pages[currentPageIndex]?.name || null}
         />
       )}
 

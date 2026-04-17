@@ -2,8 +2,9 @@
 // Slide-in panel (right side, 380px) for assigning a vendor page slot to the
 // currently-open page in PageDesigner. Part of the Revenue Engine.
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { GOLD, DARK, CARD, BORDER, MUTED, NU, GD } from './designerConstants';
+import { sendEmail } from '../../../services/emailSendService';
 
 const TIER_DEFAULTS = {
   standard:  850,
@@ -49,13 +50,84 @@ const labelStyle = {
   marginTop: 14,
 };
 
-export default function PageSlotPanel({ slot, onSave, onClose }) {
+// ── Offer email HTML builder ──────────────────────────────────────────────────
+function buildOfferEmail({ vendorName, tier, price, issueName, pageName }) {
+  const tierLabels = { standard: 'Standard Page Feature', featured: 'Featured Placement', showcase: 'Showcase Spread' };
+  const tierLabel  = tierLabels[tier] || tier;
+  const displayName = vendorName || 'there';
+  const displayIssue = issueName || 'our next issue';
+  const displayPage  = pageName  || 'a dedicated editorial page';
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0A0908;font-family:sans-serif;">
+  <div style="max-width:560px;margin:0 auto;padding:40px 24px;">
+    <div style="border-top:3px solid #C9A84C;padding-top:32px;margin-bottom:32px;">
+      <p style="font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#C9A84C;text-transform:uppercase;margin:0 0 12px;">
+        Luxury Wedding Directory — Editorial
+      </p>
+      <h1 style="font-family:Georgia,serif;font-size:28px;font-style:italic;font-weight:400;color:#F0EBE0;margin:0 0 8px;line-height:1.25;">
+        You've been invited to feature in ${displayIssue}.
+      </h1>
+    </div>
+
+    <p style="font-size:15px;color:rgba(240,235,224,0.8);line-height:1.7;margin:0 0 24px;">
+      Dear ${displayName},
+    </p>
+    <p style="font-size:15px;color:rgba(240,235,224,0.8);line-height:1.7;margin:0 0 24px;">
+      We're building the next edition of the Luxury Wedding Directory editorial magazine and we'd love to feature you. We've reserved ${displayPage} specifically for your business.
+    </p>
+
+    <!-- Slot details card -->
+    <div style="background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.25);border-radius:6px;padding:24px;margin:0 0 28px;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(240,235,224,0.45);padding:6px 0;width:40%;">Placement</td>
+          <td style="font-family:Georgia,serif;font-size:15px;font-style:italic;color:#F0EBE0;padding:6px 0;">${tierLabel}</td>
+        </tr>
+        <tr>
+          <td style="font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(240,235,224,0.45);padding:6px 0;">Page</td>
+          <td style="font-family:Georgia,serif;font-size:15px;font-style:italic;color:#F0EBE0;padding:6px 0;">${displayPage}</td>
+        </tr>
+        <tr>
+          <td style="font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(240,235,224,0.45);padding:6px 0;">Investment</td>
+          <td style="font-family:Georgia,serif;font-size:22px;font-style:italic;color:#C9A84C;padding:6px 0;">£${Number(price).toLocaleString()}</td>
+        </tr>
+      </table>
+    </div>
+
+    <p style="font-size:14px;color:rgba(240,235,224,0.6);line-height:1.7;margin:0 0 32px;">
+      This is a curated, editorial-first publication — not a directory listing. Your page will be designed by our editorial team, written in the style of Condé Nast Traveller, and distributed to our qualified couple audience.
+    </p>
+
+    <p style="font-size:13px;color:rgba(240,235,224,0.5);line-height:1.7;margin:0 0 8px;">
+      To confirm your placement, simply reply to this email or reach us at <a href="mailto:editorial@luxuryweddingdirectory.com" style="color:#C9A84C;">editorial@luxuryweddingdirectory.com</a>.
+    </p>
+    <p style="font-size:12px;color:rgba(240,235,224,0.35);line-height:1.7;margin:0;">
+      Placements are limited and allocated on a first-confirmed basis.
+    </p>
+
+    <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:40px;padding-top:20px;text-align:center;">
+      <span style="font-size:10px;color:rgba(255,255,255,0.3);font-family:sans-serif;">
+        © ${new Date().getFullYear()} Luxury Wedding Directory
+      </span>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageName }) {
   const [tier,        setTier]        = useState(slot?.tier        || 'standard');
   const [status,      setStatus]      = useState(slot?.status      || 'available');
   const [vendorName,  setVendorName]  = useState(slot?.vendor_name || '');
   const [vendorEmail, setVendorEmail] = useState(slot?.vendor_email || '');
   const [customPrice, setCustomPrice] = useState(slot?.price != null ? String(slot.price) : '');
   const [notes,       setNotes]       = useState(slot?.notes       || '');
+
+  const [sending,     setSending]     = useState(false);
+  const [sendResult,  setSendResult]  = useState(null); // 'sent' | 'error' | null
 
   // When tier changes, clear custom price so the default is used
   function handleTierChange(t) {
@@ -83,6 +155,42 @@ export default function PageSlotPanel({ slot, onSave, onClose }) {
 
   function handleClear() {
     onSave(null);
+  }
+
+  async function handleSendOffer() {
+    const email = vendorEmail.trim();
+    if (!email) return;
+    setSending(true);
+    setSendResult(null);
+    try {
+      const price = getEffectivePrice();
+      const html  = buildOfferEmail({ vendorName: vendorName.trim(), tier, price, issueName, pageName });
+      await sendEmail({
+        subject:    `An editorial placement has been reserved for you — LWD`,
+        fromName:   'Luxury Wedding Directory',
+        fromEmail:  'editorial@luxuryweddingdirectory.com',
+        html,
+        recipients: [{ email, name: vendorName.trim() || undefined }],
+        type:       'campaign',
+      });
+      // Auto-advance status to 'offered' and save
+      setStatus('offered');
+      setSendResult('sent');
+      // Persist immediately so the slot reflects the new status
+      onSave({
+        tier,
+        status: 'offered',
+        vendor_name:  vendorName.trim(),
+        vendor_email: email,
+        price,
+        notes: notes.trim(),
+      });
+    } catch (err) {
+      console.error('[PageSlotPanel] Send offer failed:', err);
+      setSendResult('error');
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -306,48 +414,83 @@ export default function PageSlotPanel({ slot, onSave, onClose }) {
           </div>
         </div>
 
-        {/* Footer buttons */}
-        <div style={{
-          padding: '14px 18px',
-          borderTop: `1px solid ${BORDER}`,
-          flexShrink: 0,
-          display: 'flex',
-          gap: 10,
-        }}>
-          {slot && (
+        {/* Footer */}
+        <div style={{ padding: '14px 18px', borderTop: `1px solid ${BORDER}`, flexShrink: 0 }}>
+
+          {/* Send result feedback */}
+          {sendResult === 'sent' && (
+            <div style={{
+              marginBottom: 10, padding: '8px 12px', borderRadius: 4,
+              background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.3)',
+              fontFamily: NU, fontSize: 10, fontWeight: 700, color: '#34d399',
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+            }}>
+              ✓ Offer email sent — status set to Offered
+            </div>
+          )}
+          {sendResult === 'error' && (
+            <div style={{
+              marginBottom: 10, padding: '8px 12px', borderRadius: 4,
+              background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)',
+              fontFamily: NU, fontSize: 10, fontWeight: 700, color: '#f87171',
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+            }}>
+              ✕ Send failed — check email address and try again
+            </div>
+          )}
+
+          {/* Send Offer button — full width, prominent, shown when email is filled */}
+          {vendorEmail.trim() && (
             <button
-              onClick={handleClear}
+              onClick={handleSendOffer}
+              disabled={sending}
               style={{
-                padding: '9px 14px',
-                borderRadius: 3,
-                cursor: 'pointer',
-                background: 'rgba(248,113,113,0.08)',
-                border: '1px solid rgba(248,113,113,0.25)',
-                color: '#f87171',
+                width: '100%', padding: '10px 0', borderRadius: 3,
+                cursor: sending ? 'not-allowed' : 'pointer',
+                background: sending ? 'rgba(201,168,76,0.06)' : 'linear-gradient(135deg,rgba(201,168,76,0.25),rgba(201,168,76,0.12))',
+                border: `1px solid ${sending ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.6)'}`,
+                color: sending ? 'rgba(201,168,76,0.4)' : GOLD,
                 fontFamily: NU, fontSize: 10, fontWeight: 700,
-                letterSpacing: '0.06em', textTransform: 'uppercase',
-                whiteSpace: 'nowrap',
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                marginBottom: 8, transition: 'all 0.15s',
               }}
             >
-              Clear Slot
+              {sending ? '⋯ Sending…' : '✉ Send Offer to Vendor'}
             </button>
           )}
-          <button
-            onClick={handleSave}
-            style={{
-              flex: 1,
-              padding: '9px 0',
-              borderRadius: 3,
-              cursor: 'pointer',
-              background: 'rgba(201,168,76,0.15)',
-              border: `1px solid rgba(201,168,76,0.45)`,
-              color: GOLD,
-              fontFamily: NU, fontSize: 10, fontWeight: 700,
-              letterSpacing: '0.06em', textTransform: 'uppercase',
-            }}
-          >
-            ◆ Save Slot
-          </button>
+
+          {/* Clear + Save row */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            {slot && (
+              <button
+                onClick={handleClear}
+                style={{
+                  padding: '9px 14px', borderRadius: 3, cursor: 'pointer',
+                  background: 'rgba(248,113,113,0.08)',
+                  border: '1px solid rgba(248,113,113,0.25)',
+                  color: '#f87171',
+                  fontFamily: NU, fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Clear Slot
+              </button>
+            )}
+            <button
+              onClick={handleSave}
+              style={{
+                flex: 1, padding: '9px 0', borderRadius: 3, cursor: 'pointer',
+                background: 'rgba(201,168,76,0.15)',
+                border: `1px solid rgba(201,168,76,0.45)`,
+                color: GOLD,
+                fontFamily: NU, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.06em', textTransform: 'uppercase',
+              }}
+            >
+              ◆ Save Slot
+            </button>
+          </div>
         </div>
       </div>
     </div>
