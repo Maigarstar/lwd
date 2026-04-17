@@ -2884,6 +2884,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
           pageName={pages[currentPageIndex]?.templateName || pages[currentPageIndex]?.name || null}
           canvasJSON={pages[currentPageIndex]?.canvasJSON ?? null}
           issueId={issue?.id ?? null}
+          pageNum={pages[currentPageIndex]?.pageNumber ?? (currentPageIndex + 1)}
         />
       )}
 

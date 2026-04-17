@@ -285,11 +285,18 @@ export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageNa
       const tierLabels = { standard: 'Standard Page Feature', featured: 'Featured Placement', showcase: 'Showcase Spread' };
       const { data, error } = await supabase.functions.invoke('generate-payment-link', {
         body: {
+          // amount is in pence/cents (smallest unit) — the edge function does NOT multiply again
           amount: getEffectivePrice() * 100,
           currency: 'gbp',
           description: (tierLabels[tier] || tier) + ' — ' + (issueName || 'LWD Issue'),
           vendor_email: vendorEmail.trim(),
           vendor_name: vendorName.trim(),
+          // Metadata stored in Stripe session so webhook can do a targeted lookup
+          issue_id: issueId || undefined,
+          page_number: pageNum ?? undefined,
+          // After payment, redirect back to the studio
+          success_url: window.location.origin + window.location.pathname + '?payment=success',
+          cancel_url:  window.location.origin + window.location.pathname + '?payment=cancelled',
         },
       });
       if (error || !data?.url) {
