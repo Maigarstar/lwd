@@ -469,6 +469,99 @@ function TemplateRow({ template, globalIndex, onInsert, onReplace, isActive }) {
   );
 }
 
+// ── Inline media grid (shown inside Elements > Images section) ───────────────
+function InlineMediaGrid({ issue, onAddImage, onSeeAll }) {
+  const [items,   setItems]   = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    listAllAssets(issue?.id).then(data => {
+      if (!cancelled) { setItems(data); setLoading(false); }
+    });
+    return () => { cancelled = true; };
+  }, [issue?.id]);
+
+  if (loading) {
+    return (
+      <div style={{ fontFamily: NU, fontSize: 9, color: MUTED, textAlign: 'center', padding: '12px 0' }}>
+        Loading media…
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div style={{ fontFamily: NU, fontSize: 9, color: MUTED, textAlign: 'center', padding: '10px 16px 4px', lineHeight: 1.5 }}>
+        No uploads yet. Click Upload above.
+      </div>
+    );
+  }
+
+  // Show latest 9 images; "See all" goes to Media tab
+  const preview = items.slice(0, 9);
+
+  return (
+    <div style={{ padding: '0 10px 4px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 5 }}>
+        {preview.map(item => (
+          <InlineThumb key={item.url} item={item} onAddImage={onAddImage} />
+        ))}
+      </div>
+      {items.length > 9 && (
+        <button
+          onClick={onSeeAll}
+          style={{
+            marginTop: 8, width: '100%',
+            background: 'none', border: `1px solid rgba(255,255,255,0.1)`,
+            borderRadius: 3, color: MUTED,
+            fontFamily: NU, fontSize: 9, fontWeight: 700,
+            letterSpacing: '0.07em', textTransform: 'uppercase',
+            padding: '6px 0', cursor: 'pointer',
+          }}
+        >
+          + {items.length - 9} more →
+        </button>
+      )}
+    </div>
+  );
+}
+
+function InlineThumb({ item, onAddImage }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={() => onAddImage(item.url)}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      title={item.name || item.url}
+      style={{
+        position: 'relative', aspectRatio: '1/1',
+        background: '#0E0D0B',
+        border: `1px solid ${hov ? GOLD : 'rgba(255,255,255,0.08)'}`,
+        padding: 0, cursor: 'pointer', overflow: 'hidden',
+        borderRadius: 2, transition: 'border-color 0.12s',
+      }}
+    >
+      <img
+        src={item.url} alt={item.name || ''}
+        loading="lazy"
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+      />
+      {hov && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <span style={{ fontSize: 14, color: '#fff' }}>+</span>
+        </div>
+      )}
+    </button>
+  );
+}
+
 // ── Media library tab ────────────────────────────────────────────────────────
 function MediaTab({ issue, onAddImage }) {
   const [items,        setItems]        = useState([]);
@@ -937,22 +1030,52 @@ export default function ElementsPanel({ onAddElement, onAddImage, onInsertTempla
 
           <Divider />
 
-          {/* Image */}
-          <div style={SECTION_STYLE}>Image</div>
+          {/* Image + inline media library */}
+          <div style={{ ...SECTION_STYLE, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: 16 }}>
+            <span>Images</span>
+            <button
+              onClick={() => setPanelTab('media')}
+              style={{ background: 'none', border: 'none', fontFamily: NU, fontSize: 8, color: GOLD, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', padding: 0 }}
+            >
+              See all →
+            </button>
+          </div>
+
           <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
           <input ref={svgFileRef} type="file" accept=".svg" style={{ display: 'none' }} onChange={handleSVGFileChange} />
-          <ElemButton
-            label="Upload Image"
-            preview={<span style={{ fontSize: 16 }}>↑</span>}
-            onClick={() => fileRef.current?.click()}
-          />
-          <ElemButton
-            label="From URL"
-            preview={<span style={{ fontSize: 14, color: MUTED }}>⊞</span>}
-            onClick={() => setUrlOpen(v => !v)}
-          />
+
+          {/* Upload row */}
+          <div style={{ padding: '0 10px 8px', display: 'flex', gap: 6 }}>
+            <button
+              onClick={() => fileRef.current?.click()}
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                background: 'rgba(201,169,110,0.1)', border: `1px solid rgba(201,169,110,0.3)`,
+                borderRadius: 3, color: GOLD,
+                fontFamily: NU, fontSize: 9, fontWeight: 700,
+                letterSpacing: '0.06em', textTransform: 'uppercase',
+                padding: '7px 0', cursor: 'pointer',
+              }}
+            >
+              ↑ Upload
+            </button>
+            <button
+              onClick={() => setUrlOpen(v => !v)}
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(255,255,255,0.1)`,
+                borderRadius: 3, color: 'rgba(255,255,255,0.55)',
+                fontFamily: NU, fontSize: 9, fontWeight: 700,
+                letterSpacing: '0.06em', textTransform: 'uppercase',
+                padding: '7px 0', cursor: 'pointer',
+              }}
+            >
+              URL
+            </button>
+          </div>
+
           {urlOpen && (
-            <div style={{ padding: '8px 16px', background: 'rgba(0,0,0,0.2)' }}>
+            <div style={{ padding: '0 10px 8px', background: 'rgba(0,0,0,0.2)' }}>
               <input
                 type="text"
                 placeholder="https://..."
@@ -983,6 +1106,9 @@ export default function ElementsPanel({ onAddElement, onAddImage, onInsertTempla
               </button>
             </div>
           )}
+
+          {/* Inline media grid — recent uploads */}
+          <InlineMediaGrid issue={issue} onAddImage={onAddImage} onSeeAll={() => setPanelTab('media')} />
 
           {/* SVG Import */}
           <ElemButton
