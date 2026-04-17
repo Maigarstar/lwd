@@ -303,28 +303,12 @@ export default function DesignerToolbar({
           {onBack && <Sep />}
 
           {/* Taigenic.ai wordmark */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0,
-          }}>
-            {/* T-mark icon */}
-            <div style={{
-              width: 22, height: 22,
-              background: `linear-gradient(135deg, ${GOLD} 0%, rgba(201,169,110,0.6) 100%)`,
-              borderRadius: 3,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <span style={{ fontFamily: "'Georgia',serif", fontSize: 13, fontStyle: 'italic', fontWeight: 700, color: '#0E0D0B', lineHeight: 1, userSelect: 'none' }}>
-                T
-              </span>
+          <div style={{ lineHeight: 1, flexShrink: 0 }}>
+            <div style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: GOLD, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+              Taigenic.ai
             </div>
-            <div style={{ lineHeight: 1 }}>
-              <div style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: GOLD, letterSpacing: '0.2em', textTransform: 'uppercase' }}>
-                Taigenic.ai
-              </div>
-              <div style={{ fontFamily: NU, fontSize: 7, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 1 }}>
-                Studio
-              </div>
+            <div style={{ fontFamily: NU, fontSize: 7, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 1 }}>
+              Studio
             </div>
           </div>
 
