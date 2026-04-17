@@ -2,6 +2,45 @@ import { useState, useRef } from 'react';
 import { GOLD, DARK, CARD, BORDER, MUTED, GD, NU } from './designerConstants';
 import { TEMPLATES } from '../templates/definitions';
 
+// Premium templates get a visual elevation even without hover
+const PREMIUM_IDS = new Set(['vogue-cover', 'feature-spread']);
+
+// Map raw template categories to editorial section groups
+const SECTION_GROUPS = [
+  {
+    label: 'Cover & Navigation',
+    categories: new Set(['Cover', 'Back Cover', 'About Page', 'Navigation']),
+  },
+  {
+    label: 'Editorial',
+    categories: new Set(['Editorial', 'Real Wedding', 'Couple', 'Detail']),
+  },
+  {
+    label: 'Fashion & Style',
+    categories: new Set(['Fashion', 'Bridal', 'Jewellery', 'Beauty', 'Stationery', 'Food & Cake']),
+  },
+  {
+    label: 'Venue & Travel',
+    categories: new Set(['Venue', 'Venue Portrait', 'Travel', 'Florals', 'Reception', 'Ceremony']),
+  },
+  {
+    label: 'Commercial',
+    categories: new Set(['Full-Page Advertisement', 'Product Showcase Ad', 'Venue Advertisement']),
+  },
+];
+
+// Build section → template list mapping
+function buildSectionedTemplates(templates) {
+  const groups = SECTION_GROUPS.map(s => ({ ...s, templates: [] }));
+  const uncategorised = [];
+  for (const t of templates) {
+    const group = groups.find(g => g.categories.has(t.category));
+    if (group) group.templates.push(t);
+    else uncategorised.push(t);
+  }
+  return { groups, uncategorised };
+}
+
 const SECTION_STYLE = {
   fontFamily: NU,
   fontSize: 9,
@@ -204,11 +243,12 @@ function LayersPanel({ layers, onSelectLayer, onToggleLayerVisibility, onToggleL
 // scripts/generate-template-thumbnails.mjs. If the image fails to load we
 // fall back to the old numbered-box appearance so the panel stays readable
 // until thumbnails are built.
-function TemplateRow({ template, index, onPick }) {
+function TemplateRow({ template, globalIndex, onInsert, onReplace, isActive }) {
   const [hov, setHov] = useState(false);
   const [anchor, setAnchor] = useState(null);
   const [thumbOk, setThumbOk] = useState(true);
   const rowRef = useRef(null);
+  const isPremium = PREMIUM_IDS.has(template.id);
 
   function handleEnter() {
     setHov(true);
@@ -223,68 +263,149 @@ function TemplateRow({ template, index, onPick }) {
 
   return (
     <>
-      <button
+      <div
         ref={rowRef}
-        title={template.description || template.name}
-        onClick={onPick}
         onMouseEnter={handleEnter}
         onMouseLeave={handleLeave}
         style={{
           width: '100%',
-          background: hov ? 'rgba(201,169,110,0.07)' : 'none',
-          border: 'none',
           borderBottom: `1px solid rgba(255,255,255,0.04)`,
-          color: '#fff',
-          cursor: 'pointer',
-          padding: '8px 16px',
-          textAlign: 'left',
+          borderLeft: `2px solid ${isActive ? GOLD : isPremium ? 'rgba(201,169,110,0.4)' : 'transparent'}`,
+          background: isActive
+            ? 'rgba(201,169,110,0.10)'
+            : hov
+              ? 'rgba(201,169,110,0.07)'
+              : isPremium ? 'rgba(201,169,110,0.025)' : 'none',
+          padding: '7px 10px 7px 14px',
           display: 'flex',
           alignItems: 'center',
           gap: 10,
-          transition: 'background 0.1s',
+          transition: 'background 0.12s, border-color 0.12s',
+          cursor: 'default',
+          userSelect: 'none',
         }}
       >
-        {/* Thumbnail (32×44) or numbered-box fallback */}
+        {/* Thumbnail */}
         {thumbOk ? (
           <img
             src={thumbSrc}
             alt=""
-            width={32}
-            height={44}
             onError={() => setThumbOk(false)}
             style={{
-              width: 32, height: 44,
+              width: 32,
+              height: 44,
               objectFit: 'cover',
-              border: `1px solid rgba(201,169,110,0.45)`,
+              border: `1px solid ${isActive ? GOLD : 'rgba(201,169,110,0.35)'}`,
               flexShrink: 0,
               background: 'rgba(201,169,110,0.08)',
               display: 'block',
+              transition: 'border-color 0.12s',
             }}
           />
         ) : (
           <div style={{
-            width: 32, height: 44,
-            background: 'rgba(201,169,110,0.15)',
-            border: `1px solid rgba(201,169,110,0.3)`,
+            width: 32,
+            height: 44,
+            background: 'rgba(201,169,110,0.12)',
+            border: `1px solid rgba(201,169,110,0.28)`,
             borderRadius: 2,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             flexShrink: 0,
           }}>
-            <span style={{ fontFamily: NU, fontSize: 9, color: GOLD }}>{index + 1}</span>
+            <span style={{ fontFamily: NU, fontSize: 9, color: GOLD }}>{globalIndex + 1}</span>
           </div>
         )}
+
         {/* Name + category */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: NU, fontSize: 12, color: 'rgba(255,255,255,0.8)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{
+            fontFamily: NU,
+            fontSize: 12,
+            color: isActive ? '#F0EBE0' : 'rgba(255,255,255,0.78)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+          }}>
             {template.name}
+            {isPremium && !isActive && (
+              <span style={{
+                fontFamily: NU,
+                fontSize: 7,
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                color: GOLD,
+                background: 'rgba(201,169,110,0.12)',
+                border: `1px solid rgba(201,169,110,0.3)`,
+                borderRadius: 2,
+                padding: '1px 4px',
+                textTransform: 'uppercase',
+                flexShrink: 0,
+              }}>
+                {template.id === 'vogue-cover' ? 'Hero' : 'Signature'}
+              </span>
+            )}
           </div>
           <div style={{ fontFamily: NU, fontSize: 9, color: GOLD, letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: 1 }}>
             {template.category}
           </div>
         </div>
-      </button>
 
-      {/* Floating preview card */}
+        {/* Actions — visible on hover */}
+        {hov && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            {/* Primary: Insert */}
+            <button
+              onClick={(e) => { e.stopPropagation(); onInsert && onInsert(); }}
+              title="Insert as new page"
+              style={{
+                background: GOLD,
+                border: 'none',
+                borderRadius: 2,
+                color: '#1a1208',
+                fontFamily: NU,
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                padding: '4px 8px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                lineHeight: 1.4,
+              }}
+            >
+              + Insert
+            </button>
+            {/* Secondary: Replace */}
+            <button
+              onClick={(e) => { e.stopPropagation(); onReplace && onReplace(); }}
+              title="Replace current page"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 2,
+                color: 'rgba(255,255,255,0.5)',
+                fontFamily: NU,
+                fontSize: 9,
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+                padding: '4px 6px',
+                cursor: 'pointer',
+                lineHeight: 1.4,
+                flexShrink: 0,
+              }}
+            >
+              ↺
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Floating preview card — position:fixed so it's never clipped by the panel overflow */}
       {hov && anchor && (
         <div
           style={{
@@ -295,7 +416,7 @@ function TemplateRow({ template, index, onPick }) {
             height: 452,
             background: '#0F0E0B',
             border: `1px solid ${GOLD}`,
-            boxShadow: '0 24px 64px rgba(0,0,0,0.8)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.85)',
             zIndex: 3000,
             pointerEvents: 'none',
             display: 'flex',
@@ -310,20 +431,34 @@ function TemplateRow({ template, index, onPick }) {
             />
           ) : (
             <div style={{
-              width: '100%', height: 404,
+              width: '100%',
+              height: 404,
               background: 'rgba(201,169,110,0.08)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: NU, color: GOLD, fontSize: 12, letterSpacing: '0.2em',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: NU,
+              color: GOLD,
+              fontSize: 12,
+              letterSpacing: '0.2em',
             }}>
               {template.name.toUpperCase()}
             </div>
           )}
-          <div style={{ padding: '10px 14px', borderTop: `1px solid rgba(255,255,255,0.08)` }}>
-            <div style={{ fontFamily: GD, fontSize: 15, color: '#F0EBE0', fontStyle: 'italic' }}>
-              {template.name}
-            </div>
+          <div style={{ padding: '10px 14px', borderTop: `1px solid rgba(255,255,255,0.08)`, flex: 1 }}>
+            <div style={{ fontFamily: GD, fontSize: 15, color: '#F0EBE0', fontStyle: 'italic' }}>{template.name}</div>
             <div style={{ fontFamily: NU, fontSize: 9, color: GOLD, letterSpacing: '0.15em', marginTop: 2, textTransform: 'uppercase' }}>
               {template.category}
+            </div>
+            <div style={{
+              marginTop: 8,
+              fontFamily: NU,
+              fontSize: 8,
+              color: 'rgba(255,255,255,0.3)',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+            }}>
+              Hover · Insert or Replace ↑
             </div>
           </div>
         </div>
@@ -334,7 +469,7 @@ function TemplateRow({ template, index, onPick }) {
 
 // ── Main ElementsPanel export ─────────────────────────────────────────────────
 
-export default function ElementsPanel({ onAddElement, onAddImage, onAddTemplate, issue, layers, onSelectLayer, onToggleLayerVisibility, onToggleLayerLock, onReorderLayer }) {
+export default function ElementsPanel({ onAddElement, onAddImage, onInsertTemplate, onReplaceTemplate, activeTemplateId, issue, layers, onSelectLayer, onToggleLayerVisibility, onToggleLayerLock, onReorderLayer }) {
   const [panelTab, setPanelTab] = useState('elements');
   const [aiBrief, setAiBrief] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
@@ -601,16 +736,66 @@ export default function ElementsPanel({ onAddElement, onAddImage, onAddTemplate,
 
           <Divider />
 
-          {/* Templates */}
-          <div style={SECTION_STYLE}>Templates</div>
-          {TEMPLATES.map((template, i) => (
-            <TemplateRow
-              key={template.id}
-              template={template}
-              index={i}
-              onPick={() => onAddTemplate && onAddTemplate(i)}
-            />
-          ))}
+          {/* Templates — sectioned */}
+          {(() => {
+            const { groups, uncategorised } = buildSectionedTemplates(TEMPLATES);
+            const allTemplates = TEMPLATES; // for globalIndex lookup
+            return (
+              <>
+                {groups.map(group => {
+                  if (!group.templates.length) return null;
+                  return (
+                    <div key={group.label}>
+                      <div style={{
+                        ...SECTION_STYLE,
+                        borderTop: `1px solid rgba(255,255,255,0.06)`,
+                        marginTop: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}>
+                        <span>{group.label}</span>
+                        <span style={{ fontFamily: NU, fontSize: 8, color: 'rgba(255,255,255,0.2)', fontWeight: 400, letterSpacing: '0.04em', textTransform: 'none' }}>
+                          {group.templates.length} layouts
+                        </span>
+                      </div>
+                      {group.templates.map(template => {
+                        const globalIndex = allTemplates.indexOf(template);
+                        return (
+                          <TemplateRow
+                            key={template.id}
+                            template={template}
+                            globalIndex={globalIndex}
+                            onInsert={() => onInsertTemplate && onInsertTemplate(globalIndex)}
+                            onReplace={() => onReplaceTemplate && onReplaceTemplate(globalIndex)}
+                            isActive={activeTemplateId === template.id}
+                          />
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+                {uncategorised.length > 0 && (
+                  <div>
+                    <div style={{ ...SECTION_STYLE, borderTop: `1px solid rgba(255,255,255,0.06)`, marginTop: 4 }}>Other</div>
+                    {uncategorised.map(template => {
+                      const globalIndex = allTemplates.indexOf(template);
+                      return (
+                        <TemplateRow
+                          key={template.id}
+                          template={template}
+                          globalIndex={globalIndex}
+                          onInsert={() => onInsertTemplate && onInsertTemplate(globalIndex)}
+                          onReplace={() => onReplaceTemplate && onReplaceTemplate(globalIndex)}
+                          isActive={activeTemplateId === template.id}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           <div style={{ height: 20 }} />
         </div>

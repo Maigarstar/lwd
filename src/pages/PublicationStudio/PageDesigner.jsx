@@ -883,6 +883,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const canvasAreaRef = useRef(null);
 
   const initRef = useRef(false);
+  const pendingTemplateRef = useRef(null); // set by handleInsertTemplate, consumed by page-switch effect
 
   const [pages, setPages] = useState([{
     id: genId(),
@@ -890,6 +891,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     canvasJSON: null,
     thumbnailDataUrl: null,
     name: 'Page 1',
+    templateName: null,
   }]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [selectedObject, setSelectedObject] = useState(null);
@@ -902,6 +904,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const [showBleed, setShowBleed] = useState(false);
   const [lightsOff, setLightsOff] = useState(false); // dim surroundings to focus on canvas
   const [zoom, setZoom] = useState(1);
+  const [activeTemplateId, setActiveTemplateId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null); // Date | null — most recent successful save
   const [exportingDigital, setExportingDigital] = useState(false);
@@ -1214,6 +1217,13 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       fc.loadFromJSON(page.canvasJSON).then(() => fc.renderAll());
     } else {
       fc.renderAll();
+      // Apply a pending template (set by handleInsertTemplate for blank new pages)
+      if (pendingTemplateRef.current) {
+        const t = pendingTemplateRef.current;
+        pendingTemplateRef.current = null;
+        applyTemplate(fc, t, dims);
+        pushUndo();
+      }
     }
     setSelectedObject(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1504,13 +1514,36 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     }));
   }, [pageNumberSettings, dims, saveCurrentPageToState]);
 
-  function handleAddTemplate(templateIndex) {
+  function handleReplaceTemplate(templateIndex) {
     const fc = getActiveCanvas();
     if (!fc) return;
     const template = TEMPLATES[templateIndex];
     if (!template) return;
     applyTemplate(fc, template, dims);
     pushUndo();
+    setPages(prev => prev.map((p, i) =>
+      i === currentPageIndex ? { ...p, templateName: template.name } : p,
+    ));
+    setActiveTemplateId(template.id);
+  }
+
+  function handleInsertTemplate(templateIndex) {
+    saveCurrentPageToState();
+    const template = TEMPLATES[templateIndex];
+    if (!template) return;
+    // Store pending template — consumed by the page-switching effect once the new canvas is ready
+    pendingTemplateRef.current = template;
+    const newPage = {
+      id: genId(),
+      pageNumber: pages.length + 1,
+      canvasJSON: null,
+      thumbnailDataUrl: null,
+      name: `Page ${pages.length + 1}`,
+      templateName: template.name,
+    };
+    setPages(prev => [...prev, newPage]);
+    setCurrentPageIndex(pages.length); // pages.length = index of the newly appended page
+    setActiveTemplateId(template.id);
   }
 
   // ── Undo / Redo ─────────────────────────────────────────────────────────────
@@ -1998,7 +2031,9 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         <ElementsPanel
           onAddElement={handleAddElement}
           onAddImage={addImage}
-          onAddTemplate={handleAddTemplate}
+          onInsertTemplate={handleInsertTemplate}
+          onReplaceTemplate={handleReplaceTemplate}
+          activeTemplateId={activeTemplateId}
           issue={issue}
           layers={layers}
           onSelectLayer={handleSelectLayer}
@@ -2086,7 +2121,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
                       alignItems: 'flex-start',
                       transform: `scale(${zoom})`,
                       transformOrigin: 'top center',
-                      filter: 'drop-shadow(0 16px 64px rgba(0,0,0,0.7))',
+                      filter: 'drop-shadow(0 8px 40px rgba(0,0,0,0.6)) drop-shadow(0 2px 8px rgba(0,0,0,0.4))',
                     }}
                   >
                     {/* LEFT PAGE */}
@@ -2196,30 +2231,52 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
                 </div>
               ) : (
                 // ── SINGLE PAGE VIEW ─────────────────────────────────────────────
-                <div
-                  ref={canvasContainerRef}
-                  style={{
-                    position: 'relative',
-                    flexShrink: 0,
-                    transform: `scale(${zoom})`,
-                    transformOrigin: 'top center',
-                    boxShadow: '0 12px 48px rgba(0,0,0,0.6)',
-                  }}
-                >
-                  <canvas ref={canvasElRef} />
-                  {showGrid && (
-                    <GridOverlay
-                      width={dims.w * zoom}
-                      height={dims.h * zoom}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div
+                    ref={canvasContainerRef}
+                    style={{
+                      position: 'relative',
+                      flexShrink: 0,
+                      transform: `scale(${zoom})`,
+                      transformOrigin: 'top center',
+                      boxShadow: '0 8px 40px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35), 0 32px 80px rgba(0,0,0,0.4)',
+                      transition: 'opacity 0.15s ease',
+                    }}
+                  >
+                    <canvas ref={canvasElRef} />
+                    {showGrid && (
+                      <GridOverlay
+                        width={dims.w * zoom}
+                        height={dims.h * zoom}
+                      />
+                    )}
+                    {/* Bleed + safe zone guides */}
+                    {showBleed && <BleedOverlay />}
+                    {/* Guide lines overlay */}
+                    <GuideLines
+                      guides={guides}
+                      onMoveGuide={handleMoveGuide}
                     />
-                  )}
-                  {/* Bleed + safe zone guides */}
-                  {showBleed && <BleedOverlay />}
-                  {/* Guide lines overlay */}
-                  <GuideLines
-                    guides={guides}
-                    onMoveGuide={handleMoveGuide}
-                  />
+                  </div>
+                  {/* Page label */}
+                  <div style={{
+                    marginTop: 12,
+                    fontSize: 10,
+                    color: 'rgba(255,255,255,0.35)',
+                    fontFamily: "'Jost', sans-serif",
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    userSelect: 'none',
+                    pointerEvents: 'none',
+                    transition: 'opacity 0.2s ease',
+                  }}>
+                    {(() => {
+                      const p = pages[currentPageIndex];
+                      const num = p ? `Page ${p.pageNumber}` : '';
+                      const tpl = p?.templateName ? ` · ${p.templateName}` : '';
+                      return num + tpl;
+                    })()}
+                  </div>
                 </div>
               )}
               </div>{/* end inner centering wrapper */}
