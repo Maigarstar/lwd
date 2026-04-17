@@ -51,15 +51,12 @@ function extractTemplateIds() {
   while ((m = idRegex.exec(src)) !== null) {
     ids.add(m[1]);
   }
-  // Drop ids that look like field keys (lowercased + hyphens OK, but field ids
-  // tend to be underscored or camel). Conservative filter: must contain a
-  // hyphen OR be one of a small whitelist of single-word template slugs.
-  const whitelistSingles = new Set([
-    'cover', 'editorial', 'fashion', 'travel', 'bridal', 'jewellery',
-    'detail', 'navigation', 'venue', 'couple', 'beauty', 'florals',
-    'reception', 'ceremony', 'stationery',
-  ]);
-  return Array.from(ids).filter((id) => id.includes('-') || whitelistSingles.has(id));
+  // Drop ids that look like field keys (form-field ids such as `body`,
+  // `kicker`, `hero`, `lede` never contain a hyphen). All current template
+  // slugs are hyphenated (e.g. `vogue-cover`, `editors-letter`, `venue-
+  // portrait`), so filtering to hyphenated ids is sufficient and avoids
+  // the risk of a single-word whitelist drifting out of sync.
+  return Array.from(ids).filter((id) => id.includes('-'));
 }
 
 // ── 2. Main ──────────────────────────────────────────────────────────────────
