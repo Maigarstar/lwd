@@ -94,6 +94,8 @@ export default function DesignerToolbar({
   pageNumberSettings,
   onPageNumSettingsChange,
   onApplyPageNumbers,
+  onBrandKit,
+  brandPrimaryColor,
 }) {
   const [printConfirm, setPrintConfirm] = useState(false);
   const [showPageNumPopover, setShowPageNumPopover] = useState(false);
@@ -331,6 +333,33 @@ export default function DesignerToolbar({
             )}
           </div>
         )}
+
+        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
+
+        {/* Brand Kit */}
+        <button
+          onClick={onBrandKit}
+          title="Open Brand Kit"
+          style={{
+            background: brandPrimaryColor
+              ? `rgba(${parseInt(brandPrimaryColor.slice(1,3),16)},${parseInt(brandPrimaryColor.slice(3,5),16)},${parseInt(brandPrimaryColor.slice(5,7),16)},0.15)`
+              : 'rgba(201,169,110,0.1)',
+            border: `1px solid ${brandPrimaryColor || 'rgba(201,169,110,0.3)'}`,
+            borderRadius: 3,
+            color: brandPrimaryColor || GOLD,
+            fontFamily: NU, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+            padding: '5px 12px', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 5,
+          }}
+        >
+          <span style={{
+            width: 10, height: 10, borderRadius: '50%',
+            background: brandPrimaryColor || GOLD,
+            display: 'inline-block', flexShrink: 0,
+          }} />
+          Brand
+        </button>
 
         <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
 

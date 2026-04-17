@@ -19,7 +19,9 @@ import PageListPanel from './PageDesigner/PageListPanel';
 import DesignerToolbar from './PageDesigner/DesignerToolbar';
 import { canvasToJpegBlob, canvasToPrintJpegBlob, generatePrintPDF, downloadPDF } from './PageDesigner/exportUtils';
 import { upsertPages, upsertPage, fetchPages, uploadPageImage, uploadThumbImage } from '../../services/magazinePageService';
+import { fetchBrandKit } from '../../services/magazineBrandKitService';
 import ImagePickerModal from './PageDesigner/ImagePickerModal';
+import BrandKitPanel from './BrandKitPanel';
 
 function genId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID
@@ -152,7 +154,82 @@ function addImagePlaceholder(fc, { left, top, width, height, imageUrl, fill = '#
   }
 }
 
-export function applyTemplate(fc, template, dims) {
+// ── Brand kit overlay ─────────────────────────────────────────────────────────
+// After a layout function runs, this walks every canvas object and substitutes
+// the brand primary colour (gold) and brand fonts.  All templates are authored
+// with the LWD gold #C9A84C and default fonts; this pass replaces them in one
+// sweep without touching layout coordinates or object structure.
+const DEFAULT_GOLD_HEX  = '#C9A84C';
+const DEFAULT_GOLD_RGB  = '201,168,76';
+const DEFAULT_GOLD_RGB2 = '201,169,110'; // addImagePlaceholder stroke variant
+
+const HEADING_FONT_SET = new Set([
+  'Bodoni Moda', 'Playfair Display', 'GFS Didot', 'Cinzel',
+  'Abril Fatface', 'DM Serif Display', 'Cormorant Garamond',
+  'Libre Baskerville', 'EB Garamond', 'Tenor Sans',
+]);
+const BODY_FONT_SET = new Set([
+  'Jost', 'Montserrat', 'Raleway', 'Lato', 'Open Sans', 'Poppins', 'Inter',
+]);
+
+function applyBrandToCanvas(fc, brand) {
+  if (!brand) return;
+
+  // Pre-compute new gold rgba prefix
+  let newRgb = null;
+  const newHex = brand.primary_color;
+  if (newHex && /^#[0-9A-Fa-f]{6}$/.test(newHex)) {
+    const r = parseInt(newHex.slice(1, 3), 16);
+    const g = parseInt(newHex.slice(3, 5), 16);
+    const b = parseInt(newHex.slice(5, 7), 16);
+    newRgb = `${r},${g},${b}`;
+  }
+
+  const hFont = brand.heading_font || null;
+  const bFont = brand.body_font || null;
+
+  if (!newHex && !hFont && !bFont) return;
+
+  fc.getObjects().forEach(obj => {
+    // ── Color substitution ────────────────────────────────────────────────
+    if (newHex && newRgb) {
+      // fill
+      if (obj.fill === DEFAULT_GOLD_HEX) obj.set('fill', newHex);
+      if (typeof obj.fill === 'string') {
+        if (obj.fill.startsWith(`rgba(${DEFAULT_GOLD_RGB},`)) {
+          const a = obj.fill.match(/rgba\([^)]+,([\d.]+)\)/)?.[1];
+          if (a) obj.set('fill', `rgba(${newRgb},${a})`);
+        } else if (obj.fill.startsWith(`rgba(${DEFAULT_GOLD_RGB2},`)) {
+          const a = obj.fill.match(/rgba\([^)]+,([\d.]+)\)/)?.[1];
+          if (a) obj.set('fill', `rgba(${newRgb},${a})`);
+        }
+      }
+      // stroke
+      if (obj.stroke === DEFAULT_GOLD_HEX) obj.set('stroke', newHex);
+      if (typeof obj.stroke === 'string') {
+        if (obj.stroke.startsWith(`rgba(${DEFAULT_GOLD_RGB},`)) {
+          const a = obj.stroke.match(/rgba\([^)]+,([\d.]+)\)/)?.[1];
+          if (a) obj.set('stroke', `rgba(${newRgb},${a})`);
+        } else if (obj.stroke.startsWith(`rgba(${DEFAULT_GOLD_RGB2},`)) {
+          const a = obj.stroke.match(/rgba\([^)]+,([\d.]+)\)/)?.[1];
+          if (a) obj.set('stroke', `rgba(${newRgb},${a})`);
+        }
+      }
+    }
+    // ── Font substitution (Textbox / IText) ───────────────────────────────
+    if (obj.type === 'textbox' || obj.type === 'i-text') {
+      if (hFont && HEADING_FONT_SET.has(obj.fontFamily)) {
+        obj.set('fontFamily', hFont);
+        try { loadGoogleFont(hFont); } catch { /* noop */ }
+      } else if (bFont && BODY_FONT_SET.has(obj.fontFamily)) {
+        obj.set('fontFamily', bFont);
+        try { loadGoogleFont(bFont); } catch { /* noop */ }
+      }
+    }
+  });
+}
+
+export function applyTemplate(fc, template, dims, brand = {}) {
   fc.clear();
   fc.backgroundColor = '#ffffff';
 
@@ -593,6 +670,9 @@ export function applyTemplate(fc, template, dims) {
   const layoutFn = layouts[template.category] || layouts[template.name] || defaultLayout;
   layoutFn();
 
+  // Apply brand colours + fonts on top of the authored layout.
+  if (brand && Object.keys(brand).length) applyBrandToCanvas(fc, brand);
+
   // Templates are authored at A4 (794×1123) — the locked standard page size.
   // No runtime scaling needed; objects render at their authored coordinates.
   fc.getObjects().forEach(o => o.setCoords());
@@ -920,6 +1000,13 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const [guides, setGuides] = useState({ h: [], v: [] });
   const [draftGuide, setDraftGuide] = useState(null); // null | { axis: 'h'|'v', pos: number }
 
+  // Brand kit — loaded on mount, applied to every template insert/replace
+  const [brand, setBrand] = useState({});
+  const [showBrandKit, setShowBrandKit] = useState(false);
+  useEffect(() => {
+    fetchBrandKit().then(({ data }) => { if (data) setBrand(data); });
+  }, []);
+
   // Image picker — opened by double-clicking any isImagePlaceholder object
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const imagePickerTargetRef = useRef(null); // the Fabric object to replace
@@ -1221,7 +1308,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       if (pendingTemplateRef.current) {
         const t = pendingTemplateRef.current;
         pendingTemplateRef.current = null;
-        applyTemplate(fc, t, dims);
+        applyTemplate(fc, t, dims, brand);
         pushUndo();
       }
     }
@@ -1519,7 +1606,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     if (!fc) return;
     const template = TEMPLATES[templateIndex];
     if (!template) return;
-    applyTemplate(fc, template, dims);
+    applyTemplate(fc, template, dims, brand);
     pushUndo();
     setPages(prev => prev.map((p, i) =>
       i === currentPageIndex ? { ...p, templateName: template.name } : p,
@@ -2009,7 +2096,20 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         pageNumberSettings={pageNumberSettings}
         onPageNumSettingsChange={setPageNumberSettings}
         onApplyPageNumbers={handleApplyPageNumbers}
+        onBrandKit={() => setShowBrandKit(true)}
+        brandPrimaryColor={brand?.primary_color || null}
       />
+
+      {/* Brand kit panel overlay */}
+      {showBrandKit && (
+        <BrandKitPanel
+          onClose={() => {
+            setShowBrandKit(false);
+            // Reload brand so next template insert uses updated values
+            fetchBrandKit().then(({ data }) => { if (data) setBrand(data); });
+          }}
+        />
+      )}
 
       {/* Main area: panels + canvas */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0, position: 'relative' }}>
