@@ -106,14 +106,29 @@ export async function createIssue(fields = {}) {
       page_count:     0,
     };
 
-    const { data, error } = await supabase
+    console.log('[createIssue] inserting slug:', slug, 'payload keys:', Object.keys(payload));
+
+    // Race the DB call against a 12-second timeout so the UI never hangs silently
+    const dbCall = supabase
       .from(ISSUES_TABLE)
       .insert(payload)
       .select()
       .single();
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(
+        'Create timed out after 12 s — Supabase did not respond.\n\n' +
+        'Possible causes: project paused, network issue, or slug collision.\n' +
+        `Slug attempted: "${slug}"`
+      )), 12000)
+    );
+
+    const { data, error } = await Promise.race([dbCall, timeoutPromise]);
+    console.log('[createIssue] result:', { data: !!data, error: error?.message });
     if (error) throw error;
     return { data, error: null };
   } catch (error) {
+    console.error('[createIssue] failed:', error);
     return { data: null, error };
   }
 }
@@ -463,4 +478,73 @@ export async function fetchRenderHistory(issueId) {
     .eq('issue_id', issueId)
     .order('render_version', { ascending: false });
   return { data: data || [], error };
+}
+
+// ── Clone Issue ────────────────────────────────────────────────────────────────
+
+/**
+ * Clone an existing issue into a new draft.
+ * Copies all fields except: status (→draft), slug (→original-copy-<base36>),
+ * published_at (→null), render_version (→1), slug_locked (→false).
+ * Also copies all pages from magazine_issue_pages.
+ *
+ * @param {string} issueId - Source issue ID
+ * @returns {{ data: Object|null, error: Error|null }}
+ */
+export async function cloneIssue(issueId) {
+  try {
+    // 1. Fetch original issue
+    const { data: original, error: fetchErr } = await fetchIssueById(issueId);
+    if (fetchErr || !original) throw fetchErr || new Error('Issue not found');
+
+    // 2. Build new issue payload
+    const newSlug = `${original.slug}-copy-${Date.now().toString(36)}`;
+    // eslint-disable-next-line no-unused-vars
+    const { id: _id, created_at: _ca, updated_at: _ua, published_at: _pa, slug: _slug, slug_locked: _sl, status: _st, render_version: _rv, ...rest } = original;
+
+    const newIssuePayload = {
+      ...rest,
+      title:            `${original.title || 'Untitled Issue'} (Copy)`,
+      slug:             newSlug,
+      status:           'draft',
+      slug_locked:      false,
+      render_version:   1,
+      published_at:     null,
+      page_count:       0,
+      processing_state: 'idle',
+    };
+
+    const { data: newIssue, error: insertErr } = await supabase
+      .from(ISSUES_TABLE)
+      .insert(newIssuePayload)
+      .select()
+      .single();
+    if (insertErr) throw insertErr;
+
+    // 3. Fetch original pages
+    const { data: originalPages } = await supabase
+      .from('magazine_issue_pages')
+      .select('*')
+      .eq('issue_id', issueId)
+      .order('page_number', { ascending: true });
+
+    // 4. Insert page copies
+    if (originalPages && originalPages.length > 0) {
+      const pageCopies = originalPages.map(p => {
+        // eslint-disable-next-line no-unused-vars
+        const { id: _pid, created_at: _pca, ...pageRest } = p;
+        return { ...pageRest, issue_id: newIssue.id };
+      });
+      await supabase.from('magazine_issue_pages').insert(pageCopies);
+
+      // Update page_count on new issue
+      await supabase.from(ISSUES_TABLE).update({ page_count: pageCopies.length }).eq('id', newIssue.id);
+      newIssue.page_count = pageCopies.length;
+    }
+
+    return { data: newIssue, error: null };
+  } catch (error) {
+    console.error('[magazineIssuesService] cloneIssue failed:', error);
+    return { data: null, error };
+  }
 }
