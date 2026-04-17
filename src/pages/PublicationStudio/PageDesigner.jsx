@@ -2631,9 +2631,15 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         if (pageSpec.body     && bodyObj)     bodyObj.set('text',     pageSpec.body);
         if (pageSpec.byline   && bylineObj)   bylineObj.set('text',   pageSpec.byline);
 
-        // Render synchronously — images load async so the thumbnail will show
-        // grey placeholder rects, which is fine: layout structure is visible
-        // immediately and images paint in when the user opens the page.
+        // Wait for fonts to be ready (document.fonts.ready resolves once all
+        // @font-face rules have been parsed and the fonts are loaded into the
+        // browser's glyph cache). Without this, canvas text renders in fallback
+        // fonts. 300ms cap keeps the build loop snappy on slow connections.
+        // Images intentionally NOT waited on — placeholders are fine for thumbs.
+        await Promise.race([
+          document.fonts.ready,
+          new Promise(r => setTimeout(r, 300)),
+        ]);
         fc.renderAll();
 
         const canvasJSON       = fc.toJSON(['id']);
