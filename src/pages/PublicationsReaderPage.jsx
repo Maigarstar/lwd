@@ -1920,11 +1920,13 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         />
       )}
 
-      {/* Main viewer */}
+      {/* Main viewer — padding is minimal so the page fits the screen on load.
+          Desktop: 16px top/bottom + 72px sides (room for nav-button circles).
+          Mobile:  8px top/bottom, no side padding — full-bleed page.         */}
       <div
         style={{
           flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: isDesktop ? '60px 80px 60px' : '56px 0 48px',
+          padding: isDesktop ? '16px 72px' : '8px 0',
           position: 'relative', overflow: 'hidden',
           cursor: zoom > 1 ? (dragging.current ? 'grabbing' : 'grab') : 'default',
           perspective: '1200px',
