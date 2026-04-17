@@ -436,7 +436,7 @@ function LinkCardProperties({ obj, canvas, onUpdate }) {
 
 // ── Main panel ────────────────────────────────────────────────────────────────
 
-export default function PropertiesPanel({ selectedObject, selectedObjects, canvas, onUpdate, onGroup, onUngroup, onRemoveBg, removingBg }) {
+export default function PropertiesPanel({ selectedObject, selectedObjects, canvas, onUpdate, onGroup, onUngroup, onRemoveBg, removingBg, onCrop }) {
   const [aiImproveLoading, setAiImproveLoading] = useState(false);
   const [aiRewriteLoading, setAiRewriteLoading] = useState(false);
   const [lockRatio, setLockRatio] = useState(false);
@@ -936,8 +936,23 @@ export default function PropertiesPanel({ selectedObject, selectedObjects, canva
                 </div>
               </div>
 
-              {onRemoveBg && (
-                <div style={{ padding: '4px 16px 8px' }}>
+              <div style={{ padding: '4px 16px 8px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {onCrop && obj?.clipPath && (
+                  <button
+                    onClick={() => onCrop(obj)}
+                    style={{
+                      background: 'rgba(201,169,110,0.1)',
+                      border: '1px solid rgba(201,169,110,0.35)',
+                      borderRadius: 3, color: GOLD,
+                      fontFamily: NU, fontSize: 10, fontWeight: 700,
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                      padding: '6px 14px', cursor: 'pointer',
+                    }}
+                  >
+                    ✂ Crop
+                  </button>
+                )}
+                {onRemoveBg && (
                   <button
                     onClick={onRemoveBg}
                     disabled={removingBg}
@@ -951,10 +966,10 @@ export default function PropertiesPanel({ selectedObject, selectedObjects, canva
                       opacity: removingBg ? 0.5 : 1,
                     }}
                   >
-                    {removingBg ? '⋯ Removing…' : '✂ Remove BG'}
+                    {removingBg ? '⋯ Removing…' : '✦ Remove BG'}
                   </button>
-                </div>
-              )}
+                )}
+              </div>
 
               <Hr />
             </>

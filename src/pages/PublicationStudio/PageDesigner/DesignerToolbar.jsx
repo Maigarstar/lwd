@@ -249,6 +249,8 @@ export default function DesignerToolbar({
   onPageBgChange,
   onFillSlots,
   onArticleReflow,
+  collaborators,
+  selfId,
 }) {
   const [printConfirm, setPrintConfirm] = useState(false);
   const [showPageNumPopover, setShowPageNumPopover] = useState(false);
@@ -649,6 +651,69 @@ export default function DesignerToolbar({
         {/* ── RIGHT: Workflow actions ───────────────────────────────────── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <Sep />
+
+          {/* ── Presence avatars ─────────────────────────────────────────── */}
+          {(collaborators?.length > 0 || selfId) && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginRight: 2 }}>
+              {/* Self avatar */}
+              {selfId && (
+                <div
+                  title={`${selfId.name} (you)`}
+                  style={{
+                    width: 26, height: 26, borderRadius: '50%',
+                    background: selfId.color,
+                    border: '2px solid #0E0D0B',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: NU, fontSize: 9, fontWeight: 700, color: '#0E0D0B',
+                    flexShrink: 0, zIndex: 3, marginLeft: -4,
+                    userSelect: 'none',
+                  }}
+                >
+                  {selfId.initials || selfId.name?.[0]?.toUpperCase() || '?'}
+                </div>
+              )}
+              {/* Other collaborators */}
+              {(collaborators || []).slice(0, 5).map((c, i) => (
+                <div
+                  key={c.userId}
+                  title={`${c.name} — editing page ${(c.pageIndex ?? 0) + 1}`}
+                  style={{
+                    width: 26, height: 26, borderRadius: '50%',
+                    background: c.color,
+                    border: '2px solid #0E0D0B',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: NU, fontSize: 9, fontWeight: 700, color: '#0E0D0B',
+                    flexShrink: 0, zIndex: 2 - i, marginLeft: -6,
+                    userSelect: 'none',
+                    boxShadow: `0 0 0 1.5px ${c.color}55`,
+                  }}
+                >
+                  {c.initials || c.name?.[0]?.toUpperCase() || '?'}
+                </div>
+              ))}
+              {collaborators?.length > 5 && (
+                <div style={{
+                  width: 26, height: 26, borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '2px solid #0E0D0B',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: NU, fontSize: 8, fontWeight: 700,
+                  color: 'rgba(255,255,255,0.55)',
+                  marginLeft: -6, flexShrink: 0,
+                }}>
+                  +{collaborators.length - 5}
+                </div>
+              )}
+              {collaborators?.length > 0 && (
+                <span style={{
+                  fontFamily: NU, fontSize: 9, color: 'rgba(255,255,255,0.3)',
+                  marginLeft: 6, whiteSpace: 'nowrap',
+                }}>
+                  {collaborators.length} live
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Save + timestamp */}
           <button

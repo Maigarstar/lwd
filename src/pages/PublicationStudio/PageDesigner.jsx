@@ -31,6 +31,7 @@ import StudioVoicePanel from './PageDesigner/StudioVoicePanel';
 import PageSlotPanel from './PageDesigner/PageSlotPanel';
 import FillIssuePanelModal from './PageDesigner/FillIssuePanelModal';
 import ArticleReflowPanel from './PageDesigner/ArticleReflowPanel';
+import { useStudioCollaboration } from '../../hooks/useStudioCollaboration';
 
 function genId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID
@@ -1724,11 +1725,53 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   // P9c: Article Reflow Panel
   const [showArticleReflow, setShowArticleReflow] = useState(false);
 
-  // Crop mode state (Feature C)
-  const [cropMode, setCropMode] = useState(null); // null | { active: true, targetObj, cropRect }
+  // Crop mode state
+  // null when idle; { targetId, clipBounds: {left,top,width,height}, original: {left,top,scaleX,scaleY} }
+  const [cropMode, setCropMode] = useState(null);
 
   // AI Layout toast (Feature D)
   const [aiLayoutToast, setAiLayoutToast] = useState(null);
+
+  // ── Collaboration ─────────────────────────────────────────────────────────
+  const handleRemotePageUpdate = useCallback((pageIndex, canvasJSON, thumbnailDataUrl) => {
+    setPages(prev => prev.map((p, i) =>
+      i === pageIndex ? { ...p, canvasJSON, thumbnailDataUrl } : p
+    ));
+  }, []);
+
+  const {
+    selfId,
+    collaborators,
+    collaboratorsOnPage,
+    collabConflict,
+    clearConflict,
+    broadcastCursor,
+    broadcastPageUpdate,
+  } = useStudioCollaboration({
+    issueId:             issue?.id || null,
+    currentPageIndex,
+    onRemotePageUpdate:  handleRemotePageUpdate,
+    enabled:             !!issue?.id,
+  });
+
+  // Apply a collaborator's conflicting page update — replaces our canvas with theirs
+  const handleConflictApply = useCallback(() => {
+    if (!collabConflict) return;
+    const { pageIndex, canvasJSON, thumbnailDataUrl } = collabConflict;
+    // Patch pages state
+    setPages(prev => prev.map((p, i) =>
+      i === pageIndex ? { ...p, canvasJSON, thumbnailDataUrl } : p
+    ));
+    // If this is the currently displayed page, reload the live canvas immediately
+    if (pageIndex === currentPageIndex) {
+      const fc = getActiveCanvas();
+      if (fc && canvasJSON) {
+        fc.loadFromJSON(canvasJSON).then(() => fc.renderAll());
+      }
+    }
+    clearConflict();
+    setIsDirty(false);
+  }, [collabConflict, currentPageIndex, getActiveCanvas, clearConflict]);
 
   useEffect(() => {
     fetchBrandKit().then(({ data }) => { if (data) setBrand(data); });
@@ -1924,14 +1967,24 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     fc.on('object:added',    () => { onModify(); syncL(); });
     fc.on('object:removed',  () => { onModify(); syncL(); });
 
-    // Double-click on an image placeholder opens the picker modal so users can
-    // swap the Unsplash default for their own uploaded or previously-used imagery.
+    // Double-click behaviour:
+    //   • Placed FabricImage with a clipPath → Crop mode (reposition within clip)
+    //   • Empty rect placeholder (no src)   → ImagePickerModal
+    //   • FabricImage without clipPath      → ImagePickerModal (swap image)
     fc.on('mouse:dblclick', (e) => {
       const t = e.target;
-      // Double-click any image (placeholder slot OR an already-placed image) → open picker
-      if (t?.isImagePlaceholder || t?.type === 'image') {
+      if (!t) return;
+      if (t.type === 'image' && t.clipPath) {
+        // Has content + clip → enter crop mode
+        enterCropModeRef.current?.(t);
+      } else if (t?.isImagePlaceholder || t?.type === 'image') {
         openImagePicker(t);
       }
+    });
+
+    // Broadcast cursor position to collaborators (throttled inside the hook)
+    fc.on('mouse:move', (e) => {
+      if (e.pointer) broadcastCursorRef.current?.(e.pointer.x, e.pointer.y);
     });
 
     // Snap to grid — reads live state via ref so no stale closures
@@ -2316,11 +2369,19 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         pushUndo();
       }
 
-      // Escape — deselect
+      // Escape — cancel crop mode, then deselect
       if (e.key === 'Escape') {
+        // If in crop mode, cancel crop first (don't also deselect — let next Escape do that)
+        if (cropModeRef.current) { handleCropCancelRef.current?.(); return; }
         const fc = getActiveCanvas();
         fc?.discardActiveObject?.();
         fc?.requestRenderAll?.();
+      }
+
+      // Enter confirms crop mode
+      if (e.key === 'Enter' && cropModeRef.current) {
+        handleCropDoneRef.current?.();
+        return;
       }
 
       // Tab switches active spread side in spread view
@@ -3128,6 +3189,18 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       setPages(freshPages);
       setLastSaved(savedAt);
       setIsDirty(false); // clear unsaved-changes flag
+
+      // Broadcast saved pages to collaborators so they see our changes
+      // Only broadcast pages that were freshly serialized (not cached pages)
+      // Note: leftIndex / rightIndex already declared above via getSpreadIndices
+      freshPages.forEach((page, i) => {
+        const wasFresh = spreadView
+          ? (i === leftIndex || i === rightIndex)
+          : i === currentPageIndex;
+        if (wasFresh) {
+          broadcastPageUpdate(i, page.canvasJSON, page.thumbnailDataUrl ?? null);
+        }
+      });
     } catch (e) {
       console.error('Save failed:', e);
       const msg = e.message || String(e);
@@ -3140,7 +3213,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     } finally {
       setSaving(false);
     }
-  }, [issue, pages, spreadView, currentPageIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [issue, pages, spreadView, currentPageIndex, broadcastPageUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Digital Export ──────────────────────────────────────────────────────────
   // Uploads all page + thumb images via the `upload-magazine-page` edge
@@ -3584,6 +3657,103 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   // Keep ref in sync so handleImagePickerSelect can call it without stale closure
   useEffect(() => { handleFillIssueAssignRef.current = handleFillIssueAssign; }, [handleFillIssueAssign]);
 
+  // Refs for Fabric event handlers (avoid stale closures from initCanvas)
+  const enterCropModeRef   = useRef(null);
+  const broadcastCursorRef = useRef(null);
+  const cropModeRef        = useRef(null);
+  const handleCropCancelRef = useRef(null);
+  const handleCropDoneRef   = useRef(null);
+  useEffect(() => { broadcastCursorRef.current = broadcastCursor; }, [broadcastCursor]);
+  useEffect(() => { cropModeRef.current = cropMode; }, [cropMode]);
+
+  // ── Crop tool ─────────────────────────────────────────────────────────────────
+  // enterCropMode: removes the clipPath temporarily so the user can drag the image
+  // freely to reposition it within the clip frame (like Figma/Canva crop).
+  const enterCropMode = useCallback((imgObj) => {
+    if (!imgObj) return;
+    const clip = imgObj.clipPath;
+    if (!clip) { openImagePicker(imgObj); return; } // no clip → swap instead
+    // Store the clip bounds and original position so Cancel can restore them
+    setCropMode({
+      targetId: imgObj.id,
+      clipBounds: {
+        left:   clip.left,
+        top:    clip.top,
+        width:  clip.width,
+        height: clip.height,
+      },
+      original: {
+        left:   imgObj.left,
+        top:    imgObj.top,
+        scaleX: imgObj.scaleX,
+        scaleY: imgObj.scaleY,
+      },
+    });
+    // Temporarily hide clip so user sees the full uncropped image while repositioning
+    imgObj._savedClip = imgObj.clipPath;
+    imgObj.clipPath = null;
+    imgObj.set({ opacity: 0.9 });
+    const fc = getActiveCanvas();
+    if (fc) {
+      fc.discardActiveObject();
+      fc.setActiveObject(imgObj);
+      fc.requestRenderAll();
+    }
+  }, [getActiveCanvas, openImagePicker]);
+
+  // Wire refs immediately after definitions
+  useEffect(() => { enterCropModeRef.current = enterCropMode; }, [enterCropMode]);
+
+  const handleCropDone = useCallback(() => {
+    const fc = getActiveCanvas();
+    const cm = cropModeRef.current;
+    if (!fc || !cm) return;
+    const imgObj = fc.getObjects().find(o => o.id === cm.targetId);
+    if (imgObj) {
+      const clip = imgObj._savedClip || new Rect({
+        left: cm.clipBounds.left,
+        top:  cm.clipBounds.top,
+        width: cm.clipBounds.width,
+        height: cm.clipBounds.height,
+        absolutePositioned: true,
+      });
+      imgObj.clipPath = clip;
+      imgObj._savedClip = null;
+      imgObj.set({ opacity: 1 });
+      fc.discardActiveObject();
+      fc.requestRenderAll();
+      pushUndo();
+    }
+    setCropMode(null);
+  }, [getActiveCanvas, pushUndo]);
+
+  const handleCropCancel = useCallback(() => {
+    const fc = getActiveCanvas();
+    const cm = cropModeRef.current;
+    if (!fc || !cm) return;
+    const imgObj = fc.getObjects().find(o => o.id === cm.targetId);
+    if (imgObj) {
+      imgObj.set({
+        left:   cm.original.left,
+        top:    cm.original.top,
+        scaleX: cm.original.scaleX,
+        scaleY: cm.original.scaleY,
+        opacity: 1,
+      });
+      imgObj.clipPath = imgObj._savedClip || null;
+      imgObj._savedClip = null;
+      fc.discardActiveObject();
+      fc.requestRenderAll();
+    }
+    setCropMode(null);
+  }, [getActiveCanvas]);
+
+  useEffect(() => { handleCropCancelRef.current = handleCropCancel; }, [handleCropCancel]);
+  useEffect(() => { handleCropDoneRef.current   = handleCropDone;   }, [handleCropDone]);
+
+  // Escape exits crop mode (cancel)
+  // (piggybacks on the existing keydown handler's Escape case — see handleKey above)
+
   // ── P9a: Open the full ImagePickerModal from the Fill Issue panel ─────────────
   const handleFillIssueOpenPicker = useCallback((pageIndex, slotId) => {
     // Store context so when picker fires onSelect we know which page/slot to update
@@ -3971,6 +4141,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         onSlot={() => setShowSlotPanel(true)}
         onFillSlots={() => { saveCurrentPageToState(); setShowFillIssue(true); }}
         onArticleReflow={() => setShowArticleReflow(true)}
+        collaborators={collaborators}
+        selfId={selfId}
         currentSlot={pages[currentPageIndex]?.slot ?? null}
         pageBg={pageBg}
         onPageBgChange={handlePageBgChange}
@@ -4278,6 +4450,51 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
                             onMoveGuide={handleMoveGuide}
                           />
                         )}
+
+                        {/* Crop overlay (spread right / active) */}
+                        {cropMode && activeSpreadSide === 'right' && (
+                          <>
+                            <div style={{
+                              position: 'absolute',
+                              left:   cropMode.clipBounds.left,
+                              top:    cropMode.clipBounds.top,
+                              width:  cropMode.clipBounds.width,
+                              height: cropMode.clipBounds.height,
+                              border: '2px dashed #C9A96E',
+                              boxShadow: '0 0 0 9999px rgba(0,0,0,0.42)',
+                              pointerEvents: 'none',
+                              zIndex: 22,
+                            }} />
+                            <div style={{
+                              position: 'absolute', top: 0, left: 0, right: 0,
+                              background: 'rgba(14,13,11,0.88)',
+                              display: 'flex', alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '8px 12px', zIndex: 24,
+                              borderBottom: '1px solid rgba(201,169,110,0.25)',
+                            }}>
+                              <span style={{ fontFamily: "'Jost', sans-serif", fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>
+                                ✂ Crop — drag to reposition
+                              </span>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button onClick={handleCropCancel} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.55)', fontFamily: "'Jost', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 10px', cursor: 'pointer', borderRadius: 2 }}>✕ Cancel</button>
+                                <button onClick={handleCropDone} style={{ background: 'rgba(201,169,110,0.15)', border: '1px solid rgba(201,169,110,0.45)', color: '#C9A96E', fontFamily: "'Jost', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 10px', cursor: 'pointer', borderRadius: 2 }}>✓ Done</button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Collaborator cursors (spread right) */}
+                        {collaboratorsOnPage.map(c => c.cursor ? (
+                          <div key={c.userId} style={{ position: 'absolute', left: c.cursor.x, top: c.cursor.y, transform: 'translate(-2px, -2px)', pointerEvents: 'none', zIndex: 26 }}>
+                            <svg width={14} height={20} viewBox="0 0 14 20" style={{ display: 'block', filter: `drop-shadow(0 1px 2px rgba(0,0,0,0.5))` }}>
+                              <path d="M0 0 L0 16 L4 12 L7 19 L9 18 L6 11 L12 11 Z" fill={c.color} />
+                            </svg>
+                            <div style={{ background: c.color, color: '#000', fontFamily: "'Jost', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', padding: '2px 6px', borderRadius: 2, whiteSpace: 'nowrap', marginTop: 1, marginLeft: 4, boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
+                              {c.name}
+                            </div>
+                          </div>
+                        ) : null)}
                       </div>
                     </div>
                   </div>
@@ -4310,6 +4527,158 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
                       guides={guides}
                       onMoveGuide={handleMoveGuide}
                     />
+
+                    {/* ── Crop mode overlay ─────────────────────────────────── */}
+                    {cropMode && (
+                      <>
+                        {/* Clip-bounds dashed frame with vignette outside */}
+                        <div style={{
+                          position: 'absolute',
+                          left:   cropMode.clipBounds.left,
+                          top:    cropMode.clipBounds.top,
+                          width:  cropMode.clipBounds.width,
+                          height: cropMode.clipBounds.height,
+                          border: '2px dashed #C9A96E',
+                          boxShadow: '0 0 0 9999px rgba(0,0,0,0.42)',
+                          pointerEvents: 'none',
+                          zIndex: 22,
+                        }} />
+                        {/* Instruction banner at top of canvas */}
+                        <div style={{
+                          position: 'absolute', top: 0, left: 0, right: 0,
+                          background: 'rgba(14,13,11,0.88)',
+                          backdropFilter: 'blur(4px)',
+                          display: 'flex', alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px', zIndex: 24,
+                          borderBottom: '1px solid rgba(201,169,110,0.25)',
+                        }}>
+                          <span style={{
+                            fontFamily: "'Jost', sans-serif",
+                            fontSize: 10, fontWeight: 600,
+                            letterSpacing: '0.1em', textTransform: 'uppercase',
+                            color: 'rgba(255,255,255,0.65)',
+                          }}>
+                            ✂ Crop — drag image to reposition
+                          </span>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              onClick={handleCropCancel}
+                              style={{
+                                background: 'none',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                color: 'rgba(255,255,255,0.55)',
+                                fontFamily: "'Jost', sans-serif",
+                                fontSize: 9, fontWeight: 700,
+                                letterSpacing: '0.1em', textTransform: 'uppercase',
+                                padding: '4px 10px', cursor: 'pointer', borderRadius: 2,
+                              }}
+                            >
+                              ✕ Cancel
+                            </button>
+                            <button
+                              onClick={handleCropDone}
+                              style={{
+                                background: 'rgba(201,169,110,0.15)',
+                                border: '1px solid rgba(201,169,110,0.45)',
+                                color: '#C9A96E',
+                                fontFamily: "'Jost', sans-serif",
+                                fontSize: 9, fontWeight: 700,
+                                letterSpacing: '0.1em', textTransform: 'uppercase',
+                                padding: '4px 10px', cursor: 'pointer', borderRadius: 2,
+                              }}
+                            >
+                              ✓ Done
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* ── Collaborator live cursors ────────────────────────── */}
+                    {collaboratorsOnPage.map(c => c.cursor ? (
+                      <div
+                        key={c.userId}
+                        style={{
+                          position: 'absolute',
+                          left: c.cursor.x,
+                          top:  c.cursor.y,
+                          transform: 'translate(-2px, -2px)',
+                          pointerEvents: 'none',
+                          zIndex: 26,
+                        }}
+                      >
+                        {/* Cursor arrow */}
+                        <svg width={14} height={20} viewBox="0 0 14 20" style={{ display: 'block', filter: `drop-shadow(0 1px 2px rgba(0,0,0,0.5))` }}>
+                          <path d="M0 0 L0 16 L4 12 L7 19 L9 18 L6 11 L12 11 Z" fill={c.color} />
+                        </svg>
+                        {/* Name tag */}
+                        <div style={{
+                          background: c.color,
+                          color: '#000',
+                          fontFamily: "'Jost', sans-serif",
+                          fontSize: 9, fontWeight: 700,
+                          letterSpacing: '0.06em',
+                          padding: '2px 6px',
+                          borderRadius: 2,
+                          whiteSpace: 'nowrap',
+                          marginTop: 1,
+                          marginLeft: 4,
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+                        }}>
+                          {c.name}
+                        </div>
+                      </div>
+                    ) : null)}
+
+                    {/* ── Collaboration conflict banner ────────────────────── */}
+                    {collabConflict && collabConflict.pageIndex === currentPageIndex && (
+                      <div style={{
+                        position: 'absolute',
+                        top: cropMode ? 46 : 8,
+                        left: '50%', transform: 'translateX(-50%)',
+                        background: '#1A1815',
+                        border: '1px solid rgba(201,169,110,0.4)',
+                        borderRadius: 4, padding: '9px 14px',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        zIndex: 28,
+                        boxShadow: '0 4px 24px rgba(0,0,0,0.55)',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        <span style={{
+                          fontFamily: "'Jost', sans-serif",
+                          fontSize: 10, letterSpacing: '0.06em',
+                          color: 'rgba(255,255,255,0.65)',
+                        }}>
+                          ⚠ <strong style={{ color: '#C9A96E' }}>{collabConflict.fromName}</strong> updated this page
+                        </span>
+                        <button
+                          onClick={handleConflictApply}
+                          style={{
+                            background: 'rgba(201,169,110,0.12)',
+                            border: '1px solid rgba(201,169,110,0.4)',
+                            color: '#C9A96E',
+                            fontFamily: "'Jost', sans-serif",
+                            fontSize: 9, fontWeight: 700,
+                            letterSpacing: '0.1em', textTransform: 'uppercase',
+                            padding: '3px 8px', cursor: 'pointer', borderRadius: 2,
+                          }}
+                        >
+                          Apply
+                        </button>
+                        <button
+                          onClick={clearConflict}
+                          style={{
+                            background: 'none', border: 'none',
+                            color: 'rgba(255,255,255,0.35)',
+                            cursor: 'pointer', fontSize: 14,
+                            padding: 0, lineHeight: 1,
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
                   </div>
                   {/* Page label */}
                   <div style={{
@@ -4348,6 +4717,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
             onUngroup={handleUngroup}
             onRemoveBg={handleRemoveBg}
             removingBg={removingBg}
+            onCrop={enterCropMode}
           />
         </div>
       </div>
