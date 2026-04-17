@@ -20,7 +20,10 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { uploadAsset, listAllAssets } from '../../../services/publicationMediaService';
 import { GOLD, BORDER, MUTED, NU, GD } from './designerConstants';
 
-const UNSPLASH_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY;
+// Unsplash: uses the free public search endpoint — no API key required.
+// When a VITE_UNSPLASH_ACCESS_KEY env var is present the official API is used instead
+// (higher rate limits, attribution data). Either way, search just works.
+const UNSPLASH_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY || null;
 const AI_STYLES    = ['Editorial', 'Romantic', 'Cinematic', 'Minimal', 'Luxury'];
 
 // ── Colours / tokens ──────────────────────────────────────────────────────────
@@ -254,27 +257,39 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
     if (file) handleUpload(file);
   }
 
-  // ── Unsplash ───────────────────────────────────────────────────────────────
+  // ── Unsplash search ────────────────────────────────────────────────────────
+  // Free path:    GET https://unsplash.com/napi/search/photos?query=…&per_page=24
+  // With API key: GET https://api.unsplash.com/search/photos?query=…&per_page=24
+  //               Authorization: Client-ID <key>
   const searchUnsplash = useCallback(async (q) => {
     if (!q.trim()) { setUnResults([]); return; }
-    if (!UNSPLASH_KEY) { setUnError('Add VITE_UNSPLASH_ACCESS_KEY to .env to enable Unsplash.'); return; }
     setUnLoading(true); setUnError(null);
     try {
-      const res = await fetch(
-        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=24&orientation=portrait`,
-        { headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` } }
-      );
+      let res;
+      if (UNSPLASH_KEY) {
+        res = await fetch(
+          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=24&orientation=portrait`,
+          { headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` } }
+        );
+      } else {
+        // Free public endpoint — no key needed
+        res = await fetch(
+          `https://unsplash.com/napi/search/photos?query=${encodeURIComponent(q)}&per_page=24&orientation=portrait`
+        );
+      }
       if (!res.ok) throw new Error(`Unsplash ${res.status}`);
       const json = await res.json();
       setUnResults(json.results || []);
-    } catch (e) { setUnError(e.message); }
+    } catch (e) {
+      setUnError('Search failed — ' + e.message);
+    }
     setUnLoading(false);
   }, []);
 
   function handleUnQuery(v) {
     setUnQuery(v);
     clearTimeout(unDebounce.current);
-    unDebounce.current = setTimeout(() => searchUnsplash(v), 400);
+    unDebounce.current = setTimeout(() => searchUnsplash(v), 450);
   }
 
   // ── AI Generate ────────────────────────────────────────────────────────────
@@ -350,9 +365,9 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
 
           {/* Tab bar */}
           <div style={{ display: 'flex', gap: 0 }}>
-            <TabBtn label="My Media"  active={tab === 'media'}       onClick={() => setTab('media')} />
-            <TabBtn label="Unsplash"  active={tab === 'unsplash'}    onClick={() => setTab('unsplash')} />
-            <TabBtn label="✦ AI"      active={tab === 'ai'}          onClick={() => setTab('ai')} />
+            <TabBtn label="My Media" active={tab === 'media'}   onClick={() => setTab('media')} />
+            <TabBtn label="Unsplash" active={tab === 'unsplash'} onClick={() => setTab('unsplash')} />
+            <TabBtn label="✦ AI"     active={tab === 'ai'}       onClick={() => setTab('ai')} />
           </div>
         </div>
 
@@ -443,54 +458,53 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
           {/* ── UNSPLASH ──────────────────────────────────────────────────── */}
           {tab === 'unsplash' && (
             <div>
-              {!UNSPLASH_KEY ? (
-                <div style={{ marginTop: 24, fontFamily: NU, fontSize: 10, color: MUTED, lineHeight: 1.8, textAlign: 'center' }}>
-                  Add{' '}
-                  <code style={{ color: GOLD, background: 'rgba(201,169,110,0.1)', padding: '2px 6px', borderRadius: 3 }}>
-                    VITE_UNSPLASH_ACCESS_KEY
-                  </code>
-                  {' '}to .env to enable Unsplash search.
+              <input
+                type="text"
+                placeholder="Search Unsplash — e.g. 'wedding flowers'"
+                value={unQuery}
+                onChange={e => handleUnQuery(e.target.value)}
+                style={{
+                  width: '100%', boxSizing: 'border-box', marginTop: 16,
+                  background: 'rgba(255,255,255,0.05)', border: `1px solid ${BDR}`,
+                  borderRadius: 2, color: '#fff', fontFamily: NU, fontSize: 11,
+                  padding: '9px 12px', outline: 'none',
+                }}
+                autoFocus
+              />
+
+              {unLoading && (
+                <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, textAlign: 'center', padding: 32 }}>
+                  Searching…
                 </div>
-              ) : (
-                <>
-                  <input
-                    type="text"
-                    placeholder="Search Unsplash — e.g. 'wedding flowers'"
-                    value={unQuery}
-                    onChange={e => handleUnQuery(e.target.value)}
-                    style={{
-                      width: '100%', boxSizing: 'border-box', marginTop: 16,
-                      background: 'rgba(255,255,255,0.05)', border: `1px solid ${BDR}`,
-                      borderRadius: 2, color: '#fff', fontFamily: NU, fontSize: 11,
-                      padding: '9px 12px', outline: 'none',
-                    }}
-                    autoFocus
-                  />
-
-                  {unLoading && <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, textAlign: 'center', padding: 32 }}>Searching…</div>}
-                  {unError && !unLoading && <div style={{ fontFamily: NU, fontSize: 10, color: '#F3C8C8', marginTop: 12 }}>{unError}</div>}
-                  {!unLoading && !unError && unResults.length === 0 && !unQuery && (
-                    <div style={{ fontFamily: GD, fontStyle: 'italic', fontSize: 15, color: MUTED, textAlign: 'center', padding: 40 }}>
-                      Type to search millions of photos
-                    </div>
-                  )}
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 16 }}>
-                    {unResults.map(photo => (
-                      <div key={photo.id} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                        <MediaThumb
-                          url={photo.urls.small}
-                          name={photo.alt_description || photo.id}
-                          onSelect={() => onSelect(photo.urls.regular)}
-                        />
-                        <div style={{ fontFamily: NU, fontSize: 8, color: 'rgba(255,255,255,0.25)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {photo.user?.name || 'Unsplash'}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
               )}
+              {unError && !unLoading && (
+                <div style={{ fontFamily: NU, fontSize: 10, color: '#F3C8C8', marginTop: 12 }}>{unError}</div>
+              )}
+              {!unLoading && !unError && unResults.length === 0 && !unQuery && (
+                <div style={{ fontFamily: GD, fontStyle: 'italic', fontSize: 15, color: MUTED, textAlign: 'center', padding: 40 }}>
+                  Type to search millions of free photos
+                </div>
+              )}
+              {!unLoading && !unError && unResults.length === 0 && unQuery && (
+                <div style={{ fontFamily: GD, fontStyle: 'italic', fontSize: 14, color: MUTED, textAlign: 'center', padding: 32 }}>
+                  No results for "{unQuery}"
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 16 }}>
+                {unResults.map(photo => (
+                  <div key={photo.id} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <MediaThumb
+                      url={photo.urls.small}
+                      name={photo.alt_description || photo.id}
+                      onSelect={() => onSelect(photo.urls.regular)}
+                    />
+                    <div style={{ fontFamily: NU, fontSize: 8, color: 'rgba(255,255,255,0.25)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {photo.user?.name || 'Unsplash'}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
