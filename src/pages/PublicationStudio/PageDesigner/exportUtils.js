@@ -1,10 +1,11 @@
 import { jsPDF } from 'jspdf';
 
 // Export canvas to JPEG blob (for digital reader)
+// Quality bumped to 0.95 for crisper text/edges on HiDPI panels.
 export async function canvasToJpegBlob(fabricCanvas, multiplier = 3) {
   const dataUrl = fabricCanvas.toDataURL({
     format: 'jpeg',
-    quality: 0.92,
+    quality: 0.95,
     multiplier,
   });
   const res = await fetch(dataUrl);

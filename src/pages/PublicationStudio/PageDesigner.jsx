@@ -2296,11 +2296,12 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         await new Promise(r => setTimeout(r, 60));
         offscreen.renderAll();
 
-        // Export at 2× for retina-crisp display in the reader.
-        // A4 canvas is 794×1123 at multiplier 1, which is blurry on HiDPI.
-        // Multiplier 2 → 1588×2246 — sharp on any common display.
+        // Export at 3× for retina-crisp display on large/HiDPI displays.
+        // A4 canvas is 794×1123 at multiplier 1.
+        // 2× (1588×2246) softens on 27"+ panels; 3× → 2382×3369 stays sharp
+        // even on 5K/6K iMac and Studio Display at full height.
         // Thumb stays at 0.35 (≈278×393) — fine for TOC/pages-panel.
-        const pageBlob  = await canvasToJpegBlob(offscreen, 2);
+        const pageBlob  = await canvasToJpegBlob(offscreen, 3);
         const thumbBlob = await canvasToJpegBlob(offscreen, 0.35);
 
         // ── Fail-fast uploads ────────────────────────────────────────────────

@@ -739,17 +739,52 @@ function PageFlipWrapper({ flipDir, isFlipping, children }) {
 
 // ── Page image ────────────────────────────────────────────────────────────────
 function PageImage({ page, side, pageBg, onHotspotClick, isPreview }) {
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded]     = useState(false);
+  const [liveDataUrl, setLive]  = useState(null); // preview-only live render
+
+  // Preview-mode live render: when there's canvasJSON but no published image,
+  // render the Fabric canvas to a JPEG dataURL in the browser so the user sees
+  // their work-in-progress without needing to run Publish Digital first.
+  const hasCanvas = !!page?.template_data?.canvasJSON;
+  const hasImage  = !!page?.image_url;
+  const shouldLiveRender = isPreview && hasCanvas && !hasImage;
+
+  useEffect(() => {
+    if (!shouldLiveRender) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { Canvas: FC, FabricObject } = await import('fabric');
+        FabricObject.ownDefaults.originX = 'left';
+        FabricObject.ownDefaults.originY = 'top';
+        const offEl = document.createElement('canvas');
+        const w = 794, h = 1123;
+        offEl.width  = w;
+        offEl.height = h;
+        const fc = new FC(offEl, { width: w, height: h, enableRetinaScaling: false });
+        fc.backgroundColor = '#ffffff';
+        await fc.loadFromJSON(page.template_data.canvasJSON);
+        fc.renderAll();
+        await new Promise(r => setTimeout(r, 60));
+        fc.renderAll();
+        const url = offEl.toDataURL('image/jpeg', 0.92);
+        fc.dispose();
+        if (!cancelled) setLive(url);
+      } catch (e) {
+        console.warn('[reader] live preview render failed:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [shouldLiveRender, page?.id, page?.template_data]);
+
   if (!page) {
     return <div style={{ flex: 1, background: pageBg, border: '1px solid rgba(255,255,255,0.04)' }} />;
   }
 
-  // Page was designed in PageDesigner but not yet published via "▶ Publish Digital"
-  const hasCanvas = page.template_data?.canvasJSON;
-  const hasImage  = !!page.image_url;
-  if (!hasImage) {
-    // In preview mode: show the page number but explain images need a publish run
-    // In live mode: this shouldn't happen (status gate blocks non-published issues)
+  const displayUrl = hasImage ? page.image_url : (isPreview ? liveDataUrl : null);
+
+  if (!displayUrl) {
+    // No published image and no canvas JSON to fall back on — show placeholder.
     return (
       <div style={{
         flex: 1, position: 'relative', background: pageBg,
@@ -766,7 +801,9 @@ function PageImage({ page, side, pageBg, onHotspotClick, isPreview }) {
         }}>
           Page {page.page_number}<br />
           {isPreview
-            ? <span style={{ color: '#C9A84C', opacity: 0.8 }}>Not yet rendered —<br />click ▶ Publish Digital<br />in the studio</span>
+            ? (hasCanvas
+                ? <span style={{ color: '#C9A84C', opacity: 0.8 }}>Rendering preview…</span>
+                : <span style={{ color: '#C9A84C', opacity: 0.8 }}>Not yet designed —<br />open in the studio</span>)
             : <span style={{ color: '#C9A84C', opacity: 0.7 }}>Image rendering…</span>
           }
         </div>
@@ -786,7 +823,7 @@ function PageImage({ page, side, pageBg, onHotspotClick, isPreview }) {
         </div>
       )}
       <img
-        src={page.image_url}
+        src={displayUrl}
         alt={`Page ${page.page_number}`}
         onLoad={() => setLoaded(true)}
         draggable={false}
@@ -795,6 +832,7 @@ function PageImage({ page, side, pageBg, onHotspotClick, isPreview }) {
           display: 'block',
           opacity: loaded ? 1 : 0, transition: 'opacity 0.25s',
           userSelect: 'none', pointerEvents: 'none',
+          imageRendering: 'auto',
         }}
       />
       {/* Hotspot overlay — only shown when image is loaded */}
