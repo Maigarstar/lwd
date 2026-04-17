@@ -478,11 +478,24 @@ export default function DesignerToolbar({
                       onChange={e => onPageSizeChange(e.target.value)}
                       style={{ ...popoverSelectStyle, marginTop: 0 }}
                     >
-                      {Object.entries(PAGE_SIZES).map(([key, val]) => (
-                        <option key={key} value={key} style={{ background: '#1A1712', color: '#fff' }}>
-                          {val.label || key}
-                        </option>
-                      ))}
+                      <optgroup label="Portrait" style={{ background: '#1A1712' }}>
+                        {Object.entries(PAGE_SIZES)
+                          .filter(([, v]) => v.orientation === 'portrait' || v.orientation === 'square')
+                          .map(([key, val]) => (
+                            <option key={key} value={key} style={{ background: '#1A1712', color: '#fff' }}>
+                              {val.label || key}
+                            </option>
+                          ))}
+                      </optgroup>
+                      <optgroup label="Landscape" style={{ background: '#1A1712' }}>
+                        {Object.entries(PAGE_SIZES)
+                          .filter(([, v]) => v.orientation === 'landscape')
+                          .map(([key, val]) => (
+                            <option key={key} value={key} style={{ background: '#1A1712', color: '#fff' }}>
+                              {val.label || key}
+                            </option>
+                          ))}
+                      </optgroup>
                     </select>
                   </div>
                 )}

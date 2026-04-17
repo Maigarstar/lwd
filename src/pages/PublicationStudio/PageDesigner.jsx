@@ -3043,6 +3043,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
           onToggleLayerVisibility={handleToggleLayerVisibility}
           onToggleLayerLock={handleToggleLayerLock}
           onReorderLayer={handleReorderLayer}
+          currentPageIndex={currentPageIndex}
+          totalPages={pages.length}
+          pageSize={pageSize}
         />
         </div>
 

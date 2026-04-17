@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { GOLD, DARK, CARD, BORDER, MUTED, GD, NU } from './designerConstants';
+import { GOLD, DARK, CARD, BORDER, MUTED, GD, NU, PAGE_SIZES } from './designerConstants';
 import { TEMPLATES } from '../templates/definitions';
 import { callAiGenerate } from '../../../lib/aiGenerate';
 import { listAllAssets, uploadAsset } from '../../../services/publicationMediaService';
@@ -29,6 +29,16 @@ const SECTION_GROUPS = [
     label: 'Commercial',
     categories: new Set(['Full-Page Advertisement', 'Product Showcase Ad', 'Venue Advertisement']),
   },
+];
+
+// Category filter pill labels (maps to SECTION_GROUPS)
+const CAT_PILLS = [
+  'All',
+  'Cover & Navigation',
+  'Editorial',
+  'Fashion & Style',
+  'Venue & Travel',
+  'Commercial',
 ];
 
 // Build section → template list mapping
@@ -469,6 +479,84 @@ function TemplateRow({ template, globalIndex, onInsert, onReplace, isActive }) {
   );
 }
 
+// ── Grid thumbnail for 2-column template view ────────────────────────────────
+function GridThumb({ template, globalIndex, onInsert, onReplace, isActive }) {
+  const [hov, setHov] = useState(false);
+  const [thumbOk, setThumbOk] = useState(true);
+  const thumbSrc = `/publication-studio/templates/${template.id}.jpg`;
+
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        position: 'relative',
+        border: `1px solid ${isActive ? GOLD : hov ? 'rgba(201,169,110,0.45)' : 'rgba(255,255,255,0.08)'}`,
+        borderRadius: 3,
+        overflow: 'hidden',
+        cursor: 'default',
+        background: 'rgba(201,169,110,0.04)',
+        transition: 'border-color 0.12s',
+      }}
+    >
+      {thumbOk ? (
+        <img
+          src={thumbSrc}
+          alt={template.name}
+          onError={() => setThumbOk(false)}
+          style={{ width: '100%', aspectRatio: '794/1123', objectFit: 'cover', display: 'block' }}
+        />
+      ) : (
+        <div style={{
+          width: '100%', aspectRatio: '794/1123',
+          background: 'rgba(201,169,110,0.08)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: NU, fontSize: 9, color: GOLD, textAlign: 'center',
+          padding: 4,
+        }}>
+          {template.name}
+        </div>
+      )}
+      {/* Name overlay at bottom */}
+      <div style={{
+        padding: '4px 6px',
+        background: '#0F0E0B',
+        borderTop: `1px solid rgba(255,255,255,0.06)`,
+      }}>
+        <div style={{ fontFamily: NU, fontSize: 9, color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {template.name}
+        </div>
+      </div>
+      {/* Hover action overlay */}
+      {hov && (
+        <div style={{
+          position: 'absolute', inset: 0, bottom: 26,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+        }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onInsert?.(); }}
+            style={{
+              background: GOLD, border: 'none', borderRadius: 2,
+              color: '#1a1208', fontFamily: NU, fontSize: 9, fontWeight: 700,
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+              padding: '5px 14px', cursor: 'pointer',
+            }}
+          >+ Insert</button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onReplace?.(); }}
+            style={{
+              background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 2, color: 'rgba(255,255,255,0.7)',
+              fontFamily: NU, fontSize: 9, padding: '4px 10px', cursor: 'pointer',
+            }}
+          >↺ Replace</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Inline media grid (shown inside Elements > Images section) ───────────────
 function InlineMediaGrid({ issue, onAddImage, onSeeAll }) {
   const [items,   setItems]   = useState([]);
@@ -746,7 +834,7 @@ function MediaTab({ issue, onAddImage }) {
 
 // ── Main ElementsPanel export ─────────────────────────────────────────────────
 
-export default function ElementsPanel({ onAddElement, onAddImage, onInsertTemplate, onReplaceTemplate, activeTemplateId, issue, layers, onSelectLayer, onToggleLayerVisibility, onToggleLayerLock, onReorderLayer, onAddSVG, onAddArcText, onAILayout }) {
+export default function ElementsPanel({ onAddElement, onAddImage, onInsertTemplate, onReplaceTemplate, activeTemplateId, issue, layers, onSelectLayer, onToggleLayerVisibility, onToggleLayerLock, onReorderLayer, onAddSVG, onAddArcText, onAILayout, currentPageIndex = 0, totalPages = 1, pageSize = 'A4' }) {
   const [panelTab, setPanelTab] = useState('elements');
   const [aiBrief, setAiBrief] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
@@ -769,6 +857,37 @@ export default function ElementsPanel({ onAddElement, onAddImage, onInsertTempla
   const [aiLayoutOpen, setAiLayoutOpen] = useState(false);
   const [aiLayoutPrompt, setAiLayoutPrompt] = useState('');
   const [aiLayoutLoading, setAiLayoutLoading] = useState(false);
+
+  // ── Template management state ──────────────────────────────────────────────
+  const [templateSearch, setTemplateSearch]   = useState('');
+  const [templateCat,    setTemplateCat]      = useState('All');  // category filter
+  const [templateGrid,   setTemplateGrid]     = useState(false);  // grid vs list view
+  const [recentTplIds,   setRecentTplIds]     = useState(() => {
+    try { return JSON.parse(localStorage.getItem('lwd_studio_recent_tpl') || '[]'); } catch { return []; }
+  });
+
+  // Record a template use in recents (called on insert/replace)
+  function recordTemplateUse(templateId) {
+    setRecentTplIds(prev => {
+      const next = [templateId, ...prev.filter(id => id !== templateId)].slice(0, 5);
+      try { localStorage.setItem('lwd_studio_recent_tpl', JSON.stringify(next)); } catch { /* noop */ }
+      return next;
+    });
+  }
+
+  // Smart recommendations based on page position
+  const recommendedTemplateIds = useMemo(() => {
+    const isFirst = currentPageIndex === 0;
+    const isLast  = currentPageIndex >= totalPages - 1 && totalPages > 1;
+    const isSecond = currentPageIndex === 1;
+    if (isFirst)  return ['vogue-cover'];
+    if (isLast)   return ['back-cover'];
+    if (isSecond) return ['editors-letter', 'table-of-contents'];
+    return [];
+  }, [currentPageIndex, totalPages]);
+
+  // Landscape flag — landscape sizes have LANDSCAPE in the key or are TABLOID
+  const isLandscape = !!(pageSize?.includes('LANDSCAPE') || pageSize === 'TABLOID');
 
   async function handleAIWrite() {
     if (!aiBrief.trim()) return;
@@ -1253,62 +1372,240 @@ export default function ElementsPanel({ onAddElement, onAddImage, onInsertTempla
 
           <Divider />
 
-          {/* Templates — sectioned */}
+          {/* ── Template Library ─────────────────────────────────────────────── */}
+          <div style={{ padding: '10px 12px 6px' }}>
+
+            {/* Header row: title + grid/list toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                Templates
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  onClick={() => setTemplateGrid(false)}
+                  title="List view"
+                  style={{
+                    background: !templateGrid ? 'rgba(201,169,110,0.15)' : 'none',
+                    border: `1px solid ${!templateGrid ? 'rgba(201,169,110,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                    borderRadius: 2, color: !templateGrid ? GOLD : MUTED,
+                    padding: '3px 6px', cursor: 'pointer', fontSize: 10,
+                  }}
+                >☰</button>
+                <button
+                  onClick={() => setTemplateGrid(true)}
+                  title="Grid view"
+                  style={{
+                    background: templateGrid ? 'rgba(201,169,110,0.15)' : 'none',
+                    border: `1px solid ${templateGrid ? 'rgba(201,169,110,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                    borderRadius: 2, color: templateGrid ? GOLD : MUTED,
+                    padding: '3px 6px', cursor: 'pointer', fontSize: 10,
+                  }}
+                >⊞</button>
+              </div>
+            </div>
+
+            {/* Search bar */}
+            <div style={{ position: 'relative', marginBottom: 8 }}>
+              <span style={{
+                position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
+                fontSize: 11, color: MUTED, pointerEvents: 'none',
+              }}>⌕</span>
+              <input
+                type="text"
+                placeholder="Search templates…"
+                value={templateSearch}
+                onChange={e => setTemplateSearch(e.target.value)}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${templateSearch ? 'rgba(201,169,110,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                  borderRadius: 3, color: '#fff',
+                  fontFamily: NU, fontSize: 11,
+                  padding: '5px 8px 5px 22px', outline: 'none',
+                  transition: 'border-color 0.12s',
+                }}
+              />
+              {templateSearch && (
+                <button
+                  onClick={() => setTemplateSearch('')}
+                  style={{
+                    position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', color: MUTED,
+                    cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1,
+                  }}
+                >✕</button>
+              )}
+            </div>
+
+            {/* Category filter pills */}
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
+              {CAT_PILLS.map(pill => (
+                <button
+                  key={pill}
+                  onClick={() => setTemplateCat(pill)}
+                  style={{
+                    fontFamily: NU, fontSize: 8, fontWeight: 600,
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                    padding: '3px 7px', borderRadius: 2, cursor: 'pointer',
+                    background: templateCat === pill ? 'rgba(201,169,110,0.15)' : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${templateCat === pill ? 'rgba(201,169,110,0.45)' : 'rgba(255,255,255,0.09)'}`,
+                    color: templateCat === pill ? GOLD : MUTED,
+                    transition: 'all 0.1s',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {pill === 'Cover & Navigation' ? 'Cover' :
+                   pill === 'Fashion & Style' ? 'Fashion' :
+                   pill === 'Venue & Travel' ? 'Venue' : pill}
+                </button>
+              ))}
+            </div>
+
+            {/* Landscape notice */}
+            {isLandscape && (
+              <div style={{
+                fontFamily: NU, fontSize: 9, color: 'rgba(201,169,110,0.7)',
+                background: 'rgba(201,169,110,0.07)',
+                border: '1px solid rgba(201,169,110,0.2)',
+                borderRadius: 3, padding: '6px 10px', marginBottom: 8,
+                lineHeight: 1.5,
+              }}>
+                ◆ Templates are designed for portrait. Landscape variants coming soon — insert and adjust manually.
+              </div>
+            )}
+          </div>
+
+          {/* Template rows — filtered + grouped */}
           {(() => {
-            const { groups, uncategorised } = buildSectionedTemplates(TEMPLATES);
-            const allTemplates = TEMPLATES; // for globalIndex lookup
+            const q = templateSearch.toLowerCase().trim();
+
+            // Filter templates
+            let filtered = TEMPLATES.filter(t => {
+              const matchSearch = !q || t.name.toLowerCase().includes(q) || t.category.toLowerCase().includes(q);
+              const matchCat = templateCat === 'All' || SECTION_GROUPS.find(g => g.label === templateCat)?.categories.has(t.category);
+              return matchSearch && matchCat;
+            });
+
+            // Recently used (top of list when no search)
+            const recentTemplates = !q && templateCat === 'All'
+              ? recentTplIds.map(id => TEMPLATES.find(t => t.id === id)).filter(Boolean)
+              : [];
+
+            // Recommended (when no search)
+            const recTemplates = !q && templateCat === 'All'
+              ? recommendedTemplateIds.map(id => TEMPLATES.find(t => t.id === id)).filter(Boolean)
+              : [];
+
+            // Helper: render a template (list or grid)
+            function renderTpl(template, label) {
+              const globalIndex = TEMPLATES.indexOf(template);
+              if (templateGrid) {
+                return (
+                  <GridThumb
+                    key={`${label}-${template.id}`}
+                    template={template}
+                    globalIndex={globalIndex}
+                    onInsert={() => { onInsertTemplate?.(globalIndex); recordTemplateUse(template.id); }}
+                    onReplace={() => { onReplaceTemplate?.(globalIndex); recordTemplateUse(template.id); }}
+                    isActive={activeTemplateId === template.id}
+                  />
+                );
+              }
+              return (
+                <TemplateRow
+                  key={`${label}-${template.id}`}
+                  template={template}
+                  globalIndex={globalIndex}
+                  onInsert={() => { onInsertTemplate?.(globalIndex); recordTemplateUse(template.id); }}
+                  onReplace={() => { onReplaceTemplate?.(globalIndex); recordTemplateUse(template.id); }}
+                  isActive={activeTemplateId === template.id}
+                />
+              );
+            }
+
+            // Search mode — flat list with match count
+            if (q) {
+              if (!filtered.length) {
+                return (
+                  <div style={{ padding: '20px 16px', textAlign: 'center', fontFamily: NU, fontSize: 11, color: MUTED }}>
+                    No templates match "{q}"
+                  </div>
+                );
+              }
+              return (
+                <>
+                  <div style={{ padding: '4px 14px 6px', fontFamily: NU, fontSize: 8, color: MUTED }}>
+                    {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+                  </div>
+                  {filtered.map(t => renderTpl(t, 'search'))}
+                </>
+              );
+            }
+
+            // Category filter mode — sectioned or flat
+            if (templateCat !== 'All') {
+              return filtered.length
+                ? (templateGrid
+                    ? <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: '6px 10px' }}>
+                        {filtered.map(t => renderTpl(t, 'cat'))}
+                      </div>
+                    : <>{filtered.map(t => renderTpl(t, 'cat'))}</>
+                  )
+                : <div style={{ padding: '20px 16px', textAlign: 'center', fontFamily: NU, fontSize: 11, color: MUTED }}>No templates in this category</div>;
+            }
+
+            // Default: recommended + recently used + full grouped list
+            const { groups, uncategorised } = buildSectionedTemplates(filtered);
             return (
               <>
-                {groups.map(group => {
-                  if (!group.templates.length) return null;
-                  return (
-                    <div key={group.label}>
-                      <div style={{
-                        ...SECTION_STYLE,
-                        borderTop: `1px solid rgba(255,255,255,0.06)`,
-                        marginTop: 4,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}>
-                        <span>{group.label}</span>
-                        <span style={{ fontFamily: NU, fontSize: 8, color: 'rgba(255,255,255,0.2)', fontWeight: 400, letterSpacing: '0.04em', textTransform: 'none' }}>
-                          {group.templates.length} layouts
-                        </span>
-                      </div>
-                      {group.templates.map(template => {
-                        const globalIndex = allTemplates.indexOf(template);
-                        return (
-                          <TemplateRow
-                            key={template.id}
-                            template={template}
-                            globalIndex={globalIndex}
-                            onInsert={() => onInsertTemplate && onInsertTemplate(globalIndex)}
-                            onReplace={() => onReplaceTemplate && onReplaceTemplate(globalIndex)}
-                            isActive={activeTemplateId === template.id}
-                          />
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-                {uncategorised.length > 0 && (
+                {/* Recommended */}
+                {recTemplates.length > 0 && (
                   <div>
-                    <div style={{ ...SECTION_STYLE, borderTop: `1px solid rgba(255,255,255,0.06)`, marginTop: 4 }}>Other</div>
-                    {uncategorised.map(template => {
-                      const globalIndex = allTemplates.indexOf(template);
+                    <div style={{ ...SECTION_STYLE, borderTop: `1px solid rgba(255,255,255,0.06)`, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 9 }}>✦</span> Suggested for page {currentPageIndex + 1}
+                    </div>
+                    {recTemplates.map(t => renderTpl(t, 'rec'))}
+                  </div>
+                )}
+
+                {/* Recently used */}
+                {recentTemplates.length > 0 && (
+                  <div>
+                    <div style={{ ...SECTION_STYLE, borderTop: `1px solid rgba(255,255,255,0.06)`, marginTop: 4 }}>
+                      Recently Used
+                    </div>
+                    {recentTemplates.map(t => renderTpl(t, 'recent'))}
+                  </div>
+                )}
+
+                {/* Grouped sections */}
+                {templateGrid ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: '6px 10px' }}>
+                    {filtered.map(t => renderTpl(t, 'grid'))}
+                  </div>
+                ) : (
+                  <>
+                    {groups.map(group => {
+                      if (!group.templates.length) return null;
                       return (
-                        <TemplateRow
-                          key={template.id}
-                          template={template}
-                          globalIndex={globalIndex}
-                          onInsert={() => onInsertTemplate && onInsertTemplate(globalIndex)}
-                          onReplace={() => onReplaceTemplate && onReplaceTemplate(globalIndex)}
-                          isActive={activeTemplateId === template.id}
-                        />
+                        <div key={group.label}>
+                          <div style={{ ...SECTION_STYLE, borderTop: `1px solid rgba(255,255,255,0.06)`, marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span>{group.label}</span>
+                            <span style={{ fontFamily: NU, fontSize: 8, color: 'rgba(255,255,255,0.2)', fontWeight: 400, letterSpacing: '0.04em', textTransform: 'none' }}>
+                              {group.templates.length} layouts
+                            </span>
+                          </div>
+                          {group.templates.map(t => renderTpl(t, group.label))}
+                        </div>
                       );
                     })}
-                  </div>
+                    {uncategorised.length > 0 && (
+                      <div>
+                        <div style={{ ...SECTION_STYLE, borderTop: `1px solid rgba(255,255,255,0.06)`, marginTop: 4 }}>Other</div>
+                        {uncategorised.map(t => renderTpl(t, 'other'))}
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             );

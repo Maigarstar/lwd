@@ -7,11 +7,15 @@ export const GD = "'Cormorant Garamond', Georgia, serif";
 export const NU = "'Jost', sans-serif";
 
 export const PAGE_SIZES = {
-  A4:       { label: 'A4 (210×297mm)',        w: 794,  h: 1123, mmW: 210, mmH: 297 },
-  A5:       { label: 'A5 (148×210mm)',        w: 559,  h: 794,  mmW: 148, mmH: 210 },
-  US_LETTER:{ label: 'US Letter (8.5×11")',   w: 816,  h: 1056, mmW: 216, mmH: 279 },
-  SQUARE:   { label: 'Square (200×200mm)',    w: 756,  h: 756,  mmW: 200, mmH: 200 },
-  TABLOID:  { label: 'Tabloid (11×17")',      w: 1056, h: 816,  mmW: 279, mmH: 216 },
+  // ── Portrait ──────────────────────────────────────────────────────────────
+  A4:           { label: 'A4 Portrait',           w: 794,  h: 1123, mmW: 210, mmH: 297, orientation: 'portrait'  },
+  A5:           { label: 'A5 Portrait',           w: 559,  h: 794,  mmW: 148, mmH: 210, orientation: 'portrait'  },
+  US_LETTER:    { label: 'US Letter',             w: 816,  h: 1056, mmW: 216, mmH: 279, orientation: 'portrait'  },
+  SQUARE:       { label: 'Square (200×200mm)',    w: 756,  h: 756,  mmW: 200, mmH: 200, orientation: 'square'    },
+  // ── Landscape ─────────────────────────────────────────────────────────────
+  A4_LANDSCAPE: { label: 'A4 Landscape',          w: 1123, h: 794,  mmW: 297, mmH: 210, orientation: 'landscape' },
+  A5_LANDSCAPE: { label: 'A5 Landscape',          w: 794,  h: 559,  mmW: 210, mmH: 148, orientation: 'landscape' },
+  TABLOID:      { label: 'Tabloid (11×17")',      w: 1056, h: 816,  mmW: 279, mmH: 216, orientation: 'landscape' },
 };
 
 export const DEFAULT_PAGE_SIZE = 'A4';
