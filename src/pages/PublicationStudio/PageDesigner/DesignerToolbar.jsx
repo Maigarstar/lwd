@@ -100,6 +100,8 @@ export default function DesignerToolbar({
   brandPrimaryColor,
   onSmartFill,
   onAIBuild,
+  onSlot,
+  currentSlot,
 }) {
   const [printConfirm, setPrintConfirm] = useState(false);
   const [showPageNumPopover, setShowPageNumPopover] = useState(false);
@@ -354,6 +356,23 @@ export default function DesignerToolbar({
           }}
         >
           ✦ AI Build
+        </button>
+
+        {/* Page Slot */}
+        <button
+          onClick={onSlot}
+          title="Assign a vendor page slot to this page"
+          style={{
+            background: currentSlot ? 'rgba(201,169,110,0.18)' : 'rgba(255,255,255,0.06)',
+            border: `1px solid ${currentSlot ? 'rgba(201,169,110,0.5)' : 'rgba(255,255,255,0.14)'}`,
+            borderRadius: 3,
+            color: currentSlot ? GOLD : 'rgba(255,255,255,0.8)',
+            fontFamily: NU, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+            padding: '5px 12px', cursor: 'pointer',
+          }}
+        >
+          {currentSlot ? '◆ Slot ✓' : '◆ Slot'}
         </button>
 
         {/* Smart Fill */}

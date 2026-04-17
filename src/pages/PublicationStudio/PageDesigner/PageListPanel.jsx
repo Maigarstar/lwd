@@ -173,6 +173,28 @@ export default function PageListPanel({
                 position: 'relative',
               }}>
                 {!page?.thumbnailDataUrl && (i + 1)}
+                {/* Slot status dot */}
+                {(() => {
+                  const slot = page?.slot;
+                  if (!slot?.tier) return null;
+                  const s = slot.status;
+                  const dotColor =
+                    s === 'paid' || s === 'published' ? '#34d399' :
+                    s === 'offered' ? GOLD :
+                    'rgba(255,255,255,0.35)';
+                  return (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: 4,
+                      left: 4,
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: dotColor,
+                      boxShadow: `0 0 4px ${dotColor}`,
+                    }} />
+                  );
+                })()}
               </div>
 
               {/* Label */}

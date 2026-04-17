@@ -24,6 +24,7 @@ import ImagePickerModal from './PageDesigner/ImagePickerModal';
 import BrandKitPanel from './BrandKitPanel';
 import SmartFillPanel from './PageDesigner/SmartFillPanel';
 import AIIssueBuilderPanel from './PageDesigner/AIIssueBuilderPanel';
+import PageSlotPanel from './PageDesigner/PageSlotPanel';
 
 function genId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID
@@ -1074,7 +1075,7 @@ function buildLayers(fc) {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function PageDesigner({ issue, onIssueUpdate }) {
+export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
   // Canvas element refs
   const canvasElRef     = useRef(null); // right / single
   const canvasElRefLeft = useRef(null); // left (spread view only)
@@ -1101,8 +1102,14 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     thumbnailDataUrl: null,
     name: 'Page 1',
     templateName: null,
+    slot: null,
   }]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+
+  // Notify parent whenever pages change (used by IssueWorkspace for Revenue panel)
+  useEffect(() => {
+    if (onPagesChange) onPagesChange(pages);
+  }, [pages]); // eslint-disable-line react-hooks/exhaustive-deps
   const [selectedObject, setSelectedObject] = useState(null);
   const [pageSize, setPageSize] = useState(issue?.page_size || 'A4');
   const [layers, setLayers] = useState([]);
@@ -1139,6 +1146,9 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
 
   // AI Issue Builder panel
   const [showAIBuilder, setShowAIBuilder] = useState(false);
+
+  // Page Slot panel
+  const [showSlotPanel, setShowSlotPanel] = useState(false);
   useEffect(() => {
     fetchBrandKit().then(({ data }) => { if (data) setBrand(data); });
   }, []);
@@ -1325,6 +1335,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
           canvasJSON: row.template_data?.canvasJSON ?? null,
           thumbnailDataUrl: row.thumbnail_url ?? null,
           name: row.name ?? `Page ${row.page_number}`,
+          slot: row.template_data?.slot ?? null,
         })));
         // Hydrate lastSaved from the most recent page update timestamp
         const maxTs = data.reduce((acc, row) => {
@@ -1770,6 +1781,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       thumbnailDataUrl: null,
       name: `Page ${pages.length + 1}`,
       templateName: template.name,
+      slot: null,
     };
     setPages(prev => [...prev, newPage]);
     setCurrentPageIndex(pages.length); // pages.length = index of the newly appended page
@@ -1797,6 +1809,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       thumbnailDataUrl: null,
       name: `Page ${pages.length + 1}`,
       templateName: pageName,
+      slot: null,
     };
     setPages(prev => [...prev, newPage]);
     setCurrentPageIndex(pages.length);
@@ -1881,6 +1894,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
           thumbnailDataUrl: null,
           name: `Page ${pageNumber}`,
           templateName: pageSpec.page_label || template.name || template.id,
+          slot: null,
         });
       }
     } finally {
@@ -1953,7 +1967,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
           issue_id:    issue.id,
           page_number: i + 1,
           source_type: 'template',
-          template_data: { engine: 'designer-v1', canvasJSON: page.canvasJSON ?? null },
+          template_data: { engine: 'designer-v1', canvasJSON: page.canvasJSON ?? null, slot: page.slot ?? null },
           updated_at:  savedAt.toISOString(),
         }))
       );
@@ -2151,6 +2165,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       canvasJSON: null,
       thumbnailDataUrl: null,
       name: `Page ${pages.length + 1}`,
+      slot: null,
     };
     setPages(prev => [...prev, newPage]);
     setCurrentPageIndex(pages.length);
@@ -2184,6 +2199,14 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
       return next.map((p, idx) => ({ ...p, pageNumber: idx + 1, name: `Page ${idx + 1}` }));
     });
     setCurrentPageIndex(to);
+  }
+
+  // ── Page Slot ───────────────────────────────────────────────────────────────
+  function handleSlotSave(slotData) {
+    setPages(prev => prev.map((p, i) =>
+      i === currentPageIndex ? { ...p, slot: slotData } : p,
+    ));
+    setShowSlotPanel(false);
   }
 
   // ── Page size change ────────────────────────────────────────────────────────
@@ -2431,6 +2454,8 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         brandPrimaryColor={brand?.primary_color || null}
         onSmartFill={() => setShowSmartFill(true)}
         onAIBuild={() => setShowAIBuilder(true)}
+        onSlot={() => setShowSlotPanel(true)}
+        currentSlot={pages[currentPageIndex]?.slot ?? null}
       />
 
       {/* Brand kit panel overlay */}
@@ -2456,6 +2481,15 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         <AIIssueBuilderPanel
           onBuild={handleAIBuildIssue}
           onClose={() => setShowAIBuilder(false)}
+        />
+      )}
+
+      {/* Page Slot panel overlay */}
+      {showSlotPanel && (
+        <PageSlotPanel
+          slot={pages[currentPageIndex]?.slot ?? null}
+          onSave={handleSlotSave}
+          onClose={() => setShowSlotPanel(false)}
         />
       )}
 

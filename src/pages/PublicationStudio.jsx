@@ -40,6 +40,7 @@ import TemplatePicker  from './PublicationStudio/templates/TemplatePicker';
 import TemplateEditor  from './PublicationStudio/templates/TemplateEditor';
 import MonetizationTab        from './PublicationStudio/MonetizationTab';
 import PageDesigner           from './PublicationStudio/PageDesigner';
+import IssueRevenuePanel      from './PublicationStudio/IssueRevenuePanel';
 import HeatmapPanel            from './PublicationStudio/HeatmapPanel';
 import PageCommentsPanel       from './PublicationStudio/PageCommentsPanel';
 import EditorialCalendarPanel  from './PublicationStudio/EditorialCalendarPanel';
@@ -1457,6 +1458,8 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
   const [commentsPage,       setCommentsPage]       = useState(null); // page_number for PageCommentsPanel
   const [commentCounts,      setCommentCounts]      = useState({});   // { [pageNumber]: count }
   const [renderHistory,      setRenderHistory]      = useState([]);
+  const [showRevenue,        setShowRevenue]        = useState(false);
+  const [designerPages,      setDesignerPages]      = useState([]);
 
   // load issue
   useEffect(() => {
@@ -1707,6 +1710,20 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
             View ↗
           </a>
         )}
+
+        {/* Revenue button */}
+        <button
+          onClick={() => setShowRevenue(true)}
+          style={{
+            fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+            textTransform: 'uppercase', color: GOLD,
+            background: 'none',
+            border: `1px solid rgba(201,168,76,0.3)`,
+            padding: '4px 10px', borderRadius: 2, cursor: 'pointer',
+          }}
+        >
+          £ Revenue
+        </button>
       </div>
 
       {/* ── Tabs ── */}
@@ -1728,7 +1745,7 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
       {/* ── Tab content ── */}
       <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
         {tab === 'design' && (
-          <PageDesigner issue={issue} onIssueUpdate={handleIssueUpdate} />
+          <PageDesigner issue={issue} onIssueUpdate={handleIssueUpdate} onPagesChange={setDesignerPages} />
         )}
 
         {tab === 'overview' && (
@@ -1917,6 +1934,15 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
           />
         )}
       </div>
+
+      {/* Issue Revenue Panel overlay */}
+      {showRevenue && (
+        <IssueRevenuePanel
+          pages={designerPages}
+          issueName={issue.title || issue.slug}
+          onClose={() => setShowRevenue(false)}
+        />
+      )}
     </div>
   );
 }
