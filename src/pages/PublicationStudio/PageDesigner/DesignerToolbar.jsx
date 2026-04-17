@@ -80,6 +80,7 @@ export default function DesignerToolbar({
   onToggleLightsOff,
   spreadView,
   onToggleSpread,
+  onSpreadPreview,
   onSave,
   saving,
   lastSaved,
@@ -220,7 +221,10 @@ export default function DesignerToolbar({
         </ToolBtn>
 
         {/* Spread view toggle */}
-        <ToolBtn onClick={onToggleSpread} active={spreadView} title="Toggle double-page spread view">⊠ Spread</ToolBtn>
+        <ToolBtn onClick={onToggleSpread} active={spreadView} title="Toggle double-page spread editing view">⊠ Spread</ToolBtn>
+
+        {/* Spread preview — clean read-only render of the current spread */}
+        <ToolBtn onClick={onSpreadPreview} title="Preview spread as printed — see both pages without editing handles">◫ Preview</ToolBtn>
 
         {/* Clear guides */}
         {onClearGuides && (

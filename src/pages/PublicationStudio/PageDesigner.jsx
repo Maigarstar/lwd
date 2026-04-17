@@ -24,6 +24,7 @@ import { updateIssue } from '../../services/magazineIssuesService';
 import { fetchBrandKit } from '../../services/magazineBrandKitService';
 import ImagePickerModal from './PageDesigner/ImagePickerModal';
 import BrandKitPanel from './BrandKitPanel';
+import SpreadPreviewModal from './PageDesigner/SpreadPreviewModal';
 import SmartFillPanel from './PageDesigner/SmartFillPanel';
 import AIIssueBuilderPanel from './PageDesigner/AIIssueBuilderPanel';
 import PageSlotPanel from './PageDesigner/PageSlotPanel';
@@ -1211,6 +1212,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   // Spread view state — default ON for wide screens
   const [spreadView, setSpreadView] = useState(() => window.innerWidth >= 1400);
   const [activeSpreadSide, setActiveSpreadSide] = useState('right'); // 'left' | 'right'
+
+  // Spread preview modal (read-only rendered spread view)
+  const [showSpreadPreview, setShowSpreadPreview] = useState(false);
 
   // Guide rails state
   const [guides, setGuides] = useState({ h: [], v: [] });
@@ -2829,6 +2833,10 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
           setSpreadView(v => !v);
           setActiveSpreadSide('right');
         }}
+        onSpreadPreview={() => {
+          saveCurrentPageToState();
+          setShowSpreadPreview(true);
+        }}
         onSave={handleSave}
         saving={saving}
         lastSaved={lastSaved}
@@ -2857,6 +2865,16 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         pageBg={pageBg}
         onPageBgChange={handlePageBgChange}
       />
+
+      {/* Spread preview modal */}
+      {showSpreadPreview && (
+        <SpreadPreviewModal
+          pages={pages}
+          dims={dims}
+          startPageIndex={currentPageIndex}
+          onClose={() => setShowSpreadPreview(false)}
+        />
+      )}
 
       {/* Brand kit panel overlay */}
       {showBrandKit && (
