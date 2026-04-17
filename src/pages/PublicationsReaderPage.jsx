@@ -1473,6 +1473,18 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   // ── Paywall gate: declared here too so goNext (below) can reference it ───────
   const paywallBlocking    = (issue?.paywall_enabled === true) && currentPage > (issue?.free_page_count ?? 3);
 
+  // ── Email gate: intent trigger helper — declared BEFORE goNext to avoid TDZ ──
+  // Called by high-intent actions (TOC open, thumbnail jump, rapid clicking).
+  // No-op if gate already triggered, unlocked, or loading.
+  const triggerGateByIntent = useCallback((reason) => {
+    if (gateUnlocked || gateOpen || gateTriggeredRef.current) return;
+    if (!issue || loading) return;
+    if (isFlipping) return;
+    gateTriggeredRef.current = true;
+    setGateReason(reason);
+    setGateOpen(true);
+  }, [gateUnlocked, gateOpen, issue, loading, isFlipping]);
+
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const totalPages = pages.length;
   const step = useDoubleSpread ? 2 : 1;
@@ -1604,18 +1616,6 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     }, GATE_TIME_FALLBACK_MS);
     return () => clearTimeout(t);
   }, [issue, loading, gateUnlocked, gateOpen]);
-
-  // ── Email gate: intent trigger helper ────────────────────────────────────────
-  // Called by high-intent actions (TOC open, thumbnail jump, rapid clicking).
-  // No-op if gate already triggered, unlocked, or loading.
-  const triggerGateByIntent = useCallback((reason) => {
-    if (gateUnlocked || gateOpen || gateTriggeredRef.current) return;
-    if (!issue || loading) return;
-    if (isFlipping) return;
-    gateTriggeredRef.current = true;
-    setGateReason(reason);
-    setGateOpen(true);
-  }, [gateUnlocked, gateOpen, issue, loading, isFlipping]);
 
   // ── Email gate handlers ──────────────────────────────────────────────────────
   const handleGateUnlock = useCallback(() => {
