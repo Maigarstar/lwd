@@ -1212,8 +1212,9 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const [creditsOpen,   setCreditsOpen]   = useState(false);
 
   // ── Tier 6: search + text mode state ─────────────────────────────────────────
-  const [showSearch,   setShowSearch]   = useState(false);
-  const [showTextMode, setShowTextMode] = useState(false);
+  const [showSearch,      setShowSearch]      = useState(false);
+  const [showTextMode,    setShowTextMode]     = useState(false);
+  const [showSharePopover, setShowSharePopover] = useState(false);
 
   // ── Tier 8: page flip animation state ────────────────────────────────────────
   const [flipDir,        setFlipDir]        = useState(null);      // 'next' | 'prev' | null
@@ -1371,21 +1372,38 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     };
   }, [issue?.id]);
 
+  // ── Device / browser / referrer helpers (Feature 11) ────────────────────────
+  const _referrer = typeof document !== 'undefined' ? (document.referrer || 'direct') : 'direct';
+  const _device   = typeof window   !== 'undefined'
+    ? (window.innerWidth < 768 ? 'mobile' : window.innerWidth < 1024 ? 'tablet' : 'desktop')
+    : 'desktop';
+  function _browser() {
+    if (typeof navigator === 'undefined') return 'other';
+    const ua = navigator.userAgent;
+    if (ua.includes('Edg/'))    return 'edge';
+    if (ua.includes('Chrome/')) return 'chrome';
+    if (ua.includes('Firefox/'))return 'firefox';
+    if (ua.includes('Safari/')) return 'safari';
+    return 'other';
+  }
+  const _browserName = _browser();
+
   // ── Read events: issue_open on mount, issue_close on unmount ─────────────────
   useEffect(() => {
     if (!issue?.id) return;
     const sid = sessionId.current;
-    const ref = document.referrer || undefined;
     mountTimeRef.current = Date.now();
     // Fire-and-forget issue_open
     supabase.from('magazine_read_events').insert({
-      issue_id: issue.id, session_id: sid, event_type: 'issue_open', page_number: 1, referrer: ref || null,
+      issue_id: issue.id, session_id: sid, event_type: 'issue_open', page_number: 1,
+      referrer: _referrer, device: _device, browser: _browserName,
     });
     return () => {
       // Fire-and-forget issue_close
       supabase.from('magazine_read_events').insert({
         issue_id: issue.id, session_id: sid, event_type: 'issue_close',
         duration_ms: Date.now() - mountTimeRef.current,
+        referrer: _referrer, device: _device, browser: _browserName,
       });
     };
   }, [issue?.id]);
@@ -1395,6 +1413,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     if (!issue?.id || !currentPage) return;
     supabase.from('magazine_read_events').insert({
       issue_id: issue.id, session_id: sessionId.current, event_type: 'page_view', page_number: currentPage,
+      referrer: _referrer, device: _device, browser: _browserName,
     });
   }, [issue?.id, currentPage]);
 
@@ -1670,13 +1689,8 @@ export default function PublicationsReaderPage({ slug, onBack }) {
 
   // ── Share ─────────────────────────────────────────────────────────────────────
   const handleShare = useCallback(() => {
-    if (!slug) return;
-    const url = `${window.location.origin}/publications/${slug}?page=${currentPage}`;
-    navigator.clipboard.writeText(url).catch(() => {});
-    setToastVisible(true);
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToastVisible(false), 2500);
-  }, [slug, currentPage]);
+    setShowSharePopover(prev => !prev);
+  }, []);
 
   // ── Bookmark current page ────────────────────────────────────────────────────
   const handleToggleBookmarkCurrent = useCallback(() => {
@@ -1966,6 +1980,75 @@ export default function PublicationsReaderPage({ slug, onBack }) {
 
       {/* ⑤ Share toast */}
       <Toast message="Link copied!" visible={toastVisible} />
+
+      {/* ⑤b Share popover */}
+      {showSharePopover && (() => {
+        const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+        const shareTitle = issue?.title || 'Luxury Wedding Directory';
+        const twUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`;
+        const waUrl = `https://wa.me/?text=${encodeURIComponent(`${shareTitle} — ${shareUrl}`)}`;
+        const piUrl = `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(shareUrl)}&description=${encodeURIComponent(shareTitle)}`;
+        return (
+          <>
+            {/* Backdrop — click outside to close */}
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 1199 }}
+              onClick={() => setShowSharePopover(false)}
+            />
+            <div style={{
+              position: 'fixed', top: 64, right: 20, zIndex: 1200,
+              background: 'rgba(14,12,9,0.97)',
+              border: '1px solid rgba(201,168,76,0.25)',
+              borderRadius: 10,
+              padding: '18px 20px',
+              minWidth: 220,
+              boxShadow: '0 8px 40px rgba(0,0,0,0.7)',
+              display: 'flex', flexDirection: 'column', gap: 10,
+            }}>
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>
+                Share this issue
+              </div>
+              {/* Copy link */}
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(shareUrl).then(() => {
+                    setShowSharePopover(false);
+                    setToastVisible(true);
+                    setTimeout(() => setToastVisible(false), 2200);
+                  });
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6, padding: '9px 14px', cursor: 'pointer', fontFamily: NU, fontSize: 12, color: '#fff', textAlign: 'left' }}
+              >
+                <span style={{ fontSize: 14 }}>⎘</span> Copy link
+              </button>
+              {/* Twitter / X */}
+              <a
+                href={twUrl} target="_blank" rel="noopener noreferrer"
+                onClick={() => setShowSharePopover(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6, padding: '9px 14px', textDecoration: 'none', fontFamily: NU, fontSize: 12, color: '#fff' }}
+              >
+                <span style={{ fontSize: 14, color: GOLD }}>𝕏</span> Share on X
+              </a>
+              {/* WhatsApp */}
+              <a
+                href={waUrl} target="_blank" rel="noopener noreferrer"
+                onClick={() => setShowSharePopover(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6, padding: '9px 14px', textDecoration: 'none', fontFamily: NU, fontSize: 12, color: '#fff' }}
+              >
+                <span style={{ fontSize: 14, color: GOLD }}>💬</span> WhatsApp
+              </a>
+              {/* Pinterest */}
+              <a
+                href={piUrl} target="_blank" rel="noopener noreferrer"
+                onClick={() => setShowSharePopover(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6, padding: '9px 14px', textDecoration: 'none', fontFamily: NU, fontSize: 12, color: '#fff' }}
+              >
+                <span style={{ fontSize: 14, color: GOLD }}>📌</span> Pinterest
+              </a>
+            </div>
+          </>
+        );
+      })()}
 
       {/* ⑧ Cinematic intro */}
       {showIntro && (

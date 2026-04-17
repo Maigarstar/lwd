@@ -78,7 +78,9 @@ import AdvertisePage from "./pages/AdvertisePage.jsx";
 import MostLovedPage from "./pages/MostLovedPage.jsx";
 import ArtistryPage from "./pages/Artistry/ArtistryPage.jsx";
 import PublicationsPage       from "./pages/PublicationsPage.jsx";
-import PublicationsReaderPage from "./pages/PublicationsReaderPage.jsx";
+import PublicationsReaderPage    from "./pages/PublicationsReaderPage.jsx";
+import MagazineCollaboratePage   from "./pages/MagazineCollaboratePage.jsx";
+import VendorReachPage           from "./pages/VendorReachPage.jsx";
 import PublicationsEmbedPage  from "./pages/PublicationsEmbedPage.jsx";
 import PublicationStudio      from "./pages/PublicationStudio.jsx";
 import ThumbnailRenderer      from "./pages/PublicationStudio/ThumbnailRenderer.jsx";
@@ -214,8 +216,10 @@ function stateToPath(pg, opts = {}) {
     case "publications":           return "/publications";
     case "publications-reader":    return `/publications/${opts.publicationsSlug || ''}`;
     case "publications-embed":     return `/publications/embed/${opts.publicationsEmbedSlug || ''}`;
-    case "publication-studio":     return "/publication-studio";
-    case "magazine-reader":        return `/magazine/read/${opts.magazineIssueSlug || ''}`;
+    case "publication-studio":       return "/publication-studio";
+    case "magazine-collaborate":     return `/magazine/collaborate/${opts.collaborateToken || ''}`;
+    case "magazine-reach":           return `/magazine/reach/${opts.reachIssueSlug || ''}/${opts.reachVendorSlug || ''}`;
+    case "magazine-reader":          return `/magazine/read/${opts.magazineIssueSlug || ''}`;
     case "studio-edit": {
       const { entityType, slug, from } = opts;
       if (!entityType || !slug) return "/";
@@ -337,6 +341,8 @@ function pathToState(pathname) {
   if (parts[0] === "publications" && parts[1] === "embed" && parts.length === 3) return { page: "publications-embed", publicationsEmbedSlug: parts[2] };
   if (parts[0] === "publications" && parts.length === 2) return { page: "publications-reader", publicationsSlug: parts[1] };
   if (parts[0] === "publication-studio") return { page: "publication-studio" };
+  if (parts[0] === "magazine" && parts[1] === "collaborate" && parts.length === 3) return { page: "magazine-collaborate", collaborateToken: parts[2] };
+  if (parts[0] === "magazine" && parts[1] === "reach" && parts.length === 4) return { page: "magazine-reach", reachIssueSlug: parts[2], reachVendorSlug: parts[3] };
   if (parts[0] === "magazine" && parts[1] === "read" && parts.length === 3) return { page: "magazine-reader", magazineIssueSlug: parts[2] };
   // Dev-only renderer for thumbnail generation — see scripts/generate-template-thumbnails.mjs
   if (parts[0] === "studio-thumbnail" && parts.length === 2) return { page: "studio-thumbnail", templateId: parts[1] };
@@ -460,6 +466,9 @@ function App() {
   const [activePublicationsSlug, setActivePublicationsSlug] = useState(initial.publicationsSlug || null);
   const [activeEmbedSlug,        setActiveEmbedSlug]        = useState(initial.publicationsEmbedSlug || null);
   const [activeMagazineIssueSlug, setActiveMagazineIssueSlug] = useState(initial.magazineIssueSlug || null);
+  const [activeCollaborateToken,  setActiveCollaborateToken]  = useState(initial.collaborateToken  || null);
+  const [activeReachIssueSlug,    setActiveReachIssueSlug]    = useState(initial.reachIssueSlug    || null);
+  const [activeReachVendorSlug,   setActiveReachVendorSlug]   = useState(initial.reachVendorSlug   || null);
   const [studioThumbnailId,      setStudioThumbnailId]      = useState(initial.templateId || null);
   const [studioEntityType, setStudioEntityType] = useState(initial.entityType || null);
   const [studioSlug, setStudioSlug] = useState(initial.slug || null);
@@ -509,6 +518,9 @@ function App() {
       magazineSlug: activeMagazineSlug,
       publicationsSlug: activePublicationsSlug,
       magazineIssueSlug: activeMagazineIssueSlug,
+      collaborateToken: activeCollaborateToken,
+      reachIssueSlug: activeReachIssueSlug,
+      reachVendorSlug: activeReachVendorSlug,
       venueSlug: activeVenueSlug,
       vendorSlug: activeVendorSlug,
       showcaseSlug: activeShowcaseSlug,
@@ -907,6 +919,19 @@ function App() {
             onReadIssue={goMagazineReader}
           />
         )}
+        {page === "magazine-collaborate" && (
+          <MagazineCollaboratePage
+            token={activeCollaborateToken}
+            onBack={() => setPage("publication-studio")}
+          />
+        )}
+        {page === "magazine-reach" && (
+          <VendorReachPage
+            issueSlug={activeReachIssueSlug}
+            vendorSlug={activeReachVendorSlug}
+            onBack={() => setPage("publication-studio")}
+          />
+        )}
         {page === "studio-thumbnail" && (
           <ThumbnailRenderer templateId={studioThumbnailId} />
         )}
@@ -1222,7 +1247,7 @@ function App() {
             Rendered here for ALL pages except auth/dashboard pages listed below.
             RULE: Never import or render <SiteFooter> inside a page component that
             is served through this main.jsx render tree — it will double-render. ── */}
-        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review","publications-reader","publications-embed","publication-studio","studio-thumbnail","magazine-reader"].includes(page) && (
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review","publications-reader","publications-embed","publication-studio","studio-thumbnail","magazine-reader","magazine-collaborate","magazine-reach"].includes(page) && (
           <SiteFooter onNavigateAdmin={goAdmin} />
         )}
 

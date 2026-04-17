@@ -26,6 +26,7 @@ import {
   bumpRenderVersion,
   uploadIssueCover,
   uploadIssueBackCover,
+  cloneIssue,
 } from '../services/magazineIssuesService';
 import { deleteAllPages, fetchPages } from '../services/magazinePageService';
 import { processPdf }                 from '../services/pdfProcessorService';
@@ -1440,7 +1441,7 @@ const TABS = [
   { key: 'settings',     label: 'Settings'      },
 ];
 
-function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
+function IssueWorkspace({ issueId, onDelete, onReadIssue, onCloned }) {
   const [issue,     setIssue]     = useState(null);
   const [formData,  setFormData]  = useState({});
   const [tab,       setTab]       = useState('overview');
@@ -1466,6 +1467,11 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
   const [showPersonalise,    setShowPersonalise]    = useState(false);
   const [showAnalytics,      setShowAnalytics]      = useState(false);
   const [designerPages,      setDesignerPages]      = useState([]);
+  const [cloneConfirm,       setCloneConfirm]       = useState(false);
+  const [cloning,            setCloning]            = useState(false);
+  const [showHistory,        setShowHistory]        = useState(false);
+  const [snapshots,          setSnapshots]          = useState([]);
+  const [snapshotToast,      setSnapshotToast]      = useState('');
 
   // load issue
   useEffect(() => {
@@ -1649,6 +1655,55 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
     setDeleting(false);
   };
 
+  const handleClone = async () => {
+    setCloning(true);
+    const { data: newIssue, error } = await cloneIssue(issueId);
+    setCloning(false);
+    setCloneConfirm(false);
+    if (!error && newIssue && onCloned) {
+      onCloned(newIssue);
+    }
+  };
+
+  const handleSnapshotSaved = (pages) => {
+    const snapshot = {
+      id: `snap-${Date.now()}`,
+      issue_id: issueId,
+      snapshot_data: pages.map(p => ({ page_number: p.page_number || p.pageNumber, canvasJSON: p.template_data?.canvasJSON || null })),
+      label: `Saved ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} — ${pages.length} page${pages.length !== 1 ? 's' : ''}`,
+      created_at: new Date().toISOString(),
+      _local: true,
+    };
+    // Persist to Supabase
+    supabase.from('magazine_issue_snapshots').insert({
+      issue_id:      issueId,
+      snapshot_data: snapshot.snapshot_data,
+      label:         snapshot.label,
+    }).then(({ data: saved }) => {
+      const snapId = saved?.[0]?.id || snapshot.id;
+      setSnapshots(prev => {
+        const updated = [{ ...snapshot, id: snapId }, ...prev].slice(0, 10);
+        return updated;
+      });
+    }).catch(() => {
+      // still keep local snapshot on failure
+      setSnapshots(prev => [snapshot, ...prev].slice(0, 10));
+    });
+    setSnapshotToast('Snapshot saved');
+    setTimeout(() => setSnapshotToast(''), 2500);
+  };
+
+  const loadSnapshots = async () => {
+    const { data } = await supabase
+      .from('magazine_issue_snapshots')
+      .select('*')
+      .eq('issue_id', issueId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (data) setSnapshots(data);
+    setShowHistory(true);
+  };
+
   const handleReprocess = async () => {
     if (!issue) return;
     setReprocessing(true);
@@ -1776,6 +1831,55 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
             📊 Analytics
           </button>
         )}
+
+        {/* Embed shortcut — only when published */}
+        {issue.status === 'published' && (
+          <button
+            onClick={() => setTab('distribution')}
+            style={{
+              fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+              textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)',
+              background: 'none',
+              border: `1px solid rgba(255,255,255,0.15)`,
+              padding: '4px 10px', borderRadius: 2, cursor: 'pointer',
+            }}
+          >
+            ‹/› Embed
+          </button>
+        )}
+
+        {/* Duplicate button */}
+        <button
+          onClick={() => setCloneConfirm(true)}
+          style={{
+            fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+            textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)',
+            background: 'none',
+            border: `1px solid rgba(255,255,255,0.15)`,
+            padding: '4px 10px', borderRadius: 2, cursor: 'pointer',
+          }}
+        >
+          ⊕ Duplicate
+        </button>
+
+        {/* Version history button */}
+        <button
+          onClick={loadSnapshots}
+          style={{
+            fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+            textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)',
+            background: 'none',
+            border: `1px solid rgba(255,255,255,0.15)`,
+            padding: '4px 10px', borderRadius: 2, cursor: 'pointer',
+          }}
+        >
+          🕐 History
+        </button>
+
+        {/* Snapshot toast */}
+        {snapshotToast && (
+          <span style={{ fontFamily: NU, fontSize: 10, color: '#34d399' }}>✓ {snapshotToast}</span>
+        )}
       </div>
 
       {/* ── Tabs ── */}
@@ -1797,7 +1901,7 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
       {/* ── Tab content ── */}
       <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
         {tab === 'design' && (
-          <PageDesigner issue={issue} onIssueUpdate={handleIssueUpdate} onPagesChange={setDesignerPages} />
+          <PageDesigner issue={issue} onIssueUpdate={handleIssueUpdate} onPagesChange={setDesignerPages} onSnapshotSaved={handleSnapshotSaved} />
         )}
 
         {tab === 'overview' && (
@@ -1992,6 +2096,7 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
         <IssueAnalyticsPanel
           issueId={issue.id}
           issueName={issue.title || issue.slug}
+          issueSlug={issue.slug}
           pages={designerPages}
           onClose={() => setShowAnalytics(false)}
         />
@@ -2028,6 +2133,63 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
             setShowRevenue(false);
           }}
         />
+      )}
+
+      {/* Clone confirm modal */}
+      {cloneConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onMouseDown={e => e.target === e.currentTarget && setCloneConfirm(false)}>
+          <div style={{ width: 380, background: SURF, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 28 }}>
+            <div style={{ fontFamily: GD, fontSize: 20, color: '#fff', marginBottom: 12 }}>Duplicate Issue</div>
+            <div style={{ fontFamily: NU, fontSize: 12, color: MUTED, lineHeight: 1.6, marginBottom: 24 }}>
+              Clone <em style={{ color: 'rgba(255,255,255,0.75)' }}>{issue.title || 'Untitled Issue'}</em> as a new draft? All pages and settings will be copied.
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <Btn onClick={() => setCloneConfirm(false)}>Cancel</Btn>
+              <Btn gold onClick={handleClone} disabled={cloning}>{cloning ? 'Duplicating…' : '⊕ Duplicate'}</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Version history panel */}
+      {showHistory && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onMouseDown={e => e.target === e.currentTarget && setShowHistory(false)}>
+          <div style={{ width: 520, maxHeight: '80vh', background: SURF, border: `1px solid ${BORDER}`, borderRadius: 6, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+            onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ fontFamily: GD, fontSize: 20, color: '#fff' }}>Version History</div>
+              <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>✕</button>
+            </div>
+            {/* Snapshots list */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+              {snapshots.length === 0 ? (
+                <div style={{ fontFamily: NU, fontSize: 12, color: MUTED, textAlign: 'center', padding: '24px 0', lineHeight: 1.6 }}>
+                  No snapshots yet. Snapshots are saved automatically after each save in the Design tab.
+                </div>
+              ) : (
+                snapshots.map((snap, i) => (
+                  <div key={snap.id || i} style={{ padding: '12px 14px', borderRadius: 4, background: i === 0 ? 'rgba(201,168,76,0.06)' : 'rgba(255,255,255,0.02)', border: `1px solid ${i === 0 ? 'rgba(201,168,76,0.2)' : BORDER}`, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontFamily: NU, fontSize: 11, fontWeight: 600, color: i === 0 ? GOLD : 'rgba(255,255,255,0.75)', marginBottom: 3 }}>
+                          {snap.label || `Snapshot ${snapshots.length - i}`}
+                        </div>
+                        <div style={{ fontFamily: NU, fontSize: 10, color: MUTED }}>
+                          {snap.snapshot_data?.length || 0} page{snap.snapshot_data?.length !== 1 ? 's' : ''}
+                          {snap.created_at && ` · ${new Date(snap.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
+                        </div>
+                      </div>
+                      {i === 0 && <span style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: GOLD, letterSpacing: '0.08em', textTransform: 'uppercase', background: 'rgba(201,168,76,0.12)', border: `1px solid rgba(201,168,76,0.3)`, borderRadius: 10, padding: '2px 8px' }}>Latest</span>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -2088,6 +2250,168 @@ function CreateModal({ onCreated, onClose }) {
 
 // ── Main Publication Studio ───────────────────────────────────────────────────
 
+// ── Cross-Issue Revenue Summary strip ─────────────────────────────────────────
+
+function RevenueStrip({ issues }) {
+  const [summary, setSummary] = useState(null);
+
+  useEffect(() => {
+    if (!issues || issues.length === 0) return;
+    (async () => {
+      // Fetch pages for all issues in parallel
+      const results = await Promise.all(
+        issues.map(iss => supabase.from('magazine_issue_pages').select('template_data').eq('issue_id', iss.id))
+      );
+      let totalRevenue = 0;
+      let pipeline     = 0;
+      let slotsSold    = 0;
+      let issuesWithSlots = 0;
+
+      results.forEach((res) => {
+        const pages = res.data || [];
+        let issueHasSlot = false;
+        pages.forEach(p => {
+          const slot = p.template_data?.slot;
+          if (!slot) return;
+          const price = parseFloat(slot.price || 0);
+          if (slot.status === 'paid' || slot.status === 'proof_sent') {
+            totalRevenue += price;
+            slotsSold++;
+            issueHasSlot = true;
+          } else if (slot.status === 'offered') {
+            pipeline += price;
+          }
+        });
+        if (issueHasSlot) issuesWithSlots++;
+      });
+
+      setSummary({ totalRevenue, pipeline, slotsSold, issuesWithSlots });
+    })();
+  }, [issues]);
+
+  if (!summary) return null;
+
+  const tiles = [
+    { label: 'Total Revenue',    value: `£${summary.totalRevenue.toLocaleString()}` },
+    { label: 'Pipeline',         value: `£${summary.pipeline.toLocaleString()}` },
+    { label: 'Page Slots Sold',  value: String(summary.slotsSold) },
+    { label: 'Active Issues',    value: String(summary.issuesWithSlots) },
+  ];
+
+  return (
+    <div style={{ display: 'flex', gap: 10, padding: '12px 14px', borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
+      {tiles.map(t => (
+        <div key={t.label} style={{ flex: 1, background: 'rgba(201,168,76,0.06)', border: `1px solid rgba(201,168,76,0.18)`, borderRadius: 4, padding: '8px 12px' }}>
+          <div style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>{t.label}</div>
+          <div style={{ fontFamily: GD, fontSize: 20, fontStyle: 'italic', color: '#fff' }}>{t.value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Collections modal ─────────────────────────────────────────────────────────
+
+function CollectionsModal({ issues, onClose }) {
+  const [collections, setCollections] = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [name,    setName]            = useState('');
+  const [desc,    setDesc]            = useState('');
+  const [selected, setSelected]       = useState([]);
+  const [creating, setCreating]       = useState(false);
+  const [showForm, setShowForm]       = useState(false);
+  const [err,     setErr]             = useState('');
+
+  useEffect(() => {
+    supabase.from('magazine_collections').select('*').order('created_at', { ascending: false })
+      .then(({ data }) => { setCollections(data || []); setLoading(false); });
+  }, []);
+
+  const handleCreate = async () => {
+    if (!name.trim()) { setErr('Name is required.'); return; }
+    setCreating(true); setErr('');
+    const { data, error } = await supabase.from('magazine_collections').insert({
+      name: name.trim(), description: desc.trim() || null, issue_ids: selected,
+    }).select().single();
+    if (error) { setErr(error.message); setCreating(false); return; }
+    setCollections(prev => [data, ...prev]);
+    setName(''); setDesc(''); setSelected([]); setShowForm(false);
+    setCreating(false);
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      onMouseDown={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ width: 560, maxHeight: '85vh', background: SURF, border: `1px solid ${BORDER}`, borderRadius: 6, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ fontFamily: GD, fontSize: 20, color: '#fff' }}>Collections</div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <Btn small gold onClick={() => setShowForm(f => !f)}>+ New Collection</Btn>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>✕</button>
+          </div>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+          {/* Create form */}
+          {showForm && (
+            <div style={{ background: 'rgba(201,168,76,0.05)', border: `1px solid rgba(201,168,76,0.2)`, borderRadius: 4, padding: '14px 16px', marginBottom: 20 }}>
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>New Collection</div>
+              <Field label="Name" hint="required">
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Spring Seasons" style={INPUT} />
+              </Field>
+              <Field label="Description">
+                <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional description" style={INPUT} />
+              </Field>
+              <Field label="Add Issues">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
+                  {issues.map(iss => {
+                    const checked = selected.includes(iss.id);
+                    return (
+                      <label key={iss.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '6px 8px', background: checked ? 'rgba(201,168,76,0.08)' : 'rgba(255,255,255,0.03)', borderRadius: 3, border: `1px solid ${checked ? 'rgba(201,168,76,0.3)' : BORDER}` }}>
+                        <input type="checkbox" checked={checked} onChange={() => setSelected(p => checked ? p.filter(x => x !== iss.id) : [...p, iss.id])} style={{ accentColor: GOLD }} />
+                        <span style={{ fontFamily: NU, fontSize: 11, color: checked ? '#fff' : MUTED }}>{iss.title || 'Untitled'}</span>
+                        <StatusPill status={iss.status} />
+                      </label>
+                    );
+                  })}
+                </div>
+              </Field>
+              {err && <div style={{ fontFamily: NU, fontSize: 11, color: '#f87171', marginBottom: 8 }}>{err}</div>}
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <Btn small gold onClick={handleCreate} disabled={creating}>{creating ? 'Creating…' : 'Create Collection'}</Btn>
+                <Btn small onClick={() => setShowForm(false)}>Cancel</Btn>
+              </div>
+            </div>
+          )}
+
+          {/* Collections list */}
+          {loading ? (
+            <div style={{ fontFamily: NU, fontSize: 12, color: MUTED, textAlign: 'center', padding: '24px 0' }}>Loading…</div>
+          ) : collections.length === 0 && !showForm ? (
+            <div style={{ fontFamily: NU, fontSize: 12, color: MUTED, textAlign: 'center', padding: '24px 0', lineHeight: 1.7 }}>
+              No collections yet. Create one to group related issues together.
+            </div>
+          ) : (
+            collections.map(col => (
+              <div key={col.id} style={{ padding: '12px 14px', borderRadius: 4, background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, marginBottom: 10 }}>
+                <div style={{ fontFamily: GD, fontSize: 16, fontStyle: 'italic', color: '#fff', marginBottom: col.description ? 4 : 8 }}>{col.name}</div>
+                {col.description && <div style={{ fontFamily: NU, fontSize: 11, color: MUTED, marginBottom: 8 }}>{col.description}</div>}
+                <div style={{ fontFamily: NU, fontSize: 10, color: MUTED }}>
+                  {col.issue_ids?.length || 0} issue{col.issue_ids?.length !== 1 ? 's' : ''}
+                  {col.issue_ids?.length > 0 && ': ' + col.issue_ids.map(id => issues.find(i => i.id === id)?.title || id).join(', ')}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Publication Studio ───────────────────────────────────────────────────
+
 export default function PublicationStudio({ onBack, onReadIssue }) {
   const [issues,          setIssues]          = useState([]);
   const [loading,         setLoading]         = useState(true);
@@ -2096,6 +2420,7 @@ export default function PublicationStudio({ onBack, onReadIssue }) {
   const [filter,          setFilter]          = useState('all'); // all | draft | published | archived
   const [showCalendar,    setShowCalendar]    = useState(false);
   const [showBrandKit,    setShowBrandKit]    = useState(false);
+  const [showCollections, setShowCollections] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -2143,6 +2468,10 @@ export default function PublicationStudio({ onBack, onReadIssue }) {
           style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'none', border: `1px solid ${BORDER}`, borderRadius: 3, color: MUTED, padding: '7px 14px', cursor: 'pointer' }}>
           📅 Calendar
         </button>
+        <button onClick={() => setShowCollections(true)}
+          style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: 'none', border: `1px solid ${BORDER}`, borderRadius: 3, color: MUTED, padding: '7px 14px', cursor: 'pointer' }}>
+          ◈ Collections
+        </button>
         <button onClick={() => setShowCreate(true)}
           style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: GOLD, border: 'none', borderRadius: 3, color: '#1a1806', padding: '7px 16px', cursor: 'pointer' }}>
           + New Issue
@@ -2154,6 +2483,9 @@ export default function PublicationStudio({ onBack, onReadIssue }) {
 
         {/* ── Sidebar ── */}
         <div style={{ width: 240, flexShrink: 0, borderRight: `1px solid ${BORDER}`, background: SIDE, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+          {/* Cross-issue revenue strip */}
+          <RevenueStrip issues={issues} />
 
           {/* Filter pills */}
           <div style={{ padding: '12px 12px 8px', borderBottom: `1px solid ${BORDER}`, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -2237,6 +2569,10 @@ export default function PublicationStudio({ onBack, onReadIssue }) {
             issueId={activeId}
             onDelete={handleDeleted}
             onReadIssue={onReadIssue}
+            onCloned={(newIssue) => {
+              setIssues(prev => [newIssue, ...prev]);
+              setActiveId(newIssue.id);
+            }}
           />
         ) : (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
@@ -2276,6 +2612,10 @@ export default function PublicationStudio({ onBack, onReadIssue }) {
 
       {showBrandKit && (
         <BrandKitPanel onClose={() => setShowBrandKit(false)} />
+      )}
+
+      {showCollections && (
+        <CollectionsModal issues={issues} onClose={() => setShowCollections(false)} />
       )}
     </div>
   );

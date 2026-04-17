@@ -1,10 +1,25 @@
 // ─── IssueAnalyticsPanel.jsx ─────────────────────────────────────────────────
 // Full-screen overlay showing read analytics for a published issue.
-// Stats, page heatmap, vendor reach, export report.
+// Stats, page heatmap, vendor reach, trend chart, audience breakdown, export report.
 
 import { useState, useEffect, useMemo } from 'react';
 import { GOLD, DARK, CARD, BORDER, MUTED, NU, GD } from './PageDesigner/designerConstants';
 import { supabase } from '../../lib/supabaseClient';
+
+function normaliseSlug(str) {
+  return (str || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard?.writeText(text).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+}
 
 function StatCard({ label, value, sub }) {
   return (
@@ -38,24 +53,28 @@ function msToReadable(ms) {
   return rem > 0 ? `${m}m ${rem}s` : `${m}m`;
 }
 
-export default function IssueAnalyticsPanel({ issueId, issueName, pages, onClose }) {
+export default function IssueAnalyticsPanel({ issueId, issueName, issueSlug, pages, onClose }) {
   const [loading,    setLoading]    = useState(true);
   const [sessions,   setSessions]   = useState([]);   // unique session_ids
   const [pageViews,  setPageViews]  = useState([]);   // { page_number, count }
   const [avgDuration, setAvgDuration] = useState(null); // ms
+  const [allEvents,  setAllEvents]  = useState([]);   // raw events for trend + audience
+  const [copiedSlug, setCopiedSlug] = useState(null); // vendor slug that was just copied
 
   useEffect(() => {
     if (!issueId) return;
     (async () => {
       setLoading(true);
 
-      // 1. All read events for this issue
+      // 1. All read events for this issue (include device/browser/referrer for Feature 11)
       const { data: events } = await supabase
         .from('magazine_read_events')
-        .select('session_id, event_type, page_number, duration_ms, created_at')
+        .select('session_id, event_type, page_number, duration_ms, created_at, device, browser, referrer')
         .eq('issue_id', issueId);
 
       if (!events) { setLoading(false); return; }
+
+      setAllEvents(events);
 
       // Unique sessions
       const uniqueSids = [...new Set(events.map(e => e.session_id))];
@@ -106,6 +125,68 @@ export default function IssueAnalyticsPanel({ issueId, issueName, pages, onClose
       };
     });
   }, [slottedPages, pageViews, sessions]);
+
+  // ── Feature 10: 14-day reads trend ─────────────────────────────────────────
+  const trendData = useMemo(() => {
+    const days = [];
+    const now = new Date();
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      days.push(d.toISOString().slice(0, 10)); // YYYY-MM-DD
+    }
+    const openEvents = allEvents.filter(e => e.event_type === 'issue_open');
+    const countByDay = {};
+    openEvents.forEach(e => {
+      const day = (e.created_at || '').slice(0, 10);
+      if (day) countByDay[day] = (countByDay[day] || 0) + 1;
+    });
+    return days.map(day => ({ day, count: countByDay[day] || 0 }));
+  }, [allEvents]);
+
+  const maxTrendCount = useMemo(() => Math.max(...trendData.map(d => d.count), 1), [trendData]);
+
+  // ── Feature 11: Audience device/browser/referrer breakdown ─────────────────
+  const audienceData = useMemo(() => {
+    const deviceMap = {};
+    const browserMap = {};
+    const referrerMap = {};
+
+    // Use only issue_open events per session (1 per session)
+    const sessionSeen = new Set();
+    allEvents
+      .filter(e => e.event_type === 'issue_open')
+      .forEach(e => {
+        if (sessionSeen.has(e.session_id)) return;
+        sessionSeen.add(e.session_id);
+        const dev = e.device || 'unknown';
+        const br  = e.browser || 'unknown';
+        const ref = e.referrer || 'direct';
+        deviceMap[dev]  = (deviceMap[dev]  || 0) + 1;
+        browserMap[br]  = (browserMap[br]  || 0) + 1;
+        // Normalise referrer: strip query string, keep hostname
+        let refLabel = 'direct';
+        try {
+          if (ref && ref !== 'direct' && ref.startsWith('http')) {
+            refLabel = new URL(ref).hostname.replace(/^www\./, '');
+          } else {
+            refLabel = ref || 'direct';
+          }
+        } catch (_) { refLabel = ref || 'direct'; }
+        referrerMap[refLabel] = (referrerMap[refLabel] || 0) + 1;
+      });
+
+    const total = sessionSeen.size || 1;
+    const toArr = (map) => Object.entries(map)
+      .map(([label, count]) => ({ label, count, pct: Math.round((count / total) * 100) }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      devices: toArr(deviceMap),
+      browsers: toArr(browserMap),
+      referrers: toArr(referrerMap).slice(0, 5),
+    };
+  }, [allEvents]);
 
   function handleExport() {
     const lines = [
@@ -291,33 +372,153 @@ export default function IssueAnalyticsPanel({ issueId, issueName, pages, onClose
 
             {/* ── Vendor Reach ── */}
             {vendorReach.length > 0 && (
-              <div style={{ marginBottom: 24 }}>
+              <div style={{ marginBottom: 32 }}>
                 <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 16 }}>
                   ✦ Vendor Reach
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {vendorReach.map((v, i) => (
-                    <div key={i} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '10px 14px', borderRadius: 4,
-                      background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.15)`,
-                    }}>
-                      <div>
-                        <div style={{ fontFamily: GD, fontSize: 14, fontStyle: 'italic', color: '#fff', marginBottom: 2 }}>
-                          {v.vendorName}
+                  {vendorReach.map((v, i) => {
+                    const vSlug = normaliseSlug(v.vendorName);
+                    const reportUrl = issueSlug
+                      ? `https://luxuryweddingdirectory.com/magazine/reach/${issueSlug}/${vSlug}`
+                      : null;
+                    const justCopied = copiedSlug === vSlug;
+                    return (
+                      <div key={i} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '10px 14px', borderRadius: 4,
+                        background: 'rgba(201,168,76,0.04)', border: `1px solid rgba(201,168,76,0.15)`,
+                      }}>
+                        <div>
+                          <div style={{ fontFamily: GD, fontSize: 14, fontStyle: 'italic', color: '#fff', marginBottom: 2 }}>
+                            {v.vendorName}
+                          </div>
+                          <div style={{ fontFamily: NU, fontSize: 9, color: MUTED }}>Page {v.pageNumber}</div>
                         </div>
-                        <div style={{ fontFamily: NU, fontSize: 9, color: MUTED }}>Page {v.pageNumber}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontFamily: GD, fontSize: 18, fontStyle: 'italic', color: GOLD, lineHeight: 1 }}>
+                              {v.views}
+                            </div>
+                            <div style={{ fontFamily: NU, fontSize: 9, color: MUTED, marginTop: 2 }}>
+                              {v.pct}% of readers
+                            </div>
+                          </div>
+                          {reportUrl && (
+                            <button
+                              onClick={() => {
+                                copyToClipboard(reportUrl);
+                                setCopiedSlug(vSlug);
+                                setTimeout(() => setCopiedSlug(null), 2000);
+                              }}
+                              title={`Copy shareable report link for ${v.vendorName}`}
+                              style={{
+                                fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+                                padding: '5px 10px', borderRadius: 3, cursor: 'pointer',
+                                background: justCopied ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.08)',
+                                border: `1px solid rgba(201,168,76,0.3)`,
+                                color: GOLD, whiteSpace: 'nowrap', transition: 'all 0.15s',
+                              }}
+                            >
+                              {justCopied ? '✓ Copied' : 'Share Report ↗'}
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontFamily: GD, fontSize: 18, fontStyle: 'italic', color: GOLD, lineHeight: 1 }}>
-                          {v.views}
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── Feature 10: Reads-per-day Trend ── */}
+            <div style={{ marginBottom: 32 }}>
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 16 }}>
+                ◈ Reads Per Day — Last 14 Days
+              </div>
+              {trendData.every(d => d.count === 0) ? (
+                <div style={{ fontFamily: NU, fontSize: 11, color: MUTED }}>No reads in the last 14 days.</div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80 }}>
+                  {trendData.map(d => {
+                    const barH = Math.max(2, (d.count / maxTrendCount) * 72);
+                    const label = d.day.slice(5); // MM-DD
+                    return (
+                      <div key={d.day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }} title={`${d.day}: ${d.count} reads`}>
+                        <div style={{ fontFamily: NU, fontSize: 8, color: d.count > 0 ? GOLD : MUTED }}>
+                          {d.count > 0 ? d.count : ''}
                         </div>
-                        <div style={{ fontFamily: NU, fontSize: 9, color: MUTED, marginTop: 2 }}>
-                          {v.pct}% of readers
+                        <div style={{
+                          width: '100%', height: barH,
+                          background: d.count > 0
+                            ? 'linear-gradient(to top, rgba(201,168,76,0.8), rgba(201,168,76,0.35))'
+                            : 'rgba(255,255,255,0.06)',
+                          borderRadius: '2px 2px 0 0',
+                          transition: 'height 0.3s ease',
+                        }} />
+                        <div style={{ fontFamily: NU, fontSize: 7, color: MUTED, writingMode: 'vertical-rl', transform: 'rotate(180deg)', height: 20, overflow: 'hidden' }}>
+                          {label}
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* ── Feature 11: Audience Breakdown ── */}
+            {sessions.length > 0 && (
+              <div style={{ marginBottom: 32 }}>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 16 }}>
+                  ◎ Audience
+                </div>
+                <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                  {/* Device split */}
+                  <div style={{ flex: '1 1 180px' }}>
+                    <div style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Device</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {audienceData.devices.map(d => (
+                        <div key={d.label} style={{
+                          fontFamily: NU, fontSize: 10, padding: '4px 10px', borderRadius: 20,
+                          background: 'rgba(255,255,255,0.05)', border: `1px solid ${BORDER}`, color: '#fff',
+                        }}>
+                          {d.label} <span style={{ color: GOLD }}>{d.pct}%</span>
+                        </div>
+                      ))}
+                      {audienceData.devices.length === 0 && <span style={{ fontFamily: NU, fontSize: 10, color: MUTED }}>No data</span>}
                     </div>
-                  ))}
+                  </div>
+                  {/* Browser split */}
+                  <div style={{ flex: '1 1 180px' }}>
+                    <div style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Browser</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {audienceData.browsers.map(d => (
+                        <div key={d.label} style={{
+                          fontFamily: NU, fontSize: 10, padding: '4px 10px', borderRadius: 20,
+                          background: 'rgba(255,255,255,0.05)', border: `1px solid ${BORDER}`, color: '#fff',
+                        }}>
+                          {d.label} <span style={{ color: GOLD }}>{d.pct}%</span>
+                        </div>
+                      ))}
+                      {audienceData.browsers.length === 0 && <span style={{ fontFamily: NU, fontSize: 10, color: MUTED }}>No data</span>}
+                    </div>
+                  </div>
+                  {/* Top referrers */}
+                  <div style={{ flex: '1 1 200px' }}>
+                    <div style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Top Referrers</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      {audienceData.referrers.map(d => (
+                        <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ flex: 1, height: 12, background: 'rgba(255,255,255,0.04)', borderRadius: 2, overflow: 'hidden' }}>
+                            <div style={{ width: `${d.pct}%`, height: '100%', background: 'rgba(201,168,76,0.45)', borderRadius: 2 }} />
+                          </div>
+                          <span style={{ fontFamily: NU, fontSize: 9, color: MUTED, width: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</span>
+                          <span style={{ fontFamily: NU, fontSize: 9, color: GOLD, width: 28, textAlign: 'right' }}>{d.pct}%</span>
+                        </div>
+                      ))}
+                      {audienceData.referrers.length === 0 && <span style={{ fontFamily: NU, fontSize: 10, color: MUTED }}>No data</span>}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
