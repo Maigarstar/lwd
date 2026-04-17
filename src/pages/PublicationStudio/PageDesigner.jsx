@@ -17,7 +17,7 @@ import ElementsPanel from './PageDesigner/ElementsPanel';
 import PropertiesPanel from './PageDesigner/PropertiesPanel';
 import PageListPanel from './PageDesigner/PageListPanel';
 import DesignerToolbar from './PageDesigner/DesignerToolbar';
-import { canvasToJpegBlob, canvasToPrintJpegBlob, generatePrintPDF, downloadPDF } from './PageDesigner/exportUtils';
+import { canvasToJpegBlob, canvasToPrintJpegBlob, generatePrintPDF, generateScreenPDF, downloadPDF } from './PageDesigner/exportUtils';
 import { upsertPages, upsertPage, fetchPages, uploadPageImage, uploadThumbImage } from '../../services/magazinePageService';
 import { fetchBrandKit } from '../../services/magazineBrandKitService';
 import ImagePickerModal from './PageDesigner/ImagePickerModal';
@@ -989,6 +989,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const [lastSaved, setLastSaved] = useState(null); // Date | null — most recent successful save
   const [exportingDigital, setExportingDigital] = useState(false);
   const [exportingPrint, setExportingPrint] = useState(false);
+  const [exportingScreen, setExportingScreen] = useState(false);
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
 
@@ -1777,21 +1778,36 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     setExportingPrint(true);
     try {
       saveCurrentPageToState();
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 150));
 
-      // Use right canvas (single canvas) for export iteration
-      const fc = fabricRef.current;
+      // Use a fresh off-screen Fabric canvas to avoid corrupting the designer view.
+      const { Canvas: FabricCanvas } = await import('fabric');
+      const offscreenEl = document.createElement('canvas');
+      offscreenEl.width  = dims.w;
+      offscreenEl.height = dims.h;
+      const offscreen = new FabricCanvas(offscreenEl, {
+        width: dims.w,
+        height: dims.h,
+        backgroundColor: '#ffffff',
+        enableRetinaScaling: false,
+      });
+
       const printPages = [];
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
-        if (!fc) break;
+        offscreen.clear();
+        offscreen.backgroundColor = '#ffffff';
         if (page.canvasJSON) {
-          await fc.loadFromJSON(page.canvasJSON);
-          fc.renderAll();
+          await offscreen.loadFromJSON(page.canvasJSON);
         }
-        const blob = await canvasToPrintJpegBlob(fc);
+        offscreen.renderAll();
+        await new Promise(r => setTimeout(r, 60));
+        offscreen.renderAll();
+        const blob = await canvasToPrintJpegBlob(offscreen);
         printPages.push({ blob, pageSize });
       }
+
+      offscreen.dispose();
 
       const pdf = await generatePrintPDF(printPages, issue?.title || 'Magazine Issue', pageSize);
       downloadPDF(pdf, `${issue?.slug || 'issue'}_PRINT_READY.pdf`);
@@ -1800,7 +1816,51 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     } finally {
       setExportingPrint(false);
     }
-  }, [issue, pages, pageSize, saveCurrentPageToState]);
+  }, [issue, pages, pageSize, dims, saveCurrentPageToState]);
+
+  // ── Screen PDF Export ────────────────────────────────────────────────────────
+  const handleExportScreen = useCallback(async () => {
+    setExportingScreen(true);
+    try {
+      saveCurrentPageToState();
+      await new Promise(r => setTimeout(r, 150));
+
+      const { Canvas: FabricCanvas } = await import('fabric');
+      const offscreenEl = document.createElement('canvas');
+      offscreenEl.width  = dims.w;
+      offscreenEl.height = dims.h;
+      const offscreen = new FabricCanvas(offscreenEl, {
+        width: dims.w,
+        height: dims.h,
+        backgroundColor: '#ffffff',
+        enableRetinaScaling: false,
+      });
+
+      const screenPages = [];
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        offscreen.clear();
+        offscreen.backgroundColor = '#ffffff';
+        if (page.canvasJSON) {
+          await offscreen.loadFromJSON(page.canvasJSON);
+        }
+        offscreen.renderAll();
+        await new Promise(r => setTimeout(r, 60));
+        offscreen.renderAll();
+        const blob = await canvasToJpegBlob(offscreen, 2);
+        screenPages.push({ blob, pageSize });
+      }
+
+      offscreen.dispose();
+
+      const pdf = await generateScreenPDF(screenPages, issue?.title || 'Magazine Issue', pageSize);
+      downloadPDF(pdf, `${issue?.slug || 'issue'}_digital.pdf`);
+    } catch (e) {
+      alert('Screen PDF export failed: ' + e.message);
+    } finally {
+      setExportingScreen(false);
+    }
+  }, [issue, pages, pageSize, dims, saveCurrentPageToState]);
 
   // ── Page management ─────────────────────────────────────────────────────────
   function handleSelectPage(i) {
@@ -2086,6 +2146,8 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         lastSaved={lastSaved}
         onExportDigital={handleExportDigital}
         exportingDigital={exportingDigital}
+        onExportScreen={handleExportScreen}
+        exportingScreen={exportingScreen}
         onExportPrint={handleExportPrint}
         exportingPrint={exportingPrint}
         pageSize={pageSize}

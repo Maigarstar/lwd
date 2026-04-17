@@ -95,6 +95,37 @@ export async function generatePrintPDF(pages, issueTitle, pageSize = 'A4') {
   return pdf;
 }
 
+// Generate multi-page screen PDF (no bleed, no crop marks, no spec page)
+// pages = array of { blob, pageSize }
+export async function generateScreenPDF(pages, issueTitle, pageSize = 'A4') {
+  const sizes = {
+    A4:        [210, 297],
+    A5:        [148, 210],
+    US_LETTER: [215.9, 279.4],
+    SQUARE:    [200, 200],
+    TABLOID:   [279.4, 215.9],
+  };
+  const [w, h] = sizes[pageSize] || sizes.A4;
+
+  const pdf = new jsPDF({
+    orientation: w > h ? 'landscape' : 'portrait',
+    unit: 'mm',
+    format: [w, h],
+  });
+
+  for (let i = 0; i < pages.length; i++) {
+    if (i > 0) {
+      pdf.addPage([w, h], w > h ? 'landscape' : 'portrait');
+    }
+    const { blob } = pages[i];
+    const url = URL.createObjectURL(blob);
+    pdf.addImage(url, 'JPEG', 0, 0, w, h);
+    URL.revokeObjectURL(url);
+  }
+
+  return pdf;
+}
+
 export function downloadPDF(pdf, filename) {
   pdf.save(filename);
 }

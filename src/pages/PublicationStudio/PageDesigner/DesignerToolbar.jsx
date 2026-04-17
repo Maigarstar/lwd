@@ -84,6 +84,8 @@ export default function DesignerToolbar({
   lastSaved,
   onExportDigital,
   exportingDigital,
+  onExportScreen,
+  exportingScreen,
   onExportPrint,
   exportingPrint,
   pageSize,
@@ -413,6 +415,22 @@ export default function DesignerToolbar({
           }}
         >
           {exportingDigital ? 'Publishing…' : '▶ Publish Digital'}
+        </button>
+
+        {/* Screen PDF */}
+        <button
+          onClick={onExportScreen}
+          disabled={exportingScreen}
+          style={{
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            borderRadius: 3, color: 'rgba(255,255,255,0.85)',
+            fontFamily: NU, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+            padding: '5px 12px', cursor: exportingScreen ? 'default' : 'pointer',
+          }}
+        >
+          {exportingScreen ? 'Exporting…' : '↓ PDF'}
         </button>
 
         {/* Print PDF */}
