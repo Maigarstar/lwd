@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { callAiGenerate } from '../../../lib/aiGenerate';
 import { GOLD, BORDER, MUTED, NU, GD } from './designerConstants';
 import { getVoiceInjection } from '../../../services/studioVoiceService';
+import { useSpeechInput } from './useSpeechInput';
 
 // ── Available templates the AI can choose from ────────────────────────────────
 const VALID_TEMPLATES = [
@@ -92,6 +93,13 @@ export default function AIIssueBuilderPanel({ onBuild, onClose }) {
   const [building,   setBuilding]   = useState(false);
   const [buildProgress, setBuildProgress] = useState(0);
   const [builtCount,    setBuiltCount]    = useState(0);  // pages added — shown in success state
+  const [speechError,   setSpeechError]   = useState('');
+
+  // Speech-to-text for brief input
+  const { listening: micListening, supported: micSupported, toggle: micToggle } = useSpeechInput({
+    onResult: (text) => setBrief(prev => prev ? `${prev} ${text}` : text),
+    onError:  (err)  => setSpeechError(typeof err === 'string' ? err : 'Microphone unavailable'),
+  });
 
   // ── Step 1: Generate structure ──────────────────────────────────────────────
   async function handleGenerate() {
@@ -263,9 +271,36 @@ Return exactly ${pageCount} pages. Remember: first page = vogue-cover, last page
           {/* ── BRIEF INPUT + build flow (hidden after success) ── */}
           {!(builtCount > 0 && !building) && <div>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
-              Issue Brief
-            </label>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <label style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                Issue Brief
+              </label>
+              {micSupported && (
+                <button
+                  onClick={micToggle}
+                  title={micListening ? 'Stop recording' : 'Dictate your brief'}
+                  style={{
+                    background: micListening ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${micListening ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.15)'}`,
+                    borderRadius: 3, padding: '3px 8px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    color: micListening ? '#f87171' : MUTED,
+                    fontFamily: NU, fontSize: 9, fontWeight: 600,
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                    animation: micListening ? 'aibPulse 1s ease infinite' : 'none',
+                    flexShrink: 0,
+                  }}
+                >
+                  <span style={{ fontSize: 11 }}>{micListening ? '⏹' : '🎙'}</span>
+                  {micListening ? 'Stop' : 'Speak'}
+                </button>
+              )}
+            </div>
+            {speechError && (
+              <div style={{ fontFamily: NU, fontSize: 10, color: '#f87171', marginBottom: 6 }}>
+                {speechError}
+              </div>
+            )}
             <textarea
               value={brief}
               onChange={e => { setBrief(e.target.value); setStructure(null); setError(''); }}

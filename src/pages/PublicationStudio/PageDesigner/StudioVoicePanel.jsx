@@ -14,6 +14,7 @@ import { useState, useEffect } from 'react';
 import { GOLD, BORDER, MUTED, NU, GD } from './designerConstants';
 import { loadVoice, saveVoice, getVoiceInjection } from '../../../services/studioVoiceService';
 import { callAiGenerate } from '../../../lib/aiGenerate';
+import { useSpeechInput } from './useSpeechInput';
 
 const PRESET_TONES = [
   'Luxury Editorial', 'Cinematic', 'Intimate', 'Architectural',
@@ -159,6 +160,14 @@ export default function StudioVoicePanel({ onClose }) {
   const [newTone,     setNewTone]     = useState('');
   const [newAvoid,    setNewAvoid]    = useState('');
   const [newRule,     setNewRule]     = useState('');
+  const [micError,    setMicError]    = useState('');
+
+  // Speech-to-text for sample copy
+  const { listening: micListening, supported: micSupported, toggle: micToggle } = useSpeechInput({
+    continuous: true,
+    onResult: (text) => setVoice(v => ({ ...v, sampleCopy: v.sampleCopy ? `${v.sampleCopy} ${text}` : text })),
+    onError:  (err)  => setMicError(typeof err === 'string' ? err : 'Microphone unavailable'),
+  });
 
   // Auto-save whenever voice changes (debounced)
   useEffect(() => {
@@ -382,9 +391,45 @@ export default function StudioVoicePanel({ onClose }) {
           </div>
 
           {/* ── Sample Copy ───────────────────────────────────────────── */}
-          <SectionTitle>Voice Reference Copy</SectionTitle>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, marginBottom: 0 }}>
+            <SectionTitle style={{ margin: 0 }}>Voice Reference Copy</SectionTitle>
+            {micSupported && (
+              <button
+                onClick={micToggle}
+                title={micListening ? 'Stop dictation' : 'Speak your reference copy'}
+                style={{
+                  background: micListening ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.06)',
+                  border: `1px solid ${micListening ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.15)'}`,
+                  borderRadius: 3, padding: '4px 10px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  color: micListening ? '#f87171' : MUTED,
+                  fontFamily: NU, fontSize: 9, fontWeight: 600,
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  flexShrink: 0, marginBottom: 8,
+                }}
+              >
+                <span style={{ fontSize: 12 }}>{micListening ? '⏹' : '🎙'}</span>
+                {micListening ? 'Stop' : 'Dictate'}
+              </button>
+            )}
+          </div>
+          {micError && (
+            <div style={{ fontFamily: NU, fontSize: 10, color: '#f87171', marginBottom: 6 }}>
+              {micError}
+            </div>
+          )}
+          {micListening && (
+            <div style={{
+              fontFamily: NU, fontSize: 9, color: '#f87171',
+              marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5,
+            }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f87171', display: 'inline-block', animation: 'micPulse 1s ease infinite' }} />
+              Listening… speak your reference copy
+              <style>{`@keyframes micPulse{0%,100%{opacity:0.3}50%{opacity:1}}`}</style>
+            </div>
+          )}
           <Hint>
-            Paste a paragraph from a piece you love — an article, a description, anything that captures your exact voice. The AI studies this and mirrors the register, rhythm, and specificity.
+            Paste or dictate a paragraph that captures your exact voice. The AI studies this and mirrors the register, rhythm, and specificity.
           </Hint>
 
           <textarea
