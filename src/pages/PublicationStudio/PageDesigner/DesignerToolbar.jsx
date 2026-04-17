@@ -98,6 +98,7 @@ export default function DesignerToolbar({
   onApplyPageNumbers,
   onBrandKit,
   brandPrimaryColor,
+  onSmartFill,
 }) {
   const [printConfirm, setPrintConfirm] = useState(false);
   const [showPageNumPopover, setShowPageNumPopover] = useState(false);
@@ -337,6 +338,22 @@ export default function DesignerToolbar({
         )}
 
         <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)' }} />
+
+        {/* Smart Fill */}
+        <button
+          onClick={onSmartFill}
+          title="Auto-build a page from a venue or planner"
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.14)',
+            borderRadius: 3, color: 'rgba(255,255,255,0.8)',
+            fontFamily: NU, fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+            padding: '5px 12px', cursor: 'pointer',
+          }}
+        >
+          ✦ Smart Fill
+        </button>
 
         {/* Brand Kit */}
         <button

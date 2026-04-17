@@ -22,6 +22,7 @@ import { upsertPages, upsertPage, fetchPages, uploadPageImage, uploadThumbImage 
 import { fetchBrandKit } from '../../services/magazineBrandKitService';
 import ImagePickerModal from './PageDesigner/ImagePickerModal';
 import BrandKitPanel from './BrandKitPanel';
+import SmartFillPanel from './PageDesigner/SmartFillPanel';
 
 function genId() {
   return typeof crypto !== 'undefined' && crypto.randomUUID
@@ -679,6 +680,132 @@ export function applyTemplate(fc, template, dims, brand = {}) {
   fc.requestRenderAll();
 }
 
+// ── Smart Fill — build an editorial page from a live listing row ─────────────
+// `listing` is the raw Supabase row (snake_case). Builds a full-bleed editorial
+// page with the real venue or planner data, then applies the brand kit on top.
+function applySmartFill(fc, listing, brand = {}) {
+  const W = TEMPLATE_REF_W;
+  const H = TEMPLATE_REF_H;
+
+  // Brand-aware gold colour (falls back to LWD gold)
+  const GOLD_C  = brand?.primary_color || '#C9A84C';
+  const DARK_C  = '#18120A';
+  const CREAM   = '#F0EBE0';
+  const hFont   = brand?.heading_font || 'Bodoni Moda';
+  const bFont   = brand?.body_font    || 'Jost';
+  const serif   = brand?.heading_font || 'Cormorant Garamond';
+
+  // Preload fonts
+  [hFont, bFont, serif, 'Cinzel', 'Jost', 'Cormorant Garamond', 'Bodoni Moda'].forEach(f => {
+    try { loadGoogleFont(f); } catch { /* noop */ }
+  });
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function heroImg(row) {
+    try {
+      const items = Array.isArray(row.media_items) ? row.media_items : JSON.parse(row.media_items || '[]');
+      const feat = items.find(m => m.is_featured && m.type === 'image');
+      if (feat?.url) return feat.url;
+      const first = items.find(m => m.type === 'image');
+      if (first?.url) return first.url;
+    } catch { /* noop */ }
+    try {
+      const hi = Array.isArray(row.hero_images) ? row.hero_images : JSON.parse(row.hero_images || '[]');
+      if (hi.length) { const img = hi[0]; return typeof img === 'string' ? img : img?.url || img?.src || ''; }
+    } catch { /* noop */ }
+    return null;
+  }
+
+  function locStr(row) {
+    return [row.city, row.country].filter(Boolean).join(' · ') || row.region || '';
+  }
+
+  function featureLines(row) {
+    const lines = [];
+    if (row.capacity_max) lines.push(`Up to ${row.capacity_max} guests`);
+    if (row.exclusive_use_enabled) lines.push('Exclusive use available');
+    const amen = row.amenities;
+    if (typeof amen === 'string') amen.split(/[,\n]/).slice(0, 3).forEach(a => { const t = a.trim(); if (t) lines.push(t); });
+    else if (Array.isArray(amen)) amen.slice(0, 3).forEach(a => lines.push(a));
+    return lines.slice(0, 4).join('\n') || 'Enquire for full details';
+  }
+
+  function shortDesc(row) {
+    return row.short_description || (row.description || '').slice(0, 180) || 'An extraordinary setting for your most significant day.';
+  }
+
+  function plannerSpecialties(row) {
+    try {
+      const cp = typeof row.contact_profile === 'string' ? JSON.parse(row.contact_profile) : row.contact_profile;
+      if (cp?.title) return cp.title;
+    } catch { /* noop */ }
+    return 'Wedding Planner';
+  }
+
+  // ── Layout by listing type ─────────────────────────────────────────────────
+  fc.clear();
+  fc.backgroundColor = '#ffffff';
+
+  const imgUrl = heroImg(listing);
+  const type   = listing.listing_type || 'venue';
+
+  if (type === 'venue') {
+    // ── VENUE: hero left, editorial text right ───────────────────────────────
+    const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#1A1B2E', selectable: false });
+    bg.id = genId(); fc.add(bg);
+
+    addImagePlaceholder(fc, { left: 0, top: 0, width: W * 0.52, height: H, imageUrl: imgUrl, fill: '#2A2B3E' });
+
+    const rule      = new Rect({ left: W * 0.58, top: 72, width: 2, height: 68, fill: GOLD_C });
+    const kicker    = new Textbox('VENUE FEATURE', { left: W * 0.6, top: 72, width: W * 0.37, fontSize: 9, fontFamily: bFont, fill: GOLD_C, charSpacing: 300 });
+    const name      = new Textbox(listing.name || 'Venue Name', { left: W * 0.6, top: 96, width: W * 0.37, fontSize: 36, fontFamily: hFont, fill: CREAM, fontStyle: 'italic', lineHeight: 1.05 });
+    const loc       = new Textbox(locStr(listing), { left: W * 0.6, top: 170, width: W * 0.37, fontSize: 14, fontFamily: serif, fill: GOLD_C, fontStyle: 'italic' });
+    const desc      = new Textbox(shortDesc(listing), { left: W * 0.6, top: 210, width: W * 0.36, fontSize: 13, fontFamily: serif, fill: 'rgba(240,235,224,0.8)', lineHeight: 1.65, fontStyle: 'italic' });
+    const ruleMid   = new Rect({ left: W * 0.6, top: H * 0.55, width: 40, height: 1, fill: GOLD_C });
+    const glanceHdr = new Textbox('AT A GLANCE', { left: W * 0.6, top: H * 0.57, width: W * 0.36, fontSize: 9, fontFamily: bFont, fill: GOLD_C, charSpacing: 300 });
+    const features  = new Textbox(featureLines(listing), { left: W * 0.6, top: H * 0.62, width: W * 0.36, fontSize: 11, fontFamily: bFont, fill: 'rgba(240,235,224,0.7)', lineHeight: 2 });
+    const footer    = new Textbox(`luxuryweddingdirectory.com/venues/${listing.slug || ''}`, { left: W * 0.6, top: H - 52, width: W * 0.36, fontSize: 9, fontFamily: bFont, fill: 'rgba(201,168,76,0.55)', charSpacing: 60 });
+    [rule, kicker, name, loc, desc, ruleMid, glanceHdr, features, footer].forEach(o => { o.id = genId(); fc.add(o); });
+
+  } else if (type === 'planner' || type === 'photographer' || type === 'videographer') {
+    // ── PLANNER / PHOTOGRAPHER: portrait left, editorial bio right ───────────
+    const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+    bg.id = genId(); fc.add(bg);
+
+    addImagePlaceholder(fc, { left: 0, top: 0, width: W * 0.48, height: H, imageUrl: imgUrl, fill: '#EDE8E0' });
+
+    const typeLabel = type === 'photographer' ? 'PHOTOGRAPHER' : type === 'videographer' ? 'VIDEOGRAPHER' : 'WEDDING PLANNER';
+    const rule  = new Rect({ left: W * 0.54, top: 72, width: 2, height: 56, fill: GOLD_C });
+    const kicker = new Textbox(typeLabel, { left: W * 0.56, top: 72, width: W * 0.38, fontSize: 9, fontFamily: bFont, fill: GOLD_C, charSpacing: 300 });
+    const name  = new Textbox(listing.name || 'Name', { left: W * 0.56, top: 92, width: W * 0.38, fontSize: 34, fontFamily: hFont, fill: DARK_C, fontStyle: 'italic', lineHeight: 1.05 });
+    const title = new Textbox(plannerSpecialties(listing), { left: W * 0.56, top: 160, width: W * 0.38, fontSize: 11, fontFamily: bFont, fill: GOLD_C, charSpacing: 200 });
+    const loc   = new Textbox(locStr(listing), { left: W * 0.56, top: 182, width: W * 0.38, fontSize: 13, fontFamily: serif, fill: 'rgba(24,18,10,0.55)', fontStyle: 'italic' });
+    const ruleMid = new Rect({ left: W * 0.56, top: 218, width: 40, height: 1, fill: GOLD_C });
+    const desc  = new Textbox(shortDesc(listing), { left: W * 0.56, top: 234, width: W * 0.38, fontSize: 13, fontFamily: serif, fill: DARK_C, lineHeight: 1.7, fontStyle: 'italic' });
+    const enquireLabel = new Textbox('ENQUIRE', { left: W * 0.56, top: H - 80, width: W * 0.38, fontSize: 9, fontFamily: bFont, fill: GOLD_C, charSpacing: 400 });
+    const enquireRule  = new Rect({ left: W * 0.56, top: H - 62, width: W * 0.38, height: 1, fill: 'rgba(201,168,76,0.3)' });
+    const enquireLink  = new Textbox(`luxuryweddingdirectory.com/${listing.slug || ''}`, { left: W * 0.56, top: H - 50, width: W * 0.38, fontSize: 10, fontFamily: bFont, fill: 'rgba(24,18,10,0.45)', charSpacing: 60 });
+    [rule, kicker, name, title, loc, ruleMid, desc, enquireLabel, enquireRule, enquireLink].forEach(o => { o.id = genId(); fc.add(o); });
+
+  } else {
+    // ── GENERIC vendor / fallback ────────────────────────────────────────────
+    const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#ffffff', selectable: false });
+    bg.id = genId(); fc.add(bg);
+    addImagePlaceholder(fc, { left: 0, top: 0, width: W, height: H * 0.55, imageUrl: imgUrl, fill: '#EDE8E0' });
+    const kicker = new Textbox((listing.listing_type || 'VENDOR').toUpperCase(), { left: 40, top: H * 0.58, width: W - 80, fontSize: 10, fontFamily: bFont, fill: GOLD_C, charSpacing: 300 });
+    const name   = new Textbox(listing.name || 'Listing Name', { left: 40, top: H * 0.61, width: W - 80, fontSize: 44, fontFamily: hFont, fill: DARK_C, fontStyle: 'italic', lineHeight: 1.1 });
+    const loc    = new Textbox(locStr(listing), { left: 40, top: H * 0.74, width: W - 80, fontSize: 14, fontFamily: serif, fill: GOLD_C, fontStyle: 'italic' });
+    const desc   = new Textbox(shortDesc(listing), { left: 80, top: H * 0.8, width: W - 160, fontSize: 13, fontFamily: serif, fill: 'rgba(24,18,10,0.7)', lineHeight: 1.7, fontStyle: 'italic', textAlign: 'center' });
+    [kicker, name, loc, desc].forEach(o => { o.id = genId(); fc.add(o); });
+  }
+
+  // Apply brand on top
+  if (brand && Object.keys(brand).length) applyBrandToCanvas(fc, brand);
+
+  fc.getObjects().forEach(o => o.setCoords());
+  fc.requestRenderAll();
+}
+
 // ── Spread pairing logic ──────────────────────────────────────────────────────
 function getSpreadIndices(currentPageIndex, totalPages) {
   // currentPageIndex is 0-based
@@ -963,7 +1090,8 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   const canvasAreaRef = useRef(null);
 
   const initRef = useRef(false);
-  const pendingTemplateRef = useRef(null); // set by handleInsertTemplate, consumed by page-switch effect
+  const pendingTemplateRef    = useRef(null); // set by handleInsertTemplate, consumed by page-switch effect
+  const pendingSmartFillRef   = useRef(null); // set by handleSmartFillSelect, consumed by page-switch effect
 
   const [pages, setPages] = useState([{
     id: genId(),
@@ -1004,6 +1132,9 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
   // Brand kit — loaded on mount, applied to every template insert/replace
   const [brand, setBrand] = useState({});
   const [showBrandKit, setShowBrandKit] = useState(false);
+
+  // Smart Fill panel
+  const [showSmartFill, setShowSmartFill] = useState(false);
   useEffect(() => {
     fetchBrandKit().then(({ data }) => { if (data) setBrand(data); });
   }, []);
@@ -1310,6 +1441,13 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         const t = pendingTemplateRef.current;
         pendingTemplateRef.current = null;
         applyTemplate(fc, t, dims, brand);
+        pushUndo();
+      }
+      // Apply a pending Smart Fill listing (set by handleSmartFillSelect)
+      if (pendingSmartFillRef.current) {
+        const listing = pendingSmartFillRef.current;
+        pendingSmartFillRef.current = null;
+        applySmartFill(fc, listing, brand);
         pushUndo();
       }
     }
@@ -1632,6 +1770,32 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
     setPages(prev => [...prev, newPage]);
     setCurrentPageIndex(pages.length); // pages.length = index of the newly appended page
     setActiveTemplateId(template.id);
+  }
+
+  // ── Smart Fill ──────────────────────────────────────────────────────────────
+  // Called when user selects a listing from SmartFillPanel. Inserts a new page
+  // (same pattern as handleInsertTemplate) with the listing data auto-filled.
+  function handleSmartFillSelect(listing) {
+    setShowSmartFill(false);
+    saveCurrentPageToState();
+
+    // Store listing in ref so the page-switch effect can apply it after the
+    // new canvas is initialised — same pattern as pendingTemplateRef.
+    pendingSmartFillRef.current = listing;
+
+    const typeLabelMap = { venue: 'Venue Feature', planner: 'Planner Spotlight', photographer: 'Photographer Feature', videographer: 'Videographer Feature' };
+    const pageName = typeLabelMap[listing.listing_type] || listing.name || 'Smart Fill Page';
+
+    const newPage = {
+      id: genId(),
+      pageNumber: pages.length + 1,
+      canvasJSON: null,
+      thumbnailDataUrl: null,
+      name: `Page ${pages.length + 1}`,
+      templateName: pageName,
+    };
+    setPages(prev => [...prev, newPage]);
+    setCurrentPageIndex(pages.length);
   }
 
   // ── Undo / Redo ─────────────────────────────────────────────────────────────
@@ -2160,6 +2324,7 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         onApplyPageNumbers={handleApplyPageNumbers}
         onBrandKit={() => setShowBrandKit(true)}
         brandPrimaryColor={brand?.primary_color || null}
+        onSmartFill={() => setShowSmartFill(true)}
       />
 
       {/* Brand kit panel overlay */}
@@ -2167,9 +2332,16 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
         <BrandKitPanel
           onClose={() => {
             setShowBrandKit(false);
-            // Reload brand so next template insert uses updated values
             fetchBrandKit().then(({ data }) => { if (data) setBrand(data); });
           }}
+        />
+      )}
+
+      {/* Smart Fill panel overlay */}
+      {showSmartFill && (
+        <SmartFillPanel
+          onSelect={handleSmartFillSelect}
+          onClose={() => setShowSmartFill(false)}
         />
       )}
 
