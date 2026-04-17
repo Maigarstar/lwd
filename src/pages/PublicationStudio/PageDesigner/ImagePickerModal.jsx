@@ -38,6 +38,14 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
   const [unsplashError, setUnsplashError] = useState(null);
   const unsplashDebounceRef = useRef(null);
 
+  // ── AI Generate state ───────────────────────────────────────────────────────
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiStyle, setAiStyle] = useState('Editorial');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiResult, setAiResult] = useState(null);  // generated image URL
+  const [aiError, setAiError] = useState(null);
+  const AI_STYLES = ['Editorial', 'Romantic', 'Cinematic', 'Minimal'];
+
   // ── Gallery loader ──────────────────────────────────────────────────────────
   // Lists existing images from the magazine-pages bucket scoped to issue.id
   // when available. Supabase storage.list returns name + metadata — we derive
@@ -118,6 +126,26 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
     setUnsplashQuery(val);
     if (unsplashDebounceRef.current) clearTimeout(unsplashDebounceRef.current);
     unsplashDebounceRef.current = setTimeout(() => searchUnsplash(val), 400);
+  }
+
+  // ── AI Generate handler ─────────────────────────────────────────────────────
+  async function handleAIGenerate() {
+    if (!aiPrompt.trim()) return;
+    setAiGenerating(true);
+    setAiError(null);
+    setAiResult(null);
+    try {
+      const fullPrompt = `${aiPrompt.trim()} — ${aiStyle} style`;
+      const { data, error } = await supabase.functions.invoke('ai-image-generate', {
+        body: { prompt: fullPrompt },
+      });
+      if (error || !data?.url) throw new Error(error?.message || data?.error || 'No image returned');
+      setAiResult(data.url);
+    } catch (e) {
+      setAiError(e.message || 'Generation failed');
+    } finally {
+      setAiGenerating(false);
+    }
   }
 
   // ── Upload handler ──────────────────────────────────────────────────────────
@@ -217,9 +245,10 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
 
         {/* Tabs */}
         <div style={TAB_BAR}>
-          <button style={TAB_BTN(tab === 'upload')}   onClick={() => setTab('upload')}>Upload</button>
-          <button style={TAB_BTN(tab === 'gallery')}  onClick={() => setTab('gallery')}>Gallery</button>
-          <button style={TAB_BTN(tab === 'unsplash')} onClick={() => setTab('unsplash')}>Unsplash</button>
+          <button style={TAB_BTN(tab === 'upload')}     onClick={() => setTab('upload')}>Upload</button>
+          <button style={TAB_BTN(tab === 'gallery')}    onClick={() => setTab('gallery')}>Gallery</button>
+          <button style={TAB_BTN(tab === 'unsplash')}   onClick={() => setTab('unsplash')}>Unsplash</button>
+          <button style={TAB_BTN(tab === 'ai-generate')} onClick={() => setTab('ai-generate')}>✦ AI Generate</button>
         </div>
 
         {/* Body */}
@@ -404,6 +433,103 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
                     ))}
                   </div>
                 </>
+              )}
+            </div>
+          )}
+          {/* ── Feature 5: AI Generate Tab ──────────────────────────────────── */}
+          {tab === 'ai-generate' && (
+            <div>
+              <div style={{ marginBottom: 16 }}>
+                <textarea
+                  placeholder="Describe the image you want…"
+                  value={aiPrompt}
+                  onChange={e => setAiPrompt(e.target.value)}
+                  rows={3}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${BORDER}`,
+                    borderRadius: 3, color: '#fff',
+                    fontFamily: NU, fontSize: 12,
+                    padding: '9px 12px', outline: 'none', resize: 'vertical',
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: 16, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {AI_STYLES.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setAiStyle(s)}
+                    style={{
+                      background: aiStyle === s ? 'rgba(201,169,110,0.2)' : 'rgba(255,255,255,0.05)',
+                      border: `1px solid ${aiStyle === s ? 'rgba(201,169,110,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                      borderRadius: 3, color: aiStyle === s ? GOLD : MUTED,
+                      fontFamily: NU, fontSize: 10, fontWeight: 700,
+                      padding: '5px 12px', cursor: 'pointer',
+                      letterSpacing: '0.06em',
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={handleAIGenerate}
+                disabled={aiGenerating || !aiPrompt.trim()}
+                style={{
+                  background: 'rgba(201,169,110,0.15)',
+                  border: '1px solid rgba(201,169,110,0.4)',
+                  borderRadius: 3, color: GOLD,
+                  fontFamily: NU, fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  padding: '8px 20px', cursor: aiGenerating || !aiPrompt.trim() ? 'default' : 'pointer',
+                  opacity: !aiPrompt.trim() ? 0.5 : 1,
+                  marginBottom: 20,
+                }}
+              >
+                {aiGenerating ? '⋯ Generating…' : '✦ Generate Image'}
+              </button>
+
+              {/* Loading shimmer */}
+              {aiGenerating && (
+                <div style={{
+                  width: '100%', aspectRatio: '9 / 16', maxWidth: 320, margin: '0 auto',
+                  background: 'linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%)',
+                  backgroundSize: '200% 100%',
+                  animation: 'shimmer 1.4s infinite',
+                  borderRadius: 4,
+                }} />
+              )}
+
+              {/* Error */}
+              {aiError && !aiGenerating && (
+                <div style={{ padding: 14, background: 'rgba(200,60,60,0.1)', border: '1px solid rgba(200,60,60,0.25)', borderRadius: 4, fontFamily: NU, fontSize: 11, color: '#F3C8C8', lineHeight: 1.6 }}>
+                  {aiError.includes('OPENAI_API_KEY') || aiError.includes('configured')
+                    ? 'Add VITE_OPENAI_KEY or deploy ai-image-generate edge function to enable this feature.'
+                    : aiError}
+                </div>
+              )}
+
+              {/* Result */}
+              {aiResult && !aiGenerating && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                  <img
+                    src={aiResult}
+                    alt="AI generated"
+                    style={{ width: '100%', maxWidth: 360, borderRadius: 4, border: `1px solid ${BORDER}`, display: 'block' }}
+                  />
+                  <button
+                    onClick={() => onSelect(aiResult)}
+                    style={{
+                      background: GOLD, border: 'none', borderRadius: 3,
+                      color: '#1a1208', fontFamily: NU, fontSize: 10, fontWeight: 700,
+                      letterSpacing: '0.08em', textTransform: 'uppercase',
+                      padding: '9px 28px', cursor: 'pointer',
+                    }}
+                  >
+                    Insert Image →
+                  </button>
+                </div>
               )}
             </div>
           )}

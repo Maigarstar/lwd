@@ -1131,6 +1131,12 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
   const [undoStack, setUndoStack] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
 
+  // Page background colour
+  const [pageBg, setPageBg] = useState('#ffffff');
+
+  // Background removal
+  const [removingBg, setRemovingBg] = useState(false);
+
   // Spread view state — default ON for wide screens
   const [spreadView, setSpreadView] = useState(() => window.innerWidth >= 1400);
   const [activeSpreadSide, setActiveSpreadSide] = useState('right'); // 'left' | 'right'
@@ -2038,6 +2044,50 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
   }, [getActiveCanvas, redoStack]);
 
   // ── Save ────────────────────────────────────────────────────────────────────
+  // ── Background removal ──────────────────────────────────────────────────────
+  async function handleRemoveBg() {
+    const fc = getActiveCanvas();
+    const obj = fc?.getActiveObject();
+    if (!obj || obj.type !== 'image') return;
+
+    setRemovingBg(true);
+    try {
+      const { supabase: sb } = await import('./../../lib/supabaseClient');
+      // Get the image src
+      const src = obj.getSrc?.() || obj._element?.src;
+      if (!src) throw new Error('No image source');
+
+      const { data, error } = await sb.functions.invoke('remove-background', {
+        body: { image_url: src },
+      });
+      if (error || !data?.url) throw new Error(error?.message || data?.error || 'No result URL');
+
+      // Replace image src with the background-removed version
+      const { FabricImage } = await import('fabric');
+      const newImg = await FabricImage.fromURL(data.url, { crossOrigin: 'anonymous' });
+      newImg.set({ left: obj.left, top: obj.top, scaleX: obj.scaleX, scaleY: obj.scaleY, angle: obj.angle });
+      newImg.id = obj.id;
+      fc.remove(obj);
+      fc.add(newImg);
+      fc.setActiveObject(newImg);
+      fc.renderAll();
+      pushUndo(fc.toJSON(['id']));
+    } catch (e) {
+      alert('Background removal failed: ' + e.message + '\n\nDeploy the remove-background edge function and add REMOVE_BG_API_KEY to Supabase secrets.');
+    } finally {
+      setRemovingBg(false);
+    }
+  }
+
+  // ── Page background colour ──────────────────────────────────────────────────
+  function handlePageBgChange(colour) {
+    setPageBg(colour);
+    const fc = getActiveCanvas();
+    if (fc) { fc.backgroundColor = colour; fc.renderAll(); }
+    // Also update the left canvas in spread view
+    if (fabricRefLeft.current) { fabricRefLeft.current.backgroundColor = colour; fabricRefLeft.current.renderAll(); }
+  }
+
   const handleSave = useCallback(async () => {
     if (!issue?.id) return;
     setSaving(true);
@@ -2556,6 +2606,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
         onAIBuild={() => setShowAIBuilder(true)}
         onSlot={() => setShowSlotPanel(true)}
         currentSlot={pages[currentPageIndex]?.slot ?? null}
+        pageBg={pageBg}
+        onPageBgChange={handlePageBgChange}
       />
 
       {/* Brand kit panel overlay */}
@@ -2879,6 +2931,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
             onUpdate={handlePropertiesUpdate}
             onGroup={handleGroup}
             onUngroup={handleUngroup}
+            onRemoveBg={handleRemoveBg}
+            removingBg={removingBg}
           />
         </div>
       </div>

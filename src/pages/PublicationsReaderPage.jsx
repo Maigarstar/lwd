@@ -1729,12 +1729,23 @@ export default function PublicationsReaderPage({ slug, onBack }) {
 
   // ── Hotspot click handler ────────────────────────────────────────────────────
   const handleHotspotClick = useCallback((hs) => {
+    // Track the click
+    if (issue?.id) {
+      supabase.from('magazine_read_events').insert({
+        issue_id: issue.id,
+        session_id: sessionId.current,
+        event_type: 'hotspot_click',
+        page_number: currentPage,
+        referrer: hs.label || hs.url || null,
+      }).catch(() => {});
+    }
+
     if (hs.type === 'vendor' && hs.url) {
       setActiveHotspot(hs);
     } else if (hs.url) {
       window.open(hs.url, '_blank', 'noreferrer');
     }
-  }, []);
+  }, [issue?.id, currentPage]);
 
   // ── Paywall ──────────────────────────────────────────────────────────────────
   const paywallEnabled  = issue?.paywall_enabled === true;

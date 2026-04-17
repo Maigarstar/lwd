@@ -297,7 +297,7 @@ function isGradientFill(fill) {
   return fill && typeof fill === 'object' && fill.type === 'linear';
 }
 
-export default function PropertiesPanel({ selectedObject, selectedObjects, canvas, onUpdate, onGroup, onUngroup }) {
+export default function PropertiesPanel({ selectedObject, selectedObjects, canvas, onUpdate, onGroup, onUngroup, onRemoveBg, removingBg }) {
   const [aiImproveLoading, setAiImproveLoading] = useState(false);
   const [aiRewriteLoading, setAiRewriteLoading] = useState(false);
   const [lockRatio, setLockRatio] = useState(false);
@@ -782,6 +782,26 @@ export default function PropertiesPanel({ selectedObject, selectedObjects, canva
                   })}
                 </div>
               </div>
+
+              {onRemoveBg && (
+                <div style={{ padding: '4px 16px 8px' }}>
+                  <button
+                    onClick={onRemoveBg}
+                    disabled={removingBg}
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.14)',
+                      borderRadius: 3, color: 'rgba(255,255,255,0.8)',
+                      fontFamily: NU, fontSize: 10, fontWeight: 700,
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                      padding: '6px 14px', cursor: removingBg ? 'default' : 'pointer',
+                      opacity: removingBg ? 0.5 : 1,
+                    }}
+                  >
+                    {removingBg ? '⋯ Removing…' : '✂ Remove BG'}
+                  </button>
+                </div>
+              )}
 
               <Hr />
             </>

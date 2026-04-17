@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { GOLD, DARK, CARD, BORDER, MUTED, NU } from './designerConstants';
 import { PAGE_SIZES } from './designerConstants';
 
@@ -102,9 +102,12 @@ export default function DesignerToolbar({
   onAIBuild,
   onSlot,
   currentSlot,
+  pageBg,
+  onPageBgChange,
 }) {
   const [printConfirm, setPrintConfirm] = useState(false);
   const [showPageNumPopover, setShowPageNumPopover] = useState(false);
+  const pageBgInputRef = useRef(null);
 
   const savedAgo = useSavedAgo(lastSaved);
 
@@ -250,6 +253,33 @@ export default function DesignerToolbar({
               </option>
             ))}
           </select>
+        )}
+
+        {/* Page background colour picker */}
+        {onPageBgChange && (
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <button
+              title="Page background colour"
+              onClick={() => pageBgInputRef.current?.click()}
+              style={{
+                width: 18, height: 18,
+                background: pageBg || '#ffffff',
+                border: `1px solid ${BORDER}`,
+                borderRadius: 2,
+                cursor: 'pointer',
+                padding: 0,
+                flexShrink: 0,
+              }}
+            />
+            <input
+              ref={pageBgInputRef}
+              type="color"
+              value={pageBg || '#ffffff'}
+              onChange={e => onPageBgChange(e.target.value)}
+              style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+              tabIndex={-1}
+            />
+          </div>
         )}
 
         {/* Page numbering popover */}

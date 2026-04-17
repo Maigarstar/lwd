@@ -61,6 +61,7 @@ export default function IssueAnalyticsPanel({ issueId, issueName, issueSlug, pag
   const [allEvents,  setAllEvents]  = useState([]);   // raw events for trend + audience
   const [copiedSlug, setCopiedSlug] = useState(null); // vendor slug that was just copied
   const [topCountries, setTopCountries] = useState([]); // { country, count }
+  const [hotspotClicks, setHotspotClicks] = useState([]); // { referrer, count }
 
   useEffect(() => {
     if (!issueId) return;
@@ -109,6 +110,25 @@ export default function IssueAnalyticsPanel({ issueId, issueName, issueSlug, pag
         .sort((a, b) => b.count - a.count)
         .slice(0, 8);
       setTopCountries(countriesArr);
+
+      // Hotspot clicks — group by referrer (hotspot label or URL)
+      const { data: hotspotData } = await supabase
+        .from('magazine_read_events')
+        .select('referrer')
+        .eq('issue_id', issueId)
+        .eq('event_type', 'hotspot_click');
+      if (hotspotData) {
+        const hsMap = {};
+        hotspotData.forEach(e => {
+          const label = e.referrer || '(unknown)';
+          hsMap[label] = (hsMap[label] || 0) + 1;
+        });
+        const hsArr = Object.entries(hsMap)
+          .map(([referrer, count]) => ({ referrer, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10);
+        setHotspotClicks(hsArr);
+      }
 
       setLoading(false);
     })();
@@ -558,6 +578,38 @@ export default function IssueAnalyticsPanel({ issueId, issueName, issueSlug, pag
                         }} />
                         {c.country} <span style={{ color: GOLD }}>{pct}%</span>
                         <span style={{ color: MUTED, fontSize: 9 }}>({c.count})</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── Hotspot Clicks ── */}
+            {hotspotClicks.length > 0 && (
+              <div style={{ marginBottom: 32 }}>
+                <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 16 }}>
+                  ✦ Hotspot Clicks
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {hotspotClicks.map((hs) => {
+                    const maxCount = hotspotClicks[0]?.count || 1;
+                    const barPct = (hs.count / maxCount) * 100;
+                    return (
+                      <div key={hs.referrer} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {hs.referrer}
+                        </div>
+                        <div style={{ width: 120, height: 14, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden', flexShrink: 0 }}>
+                          <div style={{
+                            width: `${barPct}%`, height: '100%',
+                            background: 'linear-gradient(90deg, rgba(201,168,76,0.7), rgba(201,168,76,0.3))',
+                            borderRadius: 2,
+                          }} />
+                        </div>
+                        <div style={{ fontFamily: NU, fontSize: 10, color: GOLD, width: 28, textAlign: 'right', flexShrink: 0 }}>
+                          {hs.count}
+                        </div>
                       </div>
                     );
                   })}
