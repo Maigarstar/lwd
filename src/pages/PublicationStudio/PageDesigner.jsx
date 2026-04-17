@@ -2571,6 +2571,28 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
 
     const dims = PAGE_SIZES['A4'];
 
+    // ── Preload all template fonts before the loop ───────────────────────────
+    // document.fonts.ready only confirms CSS parsing. For canvas text to render
+    // with the actual typeface (not a fallback), each font variant must be
+    // explicitly loaded via document.fonts.load(). We do this ONCE before the
+    // loop so every per-page toDataURL() gets crisp editorial typography.
+    const TEMPLATE_FONTS = [
+      "italic 400 84px 'Bodoni Moda'",   "700 84px 'Bodoni Moda'",
+      "italic 400 54px 'Playfair Display'",
+      "italic 400 40px 'Cormorant Garamond'", "400 13px 'Cormorant Garamond'",
+      "italic 400 84px 'GFS Didot'",
+      "400 11px 'Jost'",  "600 11px 'Jost'",
+      "400 28px 'Cinzel'",
+      "400 50px 'Great Vibes'",
+      "400 44px 'Abril Fatface'",
+      "italic 400 44px 'DM Serif Display'",
+      "400 32px 'Libre Baskerville'",
+    ];
+    await Promise.race([
+      Promise.all(TEMPLATE_FONTS.map(f => document.fonts.load(f).catch(() => {}))),
+      new Promise(r => setTimeout(r, 1500)), // hard cap — never stall the build
+    ]);
+
     // Create ONE off-screen canvas at reference dimensions, reuse for all pages
     const offscreenEl = document.createElement('canvas');
     offscreenEl.width  = TEMPLATE_REF_W;
@@ -2631,15 +2653,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         if (pageSpec.body     && bodyObj)     bodyObj.set('text',     pageSpec.body);
         if (pageSpec.byline   && bylineObj)   bylineObj.set('text',   pageSpec.byline);
 
-        // Wait for fonts to be ready (document.fonts.ready resolves once all
-        // @font-face rules have been parsed and the fonts are loaded into the
-        // browser's glyph cache). Without this, canvas text renders in fallback
-        // fonts. 300ms cap keeps the build loop snappy on slow connections.
-        // Images intentionally NOT waited on — placeholders are fine for thumbs.
-        await Promise.race([
-          document.fonts.ready,
-          new Promise(r => setTimeout(r, 300)),
-        ]);
+        // Fonts are already loaded (preloaded before the loop) — render is instant.
+        // Images use grey placeholder rects; they paint in when the user opens the page.
         fc.renderAll();
 
         const canvasJSON       = fc.toJSON(['id']);
