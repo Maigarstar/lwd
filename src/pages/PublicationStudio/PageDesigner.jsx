@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Canvas, Textbox, FabricImage, Rect, Circle, Line, FabricObject } from 'fabric';
+import { Canvas, Textbox, FabricImage, Rect, Circle, Line, FabricObject, Group } from 'fabric';
 import { loadGoogleFont } from './templates/fontCatalog';
 
 // ── Fabric v7 origin defaults ────────────────────────────────────────────────
@@ -1111,6 +1111,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
     if (onPagesChange) onPagesChange(pages);
   }, [pages]); // eslint-disable-line react-hooks/exhaustive-deps
   const [selectedObject, setSelectedObject] = useState(null);
+  const [selectedObjects, setSelectedObjects] = useState([]);
   const [pageSize, setPageSize] = useState(issue?.page_size || 'A4');
   const [layers, setLayers] = useState([]);
   const [pagesLoaded, setPagesLoaded] = useState(false);
@@ -1280,6 +1281,10 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
     fc.on('selection:created', (e) => { onSelect(e.selected?.[0] || null); syncL(); });
     fc.on('selection:updated', (e) => { onSelect(e.selected?.[0] || null); syncL(); });
     fc.on('selection:cleared', () => { onSelect(null); syncL(); });
+    // Track multi-selection
+    fc.on('selection:created', (e) => { setSelectedObjects(fc.getActiveObjects?.() || []); });
+    fc.on('selection:updated', (e) => { setSelectedObjects(fc.getActiveObjects?.() || []); });
+    fc.on('selection:cleared', () => { setSelectedObjects([]); });
     fc.on('object:modified', () => { onModify(); syncL(); });
     fc.on('object:added',    () => { onModify(); syncL(); });
     fc.on('object:removed',  () => { onModify(); syncL(); });
@@ -1709,6 +1714,38 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
     fc.renderAll();
     pushUndo();
   }, [getActiveCanvas, currentPageIndex, pageNumberSettings, pages.length, dims, pushUndo]);
+
+  // ── Feature D: Group / Ungroup ────────────────────────────────────────────────
+  function handleGroup() {
+    const fc = getActiveCanvas();
+    if (!fc) return;
+    const objs = fc.getActiveObjects();
+    if (objs.length < 2) return;
+    const group = new Group(objs.slice(), { interactive: true });
+    objs.forEach(o => fc.remove(o));
+    fc.discardActiveObject();
+    fc.add(group);
+    fc.setActiveObject(group);
+    fc.renderAll();
+    pushUndo();
+  }
+
+  function handleUngroup() {
+    const fc = getActiveCanvas();
+    if (!fc) return;
+    const active = fc.getActiveObject();
+    if (!active || active.type !== 'group') return;
+    const items = active.getObjects().slice();
+    // Apply group transform to each item before removing from group
+    active.destroy?.();
+    fc.remove(active);
+    items.forEach(item => {
+      fc.add(item);
+    });
+    fc.discardActiveObject();
+    fc.renderAll();
+    pushUndo();
+  }
 
   function handleAddElement(variant, text) {
     if (['text', 'heading', 'caption', 'pullquote', 'subheading', 'aitext'].includes(variant)) {
@@ -2774,8 +2811,11 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
         <div style={{ position: 'relative', zIndex: lightsOff ? 0 : 'auto', flexShrink: 0 }}>
           <PropertiesPanel
             selectedObject={selectedObject}
+            selectedObjects={selectedObjects}
             canvas={getActiveCanvas()}
             onUpdate={handlePropertiesUpdate}
+            onGroup={handleGroup}
+            onUngroup={handleUngroup}
           />
         </div>
       </div>

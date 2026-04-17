@@ -12,6 +12,7 @@ export const FONT_CATALOG = [
   { family: 'Lora',                category: 'Serif',      weights: [400, 500, 600, 700], italic: true },
   { family: 'Merriweather',        category: 'Serif',      weights: [300, 400, 700, 900], italic: true },
   { family: 'Crimson Text',        category: 'Serif',      weights: [400, 600, 700], italic: true },
+  { family: 'Source Serif 4',      category: 'Serif',      weights: [300, 400, 600, 700], italic: true },
   { family: 'Cinzel',              category: 'Display',    weights: [400, 500, 600, 700, 800, 900] },
   { family: 'Abril Fatface',       category: 'Display',    weights: [400] },
   { family: 'DM Serif Display',    category: 'Display',    weights: [400], italic: true },

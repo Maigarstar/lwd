@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
 import { uploadPageImage } from '../../../services/magazinePageService';
 import { GOLD, BORDER, MUTED, NU, GD } from './designerConstants';
@@ -19,6 +19,8 @@ import { GOLD, BORDER, MUTED, NU, GD } from './designerConstants';
  *   - onSelect(url: string): void  // called when the user picks / uploads an image
  *   - onClose(): void              // closes the modal
  */
+const UNSPLASH_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY;
+
 export default function ImagePickerModal({ issue, onSelect, onClose }) {
   const [tab, setTab] = useState('upload');
   const [uploading, setUploading] = useState(false);
@@ -28,6 +30,13 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
   const [galleryError, setGalleryError] = useState(null);
   const [uploadError, setUploadError] = useState(null);
   const fileInputRef = useRef(null);
+
+  // ── Unsplash state ──────────────────────────────────────────────────────────
+  const [unsplashQuery, setUnsplashQuery] = useState('');
+  const [unsplashResults, setUnsplashResults] = useState([]);
+  const [unsplashLoading, setUnsplashLoading] = useState(false);
+  const [unsplashError, setUnsplashError] = useState(null);
+  const unsplashDebounceRef = useRef(null);
 
   // ── Gallery loader ──────────────────────────────────────────────────────────
   // Lists existing images from the magazine-pages bucket scoped to issue.id
@@ -83,6 +92,33 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
   useEffect(() => {
     if (tab === 'gallery') loadGallery();
   }, [tab, loadGallery]);
+
+  // ── Unsplash search ──────────────────────────────────────────────────────────
+  const searchUnsplash = useCallback(async (q) => {
+    if (!q.trim()) { setUnsplashResults([]); return; }
+    if (!UNSPLASH_KEY) { setUnsplashError('Add VITE_UNSPLASH_ACCESS_KEY to .env to enable Unsplash search.'); return; }
+    setUnsplashLoading(true);
+    setUnsplashError(null);
+    try {
+      const res = await fetch(
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=20&orientation=portrait`,
+        { headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` } }
+      );
+      if (!res.ok) throw new Error(`Unsplash error: ${res.status}`);
+      const data = await res.json();
+      setUnsplashResults(data.results || []);
+    } catch (e) {
+      setUnsplashError(e.message || 'Search failed.');
+    } finally {
+      setUnsplashLoading(false);
+    }
+  }, []);
+
+  function handleUnsplashQueryChange(val) {
+    setUnsplashQuery(val);
+    if (unsplashDebounceRef.current) clearTimeout(unsplashDebounceRef.current);
+    unsplashDebounceRef.current = setTimeout(() => searchUnsplash(val), 400);
+  }
 
   // ── Upload handler ──────────────────────────────────────────────────────────
   // Uses uploadPageImage helper. Because it expects a pageNumber + version in
@@ -181,8 +217,9 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
 
         {/* Tabs */}
         <div style={TAB_BAR}>
-          <button style={TAB_BTN(tab === 'upload')}  onClick={() => setTab('upload')}>Upload</button>
-          <button style={TAB_BTN(tab === 'gallery')} onClick={() => setTab('gallery')}>Gallery</button>
+          <button style={TAB_BTN(tab === 'upload')}   onClick={() => setTab('upload')}>Upload</button>
+          <button style={TAB_BTN(tab === 'gallery')}  onClick={() => setTab('gallery')}>Gallery</button>
+          <button style={TAB_BTN(tab === 'unsplash')} onClick={() => setTab('unsplash')}>Unsplash</button>
         </div>
 
         {/* Body */}
@@ -278,6 +315,96 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* ── Feature G: Unsplash Tab ──────────────────────────────────────────── */}
+          {tab === 'unsplash' && (
+            <div>
+              {!UNSPLASH_KEY ? (
+                <div style={{
+                  padding: '32px 24px', textAlign: 'center',
+                  fontFamily: NU, fontSize: 11, color: MUTED, lineHeight: 1.7,
+                }}>
+                  Add <code style={{ color: GOLD, background: 'rgba(201,169,110,0.08)', padding: '2px 6px', borderRadius: 3 }}>VITE_UNSPLASH_ACCESS_KEY</code> to your .env to enable Unsplash search.
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginBottom: 18 }}>
+                    <input
+                      type="text"
+                      placeholder="Search Unsplash — e.g. 'wedding flowers'"
+                      value={unsplashQuery}
+                      onChange={e => handleUnsplashQueryChange(e.target.value)}
+                      style={{
+                        width: '100%', boxSizing: 'border-box',
+                        background: 'rgba(255,255,255,0.06)',
+                        border: `1px solid ${BORDER}`,
+                        borderRadius: 3, color: '#fff',
+                        fontFamily: NU, fontSize: 12,
+                        padding: '9px 12px', outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  {unsplashLoading && (
+                    <div style={{ fontFamily: NU, fontSize: 11, color: MUTED, textAlign: 'center', padding: 32 }}>
+                      Searching…
+                    </div>
+                  )}
+                  {unsplashError && !unsplashLoading && (
+                    <div style={{ fontFamily: NU, fontSize: 11, color: '#F3C8C8', textAlign: 'center', padding: 24 }}>
+                      {unsplashError}
+                    </div>
+                  )}
+                  {!unsplashLoading && !unsplashError && unsplashResults.length === 0 && unsplashQuery && (
+                    <div style={{ fontFamily: GD, fontStyle: 'italic', fontSize: 16, color: MUTED, textAlign: 'center', padding: 40 }}>
+                      No results for "{unsplashQuery}"
+                    </div>
+                  )}
+                  {!unsplashLoading && !unsplashError && unsplashResults.length === 0 && !unsplashQuery && (
+                    <div style={{ fontFamily: GD, fontStyle: 'italic', fontSize: 16, color: MUTED, textAlign: 'center', padding: 40 }}>
+                      Type to search millions of photos
+                    </div>
+                  )}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                    {unsplashResults.map(photo => (
+                      <div key={photo.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <button
+                          onClick={() => onSelect(photo.urls.regular)}
+                          style={{
+                            background: '#1A1712',
+                            border: `1px solid ${BORDER}`,
+                            padding: 0,
+                            cursor: 'pointer',
+                            aspectRatio: '4 / 5',
+                            overflow: 'hidden',
+                            transition: 'border 0.15s, transform 0.15s',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = GOLD;
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = BORDER;
+                            e.currentTarget.style.transform = 'translateY(0)';
+                          }}
+                        >
+                          <img
+                            src={photo.urls.small}
+                            alt={photo.alt_description || photo.id}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          />
+                        </button>
+                        <div style={{ fontFamily: NU, fontSize: 9, color: 'rgba(255,255,255,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {photo.user?.name || 'Unsplash'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

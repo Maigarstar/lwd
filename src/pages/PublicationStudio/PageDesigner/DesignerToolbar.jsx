@@ -227,27 +227,30 @@ export default function DesignerToolbar({
       {/* Right controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
 
-        {/* Page size — locked to A4 standard */}
-        <div
-          style={{ display: 'flex', alignItems: 'center', gap: 5 }}
-          title="All pages are A4 (210×297mm) by design standard"
-        >
-          <span
+        {/* Page size picker (Feature E) */}
+        {onPageSizeChange && PAGE_SIZES && (
+          <select
+            value={pageSize || 'A4'}
+            onChange={e => onPageSizeChange(e.target.value)}
+            title="Change page size"
             style={{
               background: 'rgba(201,169,110,0.08)',
               border: '1px solid rgba(201,169,110,0.3)',
               borderRadius: 3, color: '#C9A96E',
               fontFamily: NU, fontSize: 11, fontWeight: 500,
-              padding: '3px 8px',
-              letterSpacing: '0.05em',
+              padding: '3px 6px',
+              letterSpacing: '0.04em',
+              cursor: 'pointer',
+              outline: 'none',
             }}
           >
-            A4
-          </span>
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontFamily: "'Jost',sans-serif" }}>
-            210×297mm
-          </span>
-        </div>
+            {Object.entries(PAGE_SIZES).map(([key, val]) => (
+              <option key={key} value={key} style={{ background: '#1A1712', color: '#fff' }}>
+                {val.label || key}
+              </option>
+            ))}
+          </select>
+        )}
 
         {/* Page numbering popover */}
         {pageNumberSettings && (
