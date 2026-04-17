@@ -1754,25 +1754,6 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     enabled:             !!issue?.id,
   });
 
-  // Apply a collaborator's conflicting page update — replaces our canvas with theirs
-  const handleConflictApply = useCallback(() => {
-    if (!collabConflict) return;
-    const { pageIndex, canvasJSON, thumbnailDataUrl } = collabConflict;
-    // Patch pages state
-    setPages(prev => prev.map((p, i) =>
-      i === pageIndex ? { ...p, canvasJSON, thumbnailDataUrl } : p
-    ));
-    // If this is the currently displayed page, reload the live canvas immediately
-    if (pageIndex === currentPageIndex) {
-      const fc = getActiveCanvas();
-      if (fc && canvasJSON) {
-        fc.loadFromJSON(canvasJSON).then(() => fc.renderAll());
-      }
-    }
-    clearConflict();
-    setIsDirty(false);
-  }, [collabConflict, currentPageIndex, getActiveCanvas, clearConflict]);
-
   useEffect(() => {
     fetchBrandKit().then(({ data }) => { if (data) setBrand(data); });
   }, []);
@@ -1843,6 +1824,25 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     if (!spreadView) return fabricRef.current;
     return activeSpreadSide === 'left' ? fabricRefLeft.current : fabricRef.current;
   }, [spreadView, activeSpreadSide]);
+
+  // Apply a collaborator's conflicting page update — replaces our canvas with theirs.
+  // Defined here (after getActiveCanvas) to avoid the temporal dead zone.
+  const handleConflictApply = useCallback(() => {
+    if (!collabConflict) return;
+    const { pageIndex, canvasJSON, thumbnailDataUrl } = collabConflict;
+    setPages(prev => prev.map((p, i) =>
+      i === pageIndex ? { ...p, canvasJSON, thumbnailDataUrl } : p
+    ));
+    // Reload live canvas if conflict is on the currently displayed page
+    if (pageIndex === currentPageIndex) {
+      const fc = getActiveCanvas();
+      if (fc && canvasJSON) {
+        fc.loadFromJSON(canvasJSON).then(() => fc.renderAll());
+      }
+    }
+    clearConflict();
+    setIsDirty(false);
+  }, [collabConflict, currentPageIndex, getActiveCanvas, clearConflict]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Undo helpers ────────────────────────────────────────────────────────────
   const pushUndo = useCallback(() => {
