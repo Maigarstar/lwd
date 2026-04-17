@@ -63,55 +63,87 @@ function SectionLabel({ children }) {
   );
 }
 
-// ── Image grid item ───────────────────────────────────────────────────────────
-function MediaThumb({ url, name, fromOtherIssue, onSelect }) {
+// ── Image grid item (supports single + multi-select) ─────────────────────────
+// • Single-click body  → immediate place when nothing selected; toggle when in multi-select mode
+// • Click checkbox dot → always toggles selection (enters multi-select mode)
+function MediaThumb({ url, name, fromOtherIssue, selected, onSelect, onToggle }) {
   const [hovered, setHovered] = useState(false);
+  const inMulti = selected !== undefined; // multi-select mode active when prop present
+
+  function handleClick() {
+    if (selected) { onToggle(url); }        // already selected → deselect
+    else if (inMulti) { onToggle(url); }    // multi mode, not selected → select
+    else { onSelect(url); }                 // no multi mode → place immediately
+  }
+
   return (
-    <button
-      onClick={() => onSelect(url)}
+    <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      title={name || url}
-      style={{
-        position: 'relative', aspectRatio: '3 / 4',
-        background: BG2, border: `1px solid ${hovered ? GOLD : BDR}`,
-        padding: 0, cursor: 'pointer', overflow: 'hidden',
-        transition: 'border-color 0.15s, transform 0.15s',
-        transform: hovered ? 'translateY(-2px)' : 'none',
-      }}
+      style={{ position: 'relative', aspectRatio: '3 / 4' }}
     >
-      <img
-        src={url}
-        alt={name || ''}
-        loading="lazy"
-        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-      />
-      {fromOtherIssue && (
-        <div style={{
-          position: 'absolute', top: 4, right: 4,
-          fontFamily: NU, fontSize: 7, fontWeight: 700,
-          background: 'rgba(0,0,0,0.65)', color: MUTED,
-          padding: '2px 4px', letterSpacing: '0.06em',
-        }}>
-          REUSED
-        </div>
-      )}
-      {hovered && (
-        <div style={{
+      <button
+        onClick={handleClick}
+        title={name || url}
+        style={{
           position: 'absolute', inset: 0,
-          background: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <span style={{
-            fontFamily: NU, fontSize: 9, fontWeight: 700,
-            color: '#fff', letterSpacing: '0.1em', textTransform: 'uppercase',
-            background: GOLD, color: '#120E08', padding: '5px 10px',
+          background: BG2,
+          border: `2px solid ${selected ? GOLD : hovered ? 'rgba(255,255,255,0.3)' : BDR}`,
+          padding: 0, cursor: 'pointer', overflow: 'hidden',
+          transition: 'border-color 0.12s',
+          width: '100%', height: '100%',
+        }}
+      >
+        <img
+          src={url} alt={name || ''} loading="lazy"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+        {fromOtherIssue && (
+          <div style={{
+            position: 'absolute', top: 4, right: 4,
+            fontFamily: NU, fontSize: 7, fontWeight: 700,
+            background: 'rgba(0,0,0,0.65)', color: MUTED,
+            padding: '2px 4px', letterSpacing: '0.06em',
+          }}>REUSED</div>
+        )}
+        {/* Dim overlay when selected */}
+        {selected && (
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(201,169,110,0.18)' }} />
+        )}
+        {/* "Use" label on hover (only in single-select mode) */}
+        {hovered && !selected && !inMulti && (
+          <div style={{
+            position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            Use
-          </span>
+            <span style={{
+              fontFamily: NU, fontSize: 9, fontWeight: 700,
+              background: GOLD, color: '#120E08', padding: '5px 10px',
+              letterSpacing: '0.1em', textTransform: 'uppercase',
+            }}>Use</span>
+          </div>
+        )}
+      </button>
+
+      {/* Selection checkbox — appears on hover or when already selected */}
+      {(hovered || selected) && (
+        <div
+          onClick={e => { e.stopPropagation(); onToggle(url); }}
+          title={selected ? 'Deselect' : 'Add to selection'}
+          style={{
+            position: 'absolute', top: 5, left: 5, zIndex: 2,
+            width: 18, height: 18, borderRadius: '50%',
+            background: selected ? GOLD : 'rgba(0,0,0,0.55)',
+            border: `2px solid ${selected ? GOLD : 'rgba(255,255,255,0.55)'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', transition: 'all 0.12s',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
+          }}
+        >
+          {selected && <span style={{ fontSize: 9, color: '#0E0D0B', fontWeight: 900, lineHeight: 1 }}>✓</span>}
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -171,7 +203,7 @@ function UploadZone({ uploading, uploadProgress, onFile, dragOver, onDragOver, o
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function ImagePickerModal({ issue, onSelect, onClose }) {
+export default function ImagePickerModal({ issue, onSelect, onSelectMultiple, onClose }) {
   const [tab,            setTab]            = useState('media');
   const [mediaItems,     setMediaItems]     = useState([]);
   const [mediaLoading,   setMediaLoading]   = useState(false);
@@ -181,6 +213,28 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
   const [uploading,      setUploading]      = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError,    setUploadError]    = useState(null);
+
+  // Multi-select state — shared across all tabs
+  const [selectedUrls, setSelectedUrls] = useState(new Set());
+
+  function toggleUrl(url) {
+    setSelectedUrls(prev => {
+      const next = new Set(prev);
+      if (next.has(url)) next.delete(url); else next.add(url);
+      return next;
+    });
+  }
+  function clearSelection() { setSelectedUrls(new Set()); }
+  function placeSelected() {
+    if (selectedUrls.size === 0) return;
+    if (onSelectMultiple) {
+      onSelectMultiple([...selectedUrls]);
+    } else {
+      // Fallback: place one by one
+      [...selectedUrls].forEach(url => onSelect(url));
+    }
+    onClose();
+  }
 
   // Unsplash
   const [unQuery,   setUnQuery]   = useState('');
@@ -426,7 +480,9 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
                   <SectionLabel>This issue</SectionLabel>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                     {thisIssueItems.map(item => (
-                      <MediaThumb key={item.url} {...item} onSelect={onSelect} />
+                      <MediaThumb key={item.url} {...item}
+                        selected={selectedUrls.has(item.url) ? true : selectedUrls.size > 0 ? false : undefined}
+                        onSelect={onSelect} onToggle={toggleUrl} />
                     ))}
                   </div>
                 </>
@@ -438,7 +494,9 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
                   <SectionLabel>From other issues</SectionLabel>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                     {reusedItems.map(item => (
-                      <MediaThumb key={item.url} {...item} onSelect={onSelect} />
+                      <MediaThumb key={item.url} {...item}
+                        selected={selectedUrls.has(item.url) ? true : selectedUrls.size > 0 ? false : undefined}
+                        onSelect={onSelect} onToggle={toggleUrl} />
                     ))}
                   </div>
                 </>
@@ -492,18 +550,23 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
               )}
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 16 }}>
-                {unResults.map(photo => (
-                  <div key={photo.id} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <MediaThumb
-                      url={photo.urls.small}
-                      name={photo.alt_description || photo.id}
-                      onSelect={() => onSelect(photo.urls.regular)}
-                    />
-                    <div style={{ fontFamily: NU, fontSize: 8, color: 'rgba(255,255,255,0.25)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {photo.user?.name || 'Unsplash'}
+                {unResults.map(photo => {
+                  const fullUrl = photo.urls.regular;
+                  return (
+                    <div key={photo.id} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <MediaThumb
+                        url={photo.urls.small}
+                        name={photo.alt_description || photo.id}
+                        selected={selectedUrls.has(fullUrl) ? true : selectedUrls.size > 0 ? false : undefined}
+                        onSelect={() => onSelect(fullUrl)}
+                        onToggle={() => toggleUrl(fullUrl)}
+                      />
+                      <div style={{ fontFamily: NU, fontSize: 8, color: 'rgba(255,255,255,0.25)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {photo.user?.name || 'Unsplash'}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -600,6 +663,59 @@ export default function ImagePickerModal({ issue, onSelect, onClose }) {
             </div>
           )}
         </div>
+
+        {/* ── Multi-select bar ── appears when ≥1 image is checked ──────── */}
+        {selectedUrls.size > 0 && (
+          <div style={{
+            flexShrink: 0,
+            borderTop: `1px solid rgba(201,169,110,0.3)`,
+            background: 'rgba(201,169,110,0.08)',
+            padding: '10px 16px',
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            {/* Count badge */}
+            <div style={{
+              width: 28, height: 28, borderRadius: '50%',
+              background: GOLD, color: '#0E0D0B',
+              fontFamily: NU, fontSize: 12, fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              {selectedUrls.size}
+            </div>
+
+            <span style={{ fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.7)', flex: 1, letterSpacing: '0.04em' }}>
+              {selectedUrls.size === 1 ? '1 image selected' : `${selectedUrls.size} images selected`}
+            </span>
+
+            <button
+              onClick={clearSelection}
+              style={{
+                background: 'none', border: `1px solid rgba(255,255,255,0.15)`,
+                borderRadius: 3, color: MUTED,
+                fontFamily: NU, fontSize: 9, fontWeight: 700,
+                letterSpacing: '0.07em', textTransform: 'uppercase',
+                padding: '5px 10px', cursor: 'pointer',
+              }}
+            >
+              Clear
+            </button>
+
+            <button
+              onClick={placeSelected}
+              style={{
+                background: GOLD, border: 'none',
+                borderRadius: 3, color: '#0E0D0B',
+                fontFamily: NU, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.07em', textTransform: 'uppercase',
+                padding: '7px 16px', cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ▶ Place {selectedUrls.size}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1356,6 +1356,35 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   // When a URL is selected from ImagePickerModal, replace the tagged placeholder
   // (either backdrop Rect or previously-placed Image) with a fresh FabricImage
   // that inherits the original bounds, so the layout stays intact.
+  // ── Place multiple images — cascaded from canvas centre ────────────────────
+  const handleImagePickerSelectMultiple = useCallback(async (urls) => {
+    const fc = getActiveCanvas();
+    if (!fc || !urls?.length) return;
+    setImagePickerOpen(false);
+    imagePickerTargetRef.current = null;
+    const OFFSET = 28; // px cascade step
+    const startX = dims.w * 0.15;
+    const startY = dims.h * 0.12;
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        const img = await FabricImage.fromURL(urls[i], { crossOrigin: 'anonymous' });
+        const scale = (dims.w * 0.45) / img.width;
+        img.set({
+          left: startX + i * OFFSET,
+          top:  startY + i * OFFSET,
+          scaleX: scale, scaleY: scale,
+          isImagePlaceholder: true,
+        });
+        img.id = genId();
+        fc.add(img);
+      } catch (e) {
+        console.warn('Multi-place failed for', urls[i], e);
+      }
+    }
+    fc.requestRenderAll();
+    pushUndo();
+  }, [getActiveCanvas, dims, pushUndo]);
+
   const handleImagePickerSelect = useCallback(async (url) => {
     const fc = getActiveCanvas();
     const target = imagePickerTargetRef.current;
@@ -2197,9 +2226,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     });
 
     // Navigate to first newly-inserted page after state settles
+    // Panel stays open — user sees success state and can build more or close manually
     setTimeout(() => setCurrentPageIndex(firstNewIndex), 120);
-
-    setShowAIBuilder(false);
   }
 
   // ── Undo / Redo ─────────────────────────────────────────────────────────────
@@ -3303,6 +3331,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         <ImagePickerModal
           issue={issue}
           onSelect={handleImagePickerSelect}
+          onSelectMultiple={handleImagePickerSelectMultiple}
           onClose={() => {
             setImagePickerOpen(false);
             imagePickerTargetRef.current = null;
