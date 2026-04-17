@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '../lib/supabaseClient';
+import { uploadViaEdgeFunction } from './magazinePageService';
 
 const TABLE = 'magazine_brand_kit';
 
@@ -33,10 +34,13 @@ export async function saveBrandKit(updates) {
  * @returns {{ publicUrl: string|null, error: Error|null }}
  */
 export async function uploadBrandLogo(file, variant = 'light') {
-  const ext = file.name.split('.').pop();
-  const path = `brand-kit/logo-${variant}.${ext}`;
-  const { error } = await supabase.storage.from('magazine-covers').upload(path, file, { upsert: true });
-  if (error) return { publicUrl: null, error };
-  const { data: { publicUrl } } = supabase.storage.from('magazine-covers').getPublicUrl(path);
-  return { publicUrl, error: null };
+  try {
+    const ext  = file.name.split('.').pop().toLowerCase();
+    const path = `brand-kit/logo-${variant}.${ext}`;
+    const contentType = file.type || (ext === 'svg' ? 'image/svg+xml' : 'image/jpeg');
+    const result = await uploadViaEdgeFunction({ bucket: 'magazine-covers', path, blob: file, contentType });
+    return { publicUrl: result.publicUrl, error: null };
+  } catch (error) {
+    return { publicUrl: null, error };
+  }
 }
