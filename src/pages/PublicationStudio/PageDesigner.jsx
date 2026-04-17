@@ -1804,99 +1804,101 @@ export default function PageDesigner({ issue, onIssueUpdate }) {
 
   // ── AI Issue Builder ────────────────────────────────────────────────────────
   // Builds all pages from the AI-generated structure off-screen, then inserts
-  // them in one batch — same pattern as handleExportDigital but for building.
+  // them in one batch. Uses a SINGLE off-screen canvas reused across all pages
+  // (same pattern as handleExportDigital) — creating + disposing one canvas per
+  // page causes Fabric v7 DOM mutations that corrupt React's node tree.
   async function handleAIBuildIssue(structure, onProgress) {
     if (!structure?.length) return;
     saveCurrentPageToState();
 
-    const { Canvas: FabricCanvas } = await import('fabric');
     const dims = PAGE_SIZES['A4'];
 
+    // Create ONE off-screen canvas at reference dimensions, reuse for all pages
+    const offscreenEl = document.createElement('canvas');
+    offscreenEl.width  = TEMPLATE_REF_W;
+    offscreenEl.height = TEMPLATE_REF_H;
+    const fc = new Canvas(offscreenEl, {
+      width: TEMPLATE_REF_W,
+      height: TEMPLATE_REF_H,
+      enableRetinaScaling: false,
+    });
+
     const newPages = [];
-    for (let i = 0; i < structure.length; i++) {
-      if (onProgress) onProgress(i + 1);
+    try {
+      for (let i = 0; i < structure.length; i++) {
+        if (onProgress) onProgress(i + 1);
 
-      const pageSpec = structure[i];
-      const template = TEMPLATES.find(t => t.id === pageSpec.template_id);
-      if (!template) continue;
+        const pageSpec = structure[i];
+        const template = TEMPLATES.find(t => t.id === pageSpec.template_id);
+        if (!template) continue;
 
-      // Off-screen canvas at reference dimensions
-      const el = document.createElement('canvas');
-      el.width = TEMPLATE_REF_W;
-      el.height = TEMPLATE_REF_H;
-      const fc = new FabricCanvas(el, {
-        width: TEMPLATE_REF_W,
-        height: TEMPLATE_REF_H,
-        enableRetinaScaling: false,
-      });
+        // applyTemplate calls fc.clear() internally — safe to reuse canvas
+        applyTemplate(fc, template, dims, brand);
 
-      applyTemplate(fc, template, dims, brand);
+        // ── Text injection ───────────────────────────────────────────────────
+        // Heuristic: identify text slots by fontSize + charSpacing + fontFamily.
+        const textObjs = fc.getObjects().filter(o => o.type === 'textbox');
+        textObjs.sort((a, b) => a.top - b.top);
 
-      // ── Text injection ─────────────────────────────────────────────────────
-      // Heuristic: sort textboxes by vertical position, then identify slots by
-      // fontSize / charSpacing / fontFamily characteristics.
-      const textObjs = fc.getObjects().filter(o => o.type === 'textbox');
-      textObjs.sort((a, b) => a.top - b.top);
+        // Kicker: small (≤14px), high charSpacing, or already ALL-CAPS placeholder
+        const kickerObj = textObjs.find(o =>
+          o.fontSize <= 14 && (o.charSpacing > 150 || (o.text || '').toUpperCase() === (o.text || ''))
+        );
 
-      // Kicker: small text (≤14px) with high letter-spacing or ALL-CAPS content
-      const kickerObj = textObjs.find(o =>
-        o.fontSize <= 14 && (o.charSpacing > 150 || (o.text || '').toUpperCase() === (o.text || ''))
-      );
+        // Headline: largest fontSize
+        const headlineObj = textObjs.reduce((max, o) =>
+          (!max || o.fontSize > max.fontSize) ? o : max, null);
 
-      // Headline: largest fontSize among all textboxes
-      const headlineObj = textObjs.reduce((max, o) =>
-        (!max || o.fontSize > max.fontSize) ? o : max, null);
+        // Body: medium (12-22px), italic or Cormorant font, different from headline/kicker
+        const bodyObj = textObjs.find(o =>
+          o !== headlineObj &&
+          o !== kickerObj &&
+          o.fontSize >= 12 && o.fontSize <= 22 &&
+          ((o.fontStyle === 'italic') || (o.fontFamily || '').toLowerCase().includes('cormorant'))
+        );
 
-      // Body: medium size (12-22px), different from headline, italic or Cormorant font
-      const bodyObj = textObjs.find(o =>
-        o !== headlineObj &&
-        o !== kickerObj &&
-        o.fontSize >= 12 && o.fontSize <= 22 &&
-        ((o.fontStyle === 'italic') || (o.fontFamily || '').toLowerCase().includes('cormorant'))
-      );
+        // Byline: small (≤13px), near bottom, not kicker/headline/body
+        const bylineObj = [...textObjs].sort((a, b) => b.top - a.top).find(o =>
+          o !== headlineObj && o !== kickerObj && o !== bodyObj && o.fontSize <= 13
+        );
 
-      // Byline: small (≤13px), near the bottom, different from kicker
-      const sortedByBottom = [...textObjs].sort((a, b) => b.top - a.top);
-      const bylineObj = sortedByBottom.find(o =>
-        o !== headlineObj && o !== kickerObj && o !== bodyObj && o.fontSize <= 13
-      );
+        if (pageSpec.kicker   && kickerObj)   kickerObj.set('text',   pageSpec.kicker.toUpperCase());
+        if (pageSpec.headline && headlineObj) headlineObj.set('text', pageSpec.headline.replace(/\\n/g, '\n'));
+        if (pageSpec.body     && bodyObj)     bodyObj.set('text',     pageSpec.body);
+        if (pageSpec.byline   && bylineObj)   bylineObj.set('text',   pageSpec.byline);
 
-      if (pageSpec.kicker && kickerObj)   kickerObj.set('text', pageSpec.kicker.toUpperCase());
-      if (pageSpec.headline && headlineObj) headlineObj.set('text', pageSpec.headline.replace(/\\n/g, '\n'));
-      if (pageSpec.body && bodyObj)         bodyObj.set('text', pageSpec.body);
-      if (pageSpec.byline && bylineObj)     bylineObj.set('text', pageSpec.byline);
+        fc.renderAll();
+        await new Promise(r => setTimeout(r, 80)); // font settle
+        fc.renderAll();
 
-      fc.renderAll();
-      // Small settle — lets font-face load finish if needed
-      await new Promise(r => setTimeout(r, 80));
-      fc.renderAll();
+        const canvasJSON = fc.toJSON(['id']);
 
-      const canvasJSON = fc.toJSON(['id']);
+        const pageNumber = pages.length + newPages.length + 1;
+        newPages.push({
+          id: genId(),
+          pageNumber,
+          canvasJSON,
+          thumbnailDataUrl: null,
+          name: `Page ${pageNumber}`,
+          templateName: pageSpec.page_label || template.name || template.id,
+        });
+      }
+    } finally {
+      // Always dispose — exactly once, after all pages are done
       fc.dispose();
-
-      const pageNumber = pages.length + newPages.length + 1;
-      newPages.push({
-        id: genId(),
-        pageNumber,
-        canvasJSON,
-        thumbnailDataUrl: null,
-        name: `Page ${pageNumber}`,
-        templateName: pageSpec.page_label || template.name || template.id,
-      });
     }
 
     if (newPages.length === 0) return;
 
-    // Batch insert, renumber everything
+    // Batch insert + renumber everything
+    const firstNewIndex = pages.length;
     setPages(prev => {
       const combined = [...prev, ...newPages];
       return combined.map((p, idx) => ({ ...p, pageNumber: idx + 1, name: `Page ${idx + 1}` }));
     });
 
-    // Navigate to first newly-inserted page
-    setCurrentPageIndex(prev => prev + 0); // keep current; new pages are appended
-    // Small delay then jump to first new page
-    setTimeout(() => setCurrentPageIndex(pages.length), 120);
+    // Navigate to first newly-inserted page after state settles
+    setTimeout(() => setCurrentPageIndex(firstNewIndex), 120);
 
     setShowAIBuilder(false);
   }
