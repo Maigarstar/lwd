@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { callAiGenerate } from '../../../lib/aiGenerate';
 import { GOLD, BORDER, MUTED, NU, GD } from './designerConstants';
+import { getVoiceInjection } from '../../../services/studioVoiceService';
 
 // ── Available templates the AI can choose from ────────────────────────────────
 const VALID_TEMPLATES = [
@@ -106,9 +107,14 @@ Brief: ${brief.trim()}
 Return exactly ${pageCount} pages. Remember: first page = vogue-cover, last page = back-cover.`;
 
     try {
+      const voiceBlock  = getVoiceInjection();
+      const fullSystem  = voiceBlock
+        ? `${SYSTEM_PROMPT}\n\n── YOUR TRAINED EDITORIAL VOICE ──\n${voiceBlock}\n──────────────────────────────────\nApply this voice to ALL text fields (kicker, headline, body, byline).`
+        : SYSTEM_PROMPT;
+
       const res = await callAiGenerate({
         feature: 'magazine-issue-builder',
-        systemPrompt: SYSTEM_PROMPT,
+        systemPrompt: fullSystem,
         userPrompt,
         maxTokens: 3000,
       });
@@ -255,7 +261,8 @@ Return exactly ${pageCount} pages. Remember: first page = vogue-cover, last page
           )}
 
           {/* ── BRIEF INPUT + build flow (hidden after success) ── */}
-          {!(builtCount > 0 && !building) && <div style={{ marginBottom: 16 }}>
+          {!(builtCount > 0 && !building) && <div>
+          <div style={{ marginBottom: 16 }}>
             <label style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
               Issue Brief
             </label>

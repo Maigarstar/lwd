@@ -27,6 +27,7 @@ import BrandKitPanel from './BrandKitPanel';
 import SpreadPreviewModal from './PageDesigner/SpreadPreviewModal';
 import SmartFillPanel from './PageDesigner/SmartFillPanel';
 import AIIssueBuilderPanel from './PageDesigner/AIIssueBuilderPanel';
+import StudioVoicePanel from './PageDesigner/StudioVoicePanel';
 import PageSlotPanel from './PageDesigner/PageSlotPanel';
 
 function genId() {
@@ -1261,6 +1262,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
 
   // AI Issue Builder panel
   const [showAIBuilder, setShowAIBuilder] = useState(false);
+
+  // Voice Training panel
+  const [showVoicePanel, setShowVoicePanel] = useState(false);
 
   // Page Slot panel
   const [showSlotPanel, setShowSlotPanel] = useState(false);
@@ -2948,6 +2952,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         brandPrimaryColor={brand?.primary_color || null}
         onSmartFill={() => setShowSmartFill(true)}
         onAIBuild={() => setShowAIBuilder(true)}
+        onVoice={() => setShowVoicePanel(true)}
         onSlot={() => setShowSlotPanel(true)}
         currentSlot={pages[currentPageIndex]?.slot ?? null}
         pageBg={pageBg}
@@ -2988,6 +2993,11 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
           onBuild={handleAIBuildIssue}
           onClose={() => setShowAIBuilder(false)}
         />
+      )}
+
+      {/* Voice Training panel overlay */}
+      {showVoicePanel && (
+        <StudioVoicePanel onClose={() => setShowVoicePanel(false)} />
       )}
 
       {/* Page Slot panel overlay */}

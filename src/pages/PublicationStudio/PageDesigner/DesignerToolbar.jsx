@@ -242,6 +242,7 @@ export default function DesignerToolbar({
   brandPrimaryColor,
   onSmartFill,
   onAIBuild,
+  onVoice,
   onSlot,
   currentSlot,
   pageBg,
@@ -357,6 +358,25 @@ export default function DesignerToolbar({
           >
             ✦ AI Build
           </button>
+
+          {/* Voice Training */}
+          {onVoice && (
+            <button
+              onClick={onVoice}
+              title="Train AI editorial voice — tone, rules, avoid words"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 3, color: 'rgba(255,255,255,0.65)',
+                fontFamily: NU, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.05em', textTransform: 'uppercase',
+                padding: '5px 11px', cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ✎ Voice
+            </button>
+          )}
 
           {/* Brand Kit */}
           <button

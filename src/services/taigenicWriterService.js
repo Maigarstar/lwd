@@ -14,6 +14,7 @@
 
 import { NLP_TERMS } from '../pages/MagazineStudio/ContentIntelligence';
 import { callAiGenerate } from '../lib/aiGenerate';
+import { getVoiceInjection } from './studioVoiceService';
 
 // Word count targets per category (mirrored from ContentIntelligence.jsx)
 const WORD_TARGETS = {
@@ -65,10 +66,11 @@ export function countBlockWords(blocks = []) {
 
 // ── Build the system prompt with editorial voice + scoring targets ─────────────
 function buildSystemPrompt(category, wordTarget, imageTarget, nlpTerms, tone) {
-  const termsStr = nlpTerms.slice(0, 12).join(', ');
+  const termsStr    = nlpTerms.slice(0, 12).join(', ');
+  const voiceBlock  = getVoiceInjection(); // pulls from localStorage voice training
   return `You are the editorial AI for Luxury Wedding Directory — a premium UK/Europe wedding publisher. Your writing is refined, authoritative, and deeply specific. You write like a senior editor at Condé Nast Traveller or Vogue Weddings.
 
-VOICE & STYLE:
+${voiceBlock ? `── TRAINED EDITORIAL VOICE ──\n${voiceBlock}\n────────────────────────────\n\n` : ''}VOICE & STYLE:
 - Tone: ${tone || 'Luxury Editorial'}
 - Use sensory detail and specific place/product names — never generic
 - Sentences are varied: some short and declarative, some richly layered
