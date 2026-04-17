@@ -106,6 +106,23 @@ function buildPlaceholderMarkers(fc, rectLeft, rectTop, rectW, rectH) {
   });
 }
 
+// ── Image promise tracker ─────────────────────────────────────────────────────
+// addImagePlaceholder fires FabricImage.fromURL() asynchronously. When we need
+// to capture a thumbnail immediately after applying a template (AI build loop),
+// we must wait for all pending image loads to settle first. Promises are pushed
+// here; call clearImgLoadPromises() before each template apply, then
+// waitForImgLoads() before toDataURL().
+let _imgLoadPromises = [];
+function clearImgLoadPromises() { _imgLoadPromises = []; }
+async function waitForImgLoads(timeoutMs = 2000) {
+  if (_imgLoadPromises.length === 0) return;
+  await Promise.race([
+    Promise.all(_imgLoadPromises),
+    new Promise(r => setTimeout(r, timeoutMs)),
+  ]);
+  _imgLoadPromises = [];
+}
+
 // ── Image placeholder helper ──────────────────────────────────────────────────
 // Creates a Rect backdrop + gold L-bracket markers + async Unsplash image.
 // The Rect and FabricImage are both tagged isImagePlaceholder:true so the
@@ -123,7 +140,7 @@ function addImagePlaceholder(fc, { left, top, width, height, imageUrl, fill = '#
   buildPlaceholderMarkers(fc, left, top, width, height);
 
   if (imageUrl) {
-    FabricImage.fromURL(imageUrl, { crossOrigin: 'anonymous' })
+    const p = FabricImage.fromURL(imageUrl, { crossOrigin: 'anonymous' })
       .then(img => {
         if (!img) return;
         const scale = Math.max(width / img.width, height / img.height);
@@ -158,6 +175,8 @@ function addImagePlaceholder(fc, { left, top, width, height, imageUrl, fill = '#
         fc.requestRenderAll();
       })
       .catch(() => { /* silently leave placeholder rect */ });
+    // Track for waitForImgLoads() — lets AI build loop await images before toDataURL
+    _imgLoadPromises.push(p);
   }
 }
 
@@ -2571,6 +2590,10 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         const template = TEMPLATES.find(t => t.id === pageSpec.template_id);
         if (!template) continue;
 
+        // Clear promise tracker before applying template so we only wait on
+        // images from THIS page, not ones that may still be settling from a prior page.
+        clearImgLoadPromises();
+
         if (pageSpec.listing_data) {
           // Living Template: real listing imagery fills the canvas
           fc.clear();
@@ -2612,18 +2635,20 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         if (pageSpec.body     && bodyObj)     bodyObj.set('text',     pageSpec.body);
         if (pageSpec.byline   && bylineObj)   bylineObj.set('text',   pageSpec.byline);
 
-        fc.renderAll();
-        await new Promise(r => setTimeout(r, 80)); // font settle
+        // Wait for images to load (up to 2s) so thumbnail captures actual photos,
+        // not just the placeholder coloured rectangles.
+        await waitForImgLoads(2000);
         fc.renderAll();
 
-        const canvasJSON = fc.toJSON(['id']);
+        const canvasJSON       = fc.toJSON(['id']);
+        const thumbnailDataUrl = fc.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
 
         const pageNumber = pages.length + newPages.length + 1;
         newPages.push({
           id: genId(),
           pageNumber,
           canvasJSON,
-          thumbnailDataUrl: null,
+          thumbnailDataUrl,
           name: `Page ${pageNumber}`,
           templateName: pageSpec.page_label || template.name || template.id,
           slot: null,
