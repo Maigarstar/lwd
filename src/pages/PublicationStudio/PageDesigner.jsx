@@ -2590,10 +2590,6 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         const template = TEMPLATES.find(t => t.id === pageSpec.template_id);
         if (!template) continue;
 
-        // Clear promise tracker before applying template so we only wait on
-        // images from THIS page, not ones that may still be settling from a prior page.
-        clearImgLoadPromises();
-
         if (pageSpec.listing_data) {
           // Living Template: real listing imagery fills the canvas
           fc.clear();
@@ -2635,9 +2631,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         if (pageSpec.body     && bodyObj)     bodyObj.set('text',     pageSpec.body);
         if (pageSpec.byline   && bylineObj)   bylineObj.set('text',   pageSpec.byline);
 
-        // Wait for images to load (up to 2s) so thumbnail captures actual photos,
-        // not just the placeholder coloured rectangles.
-        await waitForImgLoads(2000);
+        // Render synchronously — images load async so the thumbnail will show
+        // grey placeholder rects, which is fine: layout structure is visible
+        // immediately and images paint in when the user opens the page.
         fc.renderAll();
 
         const canvasJSON       = fc.toJSON(['id']);
