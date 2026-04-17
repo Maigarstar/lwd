@@ -41,6 +41,9 @@ import TemplateEditor  from './PublicationStudio/templates/TemplateEditor';
 import MonetizationTab        from './PublicationStudio/MonetizationTab';
 import PageDesigner           from './PublicationStudio/PageDesigner';
 import IssueRevenuePanel      from './PublicationStudio/IssueRevenuePanel';
+import CollaboratorPanel       from './PublicationStudio/CollaboratorPanel';
+import PersonalisePanel        from './PublicationStudio/PersonalisePanel';
+import IssueAnalyticsPanel     from './PublicationStudio/IssueAnalyticsPanel';
 import HeatmapPanel            from './PublicationStudio/HeatmapPanel';
 import PageCommentsPanel       from './PublicationStudio/PageCommentsPanel';
 import EditorialCalendarPanel  from './PublicationStudio/EditorialCalendarPanel';
@@ -1459,6 +1462,9 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
   const [commentCounts,      setCommentCounts]      = useState({});   // { [pageNumber]: count }
   const [renderHistory,      setRenderHistory]      = useState([]);
   const [showRevenue,        setShowRevenue]        = useState(false);
+  const [showCollaborator,   setShowCollaborator]   = useState(false);
+  const [showPersonalise,    setShowPersonalise]    = useState(false);
+  const [showAnalytics,      setShowAnalytics]      = useState(false);
   const [designerPages,      setDesignerPages]      = useState([]);
 
   // load issue
@@ -1724,6 +1730,52 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
         >
           £ Revenue
         </button>
+
+        {/* Collaborate button */}
+        <button
+          onClick={() => setShowCollaborator(true)}
+          style={{
+            fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+            textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)',
+            background: 'none',
+            border: `1px solid rgba(255,255,255,0.15)`,
+            padding: '4px 10px', borderRadius: 2, cursor: 'pointer',
+          }}
+        >
+          👥 Collaborate
+        </button>
+
+        {/* Personalise button — only when published */}
+        {issue.status === 'published' && (
+          <button
+            onClick={() => setShowPersonalise(true)}
+            style={{
+              fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+              textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)',
+              background: 'none',
+              border: `1px solid rgba(255,255,255,0.15)`,
+              padding: '4px 10px', borderRadius: 2, cursor: 'pointer',
+            }}
+          >
+            💍 Personalise
+          </button>
+        )}
+
+        {/* Analytics button — only when published */}
+        {issue.status === 'published' && (
+          <button
+            onClick={() => setShowAnalytics(true)}
+            style={{
+              fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+              textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)',
+              background: 'none',
+              border: `1px solid rgba(255,255,255,0.15)`,
+              padding: '4px 10px', borderRadius: 2, cursor: 'pointer',
+            }}
+          >
+            📊 Analytics
+          </button>
+        )}
       </div>
 
       {/* ── Tabs ── */}
@@ -1935,12 +1987,46 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue }) {
         )}
       </div>
 
+      {/* Issue Analytics Panel overlay */}
+      {showAnalytics && (
+        <IssueAnalyticsPanel
+          issueId={issue.id}
+          issueName={issue.title || issue.slug}
+          pages={designerPages}
+          onClose={() => setShowAnalytics(false)}
+        />
+      )}
+
+      {/* Personalise Panel overlay */}
+      {showPersonalise && (
+        <PersonalisePanel
+          issueId={issue.id}
+          issueSlug={issue.slug}
+          issueName={issue.title || issue.slug}
+          onClose={() => setShowPersonalise(false)}
+        />
+      )}
+
+      {/* Collaborator Panel overlay */}
+      {showCollaborator && (
+        <CollaboratorPanel
+          issueId={issue.id}
+          issueName={issue.title || issue.slug}
+          onClose={() => setShowCollaborator(false)}
+        />
+      )}
+
       {/* Issue Revenue Panel overlay */}
       {showRevenue && (
         <IssueRevenuePanel
           pages={designerPages}
           issueName={issue.title || issue.slug}
           onClose={() => setShowRevenue(false)}
+          onSendProof={(_idx) => {
+            // Switch to design tab so user can open the slot panel for that page
+            setTab('design');
+            setShowRevenue(false);
+          }}
         />
       )}
     </div>

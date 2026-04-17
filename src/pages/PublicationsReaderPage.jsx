@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { fetchIssueBySlug } from '../services/magazineIssuesService';
 import { fetchPages }       from '../services/magazinePageService';
 import { trackIssueView, trackPageTurn, trackDownload } from '../services/publicationsAnalyticsService';
+import { supabase }         from '../lib/supabaseClient';
 import SocialExportModal    from '../components/publications/SocialExportModal';
 import IssueSearchPanel     from '../components/publications/IssueSearchPanel';
 import TextModePanel        from '../components/publications/TextModePanel';
@@ -1250,6 +1251,14 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const pageEnteredAt = useRef(null);
   const prevPageRef   = useRef(null);
 
+  // Read events tracking
+  const sessionId      = useRef(crypto.randomUUID());
+  const mountTimeRef   = useRef(Date.now());
+
+  // Personalised cover overlay
+  const [personalisedData,     setPersonalisedData]     = useState(null);
+  const [showPersonalisedCover, setShowPersonalisedCover] = useState(false);
+
   // Theme derivation
   const T      = READER_THEMES[readerMode] || READER_THEMES.dark;
   const BG     = T.bg;
@@ -1305,6 +1314,21 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       trackIssueView(issueData.id, window.innerWidth >= 900 ? 'spread' : 'single');
       pageEnteredAt.current = Date.now();
       prevPageRef.current = 1;
+
+      // Check for personalised cover
+      const sp2 = new URLSearchParams(window.location.search);
+      if (sp2.get('personalised') === 'true') {
+        // Look up personalised issue by slug (current URL slug)
+        const { data: persData } = await supabase
+          .from('magazine_personalised_issues')
+          .select('*')
+          .eq('slug', slug)
+          .maybeSingle();
+        if (!cancelled && persData) {
+          setPersonalisedData(persData);
+          setShowPersonalisedCover(true);
+        }
+      }
     })();
 
     return () => { cancelled = true; };
@@ -1346,6 +1370,33 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       document.getElementById("issue-schema")?.remove();
     };
   }, [issue?.id]);
+
+  // ── Read events: issue_open on mount, issue_close on unmount ─────────────────
+  useEffect(() => {
+    if (!issue?.id) return;
+    const sid = sessionId.current;
+    const ref = document.referrer || undefined;
+    mountTimeRef.current = Date.now();
+    // Fire-and-forget issue_open
+    supabase.from('magazine_read_events').insert({
+      issue_id: issue.id, session_id: sid, event_type: 'issue_open', page_number: 1, referrer: ref || null,
+    });
+    return () => {
+      // Fire-and-forget issue_close
+      supabase.from('magazine_read_events').insert({
+        issue_id: issue.id, session_id: sid, event_type: 'issue_close',
+        duration_ms: Date.now() - mountTimeRef.current,
+      });
+    };
+  }, [issue?.id]);
+
+  // ── Read events: page_view on page change ─────────────────────────────────────
+  useEffect(() => {
+    if (!issue?.id || !currentPage) return;
+    supabase.from('magazine_read_events').insert({
+      issue_id: issue.id, session_id: sessionId.current, event_type: 'page_view', page_number: currentPage,
+    });
+  }, [issue?.id, currentPage]);
 
   // ── Document title for this issue ────────────────────────────────────────────
   useEffect(() => {
@@ -1919,6 +1970,67 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       {/* ⑧ Cinematic intro */}
       {showIntro && (
         <IntroOverlay issue={issue} onDismiss={handleIntroDismiss} />
+      )}
+
+      {/* ⑨ Personalised cover overlay */}
+      {showPersonalisedCover && personalisedData && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 600,
+            background: '#080706',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexDirection: 'column', gap: 0,
+            animation: 'introReveal 0.8s ease forwards',
+          }}
+          onClick={() => setShowPersonalisedCover(false)}
+        >
+          {/* Blurred backdrop */}
+          {issue?.cover_image && (
+            <div style={{
+              position: 'absolute', inset: 0,
+              backgroundImage: `url(${issue.cover_image})`,
+              backgroundSize: 'cover', backgroundPosition: 'center',
+              filter: 'blur(40px) brightness(0.2)',
+            }} />
+          )}
+          <div style={{
+            position: 'relative', display: 'flex', flexDirection: 'column',
+            alignItems: 'center', gap: 24, padding: '40px 32px',
+            maxWidth: 480, textAlign: 'center',
+          }}>
+            {/* Gold top border */}
+            <div style={{ width: 64, height: 2, background: '#C9A84C', marginBottom: 8 }} />
+            {/* "For" label */}
+            <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(201,168,76,0.7)' }}>
+              A Personal Edition for
+            </div>
+            {/* Couple names */}
+            <div style={{ fontFamily: GD, fontSize: 40, fontStyle: 'italic', fontWeight: 400, color: '#C9A84C', lineHeight: 1.2, margin: '4px 0' }}>
+              {[personalisedData.partner1_name, personalisedData.partner2_name].filter(Boolean).join(' & ')}
+            </div>
+            {/* Wedding date */}
+            {personalisedData.wedding_date && (
+              <div style={{ fontFamily: NU, fontSize: 11, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.12em' }}>
+                {new Date(personalisedData.wedding_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </div>
+            )}
+            {/* Venue name */}
+            {personalisedData.venue_name && (
+              <div style={{ fontFamily: GD, fontSize: 16, fontStyle: 'italic', color: 'rgba(255,255,255,0.5)', marginTop: -12 }}>
+                {personalisedData.venue_name}
+              </div>
+            )}
+            {/* Issue name */}
+            <div style={{ fontFamily: NU, fontSize: 9, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 8 }}>
+              {issue?.title || 'Luxury Wedding Directory'}
+            </div>
+            <div style={{ width: 64, height: 1, background: 'rgba(201,168,76,0.3)', marginTop: 4 }} />
+            {/* Dismiss hint */}
+            <div style={{ fontFamily: NU, fontSize: 9, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 8 }}>
+              Tap anywhere to read
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

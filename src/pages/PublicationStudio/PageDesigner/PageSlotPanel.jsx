@@ -19,10 +19,11 @@ const TIERS = [
 ];
 
 const STATUSES = [
-  { key: 'available', label: 'Available', color: 'rgba(255,255,255,0.4)' },
-  { key: 'offered',   label: 'Offered',   color: GOLD },
-  { key: 'paid',      label: 'Paid',      color: '#34d399' },
-  { key: 'published', label: 'Published', color: '#60a5fa' },
+  { key: 'available',   label: 'Available',   color: 'rgba(255,255,255,0.4)' },
+  { key: 'offered',     label: 'Offered',     color: GOLD },
+  { key: 'paid',        label: 'Paid',        color: '#34d399' },
+  { key: 'proof_sent',  label: 'Proof Sent',  color: '#a78bfa' },
+  { key: 'published',   label: 'Published',   color: '#60a5fa' },
 ];
 
 const inputStyle = {
@@ -49,6 +50,60 @@ const labelStyle = {
   marginBottom: 6,
   marginTop: 14,
 };
+
+// ── Proof email HTML builder ──────────────────────────────────────────────────
+function buildProofEmail({ vendorName, issueName, proofUrl }) {
+  const displayName  = vendorName  || 'there';
+  const displayIssue = issueName   || 'our next issue';
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0A0908;font-family:sans-serif;">
+  <div style="max-width:560px;margin:0 auto;padding:40px 24px;">
+    <div style="border-top:3px solid #C9A84C;padding-top:32px;margin-bottom:32px;">
+      <p style="font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#C9A84C;text-transform:uppercase;margin:0 0 12px;">
+        Luxury Wedding Directory — Editorial Proof
+      </p>
+      <h1 style="font-family:Georgia,serif;font-size:28px;font-style:italic;font-weight:400;color:#F0EBE0;margin:0 0 8px;line-height:1.25;">
+        Your editorial proof is ready — LWD
+      </h1>
+    </div>
+
+    <p style="font-size:15px;color:rgba(240,235,224,0.8);line-height:1.7;margin:0 0 24px;">
+      Dear ${displayName},
+    </p>
+    <p style="font-size:15px;color:rgba(240,235,224,0.8);line-height:1.7;margin:0 0 24px;">
+      Your page in <em>${displayIssue}</em> is ready for review. Please look it over carefully and reply to this email to approve or request any changes.
+    </p>
+
+    ${proofUrl ? `
+    <!-- Proof image -->
+    <div style="margin:0 0 28px;text-align:center;">
+      <img src="${proofUrl}" alt="Your editorial proof" style="max-width:100%;border:1px solid rgba(201,168,76,0.2);border-radius:3px;box-shadow:0 8px 32px rgba(0,0,0,0.5);" />
+    </div>
+    <div style="text-align:center;margin-bottom:28px;">
+      <a href="${proofUrl}" style="display:inline-block;padding:12px 28px;background:transparent;border:1px solid #C9A84C;color:#C9A84C;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;border-radius:2px;">
+        View Full Size ↗
+      </a>
+    </div>` : ''}
+
+    <p style="font-size:13px;color:rgba(240,235,224,0.5);line-height:1.7;margin:0 0 8px;">
+      To approve, simply reply to this email with "Approved". For changes, describe what you'd like adjusted.
+    </p>
+    <p style="font-size:12px;color:rgba(240,235,224,0.35);line-height:1.7;margin:0;">
+      Please respond within 48 hours to keep your placement on schedule.
+    </p>
+
+    <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:40px;padding-top:20px;text-align:center;">
+      <span style="font-size:10px;color:rgba(255,255,255,0.3);font-family:sans-serif;">
+        © ${new Date().getFullYear()} Luxury Wedding Directory · <a href="mailto:editorial@luxuryweddingdirectory.com" style="color:rgba(201,168,76,0.4);">editorial@luxuryweddingdirectory.com</a>
+      </span>
+    </div>
+  </div>
+</body>
+</html>`;
+}
 
 // ── Offer email HTML builder ──────────────────────────────────────────────────
 function buildOfferEmail({ vendorName, tier, price, issueName, pageName }) {
@@ -118,7 +173,7 @@ function buildOfferEmail({ vendorName, tier, price, issueName, pageName }) {
 </html>`;
 }
 
-export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageName }) {
+export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageName, canvasJSON, issueId }) {
   const [tier,        setTier]        = useState(slot?.tier        || 'standard');
   const [status,      setStatus]      = useState(slot?.status      || 'available');
   const [vendorName,  setVendorName]  = useState(slot?.vendor_name || '');
@@ -128,6 +183,9 @@ export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageNa
 
   const [sending,     setSending]     = useState(false);
   const [sendResult,  setSendResult]  = useState(null); // 'sent' | 'error' | null
+
+  const [proofSending, setProofSending] = useState(false);
+  const [proofResult,  setProofResult]  = useState(null); // 'sent' | 'error' | null
 
   // When tier changes, clear custom price so the default is used
   function handleTierChange(t) {
@@ -190,6 +248,76 @@ export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageNa
       setSendResult('error');
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleSendProof() {
+    const email = vendorEmail.trim();
+    if (!email || !canvasJSON || !issueId) return;
+    setProofSending(true);
+    setProofResult(null);
+    let fc = null;
+    try {
+      const { Canvas: FC } = await import('fabric');
+      const { supabase } = await import('../../../lib/supabaseClient');
+
+      // Create off-screen canvas at A4 reference dimensions
+      const canvasEl = document.createElement('canvas');
+      canvasEl.width  = 794;
+      canvasEl.height = 1123;
+      fc = new FC(canvasEl);
+      await fc.loadFromJSON(canvasJSON);
+      fc.renderAll();
+      await new Promise(r => setTimeout(r, 100));
+      fc.renderAll();
+
+      // Export JPEG blob from canvas element directly
+      const blob = await new Promise((resolve, reject) => {
+        try {
+          canvasEl.toBlob(b => b ? resolve(b) : reject(new Error('toBlob returned null')), 'image/jpeg', 0.92);
+        } catch (err) { reject(err); }
+      });
+
+      // Upload to Supabase storage
+      const proofPath = `${issueId}/proofs/proof-${Date.now()}.jpg`;
+      const { error: upErr } = await supabase.storage
+        .from('magazine-pages')
+        .upload(proofPath, blob, { contentType: 'image/jpeg', upsert: true });
+      if (upErr) throw upErr;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('magazine-pages')
+        .getPublicUrl(proofPath);
+
+      // Send email
+      const html = buildProofEmail({ vendorName: vendorName.trim(), issueName, proofUrl: publicUrl });
+      await sendEmail({
+        subject:    'Your editorial proof is ready — LWD',
+        fromName:   'Luxury Wedding Directory',
+        fromEmail:  'editorial@luxuryweddingdirectory.com',
+        html,
+        recipients: [{ email, name: vendorName.trim() || undefined }],
+        type:       'campaign',
+      });
+
+      // Advance to proof_sent
+      setStatus('proof_sent');
+      setProofResult('sent');
+      onSave({
+        tier,
+        status: 'proof_sent',
+        vendor_name:  vendorName.trim(),
+        vendor_email: email,
+        price:        getEffectivePrice(),
+        notes:        notes.trim(),
+        proof_url:    publicUrl,
+      });
+    } catch (err) {
+      console.error('[PageSlotPanel] Send proof failed:', err);
+      setProofResult('error');
+    } finally {
+      setProofSending(false);
+      if (fc) { try { fc.dispose(); } catch {} }
     }
   }
 
@@ -437,6 +565,48 @@ export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageNa
             }}>
               ✕ Send failed — check email address and try again
             </div>
+          )}
+
+          {/* Proof result feedback */}
+          {proofResult === 'sent' && (
+            <div style={{
+              marginBottom: 10, padding: '8px 12px', borderRadius: 4,
+              background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.3)',
+              fontFamily: NU, fontSize: 10, fontWeight: 700, color: '#a78bfa',
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+            }}>
+              ✓ Proof sent — status set to Proof Sent
+            </div>
+          )}
+          {proofResult === 'error' && (
+            <div style={{
+              marginBottom: 10, padding: '8px 12px', borderRadius: 4,
+              background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)',
+              fontFamily: NU, fontSize: 10, fontWeight: 700, color: '#f87171',
+              letterSpacing: '0.06em', textTransform: 'uppercase',
+            }}>
+              ✕ Proof delivery failed — check console for details
+            </div>
+          )}
+
+          {/* Send Proof button — shown when status is 'paid' and canvasJSON is available */}
+          {status === 'paid' && canvasJSON && vendorEmail.trim() && (
+            <button
+              onClick={handleSendProof}
+              disabled={proofSending}
+              style={{
+                width: '100%', padding: '10px 0', borderRadius: 3,
+                cursor: proofSending ? 'not-allowed' : 'pointer',
+                background: proofSending ? 'rgba(167,139,250,0.06)' : 'linear-gradient(135deg,rgba(167,139,250,0.2),rgba(167,139,250,0.08))',
+                border: `1px solid ${proofSending ? 'rgba(167,139,250,0.2)' : 'rgba(167,139,250,0.5)'}`,
+                color: proofSending ? 'rgba(167,139,250,0.4)' : '#a78bfa',
+                fontFamily: NU, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                marginBottom: 8, transition: 'all 0.15s',
+              }}
+            >
+              {proofSending ? '⋯ Generating…' : '◈ Send Proof to Vendor'}
+            </button>
           )}
 
           {/* Send Offer button — full width, prominent, shown when email is filled */}

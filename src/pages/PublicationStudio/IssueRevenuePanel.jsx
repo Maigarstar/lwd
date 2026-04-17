@@ -10,10 +10,11 @@ const NU     = "'Jost', sans-serif";
 const GD     = "'Cormorant Garamond', Georgia, serif";
 
 const STATUS_PILL = {
-  available: { label: 'Available', bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.5)', border: 'rgba(255,255,255,0.15)' },
-  offered:   { label: 'Offered',   bg: 'rgba(201,169,110,0.1)',  color: GOLD,                   border: 'rgba(201,169,110,0.4)' },
-  paid:      { label: 'Paid',      bg: 'rgba(52,211,153,0.1)',   color: '#34d399',              border: 'rgba(52,211,153,0.35)' },
-  published: { label: 'Published', bg: 'rgba(96,165,250,0.1)',   color: '#60a5fa',              border: 'rgba(96,165,250,0.35)' },
+  available:  { label: 'Available',  bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.5)', border: 'rgba(255,255,255,0.15)' },
+  offered:    { label: 'Offered',    bg: 'rgba(201,169,110,0.1)',  color: GOLD,                   border: 'rgba(201,169,110,0.4)' },
+  paid:       { label: 'Paid',       bg: 'rgba(52,211,153,0.1)',   color: '#34d399',              border: 'rgba(52,211,153,0.35)' },
+  proof_sent: { label: 'Proof Sent', bg: 'rgba(167,139,250,0.1)', color: '#a78bfa',              border: 'rgba(167,139,250,0.35)' },
+  published:  { label: 'Published',  bg: 'rgba(96,165,250,0.1)',   color: '#60a5fa',              border: 'rgba(96,165,250,0.35)' },
 };
 
 function StatusPill({ status }) {
@@ -68,7 +69,7 @@ function getPageLabel(i, total) {
   return `P${i + 1}`;
 }
 
-export default function IssueRevenuePanel({ pages, issueName, onClose }) {
+export default function IssueRevenuePanel({ pages, issueName, onClose, onSendProof }) {
   // Compute stats
   const totalPages = pages.length;
   const slotsWithTier = pages.filter(p => p.slot?.tier);
@@ -233,10 +234,29 @@ export default function IssueRevenuePanel({ pages, issueName, onClose }) {
 
                     {/* Status */}
                     <td style={{ padding: '10px 16px' }}>
-                      {hasSlot
-                        ? <StatusPill status={slot.status || 'available'} />
-                        : <span style={{ color: MUTED, opacity: 0.4, fontSize: 11 }}>—</span>
-                      }
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {hasSlot
+                          ? <StatusPill status={slot.status || 'available'} />
+                          : <span style={{ color: MUTED, opacity: 0.4, fontSize: 11 }}>—</span>
+                        }
+                        {hasSlot && slot.status === 'paid' && onSendProof && (
+                          <button
+                            onClick={() => onSendProof(i)}
+                            title="Send proof to vendor"
+                            style={{
+                              fontFamily: NU, fontSize: 8, fontWeight: 700,
+                              letterSpacing: '0.06em', textTransform: 'uppercase',
+                              padding: '3px 8px', borderRadius: 2, cursor: 'pointer',
+                              background: 'rgba(201,168,76,0.08)',
+                              border: `1px solid rgba(201,168,76,0.3)`,
+                              color: GOLD, whiteSpace: 'nowrap',
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            ◈ Proof
+                          </button>
+                        )}
+                      </div>
                     </td>
 
                     {/* Price */}

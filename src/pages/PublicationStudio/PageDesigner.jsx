@@ -2492,6 +2492,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange }) {
           onClose={() => setShowSlotPanel(false)}
           issueName={issue?.title || issue?.slug || 'our next issue'}
           pageName={pages[currentPageIndex]?.templateName || pages[currentPageIndex]?.name || null}
+          canvasJSON={pages[currentPageIndex]?.canvasJSON ?? null}
+          issueId={issue?.id ?? null}
         />
       )}
 
