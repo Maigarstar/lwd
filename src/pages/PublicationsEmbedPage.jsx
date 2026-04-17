@@ -393,30 +393,36 @@ export default function PublicationsEmbedPage({ slug }) {
           )}
         </div>
 
-        {/* Prev / Next arrows */}
-        <ArrowBtn direction="prev" onClick={goPrev} disabled={!canPrev} />
-        <ArrowBtn direction="next" onClick={goNext} disabled={!canNext} />
+        {/* Prev / Next arrows — hidden when controls=none */}
+        {controlsMode !== 'none' && (
+          <>
+            <ArrowBtn direction="prev" onClick={goPrev} disabled={!canPrev} />
+            <ArrowBtn direction="next" onClick={goNext} disabled={!canNext} />
+          </>
+        )}
 
-        {/* Page counter */}
-        <div style={{
-          position: 'absolute',
-          bottom: 44,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 50,
-          fontFamily: NU,
-          fontSize: 10,
-          fontWeight: 600,
-          letterSpacing: '0.12em',
-          color: 'rgba(255,255,255,0.45)',
-          background: 'rgba(0,0,0,0.5)',
-          padding: '4px 10px',
-          borderRadius: 20,
-          whiteSpace: 'nowrap',
-          userSelect: 'none',
-        }}>
-          {currentPage} / {totalPages}
-        </div>
+        {/* Page counter — shown in full and minimal modes */}
+        {controlsMode !== 'none' && (
+          <div style={{
+            position: 'absolute',
+            bottom: 44,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 50,
+            fontFamily: NU,
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: '0.12em',
+            color: 'rgba(255,255,255,0.45)',
+            background: 'rgba(0,0,0,0.5)',
+            padding: '4px 10px',
+            borderRadius: 20,
+            whiteSpace: 'nowrap',
+            userSelect: 'none',
+          }}>
+            {currentPage} / {totalPages}
+          </div>
+        )}
       </div>
 
       {/* LWD branding bar */}

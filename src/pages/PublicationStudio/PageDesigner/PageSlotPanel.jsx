@@ -177,7 +177,7 @@ function buildProofEmail({ vendorName, issueName, proofUrl, approvalUrl, analyti
 }
 
 // ── Offer email HTML builder ──────────────────────────────────────────────────
-function buildOfferEmail({ vendorName, tier, price, issueName, pageName }) {
+function buildOfferEmail({ vendorName, tier, price, issueName, pageName, analyticsUrl }) {
   const tierLabels = { standard: 'Standard Page Feature', featured: 'Featured Placement', showcase: 'Showcase Spread' };
   const tierLabel  = tierLabels[tier] || tier;
   const displayName = vendorName || 'there';
@@ -233,6 +233,19 @@ function buildOfferEmail({ vendorName, tier, price, issueName, pageName }) {
     <p style="font-size:12px;color:rgba(240,235,224,0.35);line-height:1.7;margin:0;">
       Placements are limited and allocated on a first-confirmed basis.
     </p>
+
+    ${analyticsUrl ? `
+    <div style="margin-top:28px;padding:16px 20px;background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.2);border-radius:4px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#C9A84C;margin:0 0 8px;font-family:sans-serif;">
+        Your Analytics Dashboard
+      </p>
+      <p style="font-size:13px;color:rgba(240,235,224,0.6);line-height:1.6;margin:0 0 12px;">
+        Once the issue is published, track how many readers viewed your page, dwell time, and daily engagement — all in one place.
+      </p>
+      <a href="${analyticsUrl}" style="display:inline-block;padding:10px 20px;background:transparent;border:1px solid #C9A84C;color:#C9A84C;font-family:sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;border-radius:2px;">
+        View Analytics Dashboard ↗
+      </a>
+    </div>` : ''}
 
     <div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:40px;padding-top:20px;text-align:center;">
       <span style="font-size:10px;color:rgba(255,255,255,0.3);font-family:sans-serif;">
@@ -363,7 +376,12 @@ export default function PageSlotPanel({ slot, onSave, onClose, issueName, pageNa
     setSendResult(null);
     try {
       const price = getEffectivePrice();
-      const html  = buildOfferEmail({ vendorName: vendorName.trim(), tier, price, issueName, pageName });
+      // Generate analytics URL using same token pattern as proof email
+      // (vendor can bookmark this before the issue is published)
+      const analyticsUrl = issueId
+        ? 'https://luxuryweddingdirectory.com/magazine/vendor-analytics/' + btoa([issueId, pageNum || 1, email].join(':'))
+        : '';
+      const html  = buildOfferEmail({ vendorName: vendorName.trim(), tier, price, issueName, pageName, analyticsUrl });
       await sendEmail({
         subject:    `An editorial placement has been reserved for you — LWD`,
         fromName:   'Luxury Wedding Directory',

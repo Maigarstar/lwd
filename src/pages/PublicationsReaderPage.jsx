@@ -1335,16 +1335,52 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     setLoading(true); setError(null); setCurrentPage(1);
 
     (async () => {
+      // Parse URL params once — available in both regular and personalised paths
+      const previewFlag    = new URLSearchParams(window.location.search).get('preview')      === '1';
+      const isPersonalised = new URLSearchParams(window.location.search).get('personalised') === 'true';
+
       const { data: issueData, error: issErr } = await fetchIssueBySlug(slug);
       if (cancelled) return;
       if (issErr || !issueData) {
+        // ── Personalised issue fallback ──────────────────────────────────────
+        // Personalised slugs live in magazine_personalised_issues, not magazine_issues.
+        // When ?personalised=true, load the parent issue + override page 1 with
+        // the couple's custom cover image.
+        if (isPersonalised) {
+          const { data: pi } = await supabase
+            .from('magazine_personalised_issues')
+            .select('*, magazine_issues(*)')
+            .eq('slug', slug)
+            .single();
+          if (!cancelled && pi?.magazine_issues) {
+            const parentIssue = pi.magazine_issues;
+            if (!previewFlag && parentIssue.status !== 'published') {
+              setError('This issue is not yet published.');
+              setLoading(false);
+              return;
+            }
+            setIssue(parentIssue);
+            const { data: pagesData } = await fetchPages(parentIssue.id);
+            if (cancelled) return;
+            // Override page 1 image_url with the couple's personalised cover
+            const allPages = (pagesData || []).map((p, i) =>
+              i === 0 && pi.cover_url ? { ...p, image_url: pi.cover_url } : p
+            );
+            setPages(allPages);
+            setBookmarks(loadBookmarks(parentIssue.id));
+            // Trigger the cinematic personalised overlay (names, date, venue)
+            setPersonalisedData(pi);
+            setShowPersonalisedCover(true);
+            setLoading(false);
+            return;
+          }
+        }
         setError('Issue not found. It may have been unpublished.');
         setLoading(false);
         return;
       }
 
       // ── Status gate: only published issues are visible to public ─────────────
-      const previewFlag = new URLSearchParams(window.location.search).get('preview') === '1';
       console.log('[reader] issue loaded:', {
         id:              issueData.id,
         slug:            issueData.slug,

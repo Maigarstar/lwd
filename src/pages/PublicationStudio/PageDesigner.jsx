@@ -2408,6 +2408,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         status:           'published',
         published_at:     new Date().toISOString(),
         ...(issue.cover_image ? {} : firstPagePublicUrl ? { cover_image: firstPagePublicUrl } : {}),
+        // Always update og_image_url so social previews reflect the latest cover page
+        ...(firstPagePublicUrl ? { og_image_url: firstPagePublicUrl } : {}),
       };
       const { data: lockData, error: lockErr } = await sbClient
         .from('magazine_issues')
