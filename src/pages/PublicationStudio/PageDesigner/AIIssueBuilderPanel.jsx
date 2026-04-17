@@ -3,7 +3,7 @@
 // Calls the ai-generate edge function to produce a JSON page plan, shows
 // a review step, then builds all pages off-screen and inserts them in one shot.
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { callAiGenerate } from '../../../lib/aiGenerate';
 import { GOLD, BORDER, MUTED, NU, GD } from './designerConstants';
 import { getVoiceInjection } from '../../../services/studioVoiceService';
@@ -246,6 +246,64 @@ export default function AIIssueBuilderPanel({ onBuild, onClose }) {
   const [buildProgress, setBuildProgress] = useState(0);
   const [builtCount,    setBuiltCount]    = useState(0);  // pages added — shown in success state
   const [speechError,   setSpeechError]   = useState('');
+  const [listingAssigns, setListingAssigns] = useState({}); // pageIdx → { query, results, loading, assigned }
+  const searchTimers = useRef({});
+
+  // ── Listing assignment helpers ──────────────────────────────────────────────
+  // Pages with these zones can be backed by a real listing
+  function isAssignable(tpl) {
+    return tpl && (tpl.zone === 'venue' || tpl.zone === 'story' || tpl.zone === 'feature');
+  }
+
+  function getHeroImg(listing) {
+    try {
+      const items = Array.isArray(listing.media_items)
+        ? listing.media_items : JSON.parse(listing.media_items || '[]');
+      const feat = items.find(m => m.is_featured && m.type === 'image');
+      return feat?.url || items.find(m => m.type === 'image')?.url || null;
+    } catch { return null; }
+  }
+
+  async function handleListingSearch(idx, query) {
+    setListingAssigns(prev => ({
+      ...prev,
+      [idx]: { ...prev[idx], query, results: [], loading: !!query.trim() },
+    }));
+    clearTimeout(searchTimers.current[idx]);
+    if (!query.trim()) return;
+    searchTimers.current[idx] = setTimeout(async () => {
+      try {
+        const { supabase } = await import('../../../lib/supabaseClient');
+        const { data } = await supabase
+          .from('listings')
+          .select('id, name, listing_type, city, country, media_items, short_description')
+          .ilike('name', `%${query}%`)
+          .limit(6);
+        setListingAssigns(prev => ({
+          ...prev,
+          [idx]: { ...prev[idx], results: data || [], loading: false },
+        }));
+      } catch {
+        setListingAssigns(prev => ({ ...prev, [idx]: { ...prev[idx], loading: false } }));
+      }
+    }, 320);
+  }
+
+  function assignListing(idx, listing) {
+    setListingAssigns(prev => ({
+      ...prev,
+      [idx]: { query: listing.name, results: [], loading: false, assigned: listing },
+    }));
+    setStructure(prev => prev.map((p, i) => i === idx ? { ...p, listing_data: listing } : p));
+  }
+
+  function clearAssignment(idx) {
+    setListingAssigns(prev => ({
+      ...prev,
+      [idx]: { query: '', results: [], loading: false, assigned: null },
+    }));
+    setStructure(prev => prev.map((p, i) => i === idx ? { ...p, listing_data: null } : p));
+  }
 
   // Speech-to-text for brief input
   const { listening: micListening, supported: micSupported, toggle: micToggle } = useSpeechInput({
@@ -296,6 +354,7 @@ Return exactly ${pageCount} pages. Remember: first page = vogue-cover, last page
       }));
 
       setStructure(validated);
+      setListingAssigns({});
     } catch (e) {
       setError('Generation failed: ' + (e.message || 'parse error'));
     }
@@ -325,6 +384,7 @@ Return exactly ${pageCount} pages. Remember: first page = vogue-cover, last page
     setBuiltCount(0);
     setError('');
     setBuildProgress(0);
+    setListingAssigns({});
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -637,6 +697,105 @@ Return exactly ${pageCount} pages. Remember: first page = vogue-cover, last page
                           </div>
                         )}
                       </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── LINK REAL LISTINGS ───────────────────────────────────────────── */}
+          {structure && structure.some(p => isAssignable(VALID_TEMPLATES.find(t => t.id === p.template_id))) && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                ✦ Link Real Listings
+                <span style={{ fontWeight: 400, fontSize: 8, letterSpacing: '0.05em', color: 'rgba(255,255,255,0.22)', textTransform: 'none' }}>optional — replaces placeholders with real venue imagery</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {structure.map((p, i) => {
+                  const tpl = VALID_TEMPLATES.find(t => t.id === p.template_id);
+                  if (!isAssignable(tpl)) return null;
+                  const a = listingAssigns[i] || {};
+                  const heroSrc = a.assigned ? getHeroImg(a.assigned) : null;
+                  return (
+                    <div key={i} style={{
+                      background: a.assigned ? 'rgba(201,168,76,0.06)' : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${a.assigned ? 'rgba(201,168,76,0.3)' : BORDER}`,
+                      borderRadius: 4, padding: '8px 10px',
+                    }}>
+                      {/* Row header */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: a.assigned ? 6 : 6 }}>
+                        <span style={{ fontFamily: NU, fontSize: 8, color: MUTED, minWidth: 16 }}>{i + 1}</span>
+                        <span style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: catColour(tpl.category), letterSpacing: '0.06em', textTransform: 'uppercase', flex: 1 }}>
+                          {tpl.label}
+                        </span>
+                        {a.assigned && (
+                          <button onClick={() => clearAssignment(i)} style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
+                        )}
+                      </div>
+
+                      {a.assigned ? (
+                        /* ── Assigned: show thumbnail + name ── */
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {heroSrc && (
+                            <img src={heroSrc} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 2, flexShrink: 0 }} />
+                          )}
+                          <div>
+                            <div style={{ fontFamily: NU, fontSize: 10, color: '#fff', fontWeight: 600 }}>{a.assigned.name}</div>
+                            <div style={{ fontFamily: NU, fontSize: 8, color: MUTED }}>
+                              {[a.assigned.city, a.assigned.country].filter(Boolean).join(' · ') || a.assigned.listing_type}
+                            </div>
+                          </div>
+                          <div style={{ marginLeft: 'auto', fontFamily: NU, fontSize: 7, color: GOLD, letterSpacing: '0.08em', textTransform: 'uppercase' }}>✦ Linked</div>
+                        </div>
+                      ) : (
+                        /* ── Search input ── */
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            value={a.query || ''}
+                            onChange={e => handleListingSearch(i, e.target.value)}
+                            placeholder={`Search ${tpl.category.toLowerCase()} listings…`}
+                            style={{
+                              width: '100%', boxSizing: 'border-box',
+                              background: 'rgba(255,255,255,0.05)',
+                              border: `1px solid ${BORDER}`, borderRadius: 3,
+                              color: '#fff', fontFamily: NU, fontSize: 11,
+                              padding: '6px 28px 6px 8px', outline: 'none',
+                            }}
+                          />
+                          <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 9, color: MUTED, pointerEvents: 'none' }}>
+                            {a.loading ? '…' : '⌕'}
+                          </span>
+                          {a.results?.length > 0 && (
+                            <div style={{
+                              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
+                              background: '#1C1610', border: `1px solid ${BORDER}`, borderRadius: 3, marginTop: 2,
+                              maxHeight: 180, overflowY: 'auto',
+                            }}>
+                              {a.results.map(listing => (
+                                <button
+                                  key={listing.id}
+                                  onClick={() => assignListing(i, listing)}
+                                  style={{
+                                    width: '100%', padding: '7px 10px',
+                                    background: 'none', border: 'none',
+                                    borderBottom: `1px solid ${BORDER}`,
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    cursor: 'pointer', textAlign: 'left',
+                                  }}
+                                >
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontFamily: NU, fontSize: 10, color: '#fff' }}>{listing.name}</div>
+                                    <div style={{ fontFamily: NU, fontSize: 8, color: MUTED }}>
+                                      {[listing.city, listing.country].filter(Boolean).join(' · ') || listing.listing_type || ''}
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

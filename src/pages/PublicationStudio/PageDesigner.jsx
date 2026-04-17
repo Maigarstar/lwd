@@ -2571,8 +2571,14 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         const template = TEMPLATES.find(t => t.id === pageSpec.template_id);
         if (!template) continue;
 
-        // applyTemplate calls fc.clear() internally — safe to reuse canvas
-        applyTemplate(fc, template, dims, brand);
+        if (pageSpec.listing_data) {
+          // Living Template: real listing imagery fills the canvas
+          fc.clear();
+          applySmartFill(fc, pageSpec.listing_data, brand);
+        } else {
+          // applyTemplate calls fc.clear() internally — safe to reuse canvas
+          applyTemplate(fc, template, dims, brand);
+        }
 
         // ── Text injection ───────────────────────────────────────────────────
         // Heuristic: identify text slots by fontSize + charSpacing + fontFamily.
