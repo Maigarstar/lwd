@@ -28,6 +28,29 @@ function ImgOrPlaceholder({ src, style = {}, placeholderStyle = {} }) {
   return <img src={src} alt="" style={{ ...style, objectFit: style.objectFit || 'cover' }} />;
 }
 
+// ── Dummy images for new templates (Unsplash – free license) ─────────────────
+const D = {
+  // Bridal & couple
+  bridalPortrait: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1200&q=80&auto=format&fit=crop',
+  bridalDetail:   'https://images.unsplash.com/photo-1525328437458-0c4d4db7cabf?w=1200&q=80&auto=format&fit=crop',
+  coupleWalk:     'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=1200&q=80&auto=format&fit=crop',
+  bridalPrep:     'https://images.unsplash.com/photo-1537633552985-df8429e8048b?w=1200&q=80&auto=format&fit=crop',
+  bridalReady:    'https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=1200&q=80&auto=format&fit=crop',
+  couplePortrait: 'https://images.unsplash.com/photo-1606800052052-a08af7148866?w=1200&q=80&auto=format&fit=crop',
+  // Venue & landscape
+  villa:          'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&q=80&auto=format&fit=crop',
+  tuscany:        'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?w=1200&q=80&auto=format&fit=crop',
+  tablescape:     'https://images.unsplash.com/photo-1464207687429-7505649dae38?w=1200&q=80&auto=format&fit=crop',
+  // Fashion & editorial
+  editorial:      'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=1200&q=80&auto=format&fit=crop',
+  gownDetail:     'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=1200&q=80&auto=format&fit=crop',
+  // Florals & details
+  bouquet:        'https://images.unsplash.com/photo-1490750967868-88df5691a4b7?w=1200&q=80&auto=format&fit=crop',
+  // Travel
+  maldives:       'https://images.unsplash.com/photo-1439066290691-debb4d677510?w=1200&q=80&auto=format&fit=crop',
+  mediterranean:  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80&auto=format&fit=crop',
+};
+
 // ── Template components ───────────────────────────────────────────────────────
 
 function VogueCover({ f, s, W, H }) {
@@ -1642,12 +1665,7 @@ function CoverSplit({ f, s, W, H }) {
     <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
       {/* Left 44%: image */}
       <div style={{ position: 'absolute', left: 0, top: 0, width: '44%', height: '100%' }}>
-        {f.image
-          ? <img src={f.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }} />
-          : <div style={{ width: '100%', height: '100%', background: '#1a1410', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 32 * s, opacity: 0.15, color: '#fff' }}>⊡</span>
-            </div>
-        }
+        <img src={f.image || D.bridalPortrait} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }} />
       </div>
       {/* Hairline separator */}
       <div style={{ position: 'absolute', left: '44%', top: 0, width: 1, height: '100%', background: P.accent }} />
@@ -1738,12 +1756,7 @@ function FeatureCinematic({ f, s, W, H }) {
     <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#0D0C0A' }}>
       {/* 72% image */}
       <div style={{ position: 'absolute', left: 0, top: 0, width: '72%', height: '100%' }}>
-        {f.image
-          ? <img src={f.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }} />
-          : <div style={{ width: '100%', height: '100%', background: '#1A1412', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 40 * s, opacity: 0.12, color: '#fff' }}>⊡</span>
-            </div>
-        }
+        <img src={f.image || D.editorial} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }} />
       </div>
       {/* Vertical gold rule */}
       <div style={{ position: 'absolute', left: '72%', top: '4%', height: '92%', width: 1, background: P.accent }} />
@@ -1781,12 +1794,7 @@ function FeatureMinimal({ f, s, W, H }) {
     <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#FAFAF8' }}>
       {/* Small inset image — top right */}
       <div style={{ position: 'absolute', right: 22 * s, top: 22 * s, width: '36%', aspectRatio: '4/5', overflow: 'hidden' }}>
-        {f.image
-          ? <img src={f.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <div style={{ width: '100%', height: '100%', background: '#E8E4DC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 24 * s, opacity: 0.18, color: '#888' }}>⊡</span>
-            </div>
-        }
+        <img src={f.image || D.bridalDetail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       </div>
       {/* Kicker */}
       <div style={{ position: 'absolute', left: 22 * s, top: 28 * s, fontFamily: FONTS.caption, fontSize: 7.5 * s, color: '#B8926A', letterSpacing: '0.35em', textTransform: 'uppercase' }}>
@@ -1831,12 +1839,7 @@ function VenueSkyline({ f, s, W, H }) {
     <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
       {/* Hero image top 50% */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '50%', overflow: 'hidden' }}>
-        {f.image
-          ? <img src={f.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 30%' }} />
-          : <div style={{ width: '100%', height: '100%', background: '#C8C0B4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 40 * s, opacity: 0.2, color: P.text }}>⊡</span>
-            </div>
-        }
+        <img src={f.image || D.villa} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 30%' }} />
         {/* Gradient fade at bottom of image */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%', background: `linear-gradient(to top, ${P.bg}, transparent)` }} />
       </div>
@@ -1875,12 +1878,7 @@ function VenueEssay({ f, s, W, H }) {
     <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#FAFAF8' }}>
       {/* Left 38%: portrait image */}
       <div style={{ position: 'absolute', left: 0, top: 0, width: '38%', height: '100%' }}>
-        {f.image
-          ? <img src={f.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
-          : <div style={{ width: '100%', height: '100%', background: '#D8D2C8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 32 * s, opacity: 0.2, color: '#666' }}>⊡</span>
-            </div>
-        }
+        <img src={f.image || D.tuscany} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
       </div>
       {/* Gold hairline divider */}
       <div style={{ position: 'absolute', left: '38%', top: '4%', height: '92%', width: 1, background: '#B8926A', opacity: 0.6 }} />
@@ -1912,7 +1910,12 @@ function VenueEssay({ f, s, W, H }) {
 
 function CoupleGallery({ f, s, W, H }) {
   const P = PALETTES.white;
-  const imgs = [f.image1, f.image2, f.image3, f.image4];
+  const imgs = [
+    f.image1 || D.coupleWalk,
+    f.image2 || D.bridalPortrait,
+    f.image3 || D.bridalPrep,
+    f.image4 || D.bridalReady,
+  ];
   const headerH = H * 0.17;
   const gapPx = 4 * s;
   const gridTop = headerH;
@@ -1938,12 +1941,7 @@ function CoupleGallery({ f, s, W, H }) {
           top: gridTop + row * (cellH + gapPx),
           width: cellW, height: cellH, overflow: 'hidden',
         }}>
-          {imgs[i]
-            ? <img src={imgs[i]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : <div style={{ width: '100%', height: '100%', background: '#D4CEC6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 18 * s, opacity: 0.25, color: '#888' }}>⊡</span>
-              </div>
-          }
+          <img src={imgs[i]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       ))}
       {/* Footer */}
@@ -2003,7 +2001,11 @@ function StyledShoot({ f, s, W, H }) {
   const stripH = H * 0.54;
   const gapPx = 6 * s;
   const cellW = (W - gapPx * 2) / 3;
-  const imgs = [f.image1, f.image2, f.image3];
+  const imgs = [
+    f.image1 || D.bouquet,
+    f.image2 || D.bridalDetail,
+    f.image3 || D.couplePortrait,
+  ];
   return (
     <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#FAFAF8' }}>
       {/* Header rule sandwich */}
@@ -2018,12 +2020,7 @@ function StyledShoot({ f, s, W, H }) {
       {/* 3-column image strip */}
       {imgs.map((img, i) => (
         <div key={i} style={{ position: 'absolute', left: i * (cellW + gapPx), top: 76 * s, width: cellW, height: stripH, overflow: 'hidden' }}>
-          {img
-            ? <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : <div style={{ width: '100%', height: '100%', background: i === 1 ? '#D8D0C8' : '#E2DDD6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 22 * s, opacity: 0.2, color: '#666' }}>⊡</span>
-              </div>
-          }
+          <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       ))}
 
@@ -2077,21 +2074,11 @@ function WeddingGallery({ f, s, W, H }) {
 
       {/* Asymmetric grid: hero left + 2 stacked right */}
       <div style={{ position: 'absolute', left: 0, top: gridTop, width: heroW - 3 * s, height: heroH, overflow: 'hidden' }}>
-        {f.image_hero
-          ? <img src={f.image_hero} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }} />
-          : <div style={{ width: '100%', height: '100%', background: '#D8D2C8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 32 * s, opacity: 0.2, color: '#666' }}>⊡</span>
-            </div>
-        }
+        <img src={f.image_hero || D.coupleWalk} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }} />
       </div>
-      {[f.image_tl, f.image_bl].map((img, i) => (
+      {[f.image_tl || D.villa, f.image_bl || D.bouquet].map((img, i) => (
         <div key={i} style={{ position: 'absolute', left: heroW + 3 * s, top: gridTop + i * (rCellH + 4 * s), width: W - heroW - 3 * s, height: rCellH, overflow: 'hidden' }}>
-          {img
-            ? <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : <div style={{ width: '100%', height: '100%', background: i === 0 ? '#E2DDD6' : '#D4CEC6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 20 * s, opacity: 0.2, color: '#666' }}>⊡</span>
-              </div>
-          }
+          <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       ))}
 
@@ -2165,10 +2152,7 @@ function RegionalOpener({ f, s, W, H }) {
   return (
     <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#0D1520' }}>
       {/* Full-bleed image */}
-      {f.image
-        ? <img src={f.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-        : <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #1a2840 0%, #0b1520 100%)' }} />
-      }
+      <img src={f.image || D.tuscany} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
       {/* Dark overlay */}
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,12,22,0.55)' }} />
 
@@ -2228,13 +2212,7 @@ function PlanningEdit({ f, s, W, H }) {
       </div>
 
       {/* Small optional image top-right */}
-      {f.image ? (
-        <img src={f.image} alt="" style={{ position: 'absolute', right: 22 * s, top: 22 * s, width: W * 0.28, height: W * 0.28 * 1.26, objectFit: 'cover' }} />
-      ) : (
-        <div style={{ position: 'absolute', right: 22 * s, top: 22 * s, width: W * 0.28, height: W * 0.28 * 1.26, background: '#E8E0D4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 20 * s, opacity: 0.18, color: P.text }}>⊡</span>
-        </div>
-      )}
+      <img src={f.image || D.gownDetail} alt="" style={{ position: 'absolute', right: 22 * s, top: 22 * s, width: W * 0.28, height: W * 0.28 * 1.26, objectFit: 'cover' }} />
 
       {/* Rule below header */}
       <div style={{ position: 'absolute', top: '24%', left: 22 * s, right: 22 * s, height: 1, background: 'rgba(30,26,20,0.15)' }} />
@@ -2323,7 +2301,12 @@ function BehindScenes({ f, s, W, H }) {
   const stripH = H * 0.37;
   const gapPx = 3 * s;
   const cellW = (W - gapPx * 3) / 4;
-  const imgs = [f.image1, f.image2, f.image3, f.image4];
+  const imgs = [
+    f.image1 || D.bridalPrep,
+    f.image2 || D.bridalPortrait,
+    f.image3 || D.bouquet,
+    f.image4 || D.tablescape,
+  ];
   const notesY = stripTop + stripH + 54 * s;
   const noteColW = (W - 44 * s) / 2;
   return (
@@ -2342,12 +2325,7 @@ function BehindScenes({ f, s, W, H }) {
       {/* 4-wide horizontal image strip */}
       {imgs.map((img, i) => (
         <div key={i} style={{ position: 'absolute', left: i * (cellW + gapPx), top: stripTop, width: cellW, height: stripH, overflow: 'hidden' }}>
-          {img
-            ? <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : <div style={{ width: '100%', height: '100%', background: ['#D8D2C8','#E2DDD6','#CCC6BC','#D4CEC6'][i], display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 16 * s, opacity: 0.2, color: '#666' }}>⊡</span>
-              </div>
-          }
+          <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       ))}
 
@@ -2385,10 +2363,7 @@ function HoneymoonDiary({ f, s, W, H }) {
     <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: '#0B1020' }}>
       {/* Left image panel */}
       <div style={{ position: 'absolute', left: 0, top: 0, width: '46%', height: '100%', overflow: 'hidden' }}>
-        {f.image
-          ? <img src={f.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
-          : <div style={{ width: '100%', height: '100%', background: 'linear-gradient(160deg, #1a2840 0%, #0b1020 100%)' }} />
-        }
+        <img src={f.image || D.maldives} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
         {/* Gradient overlay bottom of image */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '34%', background: 'linear-gradient(to top, rgba(11,16,32,0.82) 0%, transparent 100%)' }} />
         {/* Location overlay */}
