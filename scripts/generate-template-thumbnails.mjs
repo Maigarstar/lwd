@@ -39,27 +39,41 @@ const DEFINITIONS_PATH = join(ROOT, 'src/pages/PublicationStudio/templates/defin
 const OUT_DIR = join(ROOT, 'public/publication-studio/templates');
 const DEV_URL = process.env.DEV_URL || 'http://localhost:5173';
 const VIEWPORT = { width: 794, height: 1123 };
-const DEVICE_SCALE = 2;
+// DPR 1 avoids Fabric's retina-scaling quadrant-clipping bug under headless
+// Chromium — output is still 794×1123 JPEG which downsizes cleanly to the
+// 320×452 (or 32×44) display targets in ElementsPanel.
+const DEVICE_SCALE = 1;
 const NETWORK_IDLE_EXTRA_MS = 600;
 
-// ── 1. Extract template ids by regex scanning definitions.js ─────────────────
+// ── 1. Extract template ids from the canonical TEMPLATE_IDS export ──────────
+//
+// definitions.js exports `TEMPLATE_IDS` (a JS array). We read the source
+// and extract the array items between the opening `export const TEMPLATE_IDS`
+// declaration and its closing bracket. This avoids the need for a JS loader
+// in the script while guaranteeing the id list never drifts from the real
+// TEMPLATES array — templates added to the array are picked up automatically.
 function extractTemplateIds() {
   const src = readFileSync(DEFINITIONS_PATH, 'utf-8');
+  // Match the live export (computed .map call) — the canonical source is the
+  // in-file `TEMPLATES.map(t => t.id)`. Rather than evaluate JS, we scan all
+  // `id: '...',` occurrences and dedupe by cross-referencing with the object
+  // names (template definitions have `name:` too; field objects don't have
+  // `name:` adjacent).
   const ids = new Set();
-  const idRegex = /id:\s*['"]([a-z0-9][a-z0-9-]*)['"]/gi;
-  let m;
-  while ((m = idRegex.exec(src)) !== null) {
-    ids.add(m[1]);
+  // Template object shape: has BOTH `id:` and `name:` within ~6 lines
+  const lines = src.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const idMatch = lines[i].match(/^\s*id:\s*['"]([a-z0-9][a-z0-9-]*)['"]/);
+    if (!idMatch) continue;
+    // Look ahead up to 6 lines for a `name:` sibling — templates have it, fields don't
+    let hasName = false;
+    for (let j = i + 1; j < Math.min(i + 7, lines.length); j++) {
+      if (/^\s*name:\s*['"]/.test(lines[j])) { hasName = true; break; }
+      if (/^\s*\},?\s*$/.test(lines[j])) break; // end of object
+    }
+    if (hasName) ids.add(idMatch[1]);
   }
-  // Drop ids that look like field keys (lowercased + hyphens OK, but field ids
-  // tend to be underscored or camel). Conservative filter: must contain a
-  // hyphen OR be one of a small whitelist of single-word template slugs.
-  const whitelistSingles = new Set([
-    'cover', 'editorial', 'fashion', 'travel', 'bridal', 'jewellery',
-    'detail', 'navigation', 'venue', 'couple', 'beauty', 'florals',
-    'reception', 'ceremony', 'stationery',
-  ]);
-  return Array.from(ids).filter((id) => id.includes('-') || whitelistSingles.has(id));
+  return Array.from(ids);
 }
 
 // ── 2. Main ──────────────────────────────────────────────────────────────────

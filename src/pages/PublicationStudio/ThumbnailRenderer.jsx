@@ -59,6 +59,8 @@ export default function ThumbnailRenderer({ templateId }) {
       backgroundColor: '#ffffff',
     });
     fabricRef.current = fc;
+    // Expose for debugging / Playwright pixel inspection
+    if (typeof window !== 'undefined') window.__fc = fc;
 
     try {
       applyTemplate(fc, template, { w: TEMPLATE_REF_W, h: TEMPLATE_REF_H });
@@ -66,7 +68,7 @@ export default function ThumbnailRenderer({ templateId }) {
       // a heuristic settle window so the screenshot captures imagery.
       setStatus('rendering');
       const settle = setTimeout(() => {
-        fc.requestRenderAll();
+        fc.renderAll();
         setStatus('ready');
       }, 1800);
       return () => {
