@@ -1359,34 +1359,49 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   const handleImagePickerSelect = useCallback(async (url) => {
     const fc = getActiveCanvas();
     const target = imagePickerTargetRef.current;
-    if (!fc || !target || !url) { setImagePickerOpen(false); return; }
+    setImagePickerOpen(false);
+    imagePickerTargetRef.current = null;
+    if (!fc || !url) return;
+
     try {
       const img = await FabricImage.fromURL(url, { crossOrigin: 'anonymous' });
       if (!img) return;
-      const left = target.left;
-      const top  = target.top;
-      const width  = (target.width  ?? img.width)  * (target.scaleX ?? 1);
-      const height = (target.height ?? img.height) * (target.scaleY ?? 1);
-      const scale = Math.max(width / img.width, height / img.height);
-      img.set({
-        left, top,
-        scaleX: scale, scaleY: scale,
-        clipPath: new Rect({ left, top, width, height, absolutePositioned: true }),
-      });
-      img.set({ isImagePlaceholder: true });
-      img.id = genId();
-      fc.remove(target);
-      fc.add(img);
+
+      if (target) {
+        // ── Replace existing image / placeholder ──────────────────────────
+        const left   = target.left;
+        const top    = target.top;
+        const width  = (target.width  ?? img.width)  * (target.scaleX ?? 1);
+        const height = (target.height ?? img.height) * (target.scaleY ?? 1);
+        const scale  = Math.max(width / img.width, height / img.height);
+        img.set({
+          left, top,
+          scaleX: scale, scaleY: scale,
+          clipPath: new Rect({ left, top, width, height, absolutePositioned: true }),
+          isImagePlaceholder: true,
+        });
+        img.id = genId();
+        fc.remove(target);
+        fc.add(img);
+      } else {
+        // ── No target — add fresh image centred on canvas ─────────────────
+        const scale = (dims.w * 0.5) / img.width;
+        img.set({
+          left: dims.w * 0.25, top: dims.h * 0.25,
+          scaleX: scale, scaleY: scale,
+          isImagePlaceholder: true,
+        });
+        img.id = genId();
+        fc.add(img);
+      }
+
       fc.setActiveObject(img);
       fc.requestRenderAll();
       pushUndo();
     } catch (e) {
       console.error('Image picker: failed to load', e);
-    } finally {
-      setImagePickerOpen(false);
-      imagePickerTargetRef.current = null;
     }
-  }, [getActiveCanvas, pushUndo]);
+  }, [getActiveCanvas, dims, pushUndo]);
 
   // ── Canvas init helper ──────────────────────────────────────────────────────
   const initCanvas = useCallback((canvasEl, pageJSON, onSelect, onModify, onLayersChange) => {
@@ -1415,7 +1430,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     // swap the Unsplash default for their own uploaded or previously-used imagery.
     fc.on('mouse:dblclick', (e) => {
       const t = e.target;
-      if (t?.isImagePlaceholder) {
+      // Double-click any image (placeholder slot OR an already-placed image) → open picker
+      if (t?.isImagePlaceholder || t?.type === 'image') {
         openImagePicker(t);
       }
     });

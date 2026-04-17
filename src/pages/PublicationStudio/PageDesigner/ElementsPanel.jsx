@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { GOLD, DARK, CARD, BORDER, MUTED, GD, NU } from './designerConstants';
 import { TEMPLATES } from '../templates/definitions';
 import { callAiGenerate } from '../../../lib/aiGenerate';
+import { listAllAssets, uploadAsset } from '../../../services/publicationMediaService';
 
 // Premium templates get a visual elevation even without hover
 const PREMIUM_IDS = new Set(['vogue-cover', 'feature-spread']);
@@ -468,6 +469,188 @@ function TemplateRow({ template, globalIndex, onInsert, onReplace, isActive }) {
   );
 }
 
+// ── Media library tab ────────────────────────────────────────────────────────
+function MediaTab({ issue, onAddImage }) {
+  const [items,        setItems]        = useState([]);
+  const [loading,      setLoading]      = useState(false);
+  const [search,       setSearch]       = useState('');
+  const [uploading,    setUploading]    = useState(false);
+  const [uploadPct,    setUploadPct]    = useState(0);
+  const [uploadErr,    setUploadErr]    = useState(null);
+  const [dragOver,     setDragOver]     = useState(false);
+  const fileRef = useRef(null);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    const data = await listAllAssets(issue?.id);
+    setItems(data);
+    setLoading(false);
+  }, [issue?.id]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return items;
+    const q = search.toLowerCase();
+    return items.filter(i => (i.name || i.url || '').toLowerCase().includes(q));
+  }, [items, search]);
+
+  const thisIssue = filtered.filter(i => !i.fromOtherIssue);
+  const reused    = filtered.filter(i =>  i.fromOtherIssue);
+
+  async function handleFile(file) {
+    if (!file) return;
+    setUploading(true); setUploadErr(null); setUploadPct(10);
+    try {
+      const timer = setInterval(() => setUploadPct(p => Math.min(p + 15, 85)), 300);
+      const { publicUrl, error } = await uploadAsset(issue?.id, file);
+      clearInterval(timer); setUploadPct(100);
+      if (error) throw new Error(error);
+      await reload();
+      onAddImage(publicUrl);
+    } catch (e) { setUploadErr(e?.message || 'Upload failed'); }
+    finally     { setUploading(false); setUploadPct(0); }
+  }
+
+  function onDrop(e) {
+    e.preventDefault(); setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
+  }
+
+  function MediaThumb({ url, name, fromOtherIssue }) {
+    const [hov, setHov] = useState(false);
+    return (
+      <button
+        onClick={() => onAddImage(url)}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        title={name || url}
+        style={{
+          position: 'relative', aspectRatio: '3/4',
+          background: '#0E0D0B', border: `1px solid ${hov ? GOLD : 'rgba(255,255,255,0.08)'}`,
+          padding: 0, cursor: 'pointer', overflow: 'hidden',
+          transition: 'border-color 0.15s', borderRadius: 2,
+        }}
+      >
+        <img src={url} alt={name || ''} loading="lazy"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        {fromOtherIssue && (
+          <div style={{
+            position: 'absolute', top: 3, right: 3,
+            fontFamily: NU, fontSize: 6, fontWeight: 700,
+            background: 'rgba(0,0,0,0.7)', color: MUTED,
+            padding: '2px 4px', letterSpacing: '0.05em',
+          }}>REUSED</div>
+        )}
+        {hov && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{
+              fontFamily: NU, fontSize: 8, fontWeight: 700,
+              background: GOLD, color: '#0E0D0B',
+              padding: '4px 8px', letterSpacing: '0.08em', textTransform: 'uppercase',
+            }}>+ Add</span>
+          </div>
+        )}
+      </button>
+    );
+  }
+
+  const SL = ({ children }) => (
+    <div style={{ fontFamily: NU, fontSize: 8, fontWeight: 700, color: GOLD, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '12px 12px 5px' }}>
+      {children}
+    </div>
+  );
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      {/* Upload zone */}
+      <div style={{ padding: '10px 12px 0' }}>
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={onDrop}
+          onClick={() => !uploading && fileRef.current?.click()}
+          style={{
+            border: `1px dashed ${dragOver ? GOLD : 'rgba(255,255,255,0.14)'}`,
+            background: dragOver ? 'rgba(201,169,110,0.05)' : 'rgba(255,255,255,0.02)',
+            borderRadius: 3, padding: '16px 10px', textAlign: 'center',
+            cursor: uploading ? 'wait' : 'pointer', transition: 'all 0.15s',
+          }}
+        >
+          {uploading ? (
+            <>
+              <div style={{ fontFamily: NU, fontSize: 10, color: GOLD, marginBottom: 6 }}>Uploading…</div>
+              <div style={{ height: 2, background: 'rgba(255,255,255,0.07)', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ height: '100%', background: GOLD, width: `${uploadPct}%`, transition: 'width 0.3s' }} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 18, color: GOLD, marginBottom: 3 }}>↑</div>
+              <div style={{ fontFamily: NU, fontSize: 9, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em' }}>
+                Drop or click to upload
+              </div>
+              <div style={{ fontFamily: NU, fontSize: 8, color: MUTED, marginTop: 2 }}>JPG · PNG · WebP</div>
+            </>
+          )}
+        </div>
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
+          onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
+        {uploadErr && <div style={{ fontFamily: NU, fontSize: 9, color: '#f7a0a0', marginTop: 5 }}>{uploadErr}</div>}
+      </div>
+
+      {/* Search */}
+      {items.length > 4 && (
+        <div style={{ padding: '8px 12px 0' }}>
+          <input type="text" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              background: 'rgba(255,255,255,0.05)', border: `1px solid rgba(255,255,255,0.1)`,
+              borderRadius: 3, color: '#fff', fontFamily: NU, fontSize: 10,
+              padding: '5px 8px', outline: 'none',
+            }} />
+        </div>
+      )}
+
+      {loading && (
+        <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, textAlign: 'center', padding: '24px 0' }}>Loading…</div>
+      )}
+
+      {/* This issue */}
+      {!loading && thisIssue.length > 0 && (
+        <>
+          <SL>This issue</SL>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, padding: '0 12px' }}>
+            {thisIssue.map(i => <MediaThumb key={i.url} {...i} />)}
+          </div>
+        </>
+      )}
+
+      {/* Reused from other issues */}
+      {!loading && reused.length > 0 && (
+        <>
+          <SL>From other issues</SL>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, padding: '0 12px' }}>
+            {reused.map(i => <MediaThumb key={i.url} {...i} />)}
+          </div>
+        </>
+      )}
+
+      {!loading && filtered.length === 0 && (
+        <div style={{ fontFamily: GD, fontStyle: 'italic', fontSize: 13, color: MUTED, textAlign: 'center', padding: '32px 16px' }}>
+          No images yet — upload one above
+        </div>
+      )}
+      <div style={{ height: 16 }} />
+    </div>
+  );
+}
+
 // ── Main ElementsPanel export ─────────────────────────────────────────────────
 
 export default function ElementsPanel({ onAddElement, onAddImage, onInsertTemplate, onReplaceTemplate, activeTemplateId, issue, layers, onSelectLayer, onToggleLayerVisibility, onToggleLayerLock, onReorderLayer, onAddSVG, onAddArcText, onAILayout }) {
@@ -595,27 +778,32 @@ export default function ElementsPanel({ onAddElement, onAddImage, onInsertTempla
         borderBottom: `1px solid ${BORDER}`,
         flexShrink: 0,
       }}>
-        {['elements', 'layers'].map(t => (
+        {[
+          { key: 'elements', label: '⊞ Elements' },
+          { key: 'media',    label: '⊟ Media'    },
+          { key: 'layers',   label: '⊟ Layers'   },
+        ].map(({ key, label }) => (
           <button
-            key={t}
-            onClick={() => setPanelTab(t)}
+            key={key}
+            onClick={() => setPanelTab(key)}
             style={{
               flex: 1,
-              background: panelTab === t ? 'rgba(201,169,110,0.08)' : 'none',
+              background: panelTab === key ? 'rgba(201,169,110,0.08)' : 'none',
               border: 'none',
-              borderBottom: `2px solid ${panelTab === t ? GOLD : 'transparent'}`,
-              color: panelTab === t ? GOLD : MUTED,
+              borderBottom: `2px solid ${panelTab === key ? GOLD : 'transparent'}`,
+              color: panelTab === key ? GOLD : MUTED,
               fontFamily: NU,
-              fontSize: 9,
+              fontSize: 8,
               fontWeight: 700,
-              letterSpacing: '0.1em',
+              letterSpacing: '0.08em',
               textTransform: 'uppercase',
-              padding: '10px 0',
+              padding: '10px 4px',
               cursor: 'pointer',
               transition: 'all 0.15s',
+              whiteSpace: 'nowrap',
             }}
           >
-            {t === 'elements' ? '⊞ Elements' : '⊟ Layers'}
+            {label}
           </button>
         ))}
       </div>
@@ -1002,6 +1190,11 @@ export default function ElementsPanel({ onAddElement, onAddImage, onInsertTempla
 
           <div style={{ height: 20 }} />
         </div>
+      )}
+
+      {/* Media tab */}
+      {panelTab === 'media' && (
+        <MediaTab issue={issue} onAddImage={onAddImage} />
       )}
 
       {/* Layers tab */}
