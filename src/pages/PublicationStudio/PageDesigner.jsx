@@ -800,6 +800,38 @@ function applySmartFill(fc, listing, brand = {}) {
     const enquireLink  = new Textbox(`luxuryweddingdirectory.com/${listing.slug || ''}`, { left: W * 0.56, top: H - 50, width: W * 0.38, fontSize: 10, fontFamily: bFont, fill: 'rgba(24,18,10,0.45)', charSpacing: 60 });
     [rule, kicker, name, title, loc, ruleMid, desc, enquireLabel, enquireRule, enquireLink].forEach(o => { o.id = genId(); fc.add(o); });
 
+  } else if (type === 'article') {
+    // ── MAGAZINE ARTICLE: full-bleed hero, editorial text overlay ───────────
+    const imgSrc = listing.featured_image || listing.hero_image_url || null;
+    const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#0D0B09', selectable: false });
+    bg.id = genId(); fc.add(bg);
+    addImagePlaceholder(fc, { left: 0, top: 0, width: W, height: H * 0.62, imageUrl: imgSrc, fill: '#2A2520' });
+    // Dark gradient overlay over image bottom
+    const overlay = new Rect({ left: 0, top: H * 0.38, width: W, height: H * 0.24, fill: 'rgba(13,11,9,0)', selectable: false });
+    overlay.id = genId(); fc.add(overlay);
+    const catLabel = (listing.category || 'EDITORIAL').toUpperCase();
+    const kicker  = new Textbox(catLabel, { left: 40, top: H * 0.65, width: W - 80, fontSize: 9, fontFamily: bFont, fill: GOLD_C, charSpacing: 300 });
+    const rule    = new Rect({ left: 40, top: H * 0.68, width: 48, height: 1, fill: GOLD_C });
+    const title   = new Textbox(listing.name || listing.title || 'Article Title', { left: 40, top: H * 0.7, width: W - 80, fontSize: 40, fontFamily: hFont, fill: '#FAF8F5', fontStyle: 'italic', lineHeight: 1.05 });
+    const excerpt = new Textbox(listing.excerpt || listing.short_description || '', { left: 40, top: H * 0.84, width: W - 80, fontSize: 12, fontFamily: serif, fill: 'rgba(240,235,224,0.7)', lineHeight: 1.7, fontStyle: 'italic' });
+    const footer  = new Textbox(`luxuryweddingdirectory.com/magazine/${listing.slug || ''}`, { left: 40, top: H - 40, width: W - 80, fontSize: 9, fontFamily: bFont, fill: 'rgba(201,168,76,0.5)', charSpacing: 60 });
+    [kicker, rule, title, excerpt, footer].forEach(o => { o.id = genId(); fc.add(o); });
+
+  } else if (type === 'showcase') {
+    // ── REAL WEDDING / SHOWCASE: editorial split layout ──────────────────────
+    const imgSrc = listing.hero_image_url || listing.preview_url || null;
+    const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+    bg.id = genId(); fc.add(bg);
+    addImagePlaceholder(fc, { left: 0, top: 0, width: W * 0.5, height: H, imageUrl: imgSrc, fill: '#EDE8E0' });
+    const accent  = new Rect({ left: W * 0.55, top: 68, width: 2, height: 56, fill: GOLD_C });
+    const kicker  = new Textbox('REAL WEDDING', { left: W * 0.57, top: 68, width: W * 0.38, fontSize: 9, fontFamily: bFont, fill: GOLD_C, charSpacing: 300 });
+    const title   = new Textbox(listing.name || listing.title || 'Wedding Feature', { left: W * 0.57, top: 92, width: W * 0.38, fontSize: 34, fontFamily: hFont, fill: DARK_C, fontStyle: 'italic', lineHeight: 1.05 });
+    const loc     = new Textbox(listing.location || locStr(listing), { left: W * 0.57, top: 168, width: W * 0.38, fontSize: 13, fontFamily: serif, fill: GOLD_C, fontStyle: 'italic' });
+    const ruleMid = new Rect({ left: W * 0.57, top: 200, width: 40, height: 1, fill: GOLD_C });
+    const excerpt = new Textbox(listing.excerpt || shortDesc(listing), { left: W * 0.57, top: 216, width: W * 0.38, fontSize: 13, fontFamily: serif, fill: DARK_C, lineHeight: 1.7, fontStyle: 'italic' });
+    const footer  = new Textbox(`luxuryweddingdirectory.com/showcases/${listing.slug || ''}`, { left: W * 0.57, top: H - 44, width: W * 0.38, fontSize: 9, fontFamily: bFont, fill: 'rgba(201,168,76,0.5)', charSpacing: 60 });
+    [accent, kicker, title, loc, ruleMid, excerpt, footer].forEach(o => { o.id = genId(); fc.add(o); });
+
   } else {
     // ── GENERIC vendor / fallback ────────────────────────────────────────────
     const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#ffffff', selectable: false });
@@ -1621,6 +1653,18 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         } else {
           fc.renderAll();
           setLayers([]);
+          // Consume any pending Smart Fill or template (same as single-page effect)
+          if (pendingSmartFillRef.current) {
+            const listing = pendingSmartFillRef.current;
+            pendingSmartFillRef.current = null;
+            applySmartFill(fc, listing, brand);
+            pushUndo();
+          } else if (pendingTemplateRef.current) {
+            const t = pendingTemplateRef.current;
+            pendingTemplateRef.current = null;
+            applyTemplate(fc, t, dims, brand);
+            pushUndo();
+          }
         }
       } catch (_) {}
     }
