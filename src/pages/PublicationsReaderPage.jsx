@@ -1470,6 +1470,20 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const forceSpreadEarly   = issue?.spread_layout !== 'single';
   const useDoubleSpread    = isDesktop && forceSpreadEarly;
 
+  // Diagnostic — check console if the reader isn't showing a 2-page spread:
+  //   • isDesktop=false  → viewport under 900px, force full-screen or widen
+  //   • spread_layout='single' → change it in Studio → Settings → "Reader Layout"
+  useEffect(() => {
+    if (issue) {
+      console.log('[reader] layout:', {
+        isDesktop,
+        viewportWidth:  typeof window !== 'undefined' ? window.innerWidth : null,
+        spread_layout:  issue.spread_layout ?? '(null → defaults to double)',
+        useDoubleSpread,
+      });
+    }
+  }, [issue, isDesktop, useDoubleSpread]);
+
   // ── Paywall gate: declared here too so goNext (below) can reference it ───────
   const paywallBlocking    = (issue?.paywall_enabled === true) && currentPage > (issue?.free_page_count ?? 3);
 
