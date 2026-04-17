@@ -1331,6 +1331,306 @@ function PlannerSpotlight({ f, s, palette, W, H }) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ── NEW TEMPLATES: Editor's Letter, About Page, Back Cover, Full-Page Ad,
+//                  Product Showcase Ad, Venue Advertisement
+// ─────────────────────────────────────────────────────────────────────────────
+
+function EditorsLetter({ f, s, W, H }) {
+  const P = PALETTES.ivory;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg, fontFamily: FONTS.editorial }}>
+      {/* Thin gold left border */}
+      <div style={{ position: 'absolute', left: 0, top: 0, width: 3, height: '100%', background: P.accent, opacity: 0.6 }} />
+
+      {/* Right column — portrait circle */}
+      <div style={{ position: 'absolute', right: 22 * s, top: 28 * s, width: 110 * s, height: 110 * s, borderRadius: '50%', overflow: 'hidden', border: `1px solid ${P.accent}` }}>
+        {f.portrait
+          ? <img src={f.portrait} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }} />
+          : <div style={{ width: '100%', height: '100%', background: '#E8E0D4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 28 * s, opacity: 0.2, color: P.text, fontFamily: 'sans-serif' }}>⊡</span>
+            </div>
+        }
+      </div>
+
+      {/* Left column — text */}
+      <div style={{ position: 'absolute', left: 20 * s, top: 32 * s, right: 148 * s }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.accent, letterSpacing: '0.3em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 * s }}>
+          {f.kicker || 'FROM THE EDITOR'}
+        </div>
+        <div style={{ width: 32 * s, height: 1, background: P.accent, marginBottom: 10 * s }} />
+        <div style={{ fontFamily: FONTS.display, fontSize: 26 * s, fontWeight: 400, fontStyle: 'italic', color: P.text, lineHeight: 1.1, marginBottom: 14 * s }}>
+          {f.headline || 'A Season of Grace'}
+        </div>
+      </div>
+
+      {/* Body copy — full width below portrait */}
+      <div style={{ position: 'absolute', left: 20 * s, right: 20 * s, top: 170 * s, bottom: 80 * s, overflow: 'hidden' }}>
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 10 * s, color: P.text, lineHeight: 1.75, opacity: 0.85 }}>
+          {f.body || 'This season we find ourselves drawn to a quieter kind of luxury — the pleasure of a well-chosen thing, the intimacy of a gathering held in a perfect room, the way light falls at six in the evening through old stone. These are the moments we have spent the year seeking out, curating, and celebrating in these pages.\n\nWe are grateful to the couples who let us into their days, and to the makers, planners, and venues who continue to set a standard that inspires everything we do.\n\nWith admiration,'}
+        </div>
+      </div>
+
+      {/* Signature */}
+      <div style={{ position: 'absolute', left: 20 * s, bottom: 18 * s }}>
+        <div style={{ fontFamily: "'Great Vibes', cursive", fontSize: 28 * s, color: P.accent, lineHeight: 1.1 }}>
+          {f.signature || 'Charlotte Ashford'}
+        </div>
+        <div style={{ width: 60 * s, height: 1, background: P.text, opacity: 0.25, marginTop: 4 * s, marginBottom: 4 * s }} />
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.muted, letterSpacing: '0.28em', textTransform: 'uppercase' }}>
+          {f.title_line || 'EDITOR-IN-CHIEF'}
+        </div>
+      </div>
+
+      {/* LWD mark */}
+      <div style={{ position: 'absolute', bottom: 18 * s, right: 20 * s, fontFamily: FONTS.caption, fontSize: 7 * s, color: P.muted, letterSpacing: '0.1em' }}>LWD</div>
+    </div>
+  );
+}
+
+function AboutPage({ f, s, W, H }) {
+  const P = PALETTES.obsidian;
+  const cols = [
+    { title: f.pillar1 || 'Curation',    body: f.pillar1_body || 'Every name in these pages has been chosen, not paid-for. We travel, we watch, we listen.' },
+    { title: f.pillar2 || 'Craft',       body: f.pillar2_body || 'We champion the makers whose hands shape the quiet perfection of a great wedding day.' },
+    { title: f.pillar3 || 'Celebration', body: f.pillar3_body || 'We believe a wedding is the most public private moment of a life.' },
+  ];
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Top brand mark */}
+      <div style={{ position: 'absolute', top: 22 * s, left: 0, right: 0, textAlign: 'center' }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.accent, letterSpacing: '0.45em', textTransform: 'uppercase', fontWeight: 700 }}>
+          {f.brand_mark || 'LUXURY WEDDING DIRECTORY'}
+        </div>
+        <div style={{ width: 32 * s, height: 1, background: P.accent, margin: `${8 * s}px auto` }} />
+      </div>
+
+      {/* Hero title */}
+      <div style={{ position: 'absolute', top: '14%', left: 0, right: 0, textAlign: 'center' }}>
+        <div style={{ fontFamily: FONTS.display, fontSize: 52 * s, fontWeight: 400, fontStyle: 'italic', color: P.text, lineHeight: 1 }}>
+          {f.hero || 'Our Story'}
+        </div>
+      </div>
+
+      {/* Lede */}
+      <div style={{ position: 'absolute', top: '30%', left: '12%', right: '12%', textAlign: 'center' }}>
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 11 * s, color: P.muted, lineHeight: 1.75, fontStyle: 'italic' }}>
+          {f.lede || 'A curated directory of the world\'s most exceptional wedding venues, planners, and artisans — gathered, vetted, and celebrated by editors who have spent a decade covering them.'}
+        </div>
+      </div>
+
+      {/* Three pillars */}
+      <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, display: 'flex', padding: `0 ${18 * s}px`, gap: 12 * s }}>
+        {cols.map((c, i) => (
+          <div key={i} style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontFamily: FONTS.caption, fontSize: 8 * s, color: P.accent, letterSpacing: '0.3em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 6 * s }}>
+              {c.title}
+            </div>
+            <div style={{ width: 24 * s, height: 1, background: P.accent, margin: `0 auto ${8 * s}px` }} />
+            <div style={{ fontFamily: FONTS.editorial, fontSize: 9 * s, color: P.muted, lineHeight: 1.75, fontStyle: 'italic' }}>
+              {c.body}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div style={{ position: 'absolute', bottom: 20 * s, left: 0, right: 0, textAlign: 'center' }}>
+        <div style={{ width: 32 * s, height: 1, background: P.accent, margin: `0 auto ${8 * s}px`, opacity: 0.5 }} />
+        <div style={{ fontFamily: FONTS.editorial, fontSize: 10 * s, color: P.muted, fontStyle: 'italic' }}>
+          {f.established || 'Established MMXXIV'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BackCover({ f, s, W, H }) {
+  const P = PALETTES.obsidian;
+  const teasers = [
+    { img: f.teaser1_image, cap: f.teaser1_caption || 'A Lavender Wedding in Luberon' },
+    { img: f.teaser2_image, cap: f.teaser2_caption || 'The Return of the Wildflower' },
+    { img: f.teaser3_image, cap: f.teaser3_caption || "Château d'Estoublon · An Exclusive" },
+  ];
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Kicker + headline */}
+      <div style={{ position: 'absolute', top: 22 * s, left: 0, right: 0, textAlign: 'center' }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7.5 * s, color: P.accent, letterSpacing: '0.4em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 * s }}>
+          {f.kicker || 'IN THE NEXT ISSUE'}
+        </div>
+        <div style={{ fontFamily: FONTS.display, fontSize: 36 * s, fontWeight: 400, fontStyle: 'italic', color: P.text, lineHeight: 1.05 }}>
+          {f.headline || 'Summer in Provence'}
+        </div>
+        <div style={{ width: 32 * s, height: 1, background: P.accent, margin: `${10 * s}px auto` }} />
+      </div>
+
+      {/* Teaser triptych */}
+      <div style={{ position: 'absolute', top: '24%', left: 14 * s, right: 14 * s, display: 'flex', gap: 8 * s }}>
+        {teasers.map((t, i) => (
+          <div key={i} style={{ flex: 1 }}>
+            <div style={{ width: '100%', aspectRatio: '3/4', overflow: 'hidden', marginBottom: 8 * s }}>
+              {t.img
+                ? <img src={t.img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <div style={{ width: '100%', height: '100%', background: '#2A2016', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 18 * s, opacity: 0.2, color: P.text }}>⊡</span>
+                  </div>
+              }
+            </div>
+            <div style={{ width: 20 * s, height: 1, background: P.accent, marginBottom: 5 * s }} />
+            <div style={{ fontFamily: FONTS.editorial, fontSize: 8.5 * s, color: P.text, lineHeight: 1.45, fontStyle: 'italic' }}>
+              {t.cap}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Masthead strip */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, borderTop: `1px solid ${P.rule}`, padding: `${10 * s}px ${16 * s}px` }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 6.5 * s, color: P.muted, letterSpacing: '0.15em', textAlign: 'center', lineHeight: 1.9, textTransform: 'uppercase' }}>
+          {f.masthead || 'Editor-in-Chief · Charlotte Ashford    Creative Director · Isadora Valois    Photography · Henry Asquith'}
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 6 * s }}>
+          <span style={{ fontFamily: FONTS.display, fontSize: 14 * s, color: P.accent, fontStyle: 'italic' }}>LWD</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FullPageAd({ f, s, W, H }) {
+  const P = PALETTES.obsidian;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Full-bleed image */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg,#1a1208,#080806)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 40 * s, opacity: 0.12, color: '#fff' }}>⊡</span>
+          </div>
+      }
+      {/* Gradient wash at bottom */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '42%', background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, transparent 100%)' }} />
+
+      {/* Brand block */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, textAlign: 'center', paddingBottom: 22 * s }}>
+        <div style={{ width: '50%', height: 1, background: P.accent, margin: `0 auto ${12 * s}px`, opacity: 0.7 }} />
+        <div style={{ fontFamily: FONTS.display, fontSize: 38 * s, fontWeight: 400, color: '#F0EBE0', letterSpacing: '0.12em', textTransform: 'uppercase', lineHeight: 1 }}>
+          {f.brand || 'VERA WANG'}
+        </div>
+        {f.tagline && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 7.5 * s, color: P.accent, letterSpacing: '0.4em', textTransform: 'uppercase', marginTop: 8 * s, fontWeight: 600 }}>
+            {f.tagline}
+          </div>
+        )}
+        {f.url && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: 'rgba(240,235,224,0.55)', letterSpacing: '0.15em', marginTop: 10 * s }}>
+            {f.url}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProductShowcaseAd({ f, s, W, H }) {
+  const P = PALETTES.ivory;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Left half — product image */}
+      <div style={{ position: 'absolute', left: 0, top: 0, width: '50%', height: '100%' }}>
+        {f.image
+          ? <img src={f.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <div style={{ width: '100%', height: '100%', background: '#E8E0D4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 36 * s, opacity: 0.18, color: P.text }}>⊡</span>
+            </div>
+        }
+      </div>
+
+      {/* Thin gold divider */}
+      <div style={{ position: 'absolute', left: '50%', top: '8%', height: '84%', width: 1, background: P.accent, opacity: 0.5 }} />
+
+      {/* Right half — copy panel */}
+      <div style={{ position: 'absolute', right: 0, top: 0, width: '50%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: `0 ${20 * s}px 0 ${22 * s}px`, boxSizing: 'border-box' }}>
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7.5 * s, color: P.accent, letterSpacing: '0.35em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 6 * s }}>
+          {f.featured || 'FEATURED'}
+        </div>
+        <div style={{ width: 28 * s, height: 1, background: P.accent, marginBottom: 10 * s }} />
+        <div style={{ fontFamily: FONTS.display, fontSize: 26 * s, fontWeight: 400, fontStyle: 'italic', color: P.text, lineHeight: 1.1, marginBottom: 12 * s }}>
+          {f.product || 'The Madeleine Solitaire'}
+        </div>
+        {f.description && (
+          <div style={{ fontFamily: FONTS.editorial, fontSize: 9.5 * s, color: P.text, lineHeight: 1.7, fontStyle: 'italic', marginBottom: 14 * s, opacity: 0.8 }}>
+            {f.description}
+          </div>
+        )}
+        <div style={{ width: 40 * s, height: 1, background: P.accent, marginBottom: 8 * s }} />
+        {f.price && (
+          <div style={{ fontFamily: FONTS.editorial, fontSize: 18 * s, color: P.text, fontStyle: 'italic', marginBottom: 16 * s }}>
+            {f.price}
+          </div>
+        )}
+        {/* CTA button */}
+        <div style={{ display: 'inline-block', border: `1px solid ${P.text}`, padding: `${6 * s}px ${16 * s}px`, textAlign: 'center', marginBottom: 'auto' }}>
+          <div style={{ fontFamily: FONTS.caption, fontSize: 7.5 * s, color: P.text, letterSpacing: '0.3em', textTransform: 'uppercase', fontWeight: 700 }}>
+            {f.cta || 'SHOP NOW'}
+          </div>
+        </div>
+        {/* Brand line at bottom */}
+        <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: P.accent, letterSpacing: '0.35em', textTransform: 'uppercase', position: 'absolute', bottom: 18 * s }}>
+          {f.brand || 'GRAFF · LONDON'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VenueAdvertisement({ f, s, W, H }) {
+  const P = PALETTES.obsidian;
+  return (
+    <div style={{ width: W, height: H, position: 'relative', overflow: 'hidden', background: P.bg }}>
+      {/* Full-bleed venue image */}
+      {f.image
+        ? <img src={f.image} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg,#1a1612,#080806)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 40 * s, opacity: 0.12, color: '#fff' }}>⊡</span>
+          </div>
+      }
+      {/* Gradient wash — lower 55% */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '55%', background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)' }} />
+
+      {/* Brand block */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, textAlign: 'center', paddingBottom: 20 * s }}>
+        <div style={{ width: 40 * s, height: 1, background: P.accent, margin: `0 auto ${10 * s}px`, opacity: 0.8 }} />
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: 22 * s, color: P.accent, letterSpacing: '0.5em', textTransform: 'uppercase', lineHeight: 1, marginBottom: 8 * s }}>
+          {f.venue || 'HOTEL CIPRIANI'}
+        </div>
+        {f.tagline && (
+          <div style={{ fontFamily: FONTS.editorial, fontSize: 11 * s, color: P.text, fontStyle: 'italic', marginBottom: 10 * s, opacity: 0.9 }}>
+            {f.tagline}
+          </div>
+        )}
+        {f.callout && (
+          <div style={{ fontFamily: FONTS.caption, fontSize: 7 * s, color: 'rgba(240,235,224,0.65)', letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: 10 * s }}>
+            {f.callout}
+          </div>
+        )}
+        {/* Ghost CTA button */}
+        <div style={{ display: 'inline-block', border: `1px solid ${P.accent}`, padding: `${5 * s}px ${18 * s}px`, marginBottom: 10 * s }}>
+          <div style={{ fontFamily: FONTS.caption, fontSize: 7.5 * s, color: P.accent, letterSpacing: '0.35em', textTransform: 'uppercase', fontWeight: 600 }}>
+            {f.cta || 'BOOK A VISIT'}
+          </div>
+        </div>
+        {f.footer && (
+          <div style={{ fontFamily: FONTS.editorial, fontSize: 8.5 * s, color: P.muted, fontStyle: 'italic' }}>
+            {f.footer}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export default function TemplateCanvas({ templateId, fields = {}, pageSize = 'A4', width = 400, forCapture = false, fieldStyles = {} }) {
@@ -1385,8 +1685,14 @@ export default function TemplateCanvas({ templateId, fields = {}, pageSize = 'A4
       case 'aerial-venue':       return <AerialVenue       {...props} />;
       case 'lux-grid':           return <LuxGrid           {...props} />;
       case 'full-bleed':         return <FullBleed         {...props} />;
-      case 'venue-directory':    return <VenueDirectory    {...props} />;
-      case 'planner-spotlight':  return <PlannerSpotlight  {...props} />;
+      case 'venue-directory':        return <VenueDirectory        {...props} />;
+      case 'planner-spotlight':      return <PlannerSpotlight      {...props} />;
+      case 'editors-letter':         return <EditorsLetter         {...props} />;
+      case 'about-page':             return <AboutPage             {...props} />;
+      case 'back-cover':             return <BackCover             {...props} />;
+      case 'full-page-ad':           return <FullPageAd            {...props} />;
+      case 'product-showcase-ad':    return <ProductShowcaseAd     {...props} />;
+      case 'venue-advertisement':    return <VenueAdvertisement    {...props} />;
       default:
         return (
           <div style={{ ...container, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontFamily: 'sans-serif', fontSize: 14 * s }}>
