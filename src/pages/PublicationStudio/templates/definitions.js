@@ -662,11 +662,16 @@ function byId(id) {
 // template is lost from the picker.
 const ORDERED_IDS = [
   'vogue-cover',                // Cover
+  'cover-split',                // Cover — Split variant
+  'cover-typographic',          // Cover — Typographic variant
   'editors-letter',             // Editor's Letter
   'about-page',                 // About Page
   'table-of-contents',          // Navigation / Contents
   'full-page-ad',               // Full-Page Advertisement
   'feature-spread',             // Editorial
+  'feature-cinematic',          // Editorial — Cinematic variant
+  'feature-minimal',            // Editorial — Minimal variant
+  'story-chapter',              // Editorial — Chapter Opener
   'the-destination',            // Travel
   'the-runway',                 // Fashion
   'the-gown',                   // Bridal
@@ -676,16 +681,148 @@ const ORDERED_IDS = [
   'invitation-suite',           // Stationery
   'cake-moment',                // Food & Cake
   'couple-story',               // Couple
+  'couple-gallery',             // Couple — Gallery variant
   'the-portrait',               // Real Wedding
   'ceremony-aisle',             // Ceremony
   'reception-table',            // Reception
   'the-hotel',                  // Venue
+  'venue-skyline',              // Venue — Skyline variant
   'venue-portrait',             // Venue Portrait
+  'venue-essay',                // Venue Portrait — Essay variant
   'product-showcase-ad',        // Product Showcase Ad
   'venue-advertisement',        // Venue Advertisement
   'the-triptych',               // Detail
   'back-cover',                 // Back Cover
 ];
+
+// ── Phase 2: Variant templates ────────────────────────────────────────────────
+
+const COVER_SPLIT_TEMPLATE = {
+  id: 'cover-split',
+  name: 'The Cover — Split',
+  category: 'Cover',
+  palette: 'obsidian',
+  description: 'Left portrait image, right dark editorial panel with masthead and cover lines.',
+  fields: [
+    { id: 'image',    type: 'image', label: 'Cover Image',  required: true },
+    { id: 'masthead', type: 'text',  label: 'Masthead',     default: 'LWD' },
+    { id: 'issue',    type: 'text',  label: 'Issue Label',  default: 'ISSUE 01 · SPRING 2026' },
+    { id: 'title',    type: 'text',  label: 'Cover Title',  default: 'The Bridal Edition' },
+    { id: 'lines',    type: 'textarea', label: 'Cover Lines (one per line)', default: 'THE BRIDAL EDIT\nVERA WANG · PARIS\nAMALFI COAST VENUES\nJEWELLERY REPORT' },
+  ],
+};
+
+const COVER_TYPOGRAPHIC_TEMPLATE = {
+  id: 'cover-typographic',
+  name: 'The Cover — Typographic',
+  category: 'Cover',
+  palette: 'obsidian',
+  description: 'Pure type cover. Ghost issue numeral, large masthead, no photography required.',
+  fields: [
+    { id: 'masthead',    type: 'text',  label: 'Masthead',    default: 'LUXURY WEDDING DIRECTORY' },
+    { id: 'issue_num',   type: 'text',  label: 'Issue Number', default: '01' },
+    { id: 'season',      type: 'text',  label: 'Season',      default: 'SPRING · SUMMER' },
+    { id: 'title',       type: 'text',  label: 'Issue Title',  default: 'The Bridal Edition' },
+    { id: 'lines_left',  type: 'textarea', label: 'Cover Lines Left' },
+    { id: 'lines_right', type: 'textarea', label: 'Cover Lines Right' },
+    { id: 'year',        type: 'text',  label: 'Year',        default: 'MMXXVI' },
+  ],
+};
+
+const FEATURE_CINEMATIC_TEMPLATE = {
+  id: 'feature-cinematic',
+  name: 'Feature — Cinematic',
+  category: 'Editorial',
+  palette: 'obsidian',
+  description: '72% full-bleed image with narrow dramatic text column. Harper\'s Bazaar register.',
+  fields: [
+    { id: 'image',    type: 'image',    label: 'Hero Image',  required: true },
+    { id: 'kicker',   type: 'text',     label: 'Kicker',      default: 'EDITORIAL' },
+    { id: 'headline', type: 'text',     label: 'Headline',    default: 'Something Borrowed, Something Gold' },
+    { id: 'body',     type: 'textarea', label: 'Intro',       maxLength: 200 },
+    { id: 'byline',   type: 'text',     label: 'Byline',      default: 'Words · Charlotte Ashford' },
+  ],
+};
+
+const FEATURE_MINIMAL_TEMPLATE = {
+  id: 'feature-minimal',
+  name: 'Feature — Minimal',
+  category: 'Editorial',
+  palette: 'white',
+  description: 'White-dominant. Small inset image. Giant italic serif headline. Kinfolk / Cereal register.',
+  fields: [
+    { id: 'image',    type: 'image',    label: 'Inset Image' },
+    { id: 'kicker',   type: 'text',     label: 'Kicker',      default: 'FASHION · SPRING 2026' },
+    { id: 'headline', type: 'text',     label: 'Headline',    default: 'Something Borrowed, Something Gold' },
+    { id: 'body1',    type: 'textarea', label: 'Column 1',    maxLength: 240 },
+    { id: 'body2',    type: 'textarea', label: 'Column 2',    maxLength: 240 },
+    { id: 'byline',   type: 'text',     label: 'Byline' },
+  ],
+};
+
+const VENUE_SKYLINE_TEMPLATE = {
+  id: 'venue-skyline',
+  name: 'Venue — Skyline',
+  category: 'Venue',
+  palette: 'ivory',
+  description: 'Wide hero image above specs grid. Professional venue showcase layout.',
+  fields: [
+    { id: 'image',         type: 'image', label: 'Venue Image',     required: true },
+    { id: 'venue',         type: 'text',  label: 'Venue Name',      default: 'VILLA SAN CASCIANO' },
+    { id: 'location',      type: 'text',  label: 'Location',        default: 'Tuscany, Italy' },
+    { id: 'capacity',      type: 'text',  label: 'Capacity',        default: 'Up to 180' },
+    { id: 'style',         type: 'text',  label: 'Style',           default: 'Renaissance' },
+    { id: 'exclusive_use', type: 'text',  label: 'Exclusive Use',   default: 'Available' },
+    { id: 'rooms',         type: 'text',  label: 'Overnight Rooms', default: '24 Suites' },
+  ],
+};
+
+const VENUE_ESSAY_TEMPLATE = {
+  id: 'venue-essay',
+  name: 'Venue — Essay',
+  category: 'Venue Portrait',
+  palette: 'white',
+  description: 'Left portrait image, right long-form editorial essay. Condé Nast Traveller register.',
+  fields: [
+    { id: 'image',    type: 'image',    label: 'Venue Portrait',  required: true },
+    { id: 'kicker',   type: 'text',     label: 'Kicker',          default: 'VENUE FEATURE' },
+    { id: 'venue',    type: 'text',     label: 'Venue Name',      default: 'Villa San Casciano' },
+    { id: 'location', type: 'text',     label: 'Location',        default: 'Tuscany, Italy' },
+    { id: 'body',     type: 'textarea', label: 'Essay',           maxLength: 700 },
+    { id: 'byline',   type: 'text',     label: 'Byline' },
+  ],
+};
+
+const COUPLE_GALLERY_TEMPLATE = {
+  id: 'couple-gallery',
+  name: 'Couple — Gallery',
+  category: 'Couple',
+  palette: 'white',
+  description: '2×2 photo mosaic with editorial headline. Story-opening spread.',
+  fields: [
+    { id: 'image1',   type: 'image', label: 'Image 1', required: true },
+    { id: 'image2',   type: 'image', label: 'Image 2' },
+    { id: 'image3',   type: 'image', label: 'Image 3' },
+    { id: 'image4',   type: 'image', label: 'Image 4' },
+    { id: 'names',    type: 'text',  label: 'Couple Names', default: 'Isabelle & François' },
+    { id: 'date_loc', type: 'text',  label: 'Date · Location', default: '12 June 2026 · Provence, France' },
+  ],
+};
+
+const STORY_CHAPTER_TEMPLATE = {
+  id: 'story-chapter',
+  name: 'Story — Chapter Opener',
+  category: 'Editorial',
+  palette: 'white',
+  description: 'Ghost chapter numeral background. Kicker, headline, opening paragraph. For series or long-form features.',
+  fields: [
+    { id: 'chapter',  type: 'text',     label: 'Chapter Number', default: '01' },
+    { id: 'kicker',   type: 'text',     label: 'Kicker',         default: 'PART ONE · THE JOURNEY' },
+    { id: 'headline', type: 'text',     label: 'Headline',       default: 'The Day We Changed Everything' },
+    { id: 'intro',    type: 'textarea', label: 'Opening Paragraph', maxLength: 300 },
+    { id: 'page_num', type: 'text',     label: 'Page Number',    default: '01' },
+  ],
+};
 
 const NEW_TEMPLATES_BY_ID = {
   'editors-letter':       EDITORS_LETTER_TEMPLATE,
@@ -694,6 +831,15 @@ const NEW_TEMPLATES_BY_ID = {
   'full-page-ad':         FULL_PAGE_AD_TEMPLATE,
   'product-showcase-ad':  PRODUCT_SHOWCASE_AD_TEMPLATE,
   'venue-advertisement':  VENUE_AD_TEMPLATE,
+  // Phase 2 variants
+  'cover-split':          COVER_SPLIT_TEMPLATE,
+  'cover-typographic':    COVER_TYPOGRAPHIC_TEMPLATE,
+  'feature-cinematic':    FEATURE_CINEMATIC_TEMPLATE,
+  'feature-minimal':      FEATURE_MINIMAL_TEMPLATE,
+  'venue-skyline':        VENUE_SKYLINE_TEMPLATE,
+  'venue-essay':          VENUE_ESSAY_TEMPLATE,
+  'couple-gallery':       COUPLE_GALLERY_TEMPLATE,
+  'story-chapter':        STORY_CHAPTER_TEMPLATE,
 };
 
 // Build the ordered list, then append any BASE_TEMPLATES that weren't
