@@ -14,6 +14,7 @@ const STATIC_PAGES = [
   { url: "/",                                    changefreq: "daily",   priority: "1.0" },
   { url: "/wedding-planners",                   changefreq: "weekly",  priority: "0.8" },
   { url: "/magazine",                           changefreq: "weekly",  priority: "0.8" },
+  { url: "/publications",                       changefreq: "weekly",  priority: "0.8" },
 ];
 
 // Category pages for each country/region combo (planners + other categories)
@@ -90,6 +91,13 @@ Deno.serve(async () => {
       .select("slug, updated_at")
       .not("slug", "is", null);
 
+    // Fetch published magazine issues
+    const { data: issues } = await supabase
+      .from("magazine_issues")
+      .select("slug, title, cover_image, published_at, updated_at, page_count")
+      .eq("status", "published")
+      .not("slug", "is", null);
+
     const entries: string[] = [];
 
     // Static pages
@@ -134,6 +142,19 @@ Deno.serve(async () => {
         "monthly",
         "0.7",
       ));
+    }
+
+    // Published magazine issues
+    if (issues?.length) {
+      const issueEntries = issues.map(issue =>
+        urlEntry(
+          `${SITE_URL}/publications/${xmlEscape(issue.slug)}`,
+          toIsoDate(issue.published_at || issue.updated_at),
+          "monthly",
+          "0.8"
+        )
+      );
+      entries.push(...issueEntries);
     }
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>

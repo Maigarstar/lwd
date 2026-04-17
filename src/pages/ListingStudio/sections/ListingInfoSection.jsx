@@ -4,6 +4,8 @@ import AIContentGenerator from '../../../components/AIAssistant/AIContentGenerat
 import {
   LISTING_INFO_LOOKUP_SYSTEM,
   buildListingInfoLookupPrompt,
+  PRESS_LOOKUP_SYSTEM,
+  buildPressLookupPrompt,
 } from '../../../lib/aiPrompts';
 
 // Tolerant JSON extractor — strips markdown fences and falls back to first {...}
@@ -508,7 +510,9 @@ function OpeningHoursEditor({ hours = DEFAULT_HOURS, onChange }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PRESS & NEWS editor
 // ─────────────────────────────────────────────────────────────────────────────
-function PressEditor({ items = [], onChange }) {
+function PressEditor({ items = [], onChange, venueName = '', websiteUrl = '', locationHint = '', venueId }) {
+  const [showPressAI, setShowPressAI] = useState(false);
+
   const addItem = () => {
     if (items.length >= 6) return;
     onChange([...items, { id: genId(), outlet: '', year: '', title: '', url: '', logo_url: '', body: '' }]);
@@ -520,6 +524,40 @@ function PressEditor({ items = [], onChange }) {
 
   const removeItem = (id) => onChange(items.filter(it => it.id !== id));
 
+  const handlePressAIInsert = (text) => {
+    const parsed = extractJsonObject(text);
+    if (!parsed || !Array.isArray(parsed.press_features)) {
+      alert('AI did not return valid press data. Try again or add features manually.');
+      return;
+    }
+    const newPress = parsed.press_features
+      .slice(0, 6)
+      .map(p => {
+        if (!p || typeof p !== 'object') return null;
+        const outlet = typeof p.outlet === 'string' ? p.outlet.trim().slice(0, 80) : '';
+        const title  = typeof p.title  === 'string' ? p.title.trim().slice(0, 200) : '';
+        const url    = typeof p.url    === 'string' ? p.url.trim().slice(0, 500)   : '';
+        const yearNum = Number(p.year);
+        const year = Number.isFinite(yearNum) && yearNum > 1900 && yearNum < 2100
+          ? String(Math.trunc(yearNum))
+          : '';
+        if (!outlet && !title) return null;
+        return { id: genId(), outlet, year, title, url, logo_url: '', body: '' };
+      })
+      .filter(Boolean);
+    if (newPress.length === 0) {
+      alert('AI found no verifiable press coverage for this venue. You can add features manually.');
+      return;
+    }
+    // Merge: keep existing items, add new ones that don't duplicate by outlet+title
+    const existing = items || [];
+    const existingKeys = new Set(existing.map(e => `${(e.outlet || '').toLowerCase()}|${(e.title || '').toLowerCase()}`));
+    const brandNew = newPress.filter(np => !existingKeys.has(`${np.outlet.toLowerCase()}|${np.title.toLowerCase()}`));
+    const merged = [...existing, ...brandNew].slice(0, 6);
+    onChange(merged);
+    setShowPressAI(false);
+  };
+
   const OUTLETS = [
     'Vogue', 'Harper\'s Bazaar', 'Martha Stewart Weddings', 'The Knot',
     'Brides Magazine', 'Tatler', 'Condé Nast Traveler', 'Forbes',
@@ -529,7 +567,28 @@ function PressEditor({ items = [], onChange }) {
 
   return (
     <div>
-      {items.length === 0 && (
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+        <button type="button" onClick={() => setShowPressAI(v => !v)} style={aiLinkStyle}>
+          ✦ Find press coverage with AI
+        </button>
+      </div>
+      {showPressAI && (
+        <div style={{ marginBottom: 16 }}>
+          <AIContentGenerator
+            feature="press_lookup"
+            systemPrompt={PRESS_LOOKUP_SYSTEM}
+            userPrompt={buildPressLookupPrompt(venueName, websiteUrl, locationHint)}
+            venueId={venueId}
+            onInsert={handlePressAIInsert}
+            label="Find Press Coverage"
+          />
+          <p style={aiHintStyle}>
+            AI will search for public press features, magazine mentions, and editorial coverage. Review every result before saving — never publish unverified press claims.
+          </p>
+        </div>
+      )}
+
+      {items.length === 0 && !showPressAI && (
         <p style={{ fontSize: 12, color: '#aaa', marginBottom: 16, marginTop: 0 }}>
           No press features added yet. These appear as "As Featured In" on the public listing.
         </p>
@@ -1074,6 +1133,10 @@ const ListingInfoSection = ({ formData, onChange }) => {
         <PressEditor
           items={pressItems}
           onChange={val => onChange('press_features', val)}
+          venueName={venueName}
+          websiteUrl={websiteUrl}
+          locationHint={locationHint}
+          venueId={venueId}
         />
       </SectionCard>
 

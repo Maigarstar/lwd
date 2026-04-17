@@ -351,6 +351,35 @@ function transformSupabaseListingForUI(listing: any): any {
       }));
   }
 
+  // Format priceFrom with currency symbol.
+  // DB stores price_from (number) + price_currency (symbol like "£" or code like "GBP").
+  // Cards expect a formatted string like "£18,000". Build it here so every consumer gets it.
+  if (transformed.priceFrom != null) {
+    const raw = String(transformed.priceFrom).trim()
+    // Only format if it looks like a plain number (no symbol already present)
+    if (/^\d[\d,.]*$/.test(raw)) {
+      const num = Number(raw.replace(/,/g, ''))
+      if (!isNaN(num) && num > 0) {
+        // Resolve currency: could be a symbol ("£") or code ("GBP") or empty
+        const cur = (transformed.priceCurrency || '').trim()
+        const codeToSymbol: Record<string, string> = {
+          GBP: '£', EUR: '€', USD: '$', CHF: 'CHF ', AED: 'AED ', AUD: 'A$', CAD: 'C$',
+          INR: '₹', JPY: '¥', CNY: '¥', SEK: 'kr ', NOK: 'kr ', DKK: 'kr ', ZAR: 'R',
+        }
+        // If it's already a symbol (£, €, $) use it directly; if it's a code, map it
+        const sym = cur.length <= 3 && codeToSymbol[cur.toUpperCase()]
+          ? codeToSymbol[cur.toUpperCase()]
+          : (cur || '£')
+        transformed.priceFrom = `${sym}${num.toLocaleString('en-GB')}`
+      }
+    }
+  }
+
+  // Alias contentQualityScore → contentScore so LuxuryVenueCard (which reads v.contentScore) works
+  if (transformed.contentQualityScore != null && transformed.contentScore == null) {
+    transformed.contentScore = transformed.contentQualityScore
+  }
+
   // Fallback: pull video URL from card_settings JSONB if no video from media_items
   if (!transformed.videoUrl && transformed.cardSettings && typeof transformed.cardSettings === 'object') {
     const cs = transformed.cardSettings as Record<string, any>;

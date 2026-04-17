@@ -76,6 +76,13 @@ function extractJsonObject(text) {
 
 const toIntOrZero = (v) => {
   if (v === null || v === undefined || v === '') return 0;
+  // Strip currency symbols, commas, spaces before parsing
+  // Handles "£8,889", "$18,000", "8889", "8 889", etc.
+  if (typeof v === 'string') {
+    const cleaned = v.replace(/[£€$,\s]/g, '');
+    const n = Number(cleaned);
+    return Number.isFinite(n) && n >= 0 ? Math.round(n) : 0;
+  }
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : 0;
 };
@@ -430,7 +437,40 @@ const PackagesSection = ({ formData, onChange }) => {
       return;
     }
 
-    onChange('wedding_packages', newPackages);
+    // Merge with existing packages: if a package with the same name already
+    // exists, fill in only the empty/zero fields. This prevents AI from
+    // wiping user-entered data on a re-lookup.
+    const existing = formData?.wedding_packages || [];
+    if (existing.length > 0) {
+      const merged = existing.map(ex => {
+        const match = newPackages.find(np =>
+          np.name && ex.name && np.name.toLowerCase().trim() === ex.name.toLowerCase().trim()
+        );
+        if (!match) return ex;
+        // Only fill fields that are currently empty/zero
+        return {
+          ...ex,
+          duration_days:          ex.duration_days          || match.duration_days,
+          exclusive_use:          ex.exclusive_use           || match.exclusive_use,
+          price_from:             ex.price_from              || match.price_from,
+          price_currency:         ex.price_currency          || match.price_currency,
+          season:                 ex.season                  || match.season,
+          min_guests:             ex.min_guests              || match.min_guests,
+          max_guests:             ex.max_guests              || match.max_guests,
+          dining_capacity:        ex.dining_capacity         || match.dining_capacity,
+          accommodation_capacity: ex.accommodation_capacity  || match.accommodation_capacity,
+          description:            ex.description             || match.description,
+          inclusions:             (ex.inclusions && ex.inclusions.length > 0) ? ex.inclusions : match.inclusions,
+        };
+      });
+      // Add any AI packages that didn't match existing names
+      const existingNames = new Set(existing.map(e => (e.name || '').toLowerCase().trim()));
+      const brandNew = newPackages.filter(np => !existingNames.has((np.name || '').toLowerCase().trim()));
+      const final = [...merged, ...brandNew].slice(0, MAX_PACKAGES);
+      onChange('wedding_packages', final);
+    } else {
+      onChange('wedding_packages', newPackages);
+    }
     setShowPackagesLookupAI(false);
   };
 

@@ -28,6 +28,7 @@ const FALLBACK_NAV = [
       { label: "Wedding Planners",   url: "/vendors/wedding-planners" },
       { label: "Real Weddings",      url: "/real-weddings" },
       { label: "The Magazine",       url: "/magazine" },
+      { label: "Publications",       url: "/publications" },
       { label: "Planning Checklist", url: "/planning-checklist" },
     ],
   },

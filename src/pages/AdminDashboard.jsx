@@ -59,10 +59,13 @@ import PlatformIntelligenceModule from "./AdminModules/PlatformIntelligenceModul
 import PlatformMediaIntelligenceModule from "./AdminModules/PlatformMediaIntelligenceModule";
 import LiveStatsModule from "./AdminModules/LiveStatsModule";
 import ReportingHubModule from "./AdminModules/ReportingHubModule";
+import UnifiedAnalyticsDashboard from "./AdminModules/UnifiedAnalyticsDashboard";
 import MarketIntelligenceModule from "./AdminModules/MarketIntelligenceModule";
 import EventsModule from "./AdminModules/EventsModule";
 import SiteContentModule from "./AdminModules/SiteContentModule";
 import ReverseProspectingModule from "./AdminModules/ReverseProspectingModule";
+import MagazineIssuesModule from "./AdminModules/MagazineIssuesModule";
+import PublicationStudio from "./PublicationStudio";
 import CategoryPagePreview from "../components/admin/CategoryPagePreview";
 import { fetchClickSummary, fetchBatchClickCounts } from "../services/adminOutboundClicksService";
 import { fetchPostBySlug, fetchPosts, deletePost as deleteMagazinePost } from "../services/magazineService";
@@ -345,6 +348,7 @@ const NAV_SECTIONS = [
     group: "Intelligence",
     items: [
       { key: "live-stats",             label: "Live Stats",             icon: "◉" },
+      { key: "analytics",              label: "Analytics",              icon: "◈" },
       { key: "aura",                   label: "Aura Analytics",         icon: "✧" },
       { key: "api",                    label: "API Management",         icon: "⟐" },
       { key: "ai-settings",           label: "AI Settings",            icon: "⚙" },
@@ -365,13 +369,20 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    group: "Publications",
+    items: [
+      { key: "magazine-issues",      label: "Issues",            icon: "◈" },
+      { key: "publication-studio",   label: "Pub. Studio",       icon: "✐" },
+      { key: "magazine",             label: "The Magazine",      icon: "✦" },
+      { key: "magazine-studio",      label: "Article Studio",    icon: "✎" },
+    ],
+  },
+  {
     group: "Content",
     items: [
       { key: "homepage-manager", label: "Homepage Manager",  icon: "⌂" },
       { key: "social-studio",    label: "Social Studio",     icon: "◉" },
       { key: "page-studio",      label: "Page Studio",       icon: "⟡" },
-      { key: "magazine",         label: "The Magazine",      icon: "◈" },
-      { key: "magazine-studio",  label: "Magazine Studio",   icon: "✦" },
       { key: "reusable-blocks",  label: "Reusable Blocks",   icon: "⊞" },
       { key: "site-content",     label: "Site Content",      icon: "≡" },
     ],
@@ -398,6 +409,7 @@ const GROUP_ICON_PATHS = {
   Engagement:         'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z',
   Intelligence:       'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
   Design:             'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
+  Publications:       'M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z',
   Content:            'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6',
   Settings:           'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z',
 };
@@ -11698,6 +11710,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "ai-settings":     return <AISettingsPage C={C} />;
       case "connected-data":          return <ConnectedDataModule C={C} NU={NU} GD={GD} />;
       case "live-stats":             return <LiveStatsModule C={C} />;
+      case "analytics":              return <UnifiedAnalyticsDashboard C={C} />;
       case "platform-intelligence":  return <PlatformIntelligenceModule C={C} />;
       case "media-intelligence":     return <PlatformMediaIntelligenceModule C={C} />;
       case "market-intelligence":    return <MarketIntelligenceModule C={C} darkMode={darkMode} />;
@@ -11725,7 +11738,9 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         if (action === 'magazine-studio') { setActiveTabState('magazine-studio'); }
         else onNavigate(action);
       }} />;
-      case "magazine-studio": return null; // Handled in main render logic
+      case "magazine-studio":      return null; // Handled in main render logic
+      case "publication-studio":   return null; // Handled in main render logic
+      case "magazine-issues":  return <MagazineIssuesModule C={C} />;
       case "social-studio":   return <SocialStudioModule C={C} />;
       case "reusable-blocks": return <ReusableBlocksModule C={C} NU={NU} GD={GD} />;
       case "branding":        return <MenuBranding C={C} />;
@@ -11744,7 +11759,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         @media (max-width: 768px) {
           .admin-sidebar { display: flex !important; position: fixed !important; z-index: 999; left: 0; top: 0; width: 220px !important; height: 100vh !important; transform: translateX(${sidebarOpen ? "0" : "-100%"}); transition: transform 0.3s ease !important; box-shadow: ${sidebarOpen ? "6px 0 32px rgba(0,0,0,0.7)" : "none"}; border-right: ${sidebarOpen ? "1px solid rgba(201,168,76,0.25)" : "none"} !important; }
           .admin-sidebar-overlay { display: ${sidebarOpen ? "block" : "none"}; position: fixed; inset: 0; z-index: 998; background: rgba(0,0,0,0.5); }
-          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || listingStudioMode || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive ? '0' : '56px 16px 20px'} !important; }
+          .admin-main { padding: ${activeTab === 'magazine-studio' || activeTab === 'publication-studio' || activeTab === 'page-editor' || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || listingStudioMode || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive ? '0' : '56px 16px 20px'} !important; }
           .admin-hamburger { display: flex !important; }
           .admin-collapse-btn { display: none !important; }
           .admin-grid-2col { grid-template-columns: 1fr !important; }
@@ -11962,12 +11977,16 @@ export default function AdminDashboard({ onBack, onNavigate }) {
         </aside>
 
         {/* ── Main content ── */}
-        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'market-intelligence' || activeTab === 'platform-intelligence' || activeTab === 'media-intelligence' || activeTab === 'live-stats' || activeTab === 'reporting-hub' || activeTab === 'email-builder' || activeTab === 'newsletter-builder' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
+        <main className="admin-main" style={{ flex: 1, minHeight: 0, padding: listingStudioMode || activeTab === 'listing-studio' || activeTab === 'event-studio' || activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'publication-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'market-intelligence' || activeTab === 'platform-intelligence' || activeTab === 'media-intelligence' || activeTab === 'live-stats' || activeTab === 'reporting-hub' || activeTab === 'email-builder' || activeTab === 'newsletter-builder' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive ? 0 : "40px 48px", overflow: activeTab === 'page-editor' || activeTab === 'magazine-studio' || activeTab === 'publication-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' ? "hidden" : "auto", display: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' ? "flex" : undefined, flexDirection: eventsBuilderActive || locationStudioActive || cityStudioActive || categoryStudioActive || activeTab === 'event-studio' || activeTab === 'locations' || activeTab === 'cities' || activeTab === 'category-studio' || activeTab === 'showcase-studio' || activeTab === 'ai-seo-studio' || activeTab === 'site-content' ? "column" : undefined, transition: "background 0.3s" }}>
           {/* Magazine Studio, full-screen inside admin layout */}
           {activeTab === 'magazine-studio' ? (
             <MagazineStudio
               onNavigateMagazine={() => onNavigate('magazine')}
               onNavigateHome={() => setActiveTabState('overview')}
+            />
+          ) : activeTab === 'publication-studio' ? (
+            <PublicationStudio
+              onBack={() => setActiveTabState('magazine-issues')}
             />
           ) : listingStudioMode || activeTab === 'listing-studio' ? (
             <Suspense fallback={
@@ -11999,7 +12018,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
             </Suspense>
           ) : (
             <>
-              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'venue-intake', 'showcase-studio', 'ai-seo-studio', 'locations', 'cities', 'category-studio', 'market-intelligence', 'platform-intelligence', 'media-intelligence', 'live-stats', 'reporting-hub', 'aura', 'crm', 'marketing', 'email-marketing', 'newsletter', 'email-builder', 'newsletter-builder', 'seo', 'platform-settings', 'connected-data', 'listing-applications', 'events', 'team', 'site-content', 'venue-profiles'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && !locationStudioActive && !cityStudioActive && !categoryStudioActive && (
+              {!['page-editor', 'listing-studio', 'event-studio', 'magazine-studio', 'publication-studio', 'venue-intake', 'showcase-studio', 'ai-seo-studio', 'locations', 'cities', 'category-studio', 'market-intelligence', 'platform-intelligence', 'media-intelligence', 'live-stats', 'reporting-hub', 'aura', 'crm', 'marketing', 'email-marketing', 'newsletter', 'email-builder', 'newsletter-builder', 'seo', 'platform-settings', 'connected-data', 'listing-applications', 'events', 'team', 'site-content', 'venue-profiles'].includes(activeTab) && !listingStudioMode && !eventsBuilderActive && !locationStudioActive && !cityStudioActive && !categoryStudioActive && (
                 <div style={{ marginBottom: 36 }}>
                   <h1 style={{
                     fontFamily: GD, fontSize: 24, fontWeight: 400,
@@ -12509,7 +12528,7 @@ function MagazineAdminModule({ C, onNavigate }) {
               };
               const rowBg = isScheduled ? 'rgba(99,102,241,0.04)' : isDraft ? 'rgba(234,179,8,0.03)' : i % 2 === 0 ? 'transparent' : `${C.card}60`;
               return (
-              <div key={post.id || post.slug} style={{
+              <div key={post.id || post.slug || `post-row-${i}`} style={{
                 display: 'grid', gridTemplateColumns: '120px 1fr 110px 90px 60px 130px 130px 130px 120px',
                 padding: '10px 16px', alignItems: 'center',
                 borderBottom: i < filtered.length - 1 ? `1px solid ${C.border}` : 'none',

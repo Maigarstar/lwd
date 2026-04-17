@@ -2004,11 +2004,12 @@ function HeroVideoInput({ value, onChange }) {
 
 // ── Hero styles ────────────────────────────────────────────────────────────────
 const HERO_STYLES = [
-  { id: 'editorial',  label: 'Editorial',  icon: '▉', desc: 'Full-bleed image, gradient overlay, text at bottom' },
-  { id: 'split',      label: 'Split',      icon: '▐', desc: 'Text left, image right (50 / 50)' },
-  { id: 'cinematic',  label: 'Cinematic',  icon: '▣', desc: 'Full-screen image with centred text overlay' },
-  { id: 'minimal',    label: 'Minimal',    icon: '▢', desc: 'Dark background, no image, centred type' },
-  { id: 'banner',     label: 'Banner',     icon: '▬', desc: 'Short banner strip with title' },
+  { id: 'editorial',      label: 'Editorial',      icon: '▉', desc: 'Full-bleed image, gradient overlay, text at bottom' },
+  { id: 'split',          label: 'Split',          icon: '▐', desc: 'Text left, image right (50 / 50)' },
+  { id: 'cinematic',      label: 'Cinematic',      icon: '▣', desc: 'Full-screen image with centred text overlay' },
+  { id: 'minimal',        label: 'Minimal',        icon: '▢', desc: 'Dark background, no image, centred type' },
+  { id: 'banner',         label: 'Banner',         icon: '▬', desc: 'Short banner strip with title' },
+  { id: 'gallery-split',  label: 'Gallery Split',  icon: '◫', desc: 'Large landscape left + portrait right, thumbnail strip below' },
 ];
 
 // ── Hero options panel, with live visual mini-preview ─────────────────────────
@@ -2016,7 +2017,7 @@ function HeroPanel({ formData, onChange, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
   const upd = (key, val) => onChange({ ...formData, [key]: val });
   const hs  = formData.heroStyle || 'editorial';
-  const hasImage   = ['editorial', 'split', 'cinematic', 'banner'].includes(hs);
+  const hasImage   = ['editorial', 'split', 'cinematic', 'banner', 'gallery-split'].includes(hs);
   const hasOverlay = ['editorial', 'cinematic'].includes(hs);
   const titlePos   = formData.heroTitlePosition || 'bottom';
   const overlayOp  = ((formData.heroOverlayOpacity ?? 60) / 100).toFixed(2);
@@ -2082,6 +2083,34 @@ function HeroPanel({ formData, onChange, defaultOpen = false }) {
       {hs === 'minimal' && (
         <div style={{ position: 'absolute', inset: 0, background: S.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '10px 20px' }}>{previewText}</div>
       )}
+      {hs === 'gallery-split' && (() => {
+        // New model: images = [coverImage, ...gallery], deduped
+        // LEFT  = images[0] = coverImage  (starts here, cycles on public page)
+        // RIGHT = images[1] = gallery[0]  (FIXED supporting image)
+        const gImgs    = Array.isArray(formData.galleryImages) ? formData.galleryImages : [];
+        const leftImg  = formData.coverImage || null;    // images[0]
+        const rightImg = gImgs[0] || null;               // images[1] — FIXED right
+        const allImgs  = [formData.coverImage, ...gImgs].filter(Boolean);
+        return (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, display: 'flex', gap: 2, overflow: 'hidden' }}>
+              <div style={{ flex: 2, background: '#111', overflow: 'hidden', position: 'relative' }}>
+                {leftImg ? <img src={leftImg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ position: 'absolute', inset: 0, background: '#1a1a16' }} />}
+              </div>
+              <div style={{ flex: 1, background: '#111', overflow: 'hidden', position: 'relative' }}>
+                {rightImg ? <img src={rightImg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ position: 'absolute', inset: 0, background: '#1a1a16', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: FU, fontSize: 6, color: S.muted }}>+</span></div>}
+              </div>
+            </div>
+            <div style={{ height: 20, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '0 4px' }}>
+              {allImgs.slice(0, 6).map((src, i) => (
+                <div key={i} style={{ width: 14, height: 14, borderRadius: 1, overflow: 'hidden', border: i === 0 ? `1px solid ${GOLD}` : '1px solid rgba(255,255,255,0.15)' }}>
+                  <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Style label badge */}
       <div style={{ position: 'absolute', top: 8, left: 8, fontFamily: FU, fontSize: 7, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, background: 'color-mix(in srgb, #000 55%, transparent)', padding: '2px 6px', borderRadius: 1 }}>
@@ -2170,6 +2199,20 @@ function HeroPanel({ formData, onChange, defaultOpen = false }) {
                   </button>
                 ))}
               </div>
+            </Field>
+          )}
+
+          {/* Gallery-split caption */}
+          {hs === 'gallery-split' && (
+            <Field label="Hero Caption" hint="Short italic tagline overlaid on the gallery split">
+              <input
+                type="text"
+                value={formData.heroCaption || ''}
+                onChange={e => upd('heroCaption', e.target.value)}
+                placeholder="e.g. Photography by John Smith · A winter celebration at…"
+                maxLength={160}
+                style={{ width: '100%', fontFamily: FU, fontSize: 11, padding: '6px 8px', borderRadius: 2, border: '1px solid var(--s-border, rgba(245,240,232,0.07))', background: 'var(--s-input-bg, rgba(255,255,255,0.04))', color: 'var(--s-text, #f5f0e8)', outline: 'none' }}
+              />
             </Field>
           )}
         </div>
@@ -3518,6 +3561,15 @@ function ArticlePreview({ formData, isLight, viewport, onBlockClick, selectedBlo
   const heroHeightPx = { standard: 340, tall: 480, fullscreen: '100vh' }[formData.heroHeight || 'standard'];
   const overlayOp    = ((formData.heroOverlayOpacity ?? 60) / 100).toFixed(2);
   const titlePos     = formData.heroTitlePosition || 'bottom';
+  const [gallerySplitIdx, setGallerySplitIdx] = useState(0); // active thumbnail for gallery-split
+  // Inject thumbnail CSS for gallery-split editor preview once
+  useEffect(() => {
+    if (document.getElementById('gs-ed-css')) return;
+    const s = document.createElement('style');
+    s.id = 'gs-ed-css';
+    s.textContent = '@keyframes gsEdFade{from{opacity:0}to{opacity:1}}.gs-ed-img{animation:gsEdFade 0.28s ease forwards}.gs-thumb{transition:opacity .22s,transform .2s,box-shadow .2s}.gs-thumb:hover{opacity:.88!important;transform:translateY(-1px)}.gs-strip::-webkit-scrollbar{display:none}';
+    document.head.appendChild(s);
+  }, []);
 
   // Shared text block renderer
   const heroText = (dark = true) => {
@@ -3627,6 +3679,133 @@ function ArticlePreview({ formData, isLight, viewport, onBlockClick, selectedBlo
           </div>
         </div>
       )}
+
+      {heroStyle === 'gallery-split' && (() => {
+        // New model: images = [coverImage, ...galleryImages], deduped
+        // images[0] = coverImage (left starts here)
+        // images[1] = gallery[0] (FIXED right panel)
+        const _gallery  = Array.isArray(formData.galleryImages) ? formData.galleryImages : [];
+        const _combined = [formData.coverImage, ..._gallery].filter(Boolean);
+        const _seen     = new Set();
+        const images    = _combined.filter(u => { if (_seen.has(u)) return false; _seen.add(u); return true; });
+
+        const rightImg   = images.length >= 2 ? images[1] : (images[0] || null);
+        const gsIdx      = Math.min(gallerySplitIdx, Math.max(0, images.length - 1));
+        const caption    = formData.heroCaption || '';
+        const isMobileVp = viewport === 'mobile';
+        const hasSplit   = images.length >= 2;
+        const showThumbs = images.length >= 3;
+
+        // Palette
+        const gsBg    = isLight ? '#ffffff'             : '#0f0f0d';
+        const gsTitleC= isLight ? '#141414'             : '#f5f0e8';
+        const gsMuted = isLight ? 'rgba(20,20,20,0.48)' : 'rgba(245,240,232,0.50)';
+        const gsBorder= isLight ? 'rgba(20,20,20,0.10)' : 'rgba(245,240,232,0.08)';
+        const gsStrip = isLight ? '#f7f5f2'             : '#111110';
+        const gsArrow = isLight ? '#484440'             : 'rgba(245,240,232,0.70)';
+        const gsArrowBg= isLight ? 'rgba(248,246,243,0.97)': 'rgba(18,18,16,0.94)';
+        const gsPhBg  = isLight ? '#f3f3f1'             : '#1a1a16';
+
+        // Thumb sizes (editor preview scaled ~70% from public)
+        const tW = isMobileVp ? 84 : 112;
+        const tH = isMobileVp ? 56 : 75;
+        const tG = isMobileVp ? 8  : 10;
+
+        // 0 images fallback
+        if (images.length === 0) return (
+          <div style={{ background: gsBg, padding: '32px 24px', textAlign: 'center', borderBottom: `1px solid ${gsBorder}` }}>
+            <p style={{ fontFamily: FU, fontSize: 10, color: gsMuted, margin: 0 }}>Add a cover image + gallery images to see the Gallery Split hero.</p>
+          </div>
+        );
+
+        return (
+          <div style={{ background: gsBg }}>
+            {/* ── Title block ── */}
+            <div style={{ padding: '28px 20px 16px', textAlign: 'center' }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginBottom:12 }}>
+                <div style={{ width:28, height:1, background:GOLD, opacity:0.45 }} />
+                <span style={{ fontFamily:FU, fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:GOLD }}>
+                  {formData.categoryLabel || 'Feature'}
+                </span>
+                <div style={{ width:28, height:1, background:GOLD, opacity:0.45 }} />
+              </div>
+              <div style={{ fontFamily:FD, fontSize:'clamp(18px,3vw,32px)', fontWeight:400, color:gsTitleC, lineHeight:1.15, letterSpacing:'-0.01em', maxWidth:600, margin:'0 auto 10px' }}>
+                {formData.title || 'Article Title'}
+              </div>
+              {formData.excerpt && (
+                <div style={{ fontFamily:FD, fontSize:12, fontStyle:'italic', color:gsMuted, lineHeight:1.6, maxWidth:440, margin:'0 auto 10px' }}>
+                  {formData.excerpt}
+                </div>
+              )}
+              <div style={{ width:32, height:1, background:gsBorder, margin:'0 auto 10px' }} />
+              <span style={{ fontFamily:FU, fontSize:9, color:gsMuted }}>{new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</span>
+            </div>
+
+            {/* ── Image area ── */}
+            <div style={{ margin:'0 14px' }}>
+              {!hasSplit ? (
+                /* 1 image: full-width, 4:3 ratio */
+                <div style={{ position:'relative', width:'100%', aspectRatio:'4/3', overflow:'hidden', borderRadius:3, background:gsPhBg }}>
+                  <img key={gsIdx} src={images[0]} alt="" className="gs-ed-img"
+                    style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                  {caption && (
+                    <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'16px 14px 10px', background:'linear-gradient(to top,rgba(0,0,0,0.42) 0%,transparent 100%)', pointerEvents:'none' }}>
+                      <span style={{ fontFamily:FD, fontSize:10, fontStyle:'italic', fontWeight:300, color:'rgba(255,255,255,0.88)' }}>{caption}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* 2+ images: 65/35 grid */
+                <div style={{ display: isMobileVp ? 'block' : 'grid', gridTemplateColumns:'minmax(0,1.857fr) minmax(120px,0.7fr)', gap:isMobileVp ? 0 : 6 }}>
+                  {/* LEFT — images[gsIdx], fades on thumb click */}
+                  <div style={{ position:'relative', width:'100%', aspectRatio:'4/3', overflow:'hidden', borderRadius:3, background:gsPhBg, marginBottom: isMobileVp ? 6 : 0 }}>
+                    <img key={gsIdx} src={images[gsIdx]} alt="" className="gs-ed-img"
+                      style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                    {caption && (
+                      <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'14px 12px 8px', background:'linear-gradient(to top,rgba(0,0,0,0.42) 0%,transparent 100%)', pointerEvents:'none' }}>
+                        <span style={{ fontFamily:FD, fontSize:10, fontStyle:'italic', fontWeight:300, color:'rgba(255,255,255,0.88)' }}>{caption}</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* RIGHT — images[1], FIXED, no key */}
+                  <div style={{ position:'relative', overflow:'hidden', borderRadius:3, background:gsPhBg, minHeight: isMobileVp ? 100 : 'auto', aspectRatio: isMobileVp ? '3/2' : 'auto' }}>
+                    <img src={rightImg} alt=""
+                      style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Thumbnail rail — 3+ images ── */}
+            {showThumbs && (
+              <div style={{ margin:'8px 14px 0' }}>
+                <div style={{ display:'grid', gridTemplateColumns: isMobileVp ? '1fr' : '32px minmax(0,1fr) 32px', gap:6, alignItems:'center' }}>
+                  {!isMobileVp && (
+                    <button onClick={e=>{e.stopPropagation(); setGallerySplitIdx(prev => Math.max(0, prev - 1));}} disabled={gsIdx===0}
+                      style={{ width:32, height:32, border:'none', borderRadius:2, background:gsArrowBg, color:gsArrow, fontSize:18, cursor: gsIdx===0 ? 'default' : 'pointer', opacity: gsIdx===0 ? 0.25 : 0.80, transition:'opacity 0.18s', display:'flex', alignItems:'center', justifyContent:'center', padding:0, flexShrink:0 }}>‹</button>
+                  )}
+                  <div id="gs-ed-strip" className="gs-strip" style={{ display:'flex', gap:tG, overflowX:'auto', scrollbarWidth:'none', alignItems:'center', padding: isMobileVp ? '8px 0' : '10px 0' }}>
+                    {images.map((src, i) => (
+                      <button key={i} onClick={e=>{e.stopPropagation(); setGallerySplitIdx(i);}} className="gs-thumb" aria-label={`Image ${i+1}`} aria-pressed={gsIdx===i}
+                        style={{ width:tW, height:tH, borderRadius:2, overflow:'hidden', flexShrink:0, padding:0, cursor:'pointer', background:'none', border:'none',
+                          boxShadow: gsIdx===i ? `0 0 0 2.5px ${GOLD}` : `0 0 0 1.5px ${gsBorder}`,
+                          opacity: gsIdx===i ? 1 : 0.52 }}>
+                        <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block', transform: gsIdx===i ? 'scale(1.03)' : 'scale(1)', transition:'transform 0.22s ease' }} />
+                      </button>
+                    ))}
+                  </div>
+                  {!isMobileVp && (
+                    <button onClick={e=>{e.stopPropagation(); setGallerySplitIdx(prev => Math.min(images.length - 1, prev + 1));}} disabled={gsIdx===images.length-1}
+                      style={{ width:32, height:32, border:'none', borderRadius:2, background:gsArrowBg, color:gsArrow, fontSize:18, cursor: gsIdx===images.length-1 ? 'default' : 'pointer', opacity: gsIdx===images.length-1 ? 0.25 : 0.80, transition:'opacity 0.18s', display:'flex', alignItems:'center', justifyContent:'center', padding:0, flexShrink:0 }}>›</button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div style={{ height:24 }} />
+          </div>
+        );
+      })()}
 
       </div>{/* end hero click wrapper */}
 
@@ -3780,6 +3959,55 @@ function HeroPreviewPane({ formData, isLight }) {
           </div>
         </div>
       )}
+      {heroStyle === 'gallery-split' && (() => {
+        // New model: images = [coverImage, ...gallery], deduped
+        // LEFT  = images[0] = coverImage  (starting state of the cycling left panel)
+        // RIGHT = images[1] = gallery[0]  (FIXED supporting image)
+        const gallery  = Array.isArray(formData.galleryImages) ? formData.galleryImages : [];
+        const leftImg  = formData.coverImage || null;    // images[0]
+        const rightImg = gallery[0] || null;             // images[1] — FIXED right
+        const caption  = formData.heroCaption || '';
+        const allImgs  = [formData.coverImage, ...gallery].filter(Boolean);
+
+        if (!leftImg && !rightImg) {
+          return (
+            <div style={{ background: TBG, padding: '24px 20px', textAlign: 'center' }}>
+              {heroTextPreview(false)}
+              <p style={{ fontFamily: FU, fontSize: 9, color: TM, marginTop: 8 }}>Add images for Gallery Split</p>
+            </div>
+          );
+        }
+
+        return (
+          <div>
+            <div style={{ background: TBG, padding: '20px 20px 12px' }}>
+              {heroTextPreview(false)}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.857fr) minmax(60px,0.7fr)', gap: 2, height: heroHeightPx * 0.6, overflow: 'hidden', background: '#0a0a0a' }}>
+              <div style={{ position: 'relative', overflow: 'hidden' }}>
+                {leftImg ? <img src={leftImg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ position: 'absolute', inset: 0, background: '#1a1a16' }} />}
+                {caption && (
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '4px 8px', background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 100%)' }}>
+                    <span style={{ fontFamily: FD, fontSize: 8, fontStyle: 'italic', color: 'rgba(245,240,232,0.6)' }}>{caption}</span>
+                  </div>
+                )}
+              </div>
+              <div style={{ position: 'relative', overflow: 'hidden' }}>
+                {rightImg ? <img src={rightImg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ position: 'absolute', inset: 0, background: '#1a1a16', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: FU, fontSize: 8, color: TM }}>+</span></div>}
+              </div>
+            </div>
+            {allImgs.length > 1 && (
+              <div style={{ background: '#0a0a0a', padding: '4px 8px', display: 'flex', gap: 3, overflowX: 'auto' }}>
+                {allImgs.slice(0, 6).map((src, i) => (
+                  <div key={i} style={{ width: 28, height: 20, borderRadius: 1, overflow: 'hidden', flexShrink: 0, border: i === 0 ? `1px solid ${GOLD}` : '1px solid rgba(255,255,255,0.1)' }}>
+                    <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -6229,6 +6457,26 @@ const HERO_THUMBS = {
       <rect x="70" y="56" width="80"  height="3" rx="1" fill="rgba(245,240,232,0.5)" />
     </svg>
   ),
+  'hero-gallery-split': (
+    <svg viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', width: '100%', height: '100%' }}>
+      <rect width="220" height="90" fill="#141210" />
+      {/* Title block */}
+      <rect x="12" y="10" width="30" height="2" rx="1" fill="#c9a96e" />
+      <rect x="12" y="16" width="130" height="5" rx="1" fill="rgba(245,240,232,0.85)" />
+      <rect x="12" y="25" width="100" height="5" rx="1" fill="rgba(245,240,232,0.85)" />
+      {/* Split images */}
+      <rect x="12" y="36" width="130" height="40" rx="1" fill="#2a2520" />
+      <rect x="145" y="36" width="62" height="40" rx="1" fill="#2a2520" />
+      {/* Image detail lines */}
+      <circle cx="77" cy="56" r="7" fill="#3a3228" opacity="0.7" />
+      <circle cx="176" cy="56" r="5" fill="#3a3228" opacity="0.7" />
+      {/* Thumbnail strip */}
+      <rect x="12" y="79" width="18" height="8" rx="1" fill="#c9a96e" opacity="0.7" />
+      <rect x="34" y="79" width="18" height="8" rx="1" fill="#3a3228" />
+      <rect x="56" y="79" width="18" height="8" rx="1" fill="#3a3228" />
+      <rect x="78" y="79" width="18" height="8" rx="1" fill="#3a3228" />
+    </svg>
+  ),
 };
 
 const TOOLBAR_MENUS = [
@@ -6236,11 +6484,12 @@ const TOOLBAR_MENUS = [
     label: 'Hero',
     icon: '◉',
     items: [
-      { label: 'Cinematic',  sub: 'Full-bleed image · overlay text', action: 'hero-cinematic' },
-      { label: 'Editorial',  sub: 'Text dominant · inset image',     action: 'hero-editorial' },
-      { label: 'Split',      sub: '50/50 image + text',              action: 'hero-split' },
-      { label: 'Minimalist', sub: 'No image · typography only',      action: 'hero-minimal' },
-      { label: 'Dark',       sub: 'Dark full-bleed · centred',       action: 'hero-dark' },
+      { label: 'Cinematic',     sub: 'Full-bleed image · overlay text',               action: 'hero-cinematic' },
+      { label: 'Editorial',     sub: 'Text dominant · inset image',                   action: 'hero-editorial' },
+      { label: 'Split',         sub: '50/50 image + text',                            action: 'hero-split' },
+      { label: 'Minimalist',    sub: 'No image · typography only',                   action: 'hero-minimal' },
+      { label: 'Dark',          sub: 'Dark full-bleed · centred',                    action: 'hero-dark' },
+      { label: 'Gallery Split', sub: 'Landscape + portrait · thumbnail strip below', action: 'hero-gallery-split' },
     ],
   },
   {
@@ -6289,11 +6538,12 @@ const TOOLBAR_MENUS = [
 ];
 
 const HERO_PRESETS = {
-  'hero-cinematic': { heroLayout: 'cinematic', heroHeight: 560, heroOverlay: 0.5 },
-  'hero-editorial': { heroLayout: 'editorial', heroHeight: 420, heroOverlay: 0.25 },
-  'hero-split':     { heroLayout: 'split',     heroHeight: 480, heroOverlay: 0 },
-  'hero-minimal':   { heroLayout: 'minimal',   heroHeight: 0,   heroOverlay: 0 },
-  'hero-dark':      { heroLayout: 'dark',      heroHeight: 600, heroOverlay: 0.68 },
+  'hero-cinematic':     { heroStyle: 'cinematic',    heroHeight: 'tall',     heroOverlayOpacity: 50 },
+  'hero-editorial':     { heroStyle: 'editorial',    heroHeight: 'standard', heroOverlayOpacity: 25 },
+  'hero-split':         { heroStyle: 'split',        heroHeight: 'standard', heroOverlayOpacity: 0  },
+  'hero-minimal':       { heroStyle: 'minimal',      heroHeight: 'standard', heroOverlayOpacity: 0  },
+  'hero-dark':          { heroStyle: 'cinematic',    heroHeight: 'tall',     heroOverlayOpacity: 68 },
+  'hero-gallery-split': { heroStyle: 'gallery-split',heroHeight: 'standard', heroOverlayOpacity: 0  },
 };
 
 function CanvasToolbar({ formData, onChange, onAddBlock, SS, viewport = 'desktop', onViewport }) {

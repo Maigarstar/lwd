@@ -77,6 +77,11 @@ import H3 from "./pages/H3.jsx";
 import AdvertisePage from "./pages/AdvertisePage.jsx";
 import MostLovedPage from "./pages/MostLovedPage.jsx";
 import ArtistryPage from "./pages/Artistry/ArtistryPage.jsx";
+import PublicationsPage       from "./pages/PublicationsPage.jsx";
+import PublicationsReaderPage from "./pages/PublicationsReaderPage.jsx";
+import PublicationsEmbedPage  from "./pages/PublicationsEmbedPage.jsx";
+import PublicationStudio      from "./pages/PublicationStudio.jsx";
+import ThumbnailRenderer      from "./pages/PublicationStudio/ThumbnailRenderer.jsx";
 import MagazineHomePage     from "./pages/Magazine/MagazineHomePage.jsx";
 import CategoryPage          from "./pages/Magazine/CategoryPage.jsx";
 import MagazineArticlePage  from "./pages/Magazine/MagazineArticlePage.jsx";
@@ -205,7 +210,11 @@ function stateToPath(pg, opts = {}) {
     case "magazine-category": return `/magazine/category/${opts.magazineCategoryId || ''}`;
     case "magazine-fashion": return "/magazine/fashion";
     case "magazine-article": return `/magazine/${opts.magazineSlug || ''}`;
-    case "magazine-studio":  return "/magazine-studio";
+    case "magazine-studio":        return "/magazine-studio";
+    case "publications":           return "/publications";
+    case "publications-reader":    return `/publications/${opts.publicationsSlug || ''}`;
+    case "publications-embed":     return `/publications/embed/${opts.publicationsEmbedSlug || ''}`;
+    case "publication-studio":     return "/publication-studio";
     case "studio-edit": {
       const { entityType, slug, from } = opts;
       if (!entityType || !slug) return "/";
@@ -323,6 +332,12 @@ function pathToState(pathname) {
     return { page: "studio-edit", entityType: parts[2], slug: decodeURIComponent(parts[3]) };
   }
   if (parts[0] === "magazine-studio" && parts.length === 1) return { page: "magazine-studio" };
+  if (parts[0] === "publications" && parts.length === 1) return { page: "publications" };
+  if (parts[0] === "publications" && parts[1] === "embed" && parts.length === 3) return { page: "publications-embed", publicationsEmbedSlug: parts[2] };
+  if (parts[0] === "publications" && parts.length === 2) return { page: "publications-reader", publicationsSlug: parts[1] };
+  if (parts[0] === "publication-studio") return { page: "publication-studio" };
+  // Dev-only renderer for thumbnail generation — see scripts/generate-template-thumbnails.mjs
+  if (parts[0] === "studio-thumbnail" && parts.length === 2) return { page: "studio-thumbnail", templateId: parts[1] };
   if (parts[0] === "magazine" && parts.length === 1) return { page: "magazine" };
   if (parts[0] === "magazine" && parts[1] === "category" && parts.length === 3) return { page: "magazine-category", magazineCategoryId: parts[2] };
   if (parts[0] === "magazine" && parts[1] === "fashion" && parts.length === 2) return { page: "magazine-fashion" };
@@ -440,6 +455,9 @@ function App() {
   const [categorySearchQuery, setCategorySearchQuery] = useState(null);
   const [activeMagazineCategoryId, setActiveMagazineCategoryId] = useState(initial.magazineCategoryId || null);
   const [activeMagazineSlug, setActiveMagazineSlug] = useState(initial.magazineSlug || null);
+  const [activePublicationsSlug, setActivePublicationsSlug] = useState(initial.publicationsSlug || null);
+  const [activeEmbedSlug,        setActiveEmbedSlug]        = useState(initial.publicationsEmbedSlug || null);
+  const [studioThumbnailId,      setStudioThumbnailId]      = useState(initial.templateId || null);
   const [studioEntityType, setStudioEntityType] = useState(initial.entityType || null);
   const [studioSlug, setStudioSlug] = useState(initial.slug || null);
   const [activeVenueSlug, setActiveVenueSlug] = useState(initial.venueSlug || null);
@@ -486,6 +504,7 @@ function App() {
       activationToken: activationToken,
       magazineCategoryId: activeMagazineCategoryId,
       magazineSlug: activeMagazineSlug,
+      publicationsSlug: activePublicationsSlug,
       venueSlug: activeVenueSlug,
       vendorSlug: activeVendorSlug,
       showcaseSlug: activeShowcaseSlug,
@@ -524,6 +543,7 @@ function App() {
       setActiveEventSlug(s.eventSlug || null);
       setActiveLocationType(s.locationType || null);
       setActiveLocationSlug(s.locationSlug || null);
+      setStudioThumbnailId(s.templateId || null);
       setCategoryRegion(null);
       setCategorySearchQuery(null);
       setPage(s.page);
@@ -661,6 +681,10 @@ function App() {
   const goMagazine = () => { setActiveMagazineCategoryId(null); setActiveMagazineSlug(null); setPage("magazine"); };
   const goMagazineCategory = (categoryId) => { setActiveMagazineCategoryId(categoryId); setActiveMagazineSlug(null); setPage("magazine-category"); };
   const goMagazineArticle = (slug) => { setActiveMagazineSlug(slug); setActiveMagazineCategoryId(null); setPage("magazine-article"); };
+  const goPublications      = () => { setActivePublicationsSlug(null); setPage("publications"); };
+  const goPublicationsReader = (slug) => { setActivePublicationsSlug(slug); setPage("publications-reader"); };
+  const goPublicationsEmbed  = (slug) => { setActiveEmbedSlug(slug); setPage("publications-embed"); };
+  const goPublicationStudio  = () => { setPage("publication-studio"); };
   const goMagazineFashion = () => { setActiveMagazineSlug(null); setActiveMagazineCategoryId(null); setPage("magazine-fashion"); };
   const [magazineEditSlug, setMagazineEditSlug] = useState(null);
   const goMagazineStudio  = (slug) => {
@@ -848,6 +872,30 @@ function App() {
             onNavigateStandard={goHome}
             onNavigateAbout={goAbout}
           />
+        )}
+        {page === "publications" && (
+          <PublicationsPage
+            onRead={goPublicationsReader}
+            onBack={goHome}
+            footerNav={footerNav}
+          />
+        )}
+        {page === "publications-reader" && (
+          <PublicationsReaderPage
+            slug={activePublicationsSlug}
+            onBack={goPublications}
+          />
+        )}
+        {page === "publications-embed" && (
+          <PublicationsEmbedPage slug={activeEmbedSlug} />
+        )}
+        {page === "publication-studio" && (
+          <PublicationStudio
+            onBack={goHome}
+          />
+        )}
+        {page === "studio-thumbnail" && (
+          <ThumbnailRenderer templateId={studioThumbnailId} />
         )}
         {page === "magazine" && (
           <MagazineHomePage
@@ -1161,15 +1209,15 @@ function App() {
             Rendered here for ALL pages except auth/dashboard pages listed below.
             RULE: Never import or render <SiteFooter> inside a page component that
             is served through this main.jsx render tree — it will double-render. ── */}
-        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review"].includes(page) && (
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","getting-married","magazine-studio","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","event-review","publications-reader","publications-embed","publication-studio","studio-thumbnail"].includes(page) && (
           <SiteFooter onNavigateAdmin={goAdmin} />
         )}
 
         {/* ── Aura suppressor — keeps chat closed on all dashboard / auth pages ── */}
-        <AuraSuppressor active={["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","join"].includes(page)} />
+        <AuraSuppressor active={["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","join","studio-thumbnail"].includes(page)} />
 
         {/* ── Global chat system, hidden on dashboards and auth pages ── */}
-        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","join"].includes(page) && (
+        {!["admin","admin-login","admin-oauth-callback","vendor","vendor-login","vendor-signup","vendor-activate","vendor-confirm-email","vendor-forgot-password","vendor-reset-password","portal","couple-signup","couple-login","couple-confirm-email","couple-forgot-password","couple-reset-password","join","studio-thumbnail"].includes(page) && (
           <AuraChat onNavigateHome={goHome} />
         )}
 

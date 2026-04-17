@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { getPostBySlug, getRelatedPosts } from './data/posts';
 import { fetchPostBySlug } from '../../services/magazineService';
 import ArticleBody from './components/ArticleBody';
@@ -195,6 +195,289 @@ function SidebarPostRow({ post, onClick, light = false }) {
   );
 }
 
+// ─── Gallery Split Hero ───────────────────────────────────────────────────────
+// Normalise: [coverImage, ...galleryImages], deduplicated by URL
+function normaliseGsImages(coverImage, galleryImages) {
+  const combined = [coverImage, ...(Array.isArray(galleryImages) ? galleryImages : [])].filter(Boolean);
+  const seen = new Set();
+  return combined.filter(src => {
+    const url = typeof src === 'string' ? src : (src?.url || src?.src || '');
+    if (!url || seen.has(url)) return false;
+    seen.add(url);
+    return true;
+  });
+}
+
+function GallerySplitHero({ post, isLight = true }) {
+  // ── Normalised image list: [coverImage, ...galleryImages], deduped ──────────
+  // images[0] = coverImage  →  left panel starts here
+  // images[1] = gallery[0]  →  right panel fixed here
+  const images = useMemo(
+    () => normaliseGsImages(post.coverImage, post.galleryImages),
+    [post.coverImage, post.galleryImages]
+  );
+
+  // Right panel = images[1] when available, else images[0] — computed once, NEVER changes
+  const fixedRightSrc = images.length >= 2 ? images[1] : (images[0] || null);
+
+  // ── Active index + opacity crossfade ─────────────────────────────────────────
+  const [activeIndex,  setActiveIndex]  = useState(0);
+  const [displayIndex, setDisplayIndex] = useState(0);
+  const [isFading,     setIsFading]     = useState(false);
+  const thumbStripRef = useRef(null);
+
+  // Reset if image list shrinks (e.g. editor removes cover)
+  useEffect(() => {
+    if (!images.length || activeIndex > images.length - 1) {
+      setActiveIndex(0);
+      setDisplayIndex(0);
+    }
+  }, [images.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fade out → swap image → fade in: 180ms out, 320ms CSS transition back in
+  useEffect(() => {
+    if (activeIndex === displayIndex) return;
+    setIsFading(true);
+    const t = setTimeout(() => {
+      setDisplayIndex(activeIndex);
+      setIsFading(false);
+    }, 180);
+    return () => clearTimeout(t);
+  }, [activeIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Viewport ──────────────────────────────────────────────────────────────────
+  const getVp = () => typeof window !== 'undefined'
+    ? (window.innerWidth < 768 ? 'mobile' : window.innerWidth < 1024 ? 'tablet' : 'desktop')
+    : 'desktop';
+  const [vp, setVp] = useState(getVp);
+  useEffect(() => {
+    const h = () => setVp(getVp());
+    window.addEventListener('resize', h, { passive: true });
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  const isMobile = vp === 'mobile';
+  const isTablet = vp === 'tablet';
+
+  // ── CSS injection once ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (document.getElementById('gs-hero-css')) return;
+    const s = document.createElement('style');
+    s.id = 'gs-hero-css';
+    s.textContent = `
+      .gs-thumb { transition: opacity 0.22s ease, transform 0.2s ease, box-shadow 0.2s ease; }
+      .gs-thumb:hover { opacity: 0.88 !important; transform: translateY(-1px); }
+      .gs-strip::-webkit-scrollbar { display: none; }
+    `;
+    document.head.appendChild(s);
+  }, []);
+
+  // ── Dimensions ────────────────────────────────────────────────────────────────
+  const thumbW  = isMobile ? 120 : isTablet ? 140 : 160;
+  const thumbH  = isMobile ?  80 : isTablet ?  95 : 110;
+  const thumbGp = isMobile ?  10 : 14;
+
+  // ── Palette ───────────────────────────────────────────────────────────────────
+  const bg        = isLight ? '#ffffff'               : '#0f0f0d';
+  const titleClr  = isLight ? '#141414'               : '#f5f0e8';
+  const mutedClr  = isLight ? 'rgba(20,20,20,0.48)'   : 'rgba(245,240,232,0.50)';
+  const borderClr = isLight ? 'rgba(20,20,20,0.10)'   : 'rgba(245,240,232,0.08)';
+  const arrowClr  = isLight ? '#484440'               : 'rgba(245,240,232,0.72)';
+  const arrowBg   = isLight ? 'rgba(248,246,243,0.97)': 'rgba(18,18,16,0.94)';
+  const phBg      = isLight ? '#f3f3f1'               : '#1a1a16';
+
+  // ── Fallback: 0 images → render nothing ──────────────────────────────────────
+  if (images.length === 0) return null;
+
+  const activeUrl  = images[displayIndex] || images[0] || '';
+  const caption    = post.heroCaption || '';
+  const hasSplit   = images.length >= 2;
+  const showThumbs = images.length >= 3;
+
+  // ── Shared title block ────────────────────────────────────────────────────────
+  const titleBlock = (
+    <div style={{ maxWidth:1280, margin:'0 auto', padding:'clamp(48px,6vw,80px) clamp(24px,5vw,72px) clamp(24px,3vw,36px)' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:14, marginBottom:20 }}>
+        <div style={{ width:40, height:1, background:GOLD, opacity:0.45 }} />
+        <span style={{ fontFamily:FU, fontSize:10, fontWeight:700, letterSpacing:'0.22em', textTransform:'uppercase', color:GOLD }}>
+          {post.categoryLabel || 'Feature'}
+        </span>
+        <div style={{ width:40, height:1, background:GOLD, opacity:0.45 }} />
+      </div>
+      <h1 style={{ fontFamily:FD, fontSize:'clamp(30px,4.5vw,62px)', fontWeight:400, color:titleClr, margin:'0 auto 14px', lineHeight:1.1, letterSpacing:'-0.01em', maxWidth:860, textAlign:'center' }}>
+        {post.title}
+      </h1>
+      {(post.standfirst || post.excerpt) && (
+        <p style={{ fontFamily:FD, fontSize:'clamp(15px,1.4vw,20px)', fontStyle:'italic', color:mutedClr, margin:'0 auto 18px', lineHeight:1.65, maxWidth:640, textAlign:'center' }}>
+          {post.standfirst || post.excerpt}
+        </p>
+      )}
+      <div style={{ width:48, height:1, background:borderClr, margin:'0 auto 16px' }} />
+      <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', justifyContent:'center' }}>
+        {post.author && <>
+          {post.author.avatar && <img src={post.author.avatar} alt={post.author.name} style={{ width:28, height:28, borderRadius:'50%', objectFit:'cover', flexShrink:0 }} />}
+          <span style={{ fontFamily:FU, fontSize:11, color:mutedClr }}>{post.author.name}</span>
+          <span style={{ color:borderClr, fontSize:16 }}>·</span>
+        </>}
+        <span style={{ fontFamily:FU, fontSize:11, color:mutedClr }}>{formatDate(post.date)}</span>
+        {post.readingTime && <>
+          <span style={{ color:borderClr, fontSize:16 }}>·</span>
+          <span style={{ fontFamily:FU, fontSize:11, color:mutedClr }}>{post.readingTime} min read</span>
+        </>}
+      </div>
+    </div>
+  );
+
+  // ── 1 image: single full-width, 4:3 ratio ────────────────────────────────────
+  if (!hasSplit) {
+    return (
+      <header style={{ background: bg }}>
+        {titleBlock}
+        <div style={{ maxWidth:1280, margin:'0 auto', padding:'0 clamp(24px,5vw,72px)' }}>
+          <div style={{ position:'relative', width:'100%', aspectRatio:'4/3', overflow:'hidden', background:phBg, borderRadius:3 }}>
+            <img src={activeUrl} alt="" style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+            {caption && <GsCaption caption={caption} />}
+          </div>
+        </div>
+        <div style={{ height:'clamp(32px,4vw,56px)', background:bg }} />
+      </header>
+    );
+  }
+
+  // ── 2+ images: split layout ───────────────────────────────────────────────────
+  return (
+    <header style={{ background: bg }}>
+      {titleBlock}
+
+      {/* ── Image grid ── */}
+      <div style={{ maxWidth:1280, margin:'0 auto', padding:'0 clamp(24px,5vw,72px)' }}>
+        {isMobile ? (
+          /* Mobile: main image (4:3) → supporting image (3:2) stacked below */
+          <div>
+            <div style={{ position:'relative', width:'100%', aspectRatio:'4/3', overflow:'hidden', background:phBg, borderRadius:3 }}>
+              <img
+                src={activeUrl}
+                alt=""
+                style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', display:'block',
+                  opacity: isFading ? 0 : 1, transition:'opacity 320ms ease' }}
+              />
+              {caption && <GsCaption caption={caption} />}
+            </div>
+            <div style={{ position:'relative', width:'100%', aspectRatio:'3/2', overflow:'hidden', background:phBg, borderRadius:3, marginTop:10 }}>
+              <img src={fixedRightSrc} alt="" style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+            </div>
+          </div>
+        ) : (
+          /* Desktop / tablet: 65/35 grid */
+          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.857fr) minmax(240px,0.7fr)', gap:10, alignItems:'stretch' }}>
+            {/* LEFT — 4:3 ratio, changes on thumbnail/arrow click, soft opacity fade */}
+            <div style={{ position:'relative', width:'100%', aspectRatio:'4/3', overflow:'hidden', background:phBg, borderRadius:3 }}>
+              <img
+                src={activeUrl}
+                alt=""
+                style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', display:'block',
+                  opacity: isFading ? 0 : 1, transition:'opacity 320ms ease' }}
+              />
+              {caption && <GsCaption caption={caption} />}
+            </div>
+            {/* RIGHT — images[1], FIXED forever, no state dependency */}
+            <div style={{ position:'relative', overflow:'hidden', background:phBg, borderRadius:3, minHeight:280 }}>
+              <img
+                src={fixedRightSrc}
+                alt=""
+                style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Thumbnail rail — 3+ images only ── */}
+      {showThumbs && (
+        <div style={{ maxWidth:1280, margin:'10px auto 0', padding:'0 clamp(24px,5vw,72px)' }}>
+          <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '48px minmax(0,1fr) 48px', gap:10, alignItems:'center' }}>
+
+            {/* Prev arrow */}
+            {!isMobile && (
+              <button
+                type="button"
+                onClick={() => setActiveIndex(prev => Math.max(0, prev - 1))}
+                disabled={activeIndex === 0}
+                aria-label="Previous image"
+                style={{ width:48, height:48, border:'none', borderRadius:2, background:arrowBg, color:arrowClr, fontSize:26, lineHeight:1,
+                  cursor: activeIndex === 0 ? 'default' : 'pointer',
+                  opacity: activeIndex === 0 ? 0.25 : 0.80,
+                  transition:'opacity 0.18s', display:'flex', alignItems:'center', justifyContent:'center', padding:0, flexShrink:0 }}
+              >‹</button>
+            )}
+
+            {/* Thumbnail strip */}
+            <div
+              ref={thumbStripRef}
+              className="gs-strip"
+              style={{ display:'flex', gap:thumbGp, overflowX:'auto', scrollbarWidth:'none', alignItems:'center',
+                padding: isMobile ? '12px 0' : '14px 0' }}
+            >
+              {images.map((src, i) => {
+                const isActive = i === activeIndex;
+                return (
+                  <button
+                    key={`gs-t-${i}`}
+                    type="button"
+                    onClick={() => setActiveIndex(i)}
+                    className="gs-thumb"
+                    aria-label={`View image ${i + 1}`}
+                    aria-pressed={isActive}
+                    style={{
+                      width:thumbW, height:thumbH, borderRadius:2, overflow:'hidden', flexShrink:0,
+                      padding:0, cursor:'pointer', background:'none', border:'none',
+                      boxShadow: isActive ? `0 0 0 2.5px ${GOLD}` : `0 0 0 1.5px ${borderClr}`,
+                      opacity: isActive ? 1 : 0.52,
+                    }}
+                  >
+                    <img
+                      src={src}
+                      alt=""
+                      style={{ width:'100%', height:'100%', objectFit:'cover', display:'block',
+                        transform: isActive ? 'scale(1.03)' : 'scale(1)', transition:'transform 0.22s ease' }}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Next arrow */}
+            {!isMobile && (
+              <button
+                type="button"
+                onClick={() => setActiveIndex(prev => Math.min(images.length - 1, prev + 1))}
+                disabled={activeIndex === images.length - 1}
+                aria-label="Next image"
+                style={{ width:48, height:48, border:'none', borderRadius:2, background:arrowBg, color:arrowClr, fontSize:26, lineHeight:1,
+                  cursor: activeIndex === images.length - 1 ? 'default' : 'pointer',
+                  opacity: activeIndex === images.length - 1 ? 0.25 : 0.80,
+                  transition:'opacity 0.18s', display:'flex', alignItems:'center', justifyContent:'center', padding:0, flexShrink:0 }}
+              >›</button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div style={{ height:'clamp(32px,4vw,56px)', background:bg }} />
+    </header>
+  );
+}
+
+// Caption overlay — editorial, subtle gradient, not boxed
+function GsCaption({ caption }) {
+  return (
+    <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'32px 20px 14px', background:'linear-gradient(to top,rgba(0,0,0,0.42) 0%,transparent 100%)', pointerEvents:'none' }}>
+      <span style={{ fontFamily:FD, fontSize:12, fontStyle:'italic', fontWeight:300, color:'rgba(255,255,255,0.88)', letterSpacing:'0.025em' }}>
+        {caption}
+      </span>
+    </div>
+  );
+}
+
 // ─── Layout A: Full-Width Editorial ──────────────────────────────────────────
 function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome, onNavigateCategory, onEdit, isLight, onToggleLight, footerNav }) {
   const T = getMagTheme(isLight);
@@ -215,7 +498,10 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
         topOffset={60}
       />
 
-      {/* Hero */}
+      {/* Hero — switches on post.heroStyle */}
+      {post.heroStyle === 'gallery-split' ? (
+        <GallerySplitHero post={post} isLight={isLight} />
+      ) : (
       <header style={{ position: 'relative', overflow: 'hidden' }}>
         <div style={{
           height: 'clamp(440px, 65svh, 720px)',
@@ -268,6 +554,7 @@ function LayoutFullWidth({ post, relatedPosts, onNavigateArticle, onNavigateHome
           </div>
         </div>
       </header>
+      )}
 
       {/* Article body */}
       <article style={{ padding: 'clamp(56px, 8vw, 96px) clamp(24px, 8vw, 140px)' }}>
@@ -327,11 +614,12 @@ function LayoutSidebar({ post, relatedPosts, onNavigateArticle, onNavigateHome, 
         topOffset={60}
       />
 
-      {/* Hero, narrower, left-aligned for sidebar layout */}
+      {/* Hero — switches on post.heroStyle */}
+      {post.heroStyle === 'gallery-split' && <GallerySplitHero post={post} isLight={isLight} />}
       <header style={{
         position: 'relative', overflow: 'hidden',
         background: '#0a0a0a',
-        padding: 'clamp(64px, 10vw, 120px) clamp(24px, 6vw, 80px) 0',
+        padding: post.heroStyle === 'gallery-split' ? '0 clamp(24px, 6vw, 80px) 0' : 'clamp(64px, 10vw, 120px) clamp(24px, 6vw, 80px) 0',
       }}>
         <div style={{ maxWidth: 1280, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>

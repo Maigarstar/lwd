@@ -378,10 +378,39 @@ export const useListingForm = (listingId = null) => {
             dining_menu_images: Array.isArray(listing.diningMenuImages) ? listing.diningMenuImages : [],
             // ── Contact Profile ───────────────────────────────────────────────
             contact_profile: listing.contactProfile && typeof listing.contactProfile === 'object'
-              ? { photo_file: null, photo_url: listing.contactProfile.photoUrl || listing.contactProfile.photo_url || '', name: listing.contactProfile.name || '', title: listing.contactProfile.title || '', bio: listing.contactProfile.bio || '', email: listing.contactProfile.email || '', phone: listing.contactProfile.phone || '', whatsapp: listing.contactProfile.whatsapp || '', response_time: listing.contactProfile.responseTime || listing.contactProfile.response_time || '', response_rate: listing.contactProfile.responseRate || listing.contactProfile.response_rate || '', instagram: listing.contactProfile.instagram || '', website: listing.contactProfile.website || '' }
-              : { photo_file: null, photo_url: '', name: '', title: '', bio: '', email: '', phone: '', whatsapp: '', response_time: '', response_rate: '', instagram: '', website: '' },
+              ? {
+                  photo_file: null,
+                  photo_url: listing.contactProfile.photoUrl || listing.contactProfile.photo_url || '',
+                  name: listing.contactProfile.name || '',
+                  title: listing.contactProfile.title || '',
+                  bio: listing.contactProfile.bio || '',
+                  email: listing.contactProfile.email || '',
+                  phone: listing.contactProfile.phone || '',
+                  whatsapp: listing.contactProfile.whatsapp || '',
+                  response_time: listing.contactProfile.responseTime || listing.contactProfile.response_time || '',
+                  response_rate: listing.contactProfile.responseRate || listing.contactProfile.response_rate || '',
+                  instagram: listing.contactProfile.instagram || '',
+                  website: listing.contactProfile.website || '',
+                  // Hydrate social sub-object from flat DB keys + any existing social object
+                  social: (() => {
+                    const cp = listing.contactProfile;
+                    const s = (cp.social && typeof cp.social === 'object') ? cp.social : {};
+                    return {
+                      instagram: s.instagram || cp.instagram || '',
+                      facebook:  s.facebook  || cp.facebook  || '',
+                      linkedin:  s.linkedin  || cp.linkedin  || '',
+                      tiktok:    s.tiktok    || cp.tiktok    || '',
+                      twitter:   s.twitter   || cp.twitter   || '',
+                      pinterest: s.pinterest || cp.pinterest || '',
+                      youtube:   s.youtube   || cp.youtube   || '',
+                    };
+                  })(),
+                }
+              : { photo_file: null, photo_url: '', name: '', title: '', bio: '', email: '', phone: '', whatsapp: '', response_time: '', response_rate: '', instagram: '', website: '', social: { instagram: '', facebook: '', linkedin: '', tiktok: '', twitter: '', pinterest: '', youtube: '' } },
             weddings_hosted: listing.weddingsHosted != null ? String(listing.weddingsHosted) : '',
             member_since:    listing.memberSince    || '',
+            is_featured: listing.isFeatured ?? false,
+            is_verified: listing.isVerified ?? false,
             status: listing.status || 'draft',
             published_at: listing.publishedAt || null,
             updated_at: listing.updatedAt || null,
@@ -655,6 +684,8 @@ export const useListingForm = (listingId = null) => {
         seoTitle: formData.seo_title,
         seoDescription: formData.seo_description,
         seoKeywords: formData.seo_keywords || [],
+        isFeatured: formData.is_featured ?? false,
+        isVerified: formData.is_verified ?? false,
         showcaseEnabled: formData.showcase_enabled ?? false,
         showcaseCategory: formData.showcase_category || 'venue',
         // Exclusive Use block
@@ -758,9 +789,25 @@ export const useListingForm = (listingId = null) => {
         diningDescription: formData.dining_description || '',
         diningMenuImages: diningUpload.items || [],
         // Contact profile (strip the non-serialisable File object; persist the uploaded URL)
-        contactProfile: formData.contact_profile
-          ? { ...formData.contact_profile, photo_file: undefined, photo_url: contactPhotoUrl }
-          : {},
+        contactProfile: (() => {
+          if (!formData.contact_profile) return {};
+          const cp = { ...formData.contact_profile, photo_file: undefined, photo_url: contactPhotoUrl };
+          // Write social links both as flat keys (backward compat) AND as nested
+          // social object (used by VenueProfile.jsx to render social icons)
+          if (cp.social && typeof cp.social === 'object') {
+            const s = cp.social;
+            // Flat keys for backward compat
+            if (s.instagram) cp.instagram = s.instagram;
+            if (s.facebook)  cp.facebook  = s.facebook;
+            if (s.linkedin)  cp.linkedin  = s.linkedin;
+            if (s.tiktok)    cp.tiktok    = s.tiktok;
+            if (s.twitter)   cp.twitter   = s.twitter;
+            if (s.pinterest) cp.pinterest = s.pinterest;
+            if (s.youtube)   cp.youtube   = s.youtube;
+            // Keep the social sub-object for VenueProfile to read
+          }
+          return cp;
+        })(),
         weddingsHosted: formData.weddings_hosted ? parseInt(formData.weddings_hosted, 10) || formData.weddings_hosted : null,
         memberSince:    formData.member_since    || null,
         // Opening hours

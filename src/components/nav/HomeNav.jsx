@@ -40,6 +40,7 @@ function resolveHandler(item, handlers) {
   if (nav_action === "browse")         return () => { window.location.href = "/venue"; };
   if (nav_action === "real-weddings")  return () => { window.location.href = "/real-weddings"; };
   if (nav_action === "magazine")       return () => { window.location.href = "/magazine"; };
+  if (nav_action === "publications")   return () => { window.location.href = "/publications"; };
   if (nav_action === "mag_category")   return () => { url && (window.location.href = url); };
   if (nav_action === "join")                return () => { window.location.href = "/join"; };
   if (nav_action === "list-your-business") return () => { window.location.href = "/list-your-business"; };
