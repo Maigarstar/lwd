@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { fetchIssueBySlug } from '../services/magazineIssuesService';
 import { fetchPages }       from '../services/magazinePageService';
 import { trackIssueView, trackPageTurn, trackDownload } from '../services/publicationsAnalyticsService';
+import { supabase }         from '../lib/supabaseClient';
 import SocialExportModal    from '../components/publications/SocialExportModal';
 import IssueSearchPanel     from '../components/publications/IssueSearchPanel';
 import TextModePanel        from '../components/publications/TextModePanel';
@@ -735,7 +736,7 @@ function PageFlipWrapper({ flipDir, isFlipping, children }) {
 }
 
 // ── Page image ────────────────────────────────────────────────────────────────
-function PageImage({ page, side, pageBg, onHotspotClick }) {
+function PageImage({ page, side, pageBg, onHotspotClick, isPreview }) {
   const [loaded, setLoaded] = useState(false);
   if (!page) {
     return <div style={{ flex: 1, background: pageBg, border: '1px solid rgba(255,255,255,0.04)' }} />;
@@ -744,7 +745,9 @@ function PageImage({ page, side, pageBg, onHotspotClick }) {
   // Page was designed in PageDesigner but not yet published via "▶ Publish Digital"
   const hasCanvas = page.template_data?.canvasJSON;
   const hasImage  = !!page.image_url;
-  if (!hasImage && hasCanvas) {
+  if (!hasImage) {
+    // In preview mode: show the page number but explain images need a publish run
+    // In live mode: this shouldn't happen (status gate blocks non-published issues)
     return (
       <div style={{
         flex: 1, position: 'relative', background: pageBg,
@@ -757,10 +760,13 @@ function PageImage({ page, side, pageBg, onHotspotClick }) {
           fontFamily: "'Jost',sans-serif", fontSize: 10,
           color: 'rgba(255,255,255,0.3)', textAlign: 'center',
           letterSpacing: '0.1em', textTransform: 'uppercase', lineHeight: 1.6,
-          maxWidth: 180,
+          maxWidth: 200,
         }}>
           Page {page.page_number}<br />
-          <span style={{ color: '#C9A84C', opacity: 0.7 }}>Click ▶ Publish Digital<br />in the studio to render</span>
+          {isPreview
+            ? <span style={{ color: '#C9A84C', opacity: 0.8 }}>Not yet rendered —<br />click ▶ Publish Digital<br />in the studio</span>
+            : <span style={{ color: '#C9A84C', opacity: 0.7 }}>Image rendering…</span>
+          }
         </div>
       </div>
     );
@@ -1186,6 +1192,9 @@ function InReaderEnquiryModal({ hotspot, onClose }) {
 
 // ── Main reader component ─────────────────────────────────────────────────────
 export default function PublicationsReaderPage({ slug, onBack }) {
+  // ?preview=1 in URL → show draft banner, skip intro, allow draft issues
+  const isPreview = new URLSearchParams(window.location.search).get('preview') === '1';
+
   const [issue,   setIssue]   = useState(null);
   const [pages,   setPages]   = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1211,8 +1220,9 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const [creditsOpen,   setCreditsOpen]   = useState(false);
 
   // ── Tier 6: search + text mode state ─────────────────────────────────────────
-  const [showSearch,   setShowSearch]   = useState(false);
-  const [showTextMode, setShowTextMode] = useState(false);
+  const [showSearch,      setShowSearch]      = useState(false);
+  const [showTextMode,    setShowTextMode]     = useState(false);
+  const [showSharePopover, setShowSharePopover] = useState(false);
 
   // ── Tier 8: page flip animation state ────────────────────────────────────────
   const [flipDir,        setFlipDir]        = useState(null);      // 'next' | 'prev' | null
@@ -1250,6 +1260,14 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const pageEnteredAt = useRef(null);
   const prevPageRef   = useRef(null);
 
+  // Read events tracking
+  const sessionId      = useRef(crypto.randomUUID());
+  const mountTimeRef   = useRef(Date.now());
+
+  // Personalised cover overlay
+  const [personalisedData,     setPersonalisedData]     = useState(null);
+  const [showPersonalisedCover, setShowPersonalisedCover] = useState(false);
+
   // Theme derivation
   const T      = READER_THEMES[readerMode] || READER_THEMES.dark;
   const BG     = T.bg;
@@ -1276,10 +1294,32 @@ export default function PublicationsReaderPage({ slug, onBack }) {
         setLoading(false);
         return;
       }
+
+      // ── Status gate: only published issues are visible to public ─────────────
+      const previewFlag = new URLSearchParams(window.location.search).get('preview') === '1';
+      console.log('[reader] issue loaded:', {
+        id:              issueData.id,
+        slug:            issueData.slug,
+        status:          issueData.status,
+        render_version:  issueData.render_version,
+        processing_state: issueData.processing_state,
+        isPreview:       previewFlag,
+      });
+      if (!previewFlag && issueData.status !== 'published') {
+        setError('This issue is not yet published.');
+        setLoading(false);
+        return;
+      }
+
       setIssue(issueData);
 
       const { data: pagesData } = await fetchPages(issueData.id);
       if (cancelled) return;
+      console.log('[reader] pages loaded:', (pagesData || []).length, (pagesData || []).map(p => ({
+        n:        p.page_number,
+        hasImage: !!p.image_url,
+        url:      p.image_url ? p.image_url.slice(0, 80) : null,
+      })));
       setPages(pagesData || []);
       setLoading(false);
 
@@ -1305,6 +1345,21 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       trackIssueView(issueData.id, window.innerWidth >= 900 ? 'spread' : 'single');
       pageEnteredAt.current = Date.now();
       prevPageRef.current = 1;
+
+      // Check for personalised cover
+      const sp2 = new URLSearchParams(window.location.search);
+      if (sp2.get('personalised') === 'true') {
+        // Look up personalised issue by slug (current URL slug)
+        const { data: persData } = await supabase
+          .from('magazine_personalised_issues')
+          .select('*')
+          .eq('slug', slug)
+          .maybeSingle();
+        if (!cancelled && persData) {
+          setPersonalisedData(persData);
+          setShowPersonalisedCover(true);
+        }
+      }
     })();
 
     return () => { cancelled = true; };
@@ -1347,6 +1402,62 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     };
   }, [issue?.id]);
 
+  // ── Device / browser / referrer helpers (Feature 11) ────────────────────────
+  const _referrer = typeof document !== 'undefined' ? (document.referrer || 'direct') : 'direct';
+  const _device   = typeof window   !== 'undefined'
+    ? (window.innerWidth < 768 ? 'mobile' : window.innerWidth < 1024 ? 'tablet' : 'desktop')
+    : 'desktop';
+  function _browser() {
+    if (typeof navigator === 'undefined') return 'other';
+    const ua = navigator.userAgent;
+    if (ua.includes('Edg/'))    return 'edge';
+    if (ua.includes('Chrome/')) return 'chrome';
+    if (ua.includes('Firefox/'))return 'firefox';
+    if (ua.includes('Safari/')) return 'safari';
+    return 'other';
+  }
+  const _browserName = _browser();
+
+  // ── Geography: detect country via ipapi.co ───────────────────────────────────
+  async function getCountry() {
+    try {
+      const r = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3000) });
+      const d = await r.json(); return d.country_name || null;
+    } catch { return null; }
+  }
+
+  // ── Read events: issue_open on mount, issue_close on unmount ─────────────────
+  useEffect(() => {
+    if (!issue?.id) return;
+    const sid = sessionId.current;
+    mountTimeRef.current = Date.now();
+    // Fire-and-forget issue_open (with country detection)
+    getCountry().then(country => {
+      supabase.from('magazine_read_events').insert({
+        issue_id: issue.id, session_id: sid, event_type: 'issue_open', page_number: 1,
+        referrer: _referrer, device: _device, browser: _browserName,
+        ...(country ? { country } : {}),
+      });
+    });
+    return () => {
+      // Fire-and-forget issue_close
+      supabase.from('magazine_read_events').insert({
+        issue_id: issue.id, session_id: sid, event_type: 'issue_close',
+        duration_ms: Date.now() - mountTimeRef.current,
+        referrer: _referrer, device: _device, browser: _browserName,
+      });
+    };
+  }, [issue?.id]);
+
+  // ── Read events: page_view on page change ─────────────────────────────────────
+  useEffect(() => {
+    if (!issue?.id || !currentPage) return;
+    supabase.from('magazine_read_events').insert({
+      issue_id: issue.id, session_id: sessionId.current, event_type: 'page_view', page_number: currentPage,
+      referrer: _referrer, device: _device, browser: _browserName,
+    });
+  }, [issue?.id, currentPage]);
+
   // ── Document title for this issue ────────────────────────────────────────────
   useEffect(() => {
     if (!issue) return;
@@ -1354,6 +1465,10 @@ export default function PublicationsReaderPage({ slug, onBack }) {
     document.title = parts.join(" · ");
     return () => { document.title = "Luxury Wedding Directory"; };
   }, [issue?.title]);
+
+  // ── Spread mode: declared here — before Helpers — because step/canNext reference it
+  const forceSpreadEarly   = issue?.spread_layout !== 'single';
+  const useDoubleSpread    = isDesktop && forceSpreadEarly;
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const totalPages = pages.length;
@@ -1619,13 +1734,8 @@ export default function PublicationsReaderPage({ slug, onBack }) {
 
   // ── Share ─────────────────────────────────────────────────────────────────────
   const handleShare = useCallback(() => {
-    if (!slug) return;
-    const url = `${window.location.origin}/publications/${slug}?page=${currentPage}`;
-    navigator.clipboard.writeText(url).catch(() => {});
-    setToastVisible(true);
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToastVisible(false), 2500);
-  }, [slug, currentPage]);
+    setShowSharePopover(prev => !prev);
+  }, []);
 
   // ── Bookmark current page ────────────────────────────────────────────────────
   const handleToggleBookmarkCurrent = useCallback(() => {
@@ -1653,12 +1763,23 @@ export default function PublicationsReaderPage({ slug, onBack }) {
 
   // ── Hotspot click handler ────────────────────────────────────────────────────
   const handleHotspotClick = useCallback((hs) => {
+    // Track the click
+    if (issue?.id) {
+      supabase.from('magazine_read_events').insert({
+        issue_id: issue.id,
+        session_id: sessionId.current,
+        event_type: 'hotspot_click',
+        page_number: currentPage,
+        referrer: hs.label || hs.url || null,
+      }).catch(() => {});
+    }
+
     if (hs.type === 'vendor' && hs.url) {
       setActiveHotspot(hs);
     } else if (hs.url) {
       window.open(hs.url, '_blank', 'noreferrer');
     }
-  }, []);
+  }, [issue?.id, currentPage]);
 
   // ── Paywall ──────────────────────────────────────────────────────────────────
   const paywallEnabled  = issue?.paywall_enabled === true;
@@ -1670,9 +1791,8 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   const PAGE_RATIOS = { A4: 1.414, A5: 1.414, US_LETTER: 1.294, SQUARE: 1.0, TABLOID: 1.545 };
   const pageAspect = PAGE_RATIOS[issue?.page_size || 'A4'] || 1.414;
 
-  // ── Spread mode: double unless issue sets single, or mobile ──────────────────
-  const forceSpread   = issue?.spread_layout !== 'single';
-  const useDoubleSpread = isDesktop && forceSpread;
+  // ── Spread mode (declared earlier — see "before Helpers" above) ─────────────
+  const forceSpread = forceSpreadEarly; // alias kept for readability below
 
   // ── Derive spread pages ──────────────────────────────────────────────────────
   // displayedPage drives what's shown inside the flip wrapper.
@@ -1697,7 +1817,7 @@ export default function PublicationsReaderPage({ slug, onBack }) {
   if (error)   return <ErrorScreen message={error} onBack={onBack} />;
   if (!issue)  return <ErrorScreen message="Issue not found." onBack={onBack} />;
   if (pages.length === 0) {
-    return <ErrorScreen message="This issue has no pages yet. Check back soon." onBack={onBack} />;
+    return <ErrorScreen message={isPreview ? "No pages published yet — publish the issue first, then preview." : "This issue has no pages yet. Check back soon."} onBack={onBack} />;
   }
 
   const isBookmarkedCurrent = bookmarks.includes(currentPage);
@@ -1715,6 +1835,26 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
     >
+      {/* ── Draft preview banner ──────────────────────────────────────────── */}
+      {isPreview && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, zIndex: 9999,
+          background: 'rgba(201,169,110,0.95)',
+          color: '#1a1714',
+          fontFamily: "'Jost', sans-serif",
+          fontSize: 11, fontWeight: 700, letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          padding: '6px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 8,
+        }}>
+          <span>◆ Draft Preview — not visible to the public</span>
+          <span style={{ opacity: 0.6, fontWeight: 400, letterSpacing: '0.04em', textTransform: 'none', fontSize: 10 }}>
+            Publish to make live
+          </span>
+        </div>
+      )}
+
       {/* ① Reading progress bar */}
       <ProgressBar currentPage={currentPage} totalPages={totalPages} />
 
@@ -1808,16 +1948,16 @@ export default function PublicationsReaderPage({ slug, onBack }) {
           {isDesktop ? (
             <PageFlipWrapper flipDir={flipDir} isFlipping={isFlipping}>
               {useDoubleSpread && displayedPage > 1 && (
-                <PageImage page={leftPage} side="left" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
+                <PageImage page={leftPage} side="left" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} isPreview={isPreview} />
               )}
-              <PageImage page={rightPage} side="right" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
+              <PageImage page={rightPage} side="right" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} isPreview={isPreview} />
             </PageFlipWrapper>
           ) : (
             <>
               {useDoubleSpread && displayedPage > 1 && (
-                <PageImage page={leftPage} side="left" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
+                <PageImage page={leftPage} side="left" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} isPreview={isPreview} />
               )}
-              <PageImage page={rightPage} side="right" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} />
+              <PageImage page={rightPage} side="right" pageBg={T.pageBg} onHotspotClick={handleHotspotClick} isPreview={isPreview} />
             </>
           )}
         </div>
@@ -1916,9 +2056,139 @@ export default function PublicationsReaderPage({ slug, onBack }) {
       {/* ⑤ Share toast */}
       <Toast message="Link copied!" visible={toastVisible} />
 
+      {/* ⑤b Share popover */}
+      {showSharePopover && (() => {
+        const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+        const shareTitle = issue?.title || 'Luxury Wedding Directory';
+        const twUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`;
+        const waUrl = `https://wa.me/?text=${encodeURIComponent(`${shareTitle} — ${shareUrl}`)}`;
+        const piUrl = `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(shareUrl)}&description=${encodeURIComponent(shareTitle)}`;
+        return (
+          <>
+            {/* Backdrop — click outside to close */}
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 1199 }}
+              onClick={() => setShowSharePopover(false)}
+            />
+            <div style={{
+              position: 'fixed', top: 64, right: 20, zIndex: 1200,
+              background: 'rgba(14,12,9,0.97)',
+              border: '1px solid rgba(201,168,76,0.25)',
+              borderRadius: 10,
+              padding: '18px 20px',
+              minWidth: 220,
+              boxShadow: '0 8px 40px rgba(0,0,0,0.7)',
+              display: 'flex', flexDirection: 'column', gap: 10,
+            }}>
+              <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, color: GOLD, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 4 }}>
+                Share this issue
+              </div>
+              {/* Copy link */}
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(shareUrl).then(() => {
+                    setShowSharePopover(false);
+                    setToastVisible(true);
+                    setTimeout(() => setToastVisible(false), 2200);
+                  });
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6, padding: '9px 14px', cursor: 'pointer', fontFamily: NU, fontSize: 12, color: '#fff', textAlign: 'left' }}
+              >
+                <span style={{ fontSize: 14 }}>⎘</span> Copy link
+              </button>
+              {/* Twitter / X */}
+              <a
+                href={twUrl} target="_blank" rel="noopener noreferrer"
+                onClick={() => setShowSharePopover(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6, padding: '9px 14px', textDecoration: 'none', fontFamily: NU, fontSize: 12, color: '#fff' }}
+              >
+                <span style={{ fontSize: 14, color: GOLD }}>𝕏</span> Share on X
+              </a>
+              {/* WhatsApp */}
+              <a
+                href={waUrl} target="_blank" rel="noopener noreferrer"
+                onClick={() => setShowSharePopover(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6, padding: '9px 14px', textDecoration: 'none', fontFamily: NU, fontSize: 12, color: '#fff' }}
+              >
+                <span style={{ fontSize: 14, color: GOLD }}>💬</span> WhatsApp
+              </a>
+              {/* Pinterest */}
+              <a
+                href={piUrl} target="_blank" rel="noopener noreferrer"
+                onClick={() => setShowSharePopover(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6, padding: '9px 14px', textDecoration: 'none', fontFamily: NU, fontSize: 12, color: '#fff' }}
+              >
+                <span style={{ fontSize: 14, color: GOLD }}>📌</span> Pinterest
+              </a>
+            </div>
+          </>
+        );
+      })()}
+
       {/* ⑧ Cinematic intro */}
       {showIntro && (
         <IntroOverlay issue={issue} onDismiss={handleIntroDismiss} />
+      )}
+
+      {/* ⑨ Personalised cover overlay */}
+      {showPersonalisedCover && personalisedData && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 600,
+            background: '#080706',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexDirection: 'column', gap: 0,
+            animation: 'introReveal 0.8s ease forwards',
+          }}
+          onClick={() => setShowPersonalisedCover(false)}
+        >
+          {/* Blurred backdrop */}
+          {issue?.cover_image && (
+            <div style={{
+              position: 'absolute', inset: 0,
+              backgroundImage: `url(${issue.cover_image})`,
+              backgroundSize: 'cover', backgroundPosition: 'center',
+              filter: 'blur(40px) brightness(0.2)',
+            }} />
+          )}
+          <div style={{
+            position: 'relative', display: 'flex', flexDirection: 'column',
+            alignItems: 'center', gap: 24, padding: '40px 32px',
+            maxWidth: 480, textAlign: 'center',
+          }}>
+            {/* Gold top border */}
+            <div style={{ width: 64, height: 2, background: '#C9A84C', marginBottom: 8 }} />
+            {/* "For" label */}
+            <div style={{ fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(201,168,76,0.7)' }}>
+              A Personal Edition for
+            </div>
+            {/* Couple names */}
+            <div style={{ fontFamily: GD, fontSize: 40, fontStyle: 'italic', fontWeight: 400, color: '#C9A84C', lineHeight: 1.2, margin: '4px 0' }}>
+              {[personalisedData.partner1_name, personalisedData.partner2_name].filter(Boolean).join(' & ')}
+            </div>
+            {/* Wedding date */}
+            {personalisedData.wedding_date && (
+              <div style={{ fontFamily: NU, fontSize: 11, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.12em' }}>
+                {new Date(personalisedData.wedding_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </div>
+            )}
+            {/* Venue name */}
+            {personalisedData.venue_name && (
+              <div style={{ fontFamily: GD, fontSize: 16, fontStyle: 'italic', color: 'rgba(255,255,255,0.5)', marginTop: -12 }}>
+                {personalisedData.venue_name}
+              </div>
+            )}
+            {/* Issue name */}
+            <div style={{ fontFamily: NU, fontSize: 9, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 8 }}>
+              {issue?.title || 'Luxury Wedding Directory'}
+            </div>
+            <div style={{ width: 64, height: 1, background: 'rgba(201,168,76,0.3)', marginTop: 4 }} />
+            {/* Dismiss hint */}
+            <div style={{ fontFamily: NU, fontSize: 9, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 8 }}>
+              Tap anywhere to read
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
