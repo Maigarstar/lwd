@@ -834,7 +834,7 @@ function MediaTab({ issue, onAddImage }) {
 
 // ── Main ElementsPanel export ─────────────────────────────────────────────────
 
-export default function ElementsPanel({ onAddElement, onAddImage, onAddSpreadImage, spreadView, onInsertTemplate, onReplaceTemplate, activeTemplateId, issue, layers, onSelectLayer, onToggleLayerVisibility, onToggleLayerLock, onReorderLayer, onAddSVG, onAddArcText, onAILayout, currentPageIndex = 0, totalPages = 1, pageSize = 'A4' }) {
+export default function ElementsPanel({ onAddElement, onAddImage, onAddSpreadImage, onAddSpreadText, onAddSpreadShape, spreadView, onInsertTemplate, onReplaceTemplate, activeTemplateId, issue, layers, onSelectLayer, onToggleLayerVisibility, onToggleLayerLock, onReorderLayer, onAddSVG, onAddArcText, onAILayout, currentPageIndex = 0, totalPages = 1, pageSize = 'A4' }) {
   const [panelTab, setPanelTab] = useState('elements');
   const [aiBrief, setAiBrief] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
@@ -1400,27 +1400,45 @@ export default function ElementsPanel({ onAddElement, onAddImage, onAddSpreadIma
           {/* Inline media grid — recent uploads */}
           <InlineMediaGrid issue={issue} onAddImage={onAddImage} onSeeAll={() => setPanelTab('media')} />
 
-          {/* Spread image — only visible in spread view */}
-          {spreadView && onAddSpreadImage && (
-            <div style={{ padding: '0 10px 10px' }}>
-              <button
-                onClick={onAddSpreadImage}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  background: 'rgba(201,169,110,0.08)',
-                  border: `1px solid rgba(201,169,110,0.3)`,
-                  borderRadius: 3, color: GOLD,
-                  fontFamily: NU, fontSize: 9, fontWeight: 700,
-                  letterSpacing: '0.08em', textTransform: 'uppercase',
-                  padding: '8px 0', cursor: 'pointer',
-                  transition: 'all 0.15s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,169,110,0.15)'; e.currentTarget.style.borderColor = GOLD; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,169,110,0.08)'; e.currentTarget.style.borderColor = 'rgba(201,169,110,0.3)'; }}
-                title="Place one image across both pages of the current spread"
-              >
-                ⊞ Spread Image
-              </button>
+          {/* ── Spread elements — only visible in spread view ─────────────────── */}
+          {spreadView && (
+            <div style={{ padding: '0 10px 12px' }}>
+              <div style={{
+                fontFamily: NU, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+                color: GOLD, textTransform: 'uppercase', marginBottom: 6, paddingLeft: 2,
+              }}>
+                Spread Elements
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {[
+                  { label: '⊞ Spread Image',   title: 'Place one image across both pages',          onClick: onAddSpreadImage },
+                  { label: '⊞ Spread Heading',  title: 'Place a headline text across both pages',    onClick: () => onAddSpreadText?.('heading') },
+                  { label: '⊞ Spread Body',     title: 'Place body text across both pages',          onClick: () => onAddSpreadText?.('text') },
+                  { label: '⊞ Spread Box',      title: 'Place a colour band across both pages',      onClick: () => onAddSpreadShape?.('rect') },
+                  { label: '⊞ Spread Line',     title: 'Place a rule line across both pages',        onClick: () => onAddSpreadShape?.('line') },
+                ].map(({ label, title, onClick }) => (
+                  <button
+                    key={label}
+                    onClick={onClick}
+                    disabled={!onClick}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      background: 'rgba(201,169,110,0.08)',
+                      border: `1px solid rgba(201,169,110,0.3)`,
+                      borderRadius: 3, color: GOLD,
+                      fontFamily: NU, fontSize: 9, fontWeight: 700,
+                      letterSpacing: '0.08em', textTransform: 'uppercase',
+                      padding: '8px 0', cursor: onClick ? 'pointer' : 'default',
+                      transition: 'all 0.15s', opacity: onClick ? 1 : 0.4,
+                    }}
+                    onMouseEnter={e => { if (onClick) { e.currentTarget.style.background = 'rgba(201,169,110,0.15)'; e.currentTarget.style.borderColor = GOLD; }}}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,169,110,0.08)'; e.currentTarget.style.borderColor = 'rgba(201,169,110,0.3)'; }}
+                    title={title}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

@@ -2127,6 +2127,85 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     }
   }, [spreadView, dims]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Spread Text ───────────────────────────────────────────────────────────────
+  // Places a large Textbox across both pages of the current spread.
+  // Both canvases get the same text, clipped to their page half.
+  const addSpreadText = useCallback((variant = 'heading') => {
+    if (!spreadView || !fabricRefLeft.current || !fabricRef.current) return;
+    const W = dims.w;
+    const H = dims.h;
+    const spreadId = genId();
+    const defaults = ELEMENT_DEFAULTS[variant] || ELEMENT_DEFAULTS.heading;
+    const defaultText = variant === 'heading' ? 'SPREAD HEADLINE' : 'Your text across both pages';
+    const margin = 40;
+    const clip = () => new Rect({ left: 0, top: 0, width: W, height: H, absolutePositioned: true });
+
+    const commonProps = {
+      top: Math.round(H * 0.42),
+      width: W * 2 - margin * 2,
+      fontSize: defaults.fontSize || 52,
+      fontFamily: defaults.fontFamily || 'Cormorant Garamond',
+      fill: defaults.fill || '#18120A',
+      fontWeight: defaults.fontWeight || '400',
+      charSpacing: defaults.charSpacing || 60,
+      lineHeight: 1.2,
+      textAlign: 'left',
+      isSpreadImage: true, spreadImageId: spreadId,
+    };
+
+    const tbL = new Textbox(defaultText, { ...commonProps, left: margin, spreadSide: 'left',  clipPath: clip() });
+    const tbR = new Textbox(defaultText, { ...commonProps, left: margin - W, spreadSide: 'right', clipPath: clip() });
+    tbL.id = genId(); tbR.id = genId();
+
+    loadGoogleFont(defaults.fontFamily || 'Cormorant Garamond');
+    fabricRefLeft.current.add(tbL); fabricRefLeft.current.requestRenderAll();
+    fabricRef.current.add(tbR);    fabricRef.current.requestRenderAll();
+    setIsDirty(true);
+  }, [spreadView, dims]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Spread Shape ──────────────────────────────────────────────────────────────
+  // Places a shape (rect, circle, line) spanning both pages.
+  const addSpreadShape = useCallback((type = 'rect') => {
+    if (!spreadView || !fabricRefLeft.current || !fabricRef.current) return;
+    const W = dims.w;
+    const H = dims.h;
+    const spreadId = genId();
+    const clip = () => new Rect({ left: 0, top: 0, width: W, height: H, absolutePositioned: true });
+
+    let shapeL, shapeR;
+
+    if (type === 'rect') {
+      const props = {
+        top: Math.round(H * 0.42), width: W * 2, height: 140,
+        fill: GOLD, rx: 0,
+        isSpreadImage: true, spreadImageId: spreadId,
+      };
+      shapeL = new Rect({ ...props, left: 0,  spreadSide: 'left',  clipPath: clip() });
+      shapeR = new Rect({ ...props, left: -W, spreadSide: 'right', clipPath: clip() });
+    } else if (type === 'circle') {
+      const r = Math.round(H * 0.35);
+      const props = {
+        left: W - r, top: Math.round(H / 2 - r),
+        radius: r, fill: GOLD,
+        isSpreadImage: true, spreadImageId: spreadId,
+      };
+      shapeL = new Circle({ ...props, spreadSide: 'left',  clipPath: clip() });
+      shapeR = new Circle({ ...props, left: -r, spreadSide: 'right', clipPath: clip() });
+    } else if (type === 'line' || type === 'divider') {
+      const sw = type === 'divider' ? 1 : 2;
+      const y  = Math.round(H / 2);
+      shapeL = new Line([0, y, W,     y], { left: 0,  top: 0, stroke: GOLD, strokeWidth: sw, isSpreadImage: true, spreadImageId: spreadId, spreadSide: 'left',  clipPath: clip() });
+      shapeR = new Line([0, y, W * 2, y], { left: -W, top: 0, stroke: GOLD, strokeWidth: sw, isSpreadImage: true, spreadImageId: spreadId, spreadSide: 'right', clipPath: clip() });
+    }
+
+    if (shapeL && shapeR) {
+      shapeL.id = genId(); shapeR.id = genId();
+      fabricRefLeft.current.add(shapeL); fabricRefLeft.current.requestRenderAll();
+      fabricRef.current.add(shapeR);     fabricRef.current.requestRenderAll();
+      setIsDirty(true);
+    }
+  }, [spreadView, dims]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Page number settings
   const [pageNumberSettings, setPageNumberSettings] = useState({
     format: 'arabic',
@@ -2308,7 +2387,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     } catch (e) {
       console.error('Image picker: failed to load', e);
     }
-  }, [getActiveCanvas, dims, pushUndo]);
+  }, [getActiveCanvas, dims, pushUndo, addSpreadImage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Canvas init helper ──────────────────────────────────────────────────────
   const initCanvas = useCallback((canvasEl, pageJSON, onSelect, onModify, onLayersChange) => {
@@ -4727,6 +4806,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
           onAddElement={handleAddElement}
           onAddImage={addImage}
           onAddSpreadImage={() => { imagePickerSpreadModeRef.current = true; setImagePickerOpen(true); }}
+          onAddSpreadText={addSpreadText}
+          onAddSpreadShape={addSpreadShape}
           spreadView={spreadView}
           onInsertTemplate={handleInsertTemplate}
           onReplaceTemplate={handleReplaceTemplate}
