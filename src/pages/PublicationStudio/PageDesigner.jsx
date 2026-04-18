@@ -18,7 +18,7 @@ import ElementsPanel from './PageDesigner/ElementsPanel';
 import PropertiesPanel from './PageDesigner/PropertiesPanel';
 import PageListPanel from './PageDesigner/PageListPanel';
 import DesignerToolbar from './PageDesigner/DesignerToolbar';
-import { canvasToJpegBlob, canvasToPrintJpegBlob, generatePrintPDF, generateScreenPDF, downloadPDF } from './PageDesigner/exportUtils';
+import { canvasToJpegBlob, canvasToPrintJpegBlob, generatePrintPDF, generateScreenPDF, downloadPDF, extractPageSVGs, generateVectorPDF } from './PageDesigner/exportUtils';
 import { upsertPages, upsertPage, fetchPages, uploadPageImage, uploadThumbImage } from '../../services/magazinePageService';
 import { updateIssue } from '../../services/magazineIssuesService';
 import { fetchBrandKit } from '../../services/magazineBrandKitService';
@@ -3895,35 +3895,42 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       saveCurrentPageToState();
       await new Promise(r => setTimeout(r, 150));
 
-      // Use a fresh off-screen Fabric canvas to avoid corrupting the designer view.
+      // ── Vector path (Browserless headless Chrome) ──────────────────────────
+      // Extracts SVG from every page and sends to the render-pdf edge function.
+      // Returns a true vector PDF with 3mm bleed + crop marks.
+      // Falls back to JPEG raster if the function is not configured.
+      try {
+        const svgPages = await extractPageSVGs(pages, dims);
+        await generateVectorPDF(svgPages, issue?.title || 'Magazine Issue', pageSize, 'print');
+        return; // success — done
+      } catch (vecErr) {
+        // 503 = BROWSERLESS_TOKEN not set → fall through to JPEG path
+        // Any other error → also fall through (raster is better than nothing)
+        console.warn('[handleExportPrint] vector PDF failed, falling back to JPEG raster:', vecErr.message);
+      }
+
+      // ── JPEG raster fallback ───────────────────────────────────────────────
       const { Canvas: FabricCanvas } = await import('fabric');
       const offscreenEl = document.createElement('canvas');
       offscreenEl.width  = dims.w;
       offscreenEl.height = dims.h;
       const offscreen = new FabricCanvas(offscreenEl, {
-        width: dims.w,
-        height: dims.h,
-        backgroundColor: '#ffffff',
-        enableRetinaScaling: false,
+        width: dims.w, height: dims.h,
+        backgroundColor: '#ffffff', enableRetinaScaling: false,
       });
 
       const printPages = [];
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
         offscreen.clear();
-        offscreen.backgroundColor = '#ffffff';
-        if (page.canvasJSON) {
-          await offscreen.loadFromJSON(page.canvasJSON);
-        }
+        offscreen.set('backgroundColor', '#ffffff');
+        if (page.canvasJSON) await offscreen.loadFromJSON(page.canvasJSON);
         offscreen.renderAll();
         await new Promise(r => setTimeout(r, 60));
         offscreen.renderAll();
         const blob = await canvasToPrintJpegBlob(offscreen);
-        // Pass canvasJSON so generatePrintPDF can embed an invisible text layer
-        // (enables PDF search / copy-paste of magazine text)
         printPages.push({ blob, pageSize, canvasJSON: page.canvasJSON ?? null });
       }
-
       offscreen.dispose();
 
       const pdf = await generatePrintPDF(printPages, issue?.title || 'Magazine Issue', pageSize);
@@ -3942,34 +3949,39 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       saveCurrentPageToState();
       await new Promise(r => setTimeout(r, 150));
 
+      // ── Vector path (Browserless headless Chrome) ──────────────────────────
+      // Screen PDF: no bleed, no crop marks, fonts embedded, text selectable.
+      // Falls back to JPEG raster if the function is not configured.
+      try {
+        const svgPages = await extractPageSVGs(pages, dims);
+        await generateVectorPDF(svgPages, issue?.title || 'Magazine Issue', pageSize, 'screen');
+        return; // success — done
+      } catch (vecErr) {
+        console.warn('[handleExportScreen] vector PDF failed, falling back to JPEG raster:', vecErr.message);
+      }
+
+      // ── JPEG raster fallback ───────────────────────────────────────────────
       const { Canvas: FabricCanvas } = await import('fabric');
       const offscreenEl = document.createElement('canvas');
       offscreenEl.width  = dims.w;
       offscreenEl.height = dims.h;
       const offscreen = new FabricCanvas(offscreenEl, {
-        width: dims.w,
-        height: dims.h,
-        backgroundColor: '#ffffff',
-        enableRetinaScaling: false,
+        width: dims.w, height: dims.h,
+        backgroundColor: '#ffffff', enableRetinaScaling: false,
       });
 
       const screenPages = [];
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
         offscreen.clear();
-        offscreen.backgroundColor = '#ffffff';
-        if (page.canvasJSON) {
-          await offscreen.loadFromJSON(page.canvasJSON);
-        }
+        offscreen.set('backgroundColor', '#ffffff');
+        if (page.canvasJSON) await offscreen.loadFromJSON(page.canvasJSON);
         offscreen.renderAll();
         await new Promise(r => setTimeout(r, 60));
         offscreen.renderAll();
         const blob = await canvasToJpegBlob(offscreen, 2);
-        // Pass canvasJSON so generateScreenPDF can embed an invisible text layer
-        // (enables PDF search / copy-paste of magazine text)
         screenPages.push({ blob, pageSize, canvasJSON: page.canvasJSON ?? null });
       }
-
       offscreen.dispose();
 
       const pdf = await generateScreenPDF(screenPages, issue?.title || 'Magazine Issue', pageSize);

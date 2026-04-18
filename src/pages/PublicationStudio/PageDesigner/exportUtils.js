@@ -1,5 +1,109 @@
 import { jsPDF } from 'jspdf';
 
+// ── Vector PDF pipeline ──────────────────────────────────────────────────────
+//
+// Extracts SVG from every page using an off-screen Fabric canvas, then sends
+// them to the render-pdf edge function (Browserless headless Chrome).
+//
+// This replaces the old JPEG-raster path for Print and Screen PDF exports.
+// The JPEG path is kept for the digital flipbook (handleExportDigital) which
+// needs JPEG images for the Supabase reader.
+//
+// Fallback: if the edge function returns 503 (BROWSERLESS_TOKEN not set) or
+// fails for any reason, callers catch the error and fall back to the JPEG path.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Extract an SVG string from a Fabric canvas loaded with the given JSON.
+ * Uses an off-screen canvas so the designer view is never disturbed.
+ *
+ * @param {object[]} pageArray  - Array of page objects with .canvasJSON
+ * @param {object}   dims       - { w, h } in px (from PAGE_SIZES)
+ * @returns {Promise<string[]>} - One SVG string per page
+ */
+export async function extractPageSVGs(pageArray, dims) {
+  const { Canvas: FC, FabricObject } = await import('fabric');
+  // Restore Fabric v6 origin defaults so template coordinates are correct
+  FabricObject.ownDefaults.originX = 'left';
+  FabricObject.ownDefaults.originY = 'top';
+
+  const offEl = document.createElement('canvas');
+  offEl.width  = dims.w;
+  offEl.height = dims.h;
+  const fc = new FC(offEl, {
+    width:               dims.w,
+    height:              dims.h,
+    backgroundColor:     '#ffffff',
+    enableRetinaScaling: false,
+  });
+
+  const svgs = [];
+  try {
+    for (const page of pageArray) {
+      fc.clear();
+      fc.set('backgroundColor', '#ffffff');
+      if (page.canvasJSON) {
+        await fc.loadFromJSON(page.canvasJSON);
+        fc.renderAll();
+        // Brief pause so async image loads settle before SVG export
+        await new Promise(r => setTimeout(r, 80));
+        fc.renderAll();
+      }
+      svgs.push(fc.toSVG());
+    }
+  } finally {
+    fc.dispose();
+  }
+  return svgs;
+}
+
+/**
+ * Send SVG pages to the render-pdf edge function and download the result.
+ *
+ * @param {string[]} svgPages  - SVG strings from extractPageSVGs()
+ * @param {string}   title     - Issue title (used in filename)
+ * @param {string}   pageSize  - e.g. 'A4'
+ * @param {'screen'|'print'} mode
+ * @throws if edge function errors or BROWSERLESS_TOKEN not configured
+ */
+export async function generateVectorPDF(svgPages, title, pageSize, mode) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey     = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !anonKey) throw new Error('Supabase env vars missing');
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/render-pdf`, {
+    method:  'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${anonKey}`,
+      'apikey':        anonKey,
+    },
+    body: JSON.stringify({ pages: svgPages, pageSize, mode, title }),
+  });
+
+  if (!res.ok) {
+    // Try to parse error message for clearer reporting
+    let errMsg = `render-pdf ${res.status}`;
+    try {
+      const json = await res.json();
+      if (json?.error) errMsg = json.error;
+    } catch (_) { /* ignore */ }
+    throw new Error(errMsg);
+  }
+
+  // Stream PDF to browser download
+  const blob     = await res.blob();
+  const safeName = (title || 'magazine').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const suffix   = mode === 'print' ? '_PRINT_READY' : '_digital';
+  const url      = URL.createObjectURL(blob);
+  const a        = document.createElement('a');
+  a.href         = url;
+  a.download     = `${safeName}${suffix}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // Export canvas to JPEG blob (for digital reader)
 // Quality bumped to 0.95 for crisper text/edges on HiDPI panels.
 export async function canvasToJpegBlob(fabricCanvas, multiplier = 3) {
