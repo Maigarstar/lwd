@@ -250,6 +250,7 @@ export default function DesignerToolbar({
   onPageBgChange,
   onFillSlots,
   onArticleReflow,
+  onHistory,
   collaborators,
   selfId,
 }) {
@@ -733,6 +734,25 @@ export default function DesignerToolbar({
                 </span>
               )}
             </div>
+          )}
+
+          {/* Version History */}
+          {onHistory && (
+            <button
+              onClick={onHistory}
+              title="Version history — browse and restore previous saves"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 3, color: 'rgba(255,255,255,0.5)',
+                fontFamily: NU, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.05em', textTransform: 'uppercase',
+                padding: '5px 10px', cursor: 'pointer',
+                whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4,
+              }}
+            >
+              ⟳ History
+            </button>
           )}
 
           {/* Save + timestamp */}

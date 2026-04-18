@@ -32,6 +32,8 @@ import StudioVoicePanel from './PageDesigner/StudioVoicePanel';
 import PageSlotPanel from './PageDesigner/PageSlotPanel';
 import FillIssuePanelModal from './PageDesigner/FillIssuePanelModal';
 import ArticleReflowPanel from './PageDesigner/ArticleReflowPanel';
+import VersionHistoryPanel from './PageDesigner/VersionHistoryPanel';
+import { createVersion } from '../../services/publicationVersionService';
 import { useStudioCollaboration } from '../../hooks/useStudioCollaboration';
 
 function genId() {
@@ -2001,6 +2003,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   // Page Slot panel
   const [showSlotPanel, setShowSlotPanel] = useState(false);
 
+  // Version history panel
+  const [showHistory, setShowHistory] = useState(false);
+
   // P9a: Fill Issue Panel
   const [showFillIssue, setShowFillIssue] = useState(false);
   // P9a picker target from FillIssuePanelModal (separate from regular image picker)
@@ -3505,6 +3510,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       );
       if (error) throw error;
 
+      // Snapshot this save as a new version (fire-and-forget — don't block save)
+      createVersion(issue.id, freshPages, 'Manual save').catch(() => {});
+
       // Sync local state so further edits start from the saved snapshot
       setPages(freshPages);
       setLastSaved(savedAt);
@@ -3882,6 +3890,41 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     ));
     setShowSlotPanel(false);
   }
+
+  // ── Version history: restore a snapshot ──────────────────────────────────────
+  // Receives the pages_snapshot array from VersionHistoryPanel.
+  // Auto-saves current state first so it becomes the latest version,
+  // then replaces the canvas with the restored pages.
+  const handleRestoreVersion = useCallback(async (snapshot) => {
+    // Auto-save current state before overwriting (gives user a safety net)
+    await handleSave().catch(() => {});
+
+    // Map snapshot rows back to live page shape
+    const restored = snapshot.map((snap, i) => ({
+      ...(pages[i] || {}),
+      page_number: snap.page_number ?? i + 1,
+      canvasJSON:  snap.canvasJSON  ?? null,
+      slot:        snap.slot        ?? null,
+      thumbnailDataUrl: null, // will rebuild on next render
+    }));
+
+    setPages(restored);
+    setCurrentPageIndex(0);
+    setIsDirty(true); // mark dirty so user can save the restored state
+
+    // Reload the canvas with the restored page
+    // A small delay lets React re-render first
+    setTimeout(() => {
+      const fc = getActiveCanvas();
+      const targetPage = restored[0];
+      if (fc && targetPage?.canvasJSON) {
+        fc.loadFromJSON(targetPage.canvasJSON, () => {
+          fc.requestRenderAll();
+          pushUndo();
+        });
+      }
+    }, 80);
+  }, [pages, handleSave, getActiveCanvas, pushUndo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── P9a: Assign a placeholder image from the Fill Issue panel ────────────────
   // Uses an offscreen Fabric canvas so we can patch pages that are NOT currently
@@ -4470,6 +4513,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         onSlot={() => setShowSlotPanel(true)}
         onFillSlots={() => { saveCurrentPageToState(); setShowFillIssue(true); }}
         onArticleReflow={() => setShowArticleReflow(true)}
+        onHistory={() => setShowHistory(true)}
         collaborators={collaborators}
         selfId={selfId}
         currentSlot={pages[currentPageIndex]?.slot ?? null}
@@ -4557,6 +4601,15 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         <ArticleReflowPanel
           onReflow={handleArticleReflow}
           onClose={() => setShowArticleReflow(false)}
+        />
+      )}
+
+      {showHistory && (
+        <VersionHistoryPanel
+          issue={issue}
+          currentPageCount={pages.length}
+          onRestore={handleRestoreVersion}
+          onClose={() => setShowHistory(false)}
         />
       )}
 
