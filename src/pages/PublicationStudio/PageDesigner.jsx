@@ -4849,7 +4849,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     setRunnaroundModalTextbox(target);
     setRunnaroundModalOpen(true);
     setRunaroundPickMode(false); // Don't enter pick mode immediately; wait for modal button click
-  }, [getActiveCanvas, setSelectedObject]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [getActiveCanvas, setSelectedObject, setRunnaroundModalTextbox, setRunnaroundModalOpen, setRunaroundPickMode]);
 
   // Remove all runaround obstacles from a textbox.
   const handleClearRunaround = useCallback((frame) => {
