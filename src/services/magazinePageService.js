@@ -190,7 +190,7 @@ export async function deletePage(issueId, pageNumber) {
  *
  * Throws on any non-2xx response (fail-fast; no silent retries).
  */
-export async function uploadViaEdgeFunction({ bucket, path, blob, contentType = 'image/jpeg' }) {
+export async function uploadViaEdgeFunction({ bucket, path, blob, contentType = 'image/jpeg', timeoutMs = 60_000 }) {
   // Read session for user JWT
   const { data: sessionRes, error: sessionErr } = await supabase.auth.getSession();
   if (sessionErr) throw new Error(`Could not read auth session: ${sessionErr.message}`);
@@ -211,20 +211,36 @@ export async function uploadViaEdgeFunction({ bucket, path, blob, contentType = 
   const supabaseKey  = supabase.supabaseKey  || import.meta.env.VITE_SUPABASE_ANON_KEY;
   const url = `${supabaseUrl}/functions/v1/upload-magazine-page`;
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      // ES256 user JWTs are rejected by Supabase's platform-level JWT gate.
-      // Use the anon key (HS256) as the Bearer token — the platform always
-      // accepts it. The user JWT is passed separately as x-user-token so the
-      // edge function can log who triggered the upload.
-      Authorization:  `Bearer ${supabaseKey}`,
-      apikey:          supabaseKey,
-      'x-user-token':  token,
-      // NOTE: do NOT set Content-Type — browser sets multipart boundary for FormData.
-    },
-    body: form,
-  });
+  // Hard timeout — without this, a stalled edge function hangs the browser
+  // indefinitely. 60 s is generous for even large images over slow connections.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        // ES256 user JWTs are rejected by Supabase's platform-level JWT gate.
+        // Use the anon key (HS256) as the Bearer token — the platform always
+        // accepts it. The user JWT is passed separately as x-user-token so the
+        // edge function can log who triggered the upload.
+        Authorization:  `Bearer ${supabaseKey}`,
+        apikey:          supabaseKey,
+        'x-user-token':  token,
+        // NOTE: do NOT set Content-Type — browser sets multipart boundary for FormData.
+      },
+      body:   form,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('Upload timed out after 60 s — check your connection and try again.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   // Extract actual error body for clear diagnostics (not just the status code)
   let payload;
