@@ -1552,12 +1552,15 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue, onCloned, onBack }) {
     });
   }, [tab, issueId]);
 
-  // Keep URL hash tab in sync so F5 returns to same tab
+  // Keep URL hash tab in sync so F5 returns to same tab.
+  // Always build clean params — issue + tab only, no inherited noise from the
+  // AdminDashboard's own hash routing.
   useEffect(() => {
-    const p = readHash();
+    const p = new URLSearchParams();
+    if (issueId) p.set('issue', issueId);
     p.set('tab', tab);
     writeHash(p);
-  }, [tab]);
+  }, [tab, issueId]);
 
   const change = useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -2662,6 +2665,13 @@ function CollectionsModal({ issues, onClose }) {
 // Encoding the active issue ID and tab into the URL hash means that F5 /
 // Cmd+R returns the user to exactly where they were, rather than the issue list.
 // Hash format: #issue=<uuid>&tab=<tabname>
+//
+// IMPORTANT: We use history.replaceState (not window.location.hash =) to
+// update the URL.  Assigning to window.location.hash fires a hashchange event
+// AND adds a browser history entry — both of which conflict with the app's
+// custom pushState / popstate router in main.jsx (it would re-run pathToState
+// and potentially navigate away).  replaceState silently patches the URL with
+// no events and no extra history entry.
 function readHash() {
   try {
     return new URLSearchParams(window.location.hash.replace(/^#/, ''));
@@ -2671,7 +2681,11 @@ function readHash() {
 }
 function writeHash(params) {
   try {
-    window.location.hash = params.toString();
+    const str    = params.toString();
+    const newUrl = str
+      ? window.location.pathname + window.location.search + '#' + str
+      : window.location.pathname + window.location.search;
+    window.history.replaceState(null, '', newUrl);
   } catch (_) {}
 }
 
@@ -2685,14 +2699,17 @@ export default function PublicationStudio({ onBack, onReadIssue }) {
   const [showBrandKit,    setShowBrandKit]    = useState(false);
   const [showCollections, setShowCollections] = useState(false);
 
-  // Keep hash in sync whenever the active issue changes
+  // Keep hash in sync whenever the active issue changes.
+  // Build params from scratch (do NOT carry over the existing hash — the
+  // AdminDashboard sets window.location.hash = 'publication-studio' before we
+  // mount, so readHash() would return { 'publication-studio': '' } and writing
+  // that back would set the hash to 'publication-studio=', which triggers
+  // AdminDashboard's hashchange listener and sets activeTab to the garbled
+  // value 'publication-studio=', immediately unmounting this component).
   useEffect(() => {
-    const p = readHash();
+    const p = new URLSearchParams();
     if (activeId) {
       p.set('issue', activeId);
-    } else {
-      p.delete('issue');
-      p.delete('tab');
     }
     writeHash(p);
   }, [activeId]);
@@ -2724,7 +2741,7 @@ export default function PublicationStudio({ onBack, onReadIssue }) {
 
       {/* ── Top bar ── */}
       <div style={{ height: 52, flexShrink: 0, borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', padding: '0 20px', gap: 16, background: SURF }}>
-        <button onClick={() => { writeHash(new URLSearchParams()); onBack?.(); }}
+        <button onClick={onBack}
           style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 0, flexShrink: 0 }}>
           ←
         </button>
