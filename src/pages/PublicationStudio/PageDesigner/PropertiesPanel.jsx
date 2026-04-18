@@ -436,7 +436,7 @@ function LinkCardProperties({ obj, canvas, onUpdate }) {
 
 // ── Main panel ────────────────────────────────────────────────────────────────
 
-export default function PropertiesPanel({ selectedObject, selectedObjects, canvas, onUpdate, onGroup, onUngroup, onRemoveBg, removingBg, onCrop, onLinkChain, onUnlinkChain, chainLinkMode }) {
+export default function PropertiesPanel({ selectedObject, selectedObjects, canvas, onUpdate, onGroup, onUngroup, onRemoveBg, removingBg, onCrop, onLinkChain, onUnlinkChain, chainLinkMode, onSetRunaround, onClearRunaround, onRunaroundGap, runaroundPickMode }) {
   const [aiImproveLoading, setAiImproveLoading] = useState(false);
   const [aiRewriteLoading, setAiRewriteLoading] = useState(false);
   const [lockRatio, setLockRatio] = useState(false);
@@ -929,6 +929,92 @@ export default function PropertiesPanel({ selectedObject, selectedObjects, canva
                       }}
                     >
                       {chainLinkMode ? '⟳ Picking target…' : '⛓ Link to Next Frame'}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* ── Text Wrap (Runaround) ─────────────────────────────────────────── */}
+              <Hr />
+              <div style={SECTION}>Text Wrap</div>
+              <div style={{ padding: '4px 16px 12px' }}>
+                {obj.runaroundTargetId ? (
+                  <>
+                    <div style={{
+                      fontFamily: NU, fontSize: 10, color: MUTED,
+                      marginBottom: 8, lineHeight: 1.5,
+                    }}>
+                      ⊙ Wrapping around obstacle
+                    </div>
+                    <PropField label={`Gap: ${obj.runaroundGap ?? 12}px`}>
+                      <input
+                        type="range"
+                        min={0} max={60} step={1}
+                        value={obj.runaroundGap ?? 12}
+                        onChange={e => onRunaroundGap?.(obj, Number(e.target.value))}
+                        style={{ width: '100%', accentColor: GOLD }}
+                      />
+                    </PropField>
+                    <button
+                      onClick={() => onSetRunaround?.(obj)}
+                      style={{
+                        width: '100%',
+                        background: runaroundPickMode
+                          ? 'rgba(201,169,110,0.2)'
+                          : 'rgba(201,169,110,0.06)',
+                        border: `1px solid ${runaroundPickMode
+                          ? 'rgba(201,169,110,0.6)'
+                          : 'rgba(201,169,110,0.2)'}`,
+                        borderRadius: 3, color: GOLD,
+                        fontFamily: NU, fontSize: 10, fontWeight: 700,
+                        letterSpacing: '0.06em', textTransform: 'uppercase',
+                        padding: '6px 0', cursor: 'pointer', marginBottom: 6,
+                      }}
+                    >
+                      {runaroundPickMode ? '⟳ Picking obstacle…' : '⊙ Change Obstacle'}
+                    </button>
+                    <button
+                      onClick={() => onClearRunaround?.(obj)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(255,80,80,0.08)',
+                        border: '1px solid rgba(255,80,80,0.25)',
+                        borderRadius: 3, color: '#FF6060',
+                        fontFamily: NU, fontSize: 10, fontWeight: 700,
+                        letterSpacing: '0.06em', textTransform: 'uppercase',
+                        padding: '6px 0', cursor: 'pointer',
+                      }}
+                    >
+                      ✕ Remove Wrap
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{
+                      fontFamily: NU, fontSize: 10, color: MUTED,
+                      marginBottom: 8, lineHeight: 1.5,
+                    }}>
+                      {runaroundPickMode
+                        ? 'Click an image or shape on the canvas to wrap text around it.'
+                        : 'Wrap this text around an image or shape on the same page.'}
+                    </div>
+                    <button
+                      onClick={() => onSetRunaround?.(obj)}
+                      style={{
+                        width: '100%',
+                        background: runaroundPickMode
+                          ? 'rgba(201,169,110,0.2)'
+                          : 'rgba(201,169,110,0.08)',
+                        border: `1px solid ${runaroundPickMode
+                          ? 'rgba(201,169,110,0.6)'
+                          : 'rgba(201,169,110,0.2)'}`,
+                        borderRadius: 3, color: GOLD,
+                        fontFamily: NU, fontSize: 10, fontWeight: 700,
+                        letterSpacing: '0.06em', textTransform: 'uppercase',
+                        padding: '6px 0', cursor: 'pointer',
+                      }}
+                    >
+                      {runaroundPickMode ? '⟳ Picking obstacle…' : '⊙ Set Wrap Obstacle'}
                     </button>
                   </>
                 )}

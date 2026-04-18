@@ -21,6 +21,9 @@ import PageListPanel from './PageDesigner/PageListPanel';
 import DesignerToolbar from './PageDesigner/DesignerToolbar';
 import { canvasToJpegBlob, canvasToPrintJpegBlob, generatePrintPDF, generateScreenPDF, downloadPDF, extractPageSVGs, generateVectorPDF } from './PageDesigner/exportUtils';
 import { distributeChainText, reconstructMasterText, getChainFrames, linkFrames, unlinkFrame } from './PageDesigner/textChainUtils';
+// Registers RunaroundTextbox with Fabric's classRegistry so loadFromJSON can
+// reconstruct it. The import itself is the side-effect we need.
+import { RunaroundTextbox } from './PageDesigner/RunaroundTextbox';
 import { upsertPages, upsertPage, fetchPages, uploadPageImage, uploadThumbImage } from '../../services/magazinePageService';
 import { updateIssue } from '../../services/magazineIssuesService';
 import { fetchBrandKit } from '../../services/magazineBrandKitService';
@@ -1995,6 +1998,15 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   const [spreadView, setSpreadView] = useState(() => _loadPref('spreadView', window.innerWidth >= 1400));
   const [activeSpreadSide, setActiveSpreadSide] = useState('right'); // 'left' | 'right'
 
+  // ── Text runaround "pick obstacle" mode ────────────────────────────────────
+  // When the user clicks "Set Wrap Obstacle" in PropertiesPanel, we enter
+  // runaround-pick mode. The next object the user clicks becomes the obstacle
+  // for the selected RunaroundTextbox.
+  const [runaroundPickMode, setRunaroundPickMode] = useState(false);
+  const runaroundPickSourceRef = useRef(null); // the RunaroundTextbox being configured
+  const runaroundPickModeRef   = useRef(false);
+  useEffect(() => { runaroundPickModeRef.current = runaroundPickMode; }, [runaroundPickMode]);
+
   // ── Text chain "link pick" mode ─────────────────────────────────────────────
   // When the user clicks "Link to Next Frame" in PropertiesPanel, we enter
   // chain-pick mode. The next textbox the user clicks on the canvas becomes the
@@ -2639,9 +2651,48 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       };
       fc.on('mouse:down', handleChainPickSingle);
 
+      // ── Single-page: runaround obstacle pick ──────────────────────────────
+      const handleRunaroundPickSingle = (e) => {
+        if (!runaroundPickModeRef.current) return;
+        const target = e.target;
+        if (!target || target === runaroundPickSourceRef.current) return;
+        const source = runaroundPickSourceRef.current;
+        if (source && target.id) {
+          source.runaroundTargetId = target.id;
+          const savedH = source.height;
+          source.initDimensions();
+          source.height = savedH;
+          fc.requestRenderAll();
+        }
+        runaroundPickSourceRef.current = null;
+        setRunaroundPickMode(false);
+      };
+      fc.on('mouse:down', handleRunaroundPickSingle);
+
+      // ── Single-page: re-flow when obstacle moves ──────────────────────────
+      const reflowOnObstacleSingle = (e) => {
+        const movedObj = e.target;
+        if (!movedObj?.id) return;
+        fc.getObjects().forEach(obj => {
+          if (obj.type === 'runaround-textbox' && obj.runaroundTargetId === movedObj.id) {
+            const savedH = obj.height;
+            obj.initDimensions();
+            obj.height = savedH;
+          }
+        });
+        fc.requestRenderAll();
+      };
+      fc.on('object:modified', reflowOnObstacleSingle);
+      fc.on('object:moving',   reflowOnObstacleSingle);
+      fc.on('object:scaling',  reflowOnObstacleSingle);
+
       return () => {
         fc.off('text:editing:exited', redistributeChainSingle);
         fc.off('mouse:down', handleChainPickSingle);
+        fc.off('mouse:down', handleRunaroundPickSingle);
+        fc.off('object:modified', reflowOnObstacleSingle);
+        fc.off('object:moving',   reflowOnObstacleSingle);
+        fc.off('object:scaling',  reflowOnObstacleSingle);
         // Disposal already handled by callback ref while DOM is live.
         // Guarded null-assignment to prevent stale refs if cleanup somehow runs first.
         if (fabricRef.current === fc) {
@@ -2776,6 +2827,53 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       fcR?.on('mouse:down', handleChainPick);
       fcL?.on('mouse:down', handleChainPick);
 
+      // ── Runaround obstacle pick ──────────────────────────────────────────
+      // When runaroundPickMode is active, the next click on any non-textbox
+      // object sets it as the obstacle for the pending RunaroundTextbox.
+      const handleRunaroundPick = (e) => {
+        if (!runaroundPickModeRef.current) return;
+        const target = e.target;
+        if (!target || target === runaroundPickSourceRef.current) return;
+        // Any object can be the obstacle (image, rect, group, etc.)
+        const source = runaroundPickSourceRef.current;
+        if (source && target.id) {
+          source.runaroundTargetId = target.id;
+          const savedH = source.height;
+          source.initDimensions();
+          source.height = savedH;
+          const fc = getActiveCanvas();
+          fc?.requestRenderAll();
+        }
+        runaroundPickSourceRef.current = null;
+        setRunaroundPickMode(false);
+      };
+      fcR?.on('mouse:down', handleRunaroundPick);
+      fcL?.on('mouse:down', handleRunaroundPick);
+
+      // ── Re-flow runaround textboxes when their obstacle moves ────────────
+      // When any object is modified (moved, scaled, rotated), check if any
+      // RunaroundTextbox on the canvas references it and re-flow if so.
+      const reflowOnObstacleModified = (e) => {
+        const movedObj = e.target;
+        if (!movedObj?.id) return;
+        const fc = getActiveCanvas();
+        if (!fc) return;
+        fc.getObjects().forEach(obj => {
+          if (obj.type === 'runaround-textbox' && obj.runaroundTargetId === movedObj.id) {
+            const savedH = obj.height;
+            obj.initDimensions();
+            obj.height = savedH;
+          }
+        });
+        fc.requestRenderAll();
+      };
+      fcR?.on('object:modified', reflowOnObstacleModified);
+      fcL?.on('object:modified', reflowOnObstacleModified);
+      fcR?.on('object:moving',   reflowOnObstacleModified);
+      fcL?.on('object:moving',   reflowOnObstacleModified);
+      fcR?.on('object:scaling',  reflowOnObstacleModified);
+      fcL?.on('object:scaling',  reflowOnObstacleModified);
+
       return () => {
         // Remove cross-canvas sync listeners before disposal
         fcR?.off('text:changed',        syncToLeft);
@@ -2786,6 +2884,14 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         fcL?.off('text:editing:exited', redistributeChain);
         fcR?.off('mouse:down', handleChainPick);
         fcL?.off('mouse:down', handleChainPick);
+        fcR?.off('mouse:down', handleRunaroundPick);
+        fcL?.off('mouse:down', handleRunaroundPick);
+        fcR?.off('object:modified', reflowOnObstacleModified);
+        fcL?.off('object:modified', reflowOnObstacleModified);
+        fcR?.off('object:moving',   reflowOnObstacleModified);
+        fcL?.off('object:moving',   reflowOnObstacleModified);
+        fcR?.off('object:scaling',  reflowOnObstacleModified);
+        fcL?.off('object:scaling',  reflowOnObstacleModified);
 
         // Disposal already handled by callback refs while DOM is live.
         // These null-assignments prevent stale references if effect cleanup
@@ -3015,7 +3121,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     if (!spreadView) {
       const fc = fabricRef.current;
       if (!fc) return;
-      const json = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']);
+      const json = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow', 'runaroundTargetId', 'runaroundGap']);
       const thumb = fc.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
       setPages(prev => prev.map((p, i) =>
         i === currentPageIndex ? { ...p, canvasJSON: json, thumbnailDataUrl: thumb } : p
@@ -3024,12 +3130,12 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pages.length);
       setPages(prev => prev.map((p, i) => {
         if (i === leftIndex && fabricRefLeft.current) {
-          const json  = fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'isSpreadImage', 'spreadImageId', 'spreadSide', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']);
+          const json  = fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'isSpreadImage', 'spreadImageId', 'spreadSide', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow', 'runaroundTargetId', 'runaroundGap']);
           const thumb = fabricRefLeft.current.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
           return { ...p, canvasJSON: json, thumbnailDataUrl: thumb };
         }
         if (i === rightIndex && fabricRef.current) {
-          const json  = fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'isSpreadImage', 'spreadImageId', 'spreadSide', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']);
+          const json  = fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'isSpreadImage', 'spreadImageId', 'spreadSide', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow', 'runaroundTargetId', 'runaroundGap']);
           const thumb = fabricRef.current.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
           return { ...p, canvasJSON: json, thumbnailDataUrl: thumb };
         }
@@ -3807,13 +3913,13 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pages.length);
       const freshPages = pages.map((page, i) => {
         if (!spreadView && i === currentPageIndex && fabricRef.current) {
-          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']) };
+          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow', 'runaroundTargetId', 'runaroundGap']) };
         }
         if (spreadView && i === leftIndex && fabricRefLeft.current) {
-          return { ...page, canvasJSON: fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']) };
+          return { ...page, canvasJSON: fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow', 'runaroundTargetId', 'runaroundGap']) };
         }
         if (spreadView && i === rightIndex && fabricRef.current) {
-          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']) };
+          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow', 'runaroundTargetId', 'runaroundGap']) };
         }
         return page;
       });
@@ -4359,7 +4465,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       await new Promise(r => setTimeout(r, 80));
       fc.renderAll();
 
-      const json  = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']);
+      const json  = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow', 'runaroundTargetId', 'runaroundGap']);
       const thumb = fc.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
       fc.dispose();
 
@@ -4574,7 +4680,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         await new Promise(r => setTimeout(r, 60));
         fc.renderAll();
 
-        const json  = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']);
+        const json  = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow', 'runaroundTargetId', 'runaroundGap']);
         const thumb = fc.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
 
         newPages.push({
@@ -4661,6 +4767,82 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     if (!fc || !frame) return;
     unlinkFrame(frame, fc);
     fc.requestRenderAll();
+    handlePropertiesUpdate();
+  }, [getActiveCanvas]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Text runaround ───────────────────────────────────────────────────────────
+
+  // Enter "pick obstacle" mode: next canvas click sets the obstacle for this frame.
+  // If the selected frame is a plain Textbox, convert it in-place to RunaroundTextbox
+  // first so the runaround override methods are available.
+  const handleSetRunaround = useCallback((sourceFrame) => {
+    if (!sourceFrame) return;
+    const fc = getActiveCanvas();
+    if (!fc) return;
+
+    let target = sourceFrame;
+
+    // In-place upgrade: plain Textbox → RunaroundTextbox
+    if (sourceFrame.type === 'textbox') {
+      const props = sourceFrame.toObject([
+        'id', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker',
+        'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd',
+        'chainHasOverflow',
+      ]);
+      const rt = new RunaroundTextbox(sourceFrame.text, {
+        ...props,
+        left:     sourceFrame.left,
+        top:      sourceFrame.top,
+        width:    sourceFrame.width,
+        height:   sourceFrame.height,
+        scaleX:   sourceFrame.scaleX,
+        scaleY:   sourceFrame.scaleY,
+        angle:    sourceFrame.angle,
+        opacity:  sourceFrame.opacity,
+        fontFamily:    sourceFrame.fontFamily,
+        fontSize:      sourceFrame.fontSize,
+        fontWeight:    sourceFrame.fontWeight,
+        fontStyle:     sourceFrame.fontStyle,
+        fill:          sourceFrame.fill,
+        textAlign:     sourceFrame.textAlign,
+        lineHeight:    sourceFrame.lineHeight,
+        charSpacing:   sourceFrame.charSpacing,
+        underline:     sourceFrame.underline,
+        backgroundColor: sourceFrame.backgroundColor,
+      });
+      fc.remove(sourceFrame);
+      fc.add(rt);
+      fc.setActiveObject(rt);
+      setSelectedObject(rt);
+      target = rt;
+    }
+
+    runaroundPickSourceRef.current = target;
+    setRunaroundPickMode(true);
+  }, [getActiveCanvas, setSelectedObject]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Remove runaround from a textbox (revert to regular Textbox behaviour).
+  const handleClearRunaround = useCallback((frame) => {
+    if (!frame) return;
+    const fc = getActiveCanvas();
+    frame.runaroundTargetId = null;
+    frame._runaroundLineData = {};
+    const savedH = frame.height;
+    frame.initDimensions();
+    frame.height = savedH;
+    fc?.requestRenderAll();
+    handlePropertiesUpdate();
+  }, [getActiveCanvas]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Change the runaround gap on-the-fly.
+  const handleRunaroundGap = useCallback((frame, gap) => {
+    if (!frame) return;
+    const fc = getActiveCanvas();
+    frame.runaroundGap = gap;
+    const savedH = frame.height;
+    frame.initDimensions();
+    frame.height = savedH;
+    fc?.requestRenderAll();
     handlePropertiesUpdate();
   }, [getActiveCanvas]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -5487,6 +5669,10 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
             onLinkChain={handleLinkChain}
             onUnlinkChain={handleUnlinkChain}
             chainLinkMode={chainPickMode}
+            onSetRunaround={handleSetRunaround}
+            onClearRunaround={handleClearRunaround}
+            onRunaroundGap={handleRunaroundGap}
+            runaroundPickMode={runaroundPickMode}
           />
         </div>
       </div>
