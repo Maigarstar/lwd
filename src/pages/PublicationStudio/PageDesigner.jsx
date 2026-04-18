@@ -4804,6 +4804,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   // If the selected frame is a plain Textbox, convert it in-place to RunaroundTextbox
   // first so the runaround override methods are available.
   const handleSetRunaround = useCallback((sourceFrame) => {
+    console.log('🎯 handleSetRunaround called with:', sourceFrame);
     if (!sourceFrame) return;
     const fc = getActiveCanvas();
     if (!fc) return;
@@ -4846,6 +4847,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     }
 
     runaroundPickSourceRef.current = target;
+    console.log('🎯 Setting modal textbox:', target);
+    console.log('🎯 Setting runnaroundModalOpen to true');
     setRunnaroundModalTextbox(target);
     setRunnaroundModalOpen(true);
     setRunaroundPickMode(false); // Don't enter pick mode immediately; wait for modal button click
