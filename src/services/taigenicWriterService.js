@@ -368,8 +368,27 @@ Each item represents one page in the review:
   "kicker": "SHORT KICKER — e.g. 'THE LWD HOTEL REVIEW' or 'FIRST IMPRESSIONS' or 'THE ROOMS'",
   "headline": "hotel name for cover, room type for rooms, restaurant name for dining, etc.",
   "body": "2-3 sentences of luxury editorial copy in ${tone} voice — sensory, specific, authoritative",
-  "byline": "Optional: 'Reviewed by Charlotte Ashford, Editor-in-Chief'"
+  "byline": "Optional: 'Reviewed by Charlotte Ashford, Editor-in-Chief'",
+  "best_for": "comma-separated list for verdict page only — e.g. 'Honeymoons, Anniversaries, City Breaks'",
+  "cuisine": "cuisine style tag for dining page — e.g. 'BRITISH · SEASONAL ✦' or 'JAPANESE · OMAKASE ✦'",
+  "layout": {
+    "composition": "for cover only: 'centered' (default) | 'editorial-left' | 'bold-bottom'",
+    "mood": "for rooms only: 'dark' (default) | 'light'",
+    "image_split": "for arrival/rooms: 'narrow-image' (default 44%) | 'wide-image' (56%)",
+    "image_style": "for dining: 'full-width-top' (default) | 'split-right'",
+    "headline_size": "font size integer — compute from headline text length: ≤12 chars=62, ≤18=50, ≤24=40, ≤32=32, longer=26",
+    "ratings": { "rooms": 1-10, "dining": 1-10, "service": 1-10, "value": 1-10 },
+    "star_rating": 1-5
+  }
 }
+
+Layout rules:
+- Choose composition based on the hotel's character. Understated English hotels → 'editorial-left'. Grand palaces → 'centered'. Brutalist/design hotels → 'bold-bottom'.
+- Mood 'light' for rooms pages when the hotel has airy, Scandinavian or coastal aesthetic. 'dark' for dramatic, historic, or city properties.
+- image_split 'wide-image' when the property is visually spectacular. 'narrow-image' when the editorial copy is the star.
+- Dining 'split-right' for intimate restaurants. 'full-width-top' for grand dining rooms or terrace settings.
+- headline_size MUST be computed from the headline text length. Never let a long name clip.
+- ratings must reflect the actual review sentiment. Do not default to 8/8/9/7 for everything.
 
 ALWAYS produce pages in this exact order:
 1. hotel-review-cover  (page 1 — always)
@@ -446,6 +465,12 @@ Return exactly ${2 + activeSections.filter(s => ['rooms','dining'].includes(s)).
     // or location forward — we inject them here so every page gets them.
     hotel_name: hotelName,
     location:   location || '',
+    // Merge AI layout with star_rating from the form so the cover always shows
+    // the correct star count even if the AI omits it.
+    layout: {
+      star_rating: starRating,
+      ...(p.layout || {}),
+    },
   }));
 
   // Fire-and-forget log
