@@ -16,6 +16,7 @@ import { PAGE_SIZES, ELEMENT_DEFAULTS, GOLD, DARK, CARD, BORDER, MUTED, NU, GD }
 import { TEMPLATES } from './templates/definitions';
 import ElementsPanel from './PageDesigner/ElementsPanel';
 import PropertiesPanel from './PageDesigner/PropertiesPanel';
+import FloatingTextToolbar from './PageDesigner/FloatingTextToolbar';
 import PageListPanel from './PageDesigner/PageListPanel';
 import DesignerToolbar from './PageDesigner/DesignerToolbar';
 import { canvasToJpegBlob, canvasToPrintJpegBlob, generatePrintPDF, generateScreenPDF, downloadPDF, extractPageSVGs, generateVectorPDF } from './PageDesigner/exportUtils';
@@ -1950,11 +1951,25 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   const [pageSize, setPageSize] = useState(issue?.page_size || 'A4');
   const [layers, setLayers] = useState([]);
   const [pagesLoaded, setPagesLoaded] = useState(false);
-  const [showGrid, setShowGrid] = useState(false);
-  const [snapToGrid, setSnapToGrid] = useState(false);
-  const [showRuler, setShowRuler] = useState(false);
-  const [showBleed, setShowBleed] = useState(false);
-  const [lightsOff, setLightsOff] = useState(false); // dim surroundings to focus on canvas
+
+  // ── Designer view preferences — persisted across reloads ──────────────────
+  // Stored in localStorage under 'lwd:designer:prefs' so the user's view
+  // settings survive page refreshes and tab closes.
+  const _loadPref = (key, fallback) => {
+    try {
+      const raw = localStorage.getItem('lwd:designer:prefs');
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (key in p) return p[key];
+      }
+    } catch (_) { /* ignore */ }
+    return fallback;
+  };
+  const [showGrid,    setShowGrid]    = useState(() => _loadPref('showGrid',    false));
+  const [snapToGrid,  setSnapToGrid]  = useState(() => _loadPref('snapToGrid',  false));
+  const [showRuler,   setShowRuler]   = useState(() => _loadPref('showRuler',   false));
+  const [showBleed,   setShowBleed]   = useState(() => _loadPref('showBleed',   false));
+  const [lightsOff,   setLightsOff]   = useState(false); // dim surroundings to focus on canvas
   const [zoom, setZoom] = useState(1);
   const [activeTemplateId, setActiveTemplateId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -1975,8 +1990,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   // Background removal
   const [removingBg, setRemovingBg] = useState(false);
 
-  // Spread view state — default ON for wide screens
-  const [spreadView, setSpreadView] = useState(() => window.innerWidth >= 1400);
+  // Spread view state — persisted; falls back to auto-detect on first load
+  const [spreadView, setSpreadView] = useState(() => _loadPref('spreadView', window.innerWidth >= 1400));
   const [activeSpreadSide, setActiveSpreadSide] = useState('right'); // 'left' | 'right'
 
   // Spread preview modal (read-only rendered spread view)
@@ -2220,6 +2235,15 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   // Snap-to-grid ref — lets Fabric event handlers read current state without stale closure
   const snapToGridRef = useRef(false);
   useEffect(() => { snapToGridRef.current = snapToGrid; }, [snapToGrid]);
+
+  // ── Persist view prefs to localStorage ──────────────────────────────────────
+  useEffect(() => {
+    try {
+      localStorage.setItem('lwd:designer:prefs', JSON.stringify({
+        spreadView, showGrid, snapToGrid, showRuler, showBleed,
+      }));
+    } catch (_) { /* ignore quota / private-browsing errors */ }
+  }, [spreadView, showGrid, snapToGrid, showRuler, showBleed]);
 
   // Clipboard ref — stores a cloned Fabric object for copy/paste
   const clipboardRef = useRef(null);
@@ -5309,6 +5333,18 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         onDeletePage={handleDeletePage}
         onDuplicatePage={handleDuplicatePage}
         onReorderPage={handleReorderPage}
+      />
+
+      {/* Floating text format toolbar — appears above selected textbox */}
+      <FloatingTextToolbar
+        selectedObject={selectedObject}
+        getActiveCanvas={getActiveCanvas}
+        zoom={zoom}
+        dims={dims}
+        onUpdate={handlePropertiesUpdate}
+        activeSpreadSide={activeSpreadSide}
+        fabricRef={fabricRef}
+        fabricRefLeft={fabricRefLeft}
       />
 
       {/* Draft guide preview (fixed overlay while dragging from ruler) */}
