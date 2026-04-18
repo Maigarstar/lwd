@@ -2640,7 +2640,55 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         fabricRefLeft.current = fcLeft;
       }
 
+      // ── Cross-spread text sync ───────────────────────────────────────────
+      // Spread Heading / Spread Body objects are duplicated across both canvases
+      // (same spreadImageId, different spreadSide). When the user edits text on
+      // one side, we mirror the change to the partner object on the other side
+      // so both pages always show the same text.
+      //
+      // Guards:
+      //   • Only textboxes with isSpreadImage=true are synced
+      //   • Only fires if text actually differs (prevents infinite loop)
+      //   • Uses text:changed (live, per keystroke) + text:editing:exited (final)
+      const fcR = fabricRef.current;
+      const fcL = fabricRefLeft.current;
+
+      const syncToLeft = (e) => {
+        const obj = e.target;
+        if (!obj || obj.type !== 'textbox' || !obj.isSpreadImage || !fcL) return;
+        const partner = fcL.getObjects().find(
+          o => o.isSpreadImage && o.spreadImageId === obj.spreadImageId
+        );
+        if (partner && partner.text !== obj.text) {
+          partner.set('text', obj.text);
+          fcL.requestRenderAll();
+        }
+      };
+
+      const syncToRight = (e) => {
+        const obj = e.target;
+        if (!obj || obj.type !== 'textbox' || !obj.isSpreadImage || !fcR) return;
+        const partner = fcR.getObjects().find(
+          o => o.isSpreadImage && o.spreadImageId === obj.spreadImageId
+        );
+        if (partner && partner.text !== obj.text) {
+          partner.set('text', obj.text);
+          fcR.requestRenderAll();
+        }
+      };
+
+      fcR?.on('text:changed',        syncToLeft);
+      fcR?.on('text:editing:exited', syncToLeft);
+      fcL?.on('text:changed',        syncToRight);
+      fcL?.on('text:editing:exited', syncToRight);
+
       return () => {
+        // Remove cross-canvas sync listeners before disposal
+        fcR?.off('text:changed',        syncToLeft);
+        fcR?.off('text:editing:exited', syncToLeft);
+        fcL?.off('text:changed',        syncToRight);
+        fcL?.off('text:editing:exited', syncToRight);
+
         // Disposal already handled by callback refs while DOM is live.
         // These null-assignments prevent stale references if effect cleanup
         // somehow runs before the callback ref null-branch (edge case guard).
