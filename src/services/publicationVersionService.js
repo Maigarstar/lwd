@@ -3,16 +3,19 @@
 //
 // Every save (manual or auto) calls createVersion() which snapshots the full
 // pages array into `publication_versions`. Users can list all versions and
-// restore any of them — the live pages in `magazine_pages` are then overwritten
-// with the snapshot's canvasJSON values.
+// restore any of them.
 //
 // Retention: 50 versions per issue (oldest pruned automatically on write).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../lib/supabaseClient';
 
-const TABLE       = 'publication_versions';
+const TABLE        = 'publication_versions';
 const MAX_VERSIONS = 50;
+
+// Simple UUID v4 check — prevents sending malformed ids to the DB
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isUUID(v) { return typeof v === 'string' && UUID_RE.test(v); }
 
 // ── Write ─────────────────────────────────────────────────────────────────────
 
@@ -25,14 +28,27 @@ const MAX_VERSIONS = 50;
  * @returns {{ version: object|null, error: string|null }}
  */
 export async function createVersion(issueId, pages, label = 'Save') {
-  if (!issueId || !pages?.length) return { version: null, error: 'Missing issueId or pages' };
+  // Bug #7: validate issueId is a proper UUID before hitting the DB
+  if (!isUUID(issueId)) {
+    console.warn('[versions] Invalid issueId — skipping snapshot:', issueId);
+    return { version: null, error: 'Invalid issueId' };
+  }
+  if (!pages?.length) return { version: null, error: 'No pages to snapshot' };
 
-  // Build a compact snapshot — only what we need to restore
-  const snapshot = pages.map((p, i) => ({
-    page_number: p.page_number ?? i + 1,
-    canvasJSON:  p.canvasJSON  ?? null,
-    slot:        p.slot        ?? null,
-  }));
+  // Bug #14: ensure canvasJSON is a plain object, not a Fabric canvas instance
+  const snapshot = pages.map((p, i) => {
+    let cj = p.canvasJSON ?? null;
+    if (cj && typeof cj.toJSON === 'function') {
+      // Fabric Canvas accidentally passed in — serialize it now
+      cj = cj.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder',
+                      'isPlaceholderMarker', '_role', 'ctaUrl', 'ctaStyle']);
+    }
+    return {
+      page_number: p.page_number ?? i + 1,
+      canvasJSON:  cj,
+      slot:        p.slot ?? null,
+    };
+  });
 
   // Get the next version number for this issue
   const { data: nextData, error: numErr } = await supabase
@@ -76,7 +92,7 @@ export async function createVersion(issueId, pages, label = 'Save') {
  * @returns {{ versions: Array, error: string|null }}
  */
 export async function listVersions(issueId) {
-  if (!issueId) return { versions: [], error: null };
+  if (!isUUID(issueId)) return { versions: [], error: null };
 
   const { data, error } = await supabase
     .from(TABLE)
@@ -108,29 +124,36 @@ export async function getVersion(versionId) {
 // ── Prune ─────────────────────────────────────────────────────────────────────
 
 async function pruneOldVersions(issueId) {
-  // Find IDs of versions beyond the limit
-  const { data } = await supabase
+  // Bug #18: find the actual version_number threshold, then delete below it
+  // (avoids magic range number)
+  const { data: oldest } = await supabase
     .from(TABLE)
-    .select('id')
+    .select('version_number')
     .eq('issue_id', issueId)
     .order('version_number', { ascending: false })
-    .range(MAX_VERSIONS, 9999); // everything after position MAX_VERSIONS
+    .range(MAX_VERSIONS - 1, MAX_VERSIONS - 1) // the last item we KEEP
+    .single();
 
-  if (!data?.length) return;
+  if (!oldest) return; // fewer than MAX_VERSIONS exist — nothing to prune
 
-  const ids = data.map(r => r.id);
-  await supabase.from(TABLE).delete().in('id', ids);
+  await supabase
+    .from(TABLE)
+    .delete()
+    .eq('issue_id', issueId)
+    .lt('version_number', oldest.version_number); // delete everything older
 }
 
 // ── Label update ──────────────────────────────────────────────────────────────
 
 /**
  * Let the user rename a version (e.g. "Client approved" / "Before rebrand").
+ * Returns { error } or { error: null } on success.
  */
 export async function renameVersion(versionId, label) {
+  if (!label?.trim()) return { error: 'Label cannot be empty' };
   const { error } = await supabase
     .from(TABLE)
-    .update({ label })
+    .update({ label: label.trim() })
     .eq('id', versionId);
   return { error: error?.message ?? null };
 }

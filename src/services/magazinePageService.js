@@ -235,7 +235,7 @@ export async function uploadViaEdgeFunction({ bucket, path, blob, contentType = 
     });
   } catch (err) {
     if (err.name === 'AbortError') {
-      throw new Error('Upload timed out after 60 s — check your connection and try again.');
+      throw new Error(`Upload timed out after ${Math.round(timeoutMs / 1000)} s — check your connection and try again.`);
     }
     throw err;
   } finally {

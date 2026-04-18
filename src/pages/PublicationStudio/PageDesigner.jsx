@@ -2005,6 +2005,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
 
   // Version history panel
   const [showHistory, setShowHistory] = useState(false);
+  // Bug #13: skip versioning on the auto-save that fires immediately after a
+  // restore — that save is just persisting the restoration, not a user edit.
+  const skipNextVersionRef = useRef(false);
 
   // P9a: Fill Issue Panel
   const [showFillIssue, setShowFillIssue] = useState(false);
@@ -3511,7 +3514,13 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       if (error) throw error;
 
       // Snapshot this save as a new version (fire-and-forget — don't block save)
-      createVersion(issue.id, freshPages, 'Manual save').catch(() => {});
+      // Bug #13: skip versioning on the first save after a restore so we don't
+      // create a duplicate identical version immediately after restoring.
+      if (skipNextVersionRef.current) {
+        skipNextVersionRef.current = false;
+      } else {
+        createVersion(issue.id, freshPages, 'Manual save').catch(() => {});
+      }
 
       // Sync local state so further edits start from the saved snapshot
       setPages(freshPages);
@@ -3896,7 +3905,10 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   // Auto-saves current state first so it becomes the latest version,
   // then replaces the canvas with the restored pages.
   const handleRestoreVersion = useCallback(async (snapshot) => {
-    // Auto-save current state before overwriting (gives user a safety net)
+    // Auto-save current state before overwriting (gives user a safety net version)
+    // Bug #13: the restore will trigger one more save (isDirty=true after restore)
+    // — flag it so that save doesn't create a duplicate snapshot.
+    skipNextVersionRef.current = true;
     await handleSave().catch(() => {});
 
     // Map snapshot rows back to live page shape
@@ -3912,19 +3924,29 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     setCurrentPageIndex(0);
     setIsDirty(true); // mark dirty so user can save the restored state
 
-    // Reload the canvas with the restored page
-    // A small delay lets React re-render first
+    // Bug #8: clear undo/redo stacks — the history from the previous session
+    // is no longer relevant after a version restore and would confuse Ctrl+Z.
+    setUndoStack([]);
+    setRedoStack([]);
+
+    // Reload the canvas with the restored first page after React re-renders
     setTimeout(() => {
       const fc = getActiveCanvas();
       const targetPage = restored[0];
       if (fc && targetPage?.canvasJSON) {
-        fc.loadFromJSON(targetPage.canvasJSON, () => {
+        // Bug #22: catch loadFromJSON failures (corrupt snapshot or version mismatch)
+        Promise.resolve(
+          fc.loadFromJSON(targetPage.canvasJSON)
+        ).then(() => {
           fc.requestRenderAll();
           pushUndo();
+        }).catch(e => {
+          console.error('[restore] Canvas load failed:', e);
+          alert('Could not load this version\'s canvas \u2014 the snapshot may be corrupted.');
         });
       }
     }, 80);
-  }, [pages, handleSave, getActiveCanvas, pushUndo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pages, handleSave, getActiveCanvas, pushUndo, setUndoStack, setRedoStack]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── P9a: Assign a placeholder image from the Fill Issue panel ────────────────
   // Uses an offscreen Fabric canvas so we can patch pages that are NOT currently

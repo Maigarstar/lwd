@@ -119,11 +119,15 @@ export default function VersionHistoryPanel({ issue, currentPageCount, onRestore
     if (!issue?.id) return;
     setLoading(true);
     setError(null);
+    // Bug #5: reset selection when issue changes so we never show a stale
+    // version from a previous issue if the panel stays mounted across navigation
+    setSelected(null);
+    setConfirmMode(false);
     const { versions: v, error: e } = await listVersions(issue.id);
     setLoading(false);
     if (e) { setError(e); return; }
     setVersions(v);
-    if (v.length > 0 && !selected) setSelected(v[0]);
+    if (v.length > 0) setSelected(v[0]); // always select newest on fresh load
   }, [issue?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
@@ -136,8 +140,11 @@ export default function VersionHistoryPanel({ issue, currentPageCount, onRestore
     setRestoring(false);
     if (e || !version?.pages_snapshot) {
       alert('Could not load this version — ' + (e || 'no snapshot found'));
+      setConfirmMode(false); // Bug #2: reset confirm state on failure
       return;
     }
+    // Bug #2: reset confirm state before closing so re-opening is clean
+    setConfirmMode(false);
     onRestore(version.pages_snapshot);
     onClose();
   }
@@ -146,8 +153,13 @@ export default function VersionHistoryPanel({ issue, currentPageCount, onRestore
   async function handleSaveLabel() {
     if (!selected || !labelDraft.trim()) return;
     setSavingLabel(true);
-    await renameVersion(selected.id, labelDraft.trim());
+    // Bug #19: check for error instead of assuming success
+    const { error: renameErr } = await renameVersion(selected.id, labelDraft.trim());
     setSavingLabel(false);
+    if (renameErr) {
+      alert('Rename failed — ' + renameErr);
+      return;
+    }
     setEditingLabel(false);
     setVersions(prev =>
       prev.map(v => v.id === selected.id ? { ...v, label: labelDraft.trim() } : v)
@@ -251,7 +263,12 @@ export default function VersionHistoryPanel({ issue, currentPageCount, onRestore
               }}>
                 <span style={{ fontSize: 8, color: '#34d399' }}>●</span>
                 <span style={{ fontFamily: NU, fontSize: 10, color: '#34d399', letterSpacing: '0.04em' }}>
-                  Current — {currentPageCount} pages (unsaved changes may exist)
+                  {/* Bug #11: show last-saved count from versions[0] to avoid
+                      misleading live count when unsaved changes exist */}
+                  Working copy — {versions[0]?.page_count ?? currentPageCount} pages saved
+                  {currentPageCount !== (versions[0]?.page_count ?? currentPageCount)
+                    ? ` · ${currentPageCount} in editor (unsaved)`
+                    : ''}
                 </span>
               </div>
 
@@ -305,7 +322,7 @@ export default function VersionHistoryPanel({ issue, currentPageCount, onRestore
                             {savingLabel ? '…' : '✓'}
                           </button>
                           <button
-                            onClick={() => setEditingLabel(false)}
+                            onClick={() => { setEditingLabel(false); setLabelDraft(''); }} // Bug #17
                             style={{
                               background: 'none', border: `1px solid ${BDR}`, borderRadius: 2,
                               color: MUTED, fontFamily: NU, fontSize: 9,

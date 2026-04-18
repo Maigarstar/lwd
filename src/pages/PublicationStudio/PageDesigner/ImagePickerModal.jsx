@@ -281,20 +281,31 @@ export default function ImagePickerModal({ issue, onSelect, onSelectMultiple, on
   // ── Upload ─────────────────────────────────────────────────────────────────
   const handleUpload = useCallback(async (file) => {
     if (!file) return;
+
+    // Bug #20: reject files over 50 MB client-side before even trying to upload
+    const MAX_MB = 50;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      setUploadError(`File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max ${MAX_MB} MB.`);
+      return;
+    }
+
     setUploading(true);
     setUploadError(null);
     setUploadProgress(10);
+
     try {
-      // Simulate progress (real progress not available from fetch)
-      const progressTimer = setInterval(() => {
-        setUploadProgress(p => Math.min(p + 15, 85));
-      }, 300);
-      const { publicUrl, error } = await uploadAsset(issue?.id, file);
-      clearInterval(progressTimer);
-      setUploadProgress(100);
+      // Bug #12: use onProgress from service for more accurate feedback
+      // (service fires at 20%, 85%, 100% — still not byte-level but better than a timer)
+      const { publicUrl, error } = await uploadAsset(issue?.id, file, {
+        onProgress: (pct) => setUploadProgress(pct),
+      });
       if (error) throw new Error(error);
-      // Refresh media list then auto-select
-      await loadMedia();
+
+      setUploadProgress(100);
+
+      // Refresh media list — intentionally NOT awaited before onSelect
+      // so the canvas gets the image immediately without waiting for DB refresh
+      loadMedia().catch(() => {});
       onSelect(publicUrl);
     } catch (e) {
       setUploadError(e?.message || 'Upload failed.');
@@ -465,7 +476,8 @@ export default function ImagePickerModal({ issue, onSelect, onSelectMultiple, on
                 />
               )}
 
-              {mediaLoading && (
+              {/* Bug #12 fix: don't show "Loading..." while upload is in progress — it overlaps */}
+              {mediaLoading && !uploading && (
                 <div style={{ fontFamily: NU, fontSize: 10, color: MUTED, textAlign: 'center', padding: '32px 0' }}>
                   Loading…
                 </div>

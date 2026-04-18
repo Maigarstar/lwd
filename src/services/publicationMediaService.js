@@ -32,6 +32,10 @@ function normaliseImageFile(file) {
   if (ALLOWED.includes(file.type)) return Promise.resolve(file);
 
   return new Promise((resolve, reject) => {
+    // Bug #21: canvas.toBlob may never fire in privacy-restricted browsers —
+    // add a 15 s hard timeout so the upload doesn't hang forever.
+    const timeout = setTimeout(() => reject(new Error('Image conversion timed out')), 15_000);
+
     const img = new Image();
     const blobUrl = URL.createObjectURL(file);
     img.onload = () => {
@@ -42,6 +46,7 @@ function normaliseImageFile(file) {
       URL.revokeObjectURL(blobUrl);
       canvas.toBlob(
         blob => {
+          clearTimeout(timeout);
           if (!blob) { reject(new Error('Image conversion failed')); return; }
           const name = file.name.replace(/\.[^.]+$/, '.jpg');
           resolve(new File([blob], name, { type: 'image/jpeg' }));
@@ -50,7 +55,11 @@ function normaliseImageFile(file) {
         0.92,
       );
     };
-    img.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error('Could not read image file')); };
+    img.onerror = () => {
+      clearTimeout(timeout);
+      URL.revokeObjectURL(blobUrl);
+      reject(new Error('Could not read image file'));
+    };
     img.src = blobUrl;
   });
 }
@@ -174,9 +183,12 @@ export async function uploadAsset(issueId, file, { onProgress } = {}) {
  */
 export async function listAllAssets(issueId) {
   // ── 1. Try DB (global, persistent, cross-device) ─────────────────────────
+  // Bug #9: treat null as "DB unavailable" and [] as "DB available but empty"
+  // — only fall back to Storage/localStorage when DB is actually unreachable.
   const dbRows = await dbListAllMedia();
-  if (dbRows !== null && dbRows.length > 0) {
-    return dbRows.map(r => ({
+  if (dbRows !== null) {
+    // DB responded (even if empty) — use it as the authoritative source
+    return (dbRows || []).map(r => ({
       url:            r.url,
       name:           r.filename || r.url.split('/').pop(),
       issueId:        r.issue_id,
@@ -186,16 +198,22 @@ export async function listAllAssets(issueId) {
     }));
   }
 
-  // ── 2. Fallback: Storage listing + localStorage ───────────────────────────
-  const [issueAssets, recent] = await Promise.all([
-    listIssueAssets(issueId),
-    Promise.resolve(getRecentAssets()),
-  ]);
-  const seen   = new Set(issueAssets.map(a => a.url));
-  const others = recent
-    .filter(r => !seen.has(r.url) && r.issueId !== issueId)
-    .map(r => ({ ...r, fromOtherIssue: true }));
-  return [...issueAssets, ...others];
+  // ── 2. Fallback: Storage listing + localStorage (DB unavailable) ──────────
+  // Bug #10: wrap in try-catch so a Storage outage doesn't crash the picker
+  try {
+    const [issueAssets, recent] = await Promise.all([
+      listIssueAssets(issueId),
+      Promise.resolve(getRecentAssets()),
+    ]);
+    const seen   = new Set(issueAssets.map(a => a.url));
+    const others = recent
+      .filter(r => !seen.has(r.url) && r.issueId !== issueId)
+      .map(r => ({ ...r, fromOtherIssue: true }));
+    return [...issueAssets, ...others];
+  } catch (e) {
+    console.warn('[media] Storage fallback failed, using localStorage only:', e.message);
+    return getRecentAssets();
+  }
 }
 
 /**
@@ -227,6 +245,8 @@ export async function listIssueAssets(issueId) {
  * Returns { error } or {} on success.
  */
 export async function deleteAsset(url, storagePath) {
+  // Bug #16: validate at least one identifier is provided
+  if (!url && !storagePath) return { error: 'Must provide url or storagePath to delete' };
   const errors = [];
 
   if (storagePath) {
