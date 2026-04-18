@@ -2341,11 +2341,31 @@ function CreateModal({ onCreated, onClose }) {
   const [loadingTpls, setLoadingTpls] = useState(false);
   const [selectedTpl, setSelectedTpl] = useState(null);
 
+  const [tplErr, setTplErr] = useState('');
+
   const loadTemplates = async () => {
     setLoadingTpls(true);
-    const { data } = await supabase.from('magazine_issue_templates').select('*').order('created_at', { ascending: false });
-    setTemplates(data || []);
-    setLoadingTpls(false);
+    setTplErr('');
+    try {
+      const { data, error } = await supabase
+        .from('magazine_issue_templates')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) {
+        // Table may not exist yet — show actionable message
+        const isNoTable = error.message?.includes('does not exist') || error.code === '42P01';
+        setTplErr(isNoTable
+          ? 'Templates table not set up. Run the migration in Supabase SQL Editor:\n20260417_issue_templates.sql'
+          : error.message);
+        setTemplates([]);
+      } else {
+        setTemplates(data || []);
+      }
+    } catch (e) {
+      setTplErr(e.message || 'Failed to load templates');
+    } finally {
+      setLoadingTpls(false);
+    }
   };
 
   const handleCreate = async () => {
@@ -2353,17 +2373,27 @@ function CreateModal({ onCreated, onClose }) {
     setBusy(true); setErr('');
     const { data, error } = await createIssue({ title: title.trim(), issue_number: num ? parseInt(num) : null, year });
     if (error) { setErr(error.message); setBusy(false); return; }
-    // If a template was selected, insert pages from template
+    // If a template was selected, copy its pages into the new issue
     if (selectedTpl && selectedTpl.pages_data?.length > 0) {
-      try {
-        const pageInserts = selectedTpl.pages_data.map(p => ({
+      const { error: pagesErr } = await supabase.from('magazine_issue_pages').insert(
+        selectedTpl.pages_data.map(p => ({
           issue_id:      data.id,
           page_number:   p.pageNumber,
-          template_data: { canvasJSON: p.canvasJSON, templateName: p.templateName },
-        }));
-        await supabase.from('magazine_issue_pages').insert(pageInserts);
-      } catch (tplErr) {
-        console.warn('[CreateModal] Template page insert failed:', tplErr);
+          source_type:   'template',
+          template_data: {
+            engine:       'designer-v1',
+            canvasJSON:   p.canvasJSON   ?? null,
+            templateName: p.templateName ?? null,
+            slot:         p.slot         ?? null,
+          },
+        }))
+      );
+      if (pagesErr) {
+        console.error('[CreateModal] Template page insert failed:', pagesErr);
+        setErr(`Issue created but failed to copy template pages: ${pagesErr.message}`);
+        setBusy(false);
+        onCreated(data); // still open the issue, pages just won't be there
+        return;
       }
     }
     onCreated(data);
@@ -2415,6 +2445,8 @@ function CreateModal({ onCreated, onClose }) {
             <div style={{ marginTop: 10, border: `1px solid ${BORDER}`, borderRadius: 4, overflow: 'hidden', maxHeight: 200, overflowY: 'auto' }}>
               {loadingTpls ? (
                 <div style={{ padding: '14px 16px', fontFamily: NU, fontSize: 11, color: MUTED }}>Loading templates…</div>
+              ) : tplErr ? (
+                <div style={{ padding: '14px 16px', fontFamily: NU, fontSize: 11, color: '#f87171', whiteSpace: 'pre-wrap' }}>{tplErr}</div>
               ) : templates.length === 0 ? (
                 <div style={{ padding: '14px 16px', fontFamily: NU, fontSize: 11, color: MUTED }}>No templates saved yet. Open an issue and click "Save Template".</div>
               ) : (

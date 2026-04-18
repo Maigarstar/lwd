@@ -109,22 +109,28 @@ export async function createIssue(fields = {}) {
 
     console.log('[createIssue] inserting slug:', slug, 'payload keys:', Object.keys(payload));
 
-    // Race the DB call against a 12-second timeout so the UI never hangs silently
-    const dbCall = supabase
+    // Race the DB call against a 30-second timeout.
+    // Supabase free-tier projects sleep after inactivity and can take 15–20 s
+    // to wake up — 12 s was too short and caused false timeouts.
+    const makeDbCall = () => supabase
       .from(ISSUES_TABLE)
       .insert(payload)
       .select()
       .single();
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(
-        'Create timed out after 12 s — Supabase did not respond.\n\n' +
-        'Possible causes: project paused, network issue, or slug collision.\n' +
-        `Slug attempted: "${slug}"`
-      )), 12000)
-    );
+    const withTimeout = (promise, ms) => Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(
+          `Create timed out after ${ms / 1000} s — Supabase did not respond.\n\n` +
+          'If your Supabase project was sleeping, wait a few seconds and try again.\n' +
+          'Other causes: network issue, or duplicate slug.\n' +
+          `Slug attempted: "${slug}"`
+        )), ms)
+      ),
+    ]);
 
-    const { data, error } = await Promise.race([dbCall, timeoutPromise]);
+    const { data, error } = await withTimeout(makeDbCall(), 30000);
     console.log('[createIssue] result:', { data: !!data, error: error?.message });
     if (error) throw error;
     return { data, error: null };
