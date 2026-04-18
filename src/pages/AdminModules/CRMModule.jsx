@@ -429,12 +429,17 @@ function ContactsTab({ leads, C, onSelectContact, onStatusChange, onCreateLead }
 
   const executeBulkStatus = async (status, reason) => {
     setBulkApply(true);
-    for (const id of selected) { await onStatusChange(id, status, reason || undefined); }
-    setBulkApply(false);
-    setSelected(new Set());
-    setBulkStatus('');
-    setShowBulkReason(false);
-    setBulkReason('');
+    try {
+      for (const id of selected) { await onStatusChange(id, status, reason || undefined); }
+    } catch (e) {
+      console.error('[CRM] Bulk status update failed:', e.message);
+    } finally {
+      setBulkApply(false);
+      setSelected(new Set());
+      setBulkStatus('');
+      setShowBulkReason(false);
+      setBulkReason('');
+    }
   };
 
   const inS = { padding:'8px 10px', background:C.card, border:`1px solid ${C.border}`, borderRadius:3, fontFamily:'var(--font-body)', fontSize:12, color:C.white, cursor:'pointer', outline:'none' };

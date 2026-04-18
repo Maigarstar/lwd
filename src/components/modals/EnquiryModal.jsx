@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useTheme } from "../../theme/ThemeContext";
 import { MField, Btn } from "../ui/FormHelpers";
+import { createLead } from "../../services/leadEngineService";
 
 export default function EnquiryModal({ vendor, onClose }) {
   const C = useTheme();
@@ -18,8 +19,10 @@ export default function EnquiryModal({ vendor, onClose }) {
     boxSizing: "border-box",
     transition: "border-color 0.2s",
   };
-  const [step, setStep] = useState(1);
-  const [sent, setSent] = useState(false);
+  const [step, setStep]           = useState(1);
+  const [sent, setSent]           = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -31,6 +34,41 @@ export default function EnquiryModal({ vendor, onClose }) {
 
   if (!vendor) return null;
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const canProceed = !!(form.name.trim() && form.email.trim());
+  const canSubmit  = !!(form.message.trim()) && !submitting;
+
+  const handleSend = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const result = await createLead({
+        leadSource:   'vendor_page',
+        leadChannel:  'form',
+        leadType:     'vendor_enquiry',
+        listingId:    vendor.id ? String(vendor.id) : undefined,
+        vendorId:     vendor.id ? String(vendor.id) : undefined,
+        fullName:     form.name.trim() || undefined,
+        email:        form.email.trim(),
+        weddingDate:  form.date.trim() || undefined,
+        guestCount:   form.guests || undefined,
+        budget:       form.budget || undefined,
+        message:      form.message.trim(),
+        intentSummary: `Enquiry for ${vendor.name}`,
+        requirementsJson: { source: 'enquiry_modal', vendor_name: vendor.name },
+        tagsJson:     ['vendor_enquiry'],
+        consentDataProcessing: true,
+      });
+      if (!result.success) throw new Error(result.error?.message || 'Submission failed');
+      setSent(true);
+    } catch (err) {
+      console.error('[EnquiryModal] submit failed:', err?.message);
+      setSubmitError('Something went wrong. Please try again or contact us directly.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div
@@ -173,7 +211,7 @@ export default function EnquiryModal({ vendor, onClose }) {
                   <input style={IS} value={form.name} onChange={set("name")} placeholder="Sophie & James" />
                 </MField>
                 <MField label="Email Address">
-                  <input style={IS} value={form.email} onChange={set("email")} placeholder="your@email.com" />
+                  <input style={IS} type="email" value={form.email} onChange={set("email")} placeholder="your@email.com" />
                 </MField>
                 <MField label="Wedding Date">
                   <input style={{ ...IS, colorScheme: "dark" }} type="date" value={form.date} onChange={set("date")} />
@@ -186,7 +224,7 @@ export default function EnquiryModal({ vendor, onClose }) {
                     ))}
                   </select>
                 </MField>
-                <Btn onClick={() => form.name && form.email && setStep(2)} gold>
+                <Btn onClick={() => canProceed && setStep(2)} gold>
                   Next Step →
                 </Btn>
               </>
@@ -208,6 +246,9 @@ export default function EnquiryModal({ vendor, onClose }) {
                     placeholder="We're dreaming of an outdoor ceremony..."
                   />
                 </MField>
+                {submitError && (
+                  <div style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{submitError}</div>
+                )}
                 <div style={{ display: "flex", gap: 10 }}>
                   <button
                     onClick={() => setStep(1)}
@@ -227,8 +268,8 @@ export default function EnquiryModal({ vendor, onClose }) {
                   >
                     ← Back
                   </button>
-                  <Btn onClick={() => form.message && setSent(true)} gold>
-                    ✦ Send Enquiry
+                  <Btn onClick={handleSend} gold disabled={!canSubmit}>
+                    {submitting ? '⟳ Sending…' : '✦ Send Enquiry'}
                   </Btn>
                 </div>
               </>

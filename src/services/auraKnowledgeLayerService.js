@@ -185,8 +185,11 @@ function calculateRatingDistribution(reviews) {
   const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
   reviews.forEach(review => {
-    if (review.rating && review.rating >= 1 && review.rating <= 5) {
-      dist[review.rating]++;
+    // Raw DB rows use overall_rating; mapped items use rating — handle both
+    const r = review.overall_rating ?? review.rating;
+    const star = r ? Math.round(Number(r)) : 0;
+    if (star >= 1 && star <= 5) {
+      dist[star]++;
     }
   });
 
@@ -322,6 +325,7 @@ function getSentimentOverview(reviews) {
   if (reviews.total === 0) return 'no-reviews';
 
   const avg = parseFloat(reviews.averageRating);
+  if (!Number.isFinite(avg)) return 'no-reviews'; // null / NaN averageRating
   if (avg >= 4.5) return 'exceptional';
   if (avg >= 4.0) return 'very-positive';
   if (avg >= 3.5) return 'positive';

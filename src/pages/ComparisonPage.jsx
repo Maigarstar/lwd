@@ -62,7 +62,7 @@ export default function ComparisonPage({ onBack }) {
       case "rating":
         return (b.rating || 0) - (a.rating || 0);
       default:
-        return a.name.localeCompare(b.name);
+        return (a.name || '').localeCompare(b.name || '');
     }
   });
 

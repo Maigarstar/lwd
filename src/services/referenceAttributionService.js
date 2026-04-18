@@ -82,8 +82,9 @@ export async function logReferenceConversion({ listingId, listingSlug, enquiryTy
       session_id: null,
       viewport: window.innerWidth < 768 ? 'mobile' : window.innerWidth < 1024 ? 'tablet' : 'desktop',
     });
-  } catch (_) {
-    // Non-critical — never block enquiry submission
+  } catch (e) {
+    // Non-critical — never block enquiry submission, but surface the error for debugging
+    console.warn('[referenceAttribution] Failed to log conversion:', e?.message);
   }
 }
 

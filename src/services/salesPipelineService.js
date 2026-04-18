@@ -16,7 +16,12 @@ export async function fetchProspects({ stage, status, search } = {}) {
 
   if (stage && stage !== 'all') q = q.eq('pipeline_stage', stage);
   if (status && status !== 'all') q = q.eq('status', status);
-  if (search) q = q.or(`company_name.ilike.%${search}%,contact_name.ilike.%${search}%,email.ilike.%${search}%`);
+  if (search) {
+    // C6 fix: strip PostgREST-breaking characters from search before interpolation.
+    // Commas, parentheses and dots are syntax characters in the or() filter string.
+    const safe = search.replace(/[(),]/g, '');
+    q = q.or(`company_name.ilike.%${safe}%,contact_name.ilike.%${safe}%,email.ilike.%${safe}%`);
+  }
 
   const { data, error } = await q;
   if (error) throw error;

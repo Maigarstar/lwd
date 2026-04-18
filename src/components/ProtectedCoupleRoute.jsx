@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useCoupleAuth } from "../context/CoupleAuthContext";
 
 const NU = "'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif";
@@ -35,14 +35,10 @@ export default function ProtectedCoupleRoute({ children }) {
     );
   }
 
-  // Redirect to login if not authenticated
+  // C2 fix: use reliable window.location.href — drop unstable window.coupleGoLogin dependency.
+  // Full page reload ensures auth state is fresh on the login page.
   if (!isAuthenticated) {
-    if (window.coupleGoLogin) {
-      window.coupleGoLogin();
-    } else {
-      window.history.pushState(null, "", "/couple/login");
-      window.location.href = "/couple/login";
-    }
+    window.location.href = "/couple/login";
     return null;
   }
 

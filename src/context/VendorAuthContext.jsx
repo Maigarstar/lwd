@@ -28,6 +28,9 @@ export function VendorAuthProvider({ children }) {
   useEffect(() => {
     const initAuth = async () => {
       setLoading(true);
+      // C1 fix: mark done BEFORE the await so the auth-state listener never
+      // fires and returns early during the init async gap.
+      initialLoadDone.current = true;
       const { data: vendorData } = await getCurrentVendor();
       if (vendorData) {
         setVendor(vendorData);
@@ -44,7 +47,6 @@ export function VendorAuthProvider({ children }) {
         setIsAuthenticated(true);
       }
       setLoading(false);
-      initialLoadDone.current = true;
     };
 
     initAuth();

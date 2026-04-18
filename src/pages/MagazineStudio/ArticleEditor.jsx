@@ -2501,7 +2501,7 @@ function ContentPanel({ blocks, onChange, tone, openIndices = new Set(), setOpen
 // ── Metadata panel ─────────────────────────────────────────────────────────────
 function MetaPanel({ formData, onChange, tone, onToneChange }) {
   const upd = (key, val) => onChange({ ...formData, [key]: val });
-  const updAuthor = (key, val) => onChange({ ...formData, author: { ...formData.author, [key]: val } });
+  const updAuthor = (key, val) => onChange({ ...formData, author: { ...(formData.author || {}), [key]: val } });
   const { runAI, loading: aiLoading, error: aiError } = useAIGenerate(formData, tone);
   const [linksOpen, setLinksOpen] = useState(false);
   const [coverLibOpen, setCoverLibOpen] = useState(false);

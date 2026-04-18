@@ -379,10 +379,12 @@ function AnalyticsToggle({ email, border, white, grey }) {
       .select("id, analytics_enabled")
       .eq("email", email)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) { console.error('[ListingApplications] vendor lookup failed:', error.message); setNotFound(true); return; }
         if (data) { setVendorId(data.id); setEnabled(!!data.analytics_enabled); }
         else setNotFound(true);
-      });
+      })
+      .catch(e => { console.error('[ListingApplications] vendor lookup error:', e.message); setNotFound(true); });
   }, [email]);
 
   const toggle = useCallback(async () => {

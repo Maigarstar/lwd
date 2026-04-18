@@ -2946,19 +2946,25 @@ export default function LiveStatsModule({ C }) {
           });
           setEngageChatInput("");
           setEngageChatTyping(true);
-          const reply = await callEngageAI(trimmed, engageChatMessages, visitorContext);
-          setEngageChatTyping(false);
-          const auraMsg = { from: "aura", text: reply || "I'm sorry, I couldn't reach the AI. Please try again.", id: Date.now() + 1 };
-          setEngageChatMessages(prev => {
-            const updated = [...prev, auraMsg];
-            setTimeout(() => {
-              if (engageChatScrollRef.current) {
-                engageChatScrollRef.current.scrollTop = engageChatScrollRef.current.scrollHeight;
-              }
-            }, 30);
-            return updated;
-          });
-          markEngaged(et.session_id);
+          try {
+            const reply = await callEngageAI(trimmed, engageChatMessages, visitorContext);
+            const auraMsg = { from: "aura", text: reply || "I'm sorry, I couldn't reach the AI. Please try again.", id: Date.now() + 1 };
+            setEngageChatMessages(prev => {
+              const updated = [...prev, auraMsg];
+              setTimeout(() => {
+                if (engageChatScrollRef.current) {
+                  engageChatScrollRef.current.scrollTop = engageChatScrollRef.current.scrollHeight;
+                }
+              }, 30);
+              return updated;
+            });
+            markEngaged(et.session_id);
+          } catch (e) {
+            console.error('[LiveStats] engage AI failed:', e.message);
+            setEngageChatMessages(prev => [...prev, { from: "aura", text: "Connection error — please try again.", id: Date.now() + 1 }]);
+          } finally {
+            setEngageChatTyping(false);
+          }
         };
 
         const handleCopy = () => {

@@ -19,8 +19,7 @@ const VendorInquiryManager = ({ vendorId }) => {
   useEffect(() => {
     if (!vendorId) {
       // Fallback to localStorage if no vendorId provided
-      const saved = JSON.parse(localStorage.getItem("vendor_inquiries") || "[]");
-      setInquiries(saved);
+      try { setInquiries(JSON.parse(localStorage.getItem("vendor_inquiries") || "[]")); } catch { setInquiries([]); }
       setLoading(false);
       return;
     }
@@ -35,8 +34,7 @@ const VendorInquiryManager = ({ vendorId }) => {
         console.error("Error loading inquiries:", err);
         setError("Failed to load inquiries");
         // Fallback to localStorage
-        const saved = JSON.parse(localStorage.getItem("vendor_inquiries") || "[]");
-        setInquiries(saved);
+        try { setInquiries(JSON.parse(localStorage.getItem("vendor_inquiries") || "[]")); } catch { setInquiries([]); }
       } finally {
         setLoading(false);
       }

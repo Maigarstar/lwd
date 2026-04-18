@@ -27,6 +27,9 @@ export function CoupleAuthProvider({ children }) {
   useEffect(() => {
     const checkSession = async () => {
       setLoading(true);
+      // C1 fix: mark done BEFORE the await so the auth-state listener never
+      // returns early during the init async gap (race condition).
+      initialLoadDone.current = true;
       const { data: coupleData } = await getCurrentCouple();
       if (coupleData) {
         setCouple(coupleData);
@@ -45,7 +48,6 @@ export function CoupleAuthProvider({ children }) {
         setIsAuthenticated(false);
       }
       setLoading(false);
-      initialLoadDone.current = true;
     };
 
     checkSession();

@@ -729,7 +729,8 @@ export default function EmailMarketingModule({ C, defaultTab, onNavigate }) {
     (async () => {
       try {
         const { supabase } = await import('../../lib/supabaseClient');
-        const { data } = await supabase.from('leads').select('id,first_name,last_name,email,phone,lead_source,lead_type,status,requirements_json,created_at').order('created_at',{ascending:false});
+        const { data, error: leadsErr } = await supabase.from('leads').select('id,first_name,last_name,email,phone,lead_source,lead_type,status,requirements_json,created_at').order('created_at',{ascending:false}).limit(500);
+        if (leadsErr) throw leadsErr;
         setLeads(data||[]);
       } catch { setLeads([]); }
       finally { setLoading(false); }

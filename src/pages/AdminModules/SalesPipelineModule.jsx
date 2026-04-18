@@ -1204,10 +1204,14 @@ export default function SalesPipelineModule() {
   }
 
   async function handleBulkUpdate(ids, updates) {
-    await Promise.all(ids.map(id => updateProspect(id, updates)));
-    const fresh = await fetchProspects();
-    setProspects(fresh);
-    notify(`Updated ${ids.length} prospects`);
+    try {
+      await Promise.all(ids.map(id => updateProspect(id, updates)));
+      const fresh = await fetchProspects();
+      setProspects(fresh);
+      notify(`Updated ${ids.length} prospects`);
+    } catch (e) {
+      notify('Bulk update failed: ' + e.message);
+    }
   }
 
   function notify(msg) { setToast(msg); setTimeout(() => setToast(null), 5500); }

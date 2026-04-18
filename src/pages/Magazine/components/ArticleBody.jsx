@@ -408,7 +408,7 @@ export default function ArticleBody({ content = [], isLight = true }) {
           case 'intro':
             return (
               <p key={i}
-                dangerouslySetInnerHTML={{ __html: block.text }}
+                dangerouslySetInnerHTML={{ __html: block.text || '' }}
                 style={{
                   fontFamily: FD, fontSize: 'clamp(20px, 2.5vw, 26px)',
                   fontWeight: 400, fontStyle: 'italic',
@@ -423,7 +423,7 @@ export default function ArticleBody({ content = [], isLight = true }) {
           case 'paragraph':
             return (
               <p key={i}
-                dangerouslySetInnerHTML={{ __html: block.text }}
+                dangerouslySetInnerHTML={{ __html: block.text || '' }}
                 style={{
                   fontFamily: FS, fontSize: 'clamp(16px, 1.7vw, 18px)',
                   fontWeight: 400, color: BODY,
@@ -438,7 +438,7 @@ export default function ArticleBody({ content = [], isLight = true }) {
               <div
                 key={i}
                 className="ab-wysiwyg"
-                dangerouslySetInnerHTML={{ __html: block.text }}
+                dangerouslySetInnerHTML={{ __html: block.text || '' }}
               />
             );
 
@@ -742,7 +742,7 @@ export default function ArticleBody({ content = [], isLight = true }) {
               </figure>
             ) : null;
             const textStoryEl = block.text ? (
-              <div className="ab-wysiwyg" style={{ flex: 1, alignSelf: 'center' }} dangerouslySetInnerHTML={{ __html: block.text }} />
+              <div className="ab-wysiwyg" style={{ flex: 1, alignSelf: 'center' }} dangerouslySetInnerHTML={{ __html: block.text || '' }} />
             ) : null;
             return (
               <div key={i} style={{ margin: '48px 0', display: 'flex', gap: 'clamp(20px, 3vw, 40px)', flexDirection: isLeft ? 'row' : 'row-reverse', alignItems: 'flex-start' }}>

@@ -425,7 +425,7 @@ function buildInterpretation(stats, prevStats) {
   }
 
   const viewsDelta    = prevViews > 0 ? ((views - prevViews) / prevViews) * 100 : null;
-  const shortlistRate = (shortlists / views) * 100;
+  const shortlistRate = views > 0 ? (shortlists / views) * 100 : 0;
   const convRate      = viewToEnquiry;
 
   let headline, subline, sentiment;
