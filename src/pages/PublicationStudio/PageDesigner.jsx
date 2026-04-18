@@ -2056,11 +2056,73 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   // Image picker — opened by double-clicking any isImagePlaceholder object
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const imagePickerTargetRef = useRef(null); // the Fabric object to replace
+  const imagePickerSpreadModeRef = useRef(false); // true when picker opened for cross-spread image
 
   const openImagePicker = useCallback((target) => {
     imagePickerTargetRef.current = target || null;
     setImagePickerOpen(true);
   }, []);
+
+  // ── Cross-spread image ─────────────────────────────────────────────────────
+  // Splits a single image across both pages of the current spread.
+  // Left half lives on fabricRefLeft (left canvas), right half on fabricRef (right canvas).
+  // Both use absolutePositioned clipPath so only their page's half is visible.
+  const addSpreadImage = useCallback(async (url) => {
+    if (!spreadView || !fabricRefLeft.current || !fabricRef.current) return;
+    try {
+      const W = dims.w;
+      const H = dims.h;
+      const spreadId = genId();
+
+      const [imgL, imgR] = await Promise.all([
+        FabricImage.fromURL(url, { crossOrigin: 'anonymous' }),
+        FabricImage.fromURL(url, { crossOrigin: 'anonymous' }),
+      ]);
+
+      // Scale image to cover the full spread (W*2 wide, H tall) — cover mode
+      const scale   = Math.max(H / imgL.height, (W * 2) / imgL.width);
+      const scaledW = imgL.width  * scale;
+      const scaledH = imgL.height * scale;
+
+      // Center the image across both pages
+      const leftOff = (W * 2 - scaledW) / 2;
+      const topOff  = (H - scaledH) / 2;
+
+      // Left page: image starts at leftOff, clip to page bounds [0..W]
+      imgL.set({
+        left: leftOff, top: topOff,
+        scaleX: scale, scaleY: scale,
+        clipPath: new Rect({ left: 0, top: 0, width: W, height: H, absolutePositioned: true }),
+        isImagePlaceholder: true,
+        isSpreadImage: true,
+        spreadImageId: spreadId,
+        spreadSide: 'left',
+      });
+      imgL.id = genId();
+
+      // Right page: shift image left by W so right half starts at x=0
+      imgR.set({
+        left: leftOff - W, top: topOff,
+        scaleX: scale, scaleY: scale,
+        clipPath: new Rect({ left: 0, top: 0, width: W, height: H, absolutePositioned: true }),
+        isImagePlaceholder: true,
+        isSpreadImage: true,
+        spreadImageId: spreadId,
+        spreadSide: 'right',
+      });
+      imgR.id = genId();
+
+      fabricRefLeft.current.add(imgL);
+      fabricRefLeft.current.requestRenderAll();
+      fabricRef.current.add(imgR);
+      fabricRef.current.requestRenderAll();
+
+      saveCurrentPageToState();
+      setIsDirty(true);
+    } catch (e) {
+      console.error('[addSpreadImage]', e);
+    }
+  }, [spreadView, dims, saveCurrentPageToState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Page number settings
   const [pageNumberSettings, setPageNumberSettings] = useState({
@@ -2183,6 +2245,14 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   }, [getActiveCanvas, dims, pushUndo]);
 
   const handleImagePickerSelect = useCallback(async (url) => {
+    // ── Spread image route ────────────────────────────────────────────────────
+    if (imagePickerSpreadModeRef.current) {
+      imagePickerSpreadModeRef.current = false;
+      setImagePickerOpen(false);
+      if (url) addSpreadImage(url);
+      return;
+    }
+
     // ── P9a route: picker was opened from FillIssuePanel ──────────────────────
     const fillCtx = fillIssuePickerRef.current;
     if (fillCtx) {
@@ -2704,12 +2774,12 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pages.length);
       setPages(prev => prev.map((p, i) => {
         if (i === leftIndex && fabricRefLeft.current) {
-          const json  = fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']);
+          const json  = fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'isSpreadImage', 'spreadImageId', 'spreadSide', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']);
           const thumb = fabricRefLeft.current.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
           return { ...p, canvasJSON: json, thumbnailDataUrl: thumb };
         }
         if (i === rightIndex && fabricRef.current) {
-          const json  = fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']);
+          const json  = fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'isSpreadImage', 'spreadImageId', 'spreadSide', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']);
           const thumb = fabricRef.current.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
           return { ...p, canvasJSON: json, thumbnailDataUrl: thumb };
         }
@@ -4655,6 +4725,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         <ElementsPanel
           onAddElement={handleAddElement}
           onAddImage={addImage}
+          onAddSpreadImage={() => { imagePickerSpreadModeRef.current = true; setImagePickerOpen(true); }}
+          spreadView={spreadView}
           onInsertTemplate={handleInsertTemplate}
           onReplaceTemplate={handleReplaceTemplate}
           activeTemplateId={activeTemplateId}

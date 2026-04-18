@@ -834,7 +834,7 @@ function MediaTab({ issue, onAddImage }) {
 
 // ── Main ElementsPanel export ─────────────────────────────────────────────────
 
-export default function ElementsPanel({ onAddElement, onAddImage, onInsertTemplate, onReplaceTemplate, activeTemplateId, issue, layers, onSelectLayer, onToggleLayerVisibility, onToggleLayerLock, onReorderLayer, onAddSVG, onAddArcText, onAILayout, currentPageIndex = 0, totalPages = 1, pageSize = 'A4' }) {
+export default function ElementsPanel({ onAddElement, onAddImage, onAddSpreadImage, spreadView, onInsertTemplate, onReplaceTemplate, activeTemplateId, issue, layers, onSelectLayer, onToggleLayerVisibility, onToggleLayerLock, onReorderLayer, onAddSVG, onAddArcText, onAILayout, currentPageIndex = 0, totalPages = 1, pageSize = 'A4' }) {
   const [panelTab, setPanelTab] = useState('elements');
   const [aiBrief, setAiBrief] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
@@ -1399,6 +1399,30 @@ export default function ElementsPanel({ onAddElement, onAddImage, onInsertTempla
 
           {/* Inline media grid — recent uploads */}
           <InlineMediaGrid issue={issue} onAddImage={onAddImage} onSeeAll={() => setPanelTab('media')} />
+
+          {/* Spread image — only visible in spread view */}
+          {spreadView && onAddSpreadImage && (
+            <div style={{ padding: '0 10px 10px' }}>
+              <button
+                onClick={onAddSpreadImage}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  background: 'rgba(201,169,110,0.08)',
+                  border: `1px solid rgba(201,169,110,0.3)`,
+                  borderRadius: 3, color: GOLD,
+                  fontFamily: NU, fontSize: 9, fontWeight: 700,
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  padding: '8px 0', cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,169,110,0.15)'; e.currentTarget.style.borderColor = GOLD; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,169,110,0.08)'; e.currentTarget.style.borderColor = 'rgba(201,169,110,0.3)'; }}
+                title="Place one image across both pages of the current spread"
+              >
+                ⊞ Spread Image
+              </button>
+            </div>
+          )}
 
           {/* SVG Import */}
           <ElemButton
