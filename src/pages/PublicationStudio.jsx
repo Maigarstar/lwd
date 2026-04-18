@@ -1553,13 +1553,14 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue, onCloned, onBack }) {
   }, [tab, issueId]);
 
   // Keep URL hash tab in sync so F5 returns to same tab.
-  // Always build clean params — issue + tab only, no inherited noise from the
-  // AdminDashboard's own hash routing.
+  // Write directly with replaceState — no hashchange, no admin routing noise.
   useEffect(() => {
-    const p = new URLSearchParams();
-    if (issueId) p.set('issue', issueId);
-    p.set('tab', tab);
-    writeHash(p);
+    if (!issueId) return;
+    window.history.replaceState(
+      null, '',
+      window.location.pathname + window.location.search +
+      '#issue=' + encodeURIComponent(issueId) + '&tab=' + encodeURIComponent(tab),
+    );
   }, [tab, issueId]);
 
   const change = useCallback((field, value) => {
@@ -2700,18 +2701,21 @@ export default function PublicationStudio({ onBack, onReadIssue }) {
   const [showCollections, setShowCollections] = useState(false);
 
   // Keep hash in sync whenever the active issue changes.
-  // Build params from scratch (do NOT carry over the existing hash — the
-  // AdminDashboard sets window.location.hash = 'publication-studio' before we
-  // mount, so readHash() would return { 'publication-studio': '' } and writing
-  // that back would set the hash to 'publication-studio=', which triggers
-  // AdminDashboard's hashchange listener and sets activeTab to the garbled
-  // value 'publication-studio=', immediately unmounting this component).
+  //
+  // Rules:
+  //  • No issue open  → leave hash alone.  AdminDashboard already wrote
+  //    '#publication-studio'; touching it would either (a) clear it so F5
+  //    lands on the admin Overview, or (b) write 'publication-studio=' which
+  //    garbles AdminDashboard's hashchange listener and unmounts us.
+  //  • Issue open     → write clean '#issue=<id>' with replaceState (no
+  //    hashchange event, no admin routing noise).
   useEffect(() => {
-    const p = new URLSearchParams();
-    if (activeId) {
-      p.set('issue', activeId);
-    }
-    writeHash(p);
+    if (!activeId) return; // leave '#publication-studio' untouched
+    window.history.replaceState(
+      null, '',
+      window.location.pathname + window.location.search +
+      '#issue=' + encodeURIComponent(activeId),
+    );
   }, [activeId]);
 
   const load = useCallback(async () => {
