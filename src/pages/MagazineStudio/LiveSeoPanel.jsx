@@ -52,17 +52,18 @@ function generateActions(intel, kwData, headings, formData, focusKeyword, refCou
     actions.push({
       priority: intel.wordCount < intel.wt.min ? 'high' : 'medium',
       text: `Add ${diff} more words (target: ${intel.wt.target})`,
+      aiAction: 'expand',
     });
   }
 
   if (focusKeyword) {
     if (kwData.count === 0) {
-      actions.push({ priority: 'high', text: `Add mentions of "${focusKeyword}"` });
+      actions.push({ priority: 'high', text: `Add mentions of "${focusKeyword}"`, aiAction: 'add-keywords' });
     } else if (kwData.density < 0.5) {
-      actions.push({ priority: 'medium', text: `Add ${Math.max(1, 3 - kwData.count)} more mentions of "${focusKeyword}"` });
+      actions.push({ priority: 'medium', text: `Add ${Math.max(1, 3 - kwData.count)} more mentions of "${focusKeyword}"`, aiAction: 'add-keywords' });
     }
     if (!intel.kwPlacement.title) {
-      actions.push({ priority: 'high', text: `Add "${focusKeyword}" to title` });
+      actions.push({ priority: 'high', text: `Add "${focusKeyword}" to SEO title`, aiAction: 'generate-seo-title' });
     }
   } else {
     actions.push({ priority: 'high', text: 'Set a focus keyword' });
@@ -75,7 +76,7 @@ function generateActions(intel, kwData, headings, formData, focusKeyword, refCou
   }
 
   if (!formData.metaDescription && !formData.excerpt) {
-    actions.push({ priority: 'high', text: 'Write a meta description' });
+    actions.push({ priority: 'high', text: 'Write a meta description', aiAction: 'generate-meta' });
   }
 
   if (intel.internalLinks === 0 && intel.wordCount > 300) {
@@ -89,7 +90,7 @@ function generateActions(intel, kwData, headings, formData, focusKeyword, refCou
   if (intel.nlpPct < 0.3 && intel.wordCount > 200) {
     const missing = intel.nlpCoverage.filter(t => !t.found).slice(0, 2);
     if (missing.length > 0) {
-      actions.push({ priority: 'medium', text: `Include: ${missing.map(t => `"${t.term}"`).join(', ')}` });
+      actions.push({ priority: 'medium', text: `Include: ${missing.map(t => `"${t.term}"`).join(', ')}`, aiAction: 'add-keywords' });
     }
   }
 
@@ -113,7 +114,7 @@ const priorityColor = { high: '#ef4444', medium: '#f59e0b', low: '#6b7280' };
 // COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
 
-export default function LiveSeoPanel({ formData, focusKeyword, onKeywordChange, onOpenIntelligence }) {
+export default function LiveSeoPanel({ formData, focusKeyword, onKeywordChange, onOpenIntelligence, onAiRefine }) {
   const intel    = useMemo(() => computeContentIntelligence(formData, focusKeyword), [formData, focusKeyword]);
   const kwData   = useMemo(() => computeKeywordDensity(formData.content, focusKeyword), [formData.content, focusKeyword]);
   const headings = useMemo(() => analyzeHeadings(formData.content), [formData.content]);
@@ -141,6 +142,7 @@ export default function LiveSeoPanel({ formData, focusKeyword, onKeywordChange, 
   }, [formData.title, formData.content, formData.tags, formData.categorySlug, focusKeyword, intel.wordCount]);
 
   const sc = scoreColor(intel.score);
+  const [refiningWith, setRefiningWith] = useState(null);
 
   // Theme tokens
   const bg     = '#131210';
@@ -267,8 +269,40 @@ export default function LiveSeoPanel({ formData, focusKeyword, onKeywordChange, 
                 padding: '5px 0',
                 borderBottom: i < actions.length - 1 ? `1px solid ${bdr}` : 'none',
               }}>
-                <span style={{ fontSize: 6, color: priorityColor[a.priority], flexShrink: 0, marginTop: 2 }}>●</span>
-                <span style={{ fontSize: 9, color: text, lineHeight: 1.4, opacity: 0.75 }}>{a.text}</span>
+                <span style={{ fontSize: 6, color: priorityColor[a.priority], flexShrink: 0, marginTop: 3 }}>●</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 9, color: text, lineHeight: 1.4, opacity: 0.75 }}>{a.text}</div>
+                  {a.aiAction && onAiRefine && (
+                    <button
+                      onClick={() => {
+                        if (refiningWith) return;
+                        setRefiningWith(a.aiAction);
+                        onAiRefine(a.aiAction).finally(() => setRefiningWith(null));
+                      }}
+                      disabled={!!refiningWith}
+                      style={{
+                        marginTop: 4,
+                        background: 'none',
+                        border: `1px solid ${GOLD}35`,
+                        borderRadius: 2,
+                        color: refiningWith === a.aiAction ? GOLD : `${GOLD}70`,
+                        fontFamily: FU,
+                        fontSize: 7,
+                        fontWeight: 600,
+                        letterSpacing: '0.08em',
+                        padding: '2px 6px',
+                        cursor: refiningWith ? 'default' : 'pointer',
+                        opacity: refiningWith && refiningWith !== a.aiAction ? 0.35 : 1,
+                        transition: 'all 0.15s',
+                        whiteSpace: 'nowrap',
+                      }}
+                      onMouseEnter={e => { if (!refiningWith) { e.currentTarget.style.borderColor = `${GOLD}70`; e.currentTarget.style.color = GOLD; } }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = `${GOLD}35`; e.currentTarget.style.color = refiningWith === a.aiAction ? GOLD : `${GOLD}70`; }}
+                    >
+                      {refiningWith === a.aiAction ? '⟳ Fixing…' : '✦ Fix with AI'}
+                    </button>
+                  )}
+                </div>
               </div>
             ))
           )}

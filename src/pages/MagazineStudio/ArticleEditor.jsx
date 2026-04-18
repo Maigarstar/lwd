@@ -6988,6 +6988,76 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
     setTriggerSeoRefresh(Date.now());
   }, []);
 
+  // ── AI fix triggered from LiveSeoPanel "Fix with AI" buttons ─────────────
+  // Reads formDataRef.current to avoid stale-closure issues — the ref is
+  // always in sync with the latest formData (see updateForm above).
+  const handleAiRefine = useCallback(async (action) => {
+    const fd = formDataRef.current;
+    const blocks = fd.content || [];
+
+    if (action === 'generate-seo-title' || action === 'generate-meta') {
+      const { callAiGenerate } = await import('../../lib/aiGenerate');
+      const kw = focusKeyword;
+      const prompts = {
+        'generate-seo-title': `Write an SEO-optimised title (under 60 chars) for a ${tone} article titled "${fd.title}".${kw ? ` Include or strongly relate to "${kw}".` : ''} Return only the title.`,
+        'generate-meta':      `Write a meta description (under 155 chars) for this article titled "${fd.title}". Excerpt: ${fd.excerpt || ''}.${kw ? ` Ensure it naturally includes "${kw}".` : ''} Return only the meta description.`,
+      };
+      const data = await callAiGenerate({
+        feature: action,
+        systemPrompt: 'You are a luxury magazine editorial assistant. Generate high-quality content for wedding magazines.',
+        userPrompt: prompts[action],
+      });
+      if (data?.text) {
+        const result = data.text.trim();
+        if (action === 'generate-seo-title') updateForm({ ...fd, seoTitle: result });
+        if (action === 'generate-meta')      updateForm({ ...fd, metaDescription: result });
+      }
+    } else {
+      const { refineContent } = await import('../../services/taigenicWriterService');
+      const result = await refineContent({
+        blocks,
+        action,
+        tone,
+        focusKeyword,
+        constraint: 20,
+        context: { title: fd.title },
+      });
+      if (!result?.text) return;
+
+      if (action === 'expand') {
+        const newBlocks = result.text
+          .split(/\n\n+/)
+          .map(p => p.trim())
+          .filter(Boolean)
+          .map((p, idx) => ({
+            id: crypto.randomUUID ? crypto.randomUUID() : `seo-fix-${Date.now()}-${idx}`,
+            type: 'paragraph',
+            text: p,
+          }));
+        if (newBlocks.length > 0) updateForm({ ...fd, content: newBlocks });
+      } else if (action === 'add-keywords') {
+        try {
+          const cleaned = result.text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+          const suggestions = JSON.parse(cleaned);
+          if (Array.isArray(suggestions) && suggestions.length > 0) {
+            const newBlocks = [...blocks];
+            const sorted = [...suggestions].sort((a, b) => b.sectionIndex - a.sectionIndex);
+            for (const { sectionIndex, suggestion } of sorted) {
+              if (!suggestion) continue;
+              const insertAt = Math.min((sectionIndex ?? 0) + 1, newBlocks.length);
+              newBlocks.splice(insertAt, 0, {
+                id: crypto.randomUUID ? crypto.randomUUID() : `kw-seo-${Date.now()}-${sectionIndex}`,
+                type: 'paragraph',
+                text: suggestion,
+              });
+            }
+            updateForm({ ...fd, content: newBlocks });
+          }
+        } catch (_) { /* AI returned non-JSON — silent fail */ }
+      }
+    }
+  }, [tone, focusKeyword, updateForm]); // formDataRef is stable — no dep needed
+
   // Shared "user edited something" signal. Marks the article dirty AND
   // dismisses a lingering 'failed' save state, because any user action after
   // a failed save means they're attempting to recover — the UI should step
@@ -8000,6 +8070,7 @@ Write 2-3 paragraphs of luxury editorial content for this section. Return ONLY t
           focusKeyword={focusKeyword}
           onKeywordChange={setFocusKeyword}
           onOpenIntelligence={() => setShowIntelPanel(p => !p)}
+          onAiRefine={handleAiRefine}
           S={SS}
         />
         )}
