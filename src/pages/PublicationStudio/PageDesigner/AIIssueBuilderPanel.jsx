@@ -73,6 +73,12 @@ const VALID_TEMPLATES = [
   // Detail & Back
   { id: 'the-triptych',         label: 'Detail Triptych',      category: 'Detail',       visual: 'image-heavy', zone: 'any'     },
   { id: 'back-cover',           label: 'Back Cover',           category: 'Back Cover',   visual: 'mixed',       zone: 'close'   },
+  // Hotel Review (separate builder — listed here for validation only)
+  { id: 'hotel-review-cover',   label: 'Hotel Review — Cover',   category: 'Hotel Review', visual: 'image-heavy', zone: 'open'  },
+  { id: 'hotel-review-arrival', label: 'Hotel Review — Arrival', category: 'Hotel Review', visual: 'mixed',       zone: 'venue' },
+  { id: 'hotel-review-rooms',   label: 'Hotel Review — Rooms',   category: 'Hotel Review', visual: 'mixed',       zone: 'venue' },
+  { id: 'hotel-review-dining',  label: 'Hotel Review — Dining',  category: 'Hotel Review', visual: 'mixed',       zone: 'venue' },
+  { id: 'hotel-review-verdict', label: 'Hotel Review — Verdict', category: 'Hotel Review', visual: 'text-heavy',  zone: 'close' },
 ];
 
 const TEMPLATE_IDS_LIST = VALID_TEMPLATES.map(t => t.id).join(', ');

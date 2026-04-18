@@ -27,6 +27,7 @@ import BrandKitPanel from './BrandKitPanel';
 import SpreadPreviewModal from './PageDesigner/SpreadPreviewModal';
 import SmartFillPanel from './PageDesigner/SmartFillPanel';
 import AIIssueBuilderPanel from './PageDesigner/AIIssueBuilderPanel';
+import HotelReviewBuilderPanel from './PageDesigner/HotelReviewBuilderPanel';
 import StudioVoicePanel from './PageDesigner/StudioVoicePanel';
 import PageSlotPanel from './PageDesigner/PageSlotPanel';
 import FillIssuePanelModal from './PageDesigner/FillIssuePanelModal';
@@ -1106,6 +1107,139 @@ export function applyTemplate(fc, template, dims, brand = {}) {
       const footer = new Textbox('cipriani.com  ·  +39 041 520 7744', { left: 40, top: H - 48, width: W - 80, fontSize: 10, fontFamily: 'Cormorant Garamond', fill: 'rgba(240,235,224,0.7)', fontStyle: 'italic', textAlign: 'center', charSpacing: 100 });
       [ruleTop, venueName, tagline, ruleMid, callout, ctaText, footer].forEach(o => { o.id = genId(); fc.add(o); });
     },
+
+    // ── HOTEL REVIEW TEMPLATES ──────────────────────────────────────────────────
+
+    'hotel-review-cover': () => {
+      // Dark cinematic cover. Full-bleed hero exterior + gold masthead + hotel name.
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#0A0908', selectable: false });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W, height: H, imageUrl: IMG.venetianPalazzo, fill: '#1A1612' });
+      const topGrad = new Rect({ left: 0, top: 0, width: W, height: H * 0.35, fill: 'rgba(10,9,8,0.75)', selectable: false });
+      topGrad.id = genId(); fc.add(topGrad);
+      const btmGrad = new Rect({ left: 0, top: H * 0.48, width: W, height: H * 0.52, fill: 'rgba(10,9,8,0.72)', selectable: false });
+      btmGrad.id = genId(); fc.add(btmGrad);
+      const ruleTop = new Rect({ left: 40, top: 54, width: W - 80, height: 1, fill: GOLD_C });
+      const masthead = new Textbox('THE LWD HOTEL REVIEW', { left: 40, top: 68, width: W - 80, fontSize: 10, fontFamily: 'Cinzel', fill: GOLD_C, charSpacing: 500, textAlign: 'center' });
+      const ruleMast = new Rect({ left: 40, top: 96, width: W - 80, height: 1, fill: GOLD_C });
+      const hotelName = new Textbox('Hotel Cipriani', { left: 40, top: H * 0.52, width: W - 80, fontSize: 62, fontFamily: 'Bodoni Moda', fill: '#F0EBE0', fontStyle: 'italic', fontWeight: '400', lineHeight: 1.0, textAlign: 'center' });
+      const location = new Textbox('VENICE · ITALY', { left: 40, top: H * 0.72, width: W - 80, fontSize: 10, fontFamily: 'Cinzel', fill: GOLD_C, charSpacing: 400, textAlign: 'center' });
+      const stars = new Textbox('✦  ✦  ✦  ✦  ✦', { left: 40, top: H * 0.78, width: W - 80, fontSize: 14, fontFamily: 'Jost', fill: GOLD_C, textAlign: 'center', charSpacing: 200 });
+      const ruleBot = new Rect({ left: W / 2 - 80, top: H - 72, width: 160, height: 1, fill: 'rgba(201,168,76,0.4)' });
+      const badge = new Textbox('REVIEWED EXCLUSIVELY FOR LWD', { left: 40, top: H - 54, width: W - 80, fontSize: 8, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.6)', charSpacing: 400, textAlign: 'center' });
+      [ruleTop, masthead, ruleMast, hotelName, location, stars, ruleBot, badge].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+
+    'hotel-review-arrival': () => {
+      // Left 44% image panel | right column: editorial arrival narrative + at-a-glance.
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W * 0.44, height: H, imageUrl: IMG.venetianPalazzo, fill: '#2A2016' });
+      const vLine = new Rect({ left: W * 0.44, top: 40, width: 1, height: H - 80, fill: GOLD_C, selectable: false });
+      vLine.id = genId(); fc.add(vLine);
+      const kicker = new Textbox('FIRST IMPRESSIONS', { left: W * 0.49, top: 60, width: W * 0.47, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 400 });
+      const rule = new Rect({ left: W * 0.49, top: 82, width: 48, height: 1, fill: GOLD_C });
+      const hotelName = new Textbox('Hotel Cipriani', { left: W * 0.49, top: 100, width: W * 0.47, fontSize: 40, fontFamily: 'Bodoni Moda', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.0 });
+      const location = new Textbox('Venice, Italy', { left: W * 0.49, top: 200, width: W * 0.47, fontSize: 13, fontFamily: 'Cormorant Garamond', fill: GOLD_C, fontStyle: 'italic' });
+      const bodyRule = new Rect({ left: W * 0.49, top: 228, width: W * 0.47, height: 1, fill: 'rgba(24,18,10,0.15)' });
+      const body = new Textbox('There is a particular stillness to arriving at Hotel Cipriani — the water taxi glides past the Giudecca canal, and the white facade materialises from the morning haze like something half-remembered from a painting.\n\nThe entrance is unhurried. Staff appear before you need them. The lobby smells faintly of gardenia and polished stone.', { left: W * 0.49, top: 246, width: W * 0.47, fontSize: 11, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.8, fontStyle: 'italic' });
+      const factsRule = new Rect({ left: W * 0.49, top: H * 0.7, width: W * 0.47, height: 1, fill: 'rgba(24,18,10,0.15)' });
+      const factsLabel = new Textbox('AT A GLANCE', { left: W * 0.49, top: H * 0.725, width: W * 0.47, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const facts = new Textbox('96 Rooms & Suites  ·  Private Jetty  ·  Michelin Dining  ·  Spa', { left: W * 0.49, top: H * 0.755, width: W * 0.47, fontSize: 10, fontFamily: 'Jost', fill: DARK_C, lineHeight: 1.9, charSpacing: 50 });
+      const styleTag = new Textbox('CLASSIC · VENETIAN · 5-STAR', { left: W * 0.49, top: H - 52, width: W * 0.47, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      [kicker, rule, hotelName, location, bodyRule, body, factsRule, factsLabel, facts, styleTag].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+
+    'hotel-review-rooms': () => {
+      // Dark editorial rooms spread. Left 56% hero | right column: rooms narrative + rating bar.
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#141210', selectable: false });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W * 0.56, height: H, imageUrl: IMG.venueInterior, fill: '#1A1612' });
+      const vLine = new Rect({ left: W * 0.56, top: 40, width: 1, height: H - 80, fill: GOLD_C, selectable: false });
+      vLine.id = genId(); fc.add(vLine);
+      const kicker = new Textbox('THE ROOMS', { left: W * 0.61, top: 56, width: W * 0.35, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 400 });
+      const rule = new Rect({ left: W * 0.61, top: 78, width: 40, height: 1, fill: GOLD_C });
+      const roomType = new Textbox('Deluxe\nLagoon Suite', { left: W * 0.61, top: 94, width: W * 0.35, fontSize: 28, fontFamily: 'Bodoni Moda', fill: '#F0EBE0', fontStyle: 'italic', lineHeight: 1.05 });
+      const bodyRule = new Rect({ left: W * 0.61, top: 206, width: W * 0.35, height: 1, fill: 'rgba(201,168,76,0.25)' });
+      const body = new Textbox('The rooms at Cipriani are quiet in the way that only very old, very expensive places can be quiet — not silent, but absorbed. The lagoon light enters differently each hour. Pale sheets. Marble baths.', { left: W * 0.61, top: 222, width: W * 0.35, fontSize: 10, fontFamily: 'Cormorant Garamond', fill: 'rgba(240,235,224,0.8)', lineHeight: 1.8, fontStyle: 'italic' });
+      const specsRule = new Rect({ left: W * 0.61, top: H * 0.54, width: W * 0.35, height: 1, fill: 'rgba(201,168,76,0.25)' });
+      const specsLabel = new Textbox('ROOM TYPES', { left: W * 0.61, top: H * 0.565, width: W * 0.35, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const specs = new Textbox('Classic Double  ·  Deluxe Lagoon\nJunior Suite  ·  Palladio Suite\nFrom £980 per night', { left: W * 0.61, top: H * 0.595, width: W * 0.35, fontSize: 10, fontFamily: 'Cormorant Garamond', fill: 'rgba(240,235,224,0.75)', lineHeight: 1.9, fontStyle: 'italic' });
+      // Rating bar — rooms (8/10)
+      const ratingY = H * 0.79;
+      const rLabel = new Textbox('ROOMS RATING', { left: W * 0.61, top: ratingY, width: W * 0.35, fontSize: 7, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      rLabel.id = genId(); fc.add(rLabel);
+      const rTrack = new Rect({ left: W * 0.61, top: ratingY + 18, width: W * 0.33, height: 5, fill: 'rgba(201,168,76,0.15)' });
+      rTrack.id = genId(); fc.add(rTrack);
+      const rFill = new Rect({ left: W * 0.61, top: ratingY + 18, width: W * 0.33 * 0.8, height: 5, fill: GOLD_C });
+      rFill.id = genId(); fc.add(rFill);
+      const rScore = new Textbox('8 / 10', { left: W * 0.61, top: ratingY + 30, width: W * 0.35, fontSize: 9, fontFamily: 'Jost', fill: 'rgba(201,168,76,0.8)', charSpacing: 100 });
+      [kicker, rule, roomType, bodyRule, body, specsRule, specsLabel, specs, rScore].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+
+    'hotel-review-dining': () => {
+      // Light dining page. Full-width hero (57%) + editorial below with two columns.
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAFAF8', selectable: false });
+      bg.id = genId(); fc.add(bg);
+      addImagePlaceholder(fc, { left: 0, top: 0, width: W, height: H * 0.57, imageUrl: IMG.receptionTable, fill: '#EDE8E0' });
+      const rule = new Rect({ left: 40, top: H * 0.6, width: W - 80, height: 1, fill: GOLD_C });
+      const kicker = new Textbox('THE RESTAURANT', { left: 40, top: H * 0.615, width: W * 0.55, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 400 });
+      const cuisineTag = new Textbox('ITALIAN · MICHELIN ✦', { left: W * 0.62, top: H * 0.615, width: W * 0.34, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300, textAlign: 'right' });
+      const restaurantName = new Textbox("Cip's Club", { left: 40, top: H * 0.645, width: W - 80, fontSize: 42, fontFamily: 'Bodoni Moda', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.0 });
+      const bodyRule = new Rect({ left: 40, top: H * 0.75, width: W - 80, height: 1, fill: 'rgba(24,18,10,0.12)' });
+      const body = new Textbox('Breakfast on the terrace as the sun crests the Salute — this alone may justify the room rate. The kitchen practises a rigorous restraint: lagoon-caught sea bass with agretti and lemon, risotto built from the broth up.', { left: 40, top: H * 0.77, width: W * 0.57, fontSize: 11, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.75, fontStyle: 'italic' });
+      const coverLabel = new Textbox('COVERS', { left: W * 0.68, top: H * 0.77, width: W * 0.28, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const covers = new Textbox('120 indoor\n60 terrace', { left: W * 0.68, top: H * 0.797, width: W * 0.28, fontSize: 12, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.6 });
+      [rule, kicker, cuisineTag, restaurantName, bodyRule, body, coverLabel, covers].forEach(o => { o.id = genId(); fc.add(o); });
+    },
+
+    'hotel-review-verdict': () => {
+      // Cream verdict page. Verdict prose + 4-rating grid + best-for tags + LWD badge.
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      bg.id = genId(); fc.add(bg);
+      const kicker = new Textbox('THE VERDICT', { left: 40, top: 56, width: W - 80, fontSize: 10, fontFamily: 'Cinzel', fill: GOLD_C, charSpacing: 500, textAlign: 'center' });
+      const ruleTop = new Rect({ left: W / 2 - 40, top: 88, width: 80, height: 1, fill: GOLD_C });
+      const verdictText = new Textbox("Cipriani earns its mythology. After half a century of receiving the world's most discerning guests, it understands that true luxury is not addition but subtraction — of noise, of effort, of anything that interrupts the pleasure of simply being there.", { left: 80, top: 112, width: W - 160, fontSize: 15, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.75, fontStyle: 'italic', textAlign: 'center' });
+      [kicker, ruleTop, verdictText].forEach(o => { o.id = genId(); fc.add(o); });
+      // Rating bars — 4 categories in a 2×2 grid
+      const ratingsData = [
+        { label: 'ROOMS',   score: 9 },
+        { label: 'DINING',  score: 8 },
+        { label: 'SERVICE', score: 10 },
+        { label: 'VALUE',   score: 7 },
+      ];
+      const barY0 = H * 0.44;
+      const barRowH = 64;
+      const barW = (W - 200) / 2;
+      ratingsData.forEach((r, i) => {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const bx = 80 + col * (barW + 40);
+        const by = barY0 + row * barRowH;
+        const lbl = new Textbox(r.label, { left: bx, top: by, width: barW, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+        lbl.id = genId(); fc.add(lbl);
+        const trackBg = new Rect({ left: bx, top: by + 18, width: barW, height: 5, fill: 'rgba(24,18,10,0.1)' });
+        trackBg.id = genId(); fc.add(trackBg);
+        const trackFill = new Rect({ left: bx, top: by + 18, width: barW * (r.score / 10), height: 5, fill: GOLD_C });
+        trackFill.id = genId(); fc.add(trackFill);
+        const scoreTxt = new Textbox(`${r.score}/10`, { left: bx, top: by + 30, width: barW, fontSize: 10, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic' });
+        scoreTxt.id = genId(); fc.add(scoreTxt);
+      });
+      // Best for
+      const bfRule = new Rect({ left: 80, top: H * 0.69, width: W - 160, height: 1, fill: 'rgba(24,18,10,0.12)' });
+      bfRule.id = genId(); fc.add(bfRule);
+      const bfLabel = new Textbox('BEST FOR', { left: 80, top: H * 0.71, width: W - 160, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 400, textAlign: 'center' });
+      bfLabel.id = genId(); fc.add(bfLabel);
+      const bfTags = new Textbox('Honeymoons  ·  Anniversaries  ·  Romantic Breaks  ·  Wedding Stays', { left: 80, top: H * 0.74, width: W - 160, fontSize: 12, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', textAlign: 'center', lineHeight: 1.7, charSpacing: 100 });
+      bfTags.id = genId(); fc.add(bfTags);
+      // LWD badge footer
+      const footerRule = new Rect({ left: 80, top: H * 0.855, width: W - 160, height: 1, fill: 'rgba(201,168,76,0.35)' });
+      footerRule.id = genId(); fc.add(footerRule);
+      const badge = new Textbox('AN LWD SIGNATURE REVIEW', { left: 40, top: H * 0.878, width: W - 80, fontSize: 9, fontFamily: 'Cinzel', fill: GOLD_C, charSpacing: 500, textAlign: 'center' });
+      badge.id = genId(); fc.add(badge);
+      const byline = new Textbox('Reviewed by Charlotte Ashford, Editor-in-Chief', { left: 40, top: H * 0.914, width: W - 80, fontSize: 11, fontFamily: 'Cormorant Garamond', fill: MUTED_C, fontStyle: 'italic', textAlign: 'center' });
+      byline.id = genId(); fc.add(byline);
+    },
   };
 
   const defaultLayout = () => {
@@ -1707,6 +1841,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
 
   // AI Issue Builder panel
   const [showAIBuilder, setShowAIBuilder] = useState(false);
+  const [showHotelReview, setShowHotelReview] = useState(false);
 
   // Voice Training panel
   const [showVoicePanel, setShowVoicePanel] = useState(false);
@@ -4137,6 +4272,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         brandPrimaryColor={brand?.primary_color || null}
         onSmartFill={() => setShowSmartFill(true)}
         onAIBuild={() => setShowAIBuilder(true)}
+        onHotelReview={() => setShowHotelReview(true)}
         onVoice={() => setShowVoicePanel(true)}
         onSlot={() => setShowSlotPanel(true)}
         onFillSlots={() => { saveCurrentPageToState(); setShowFillIssue(true); }}
@@ -4181,6 +4317,14 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         <AIIssueBuilderPanel
           onBuild={handleAIBuildIssue}
           onClose={() => setShowAIBuilder(false)}
+        />
+      )}
+
+      {/* Hotel Review Builder overlay */}
+      {showHotelReview && (
+        <HotelReviewBuilderPanel
+          onBuild={handleAIBuildIssue}
+          onClose={() => setShowHotelReview(false)}
         />
       )}
 

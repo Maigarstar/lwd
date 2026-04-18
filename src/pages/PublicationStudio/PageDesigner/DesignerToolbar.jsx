@@ -242,6 +242,7 @@ export default function DesignerToolbar({
   brandPrimaryColor,
   onSmartFill,
   onAIBuild,
+  onHotelReview,
   onVoice,
   onSlot,
   currentSlot,
@@ -362,6 +363,25 @@ export default function DesignerToolbar({
           >
             ✦ AI Build
           </button>
+
+          {/* Hotel Review Builder */}
+          {onHotelReview && (
+            <button
+              onClick={onHotelReview}
+              title="The LWD Hotel Review — build a signature hotel review"
+              style={{
+                background: 'rgba(201,169,110,0.08)',
+                border: '1px solid rgba(201,169,110,0.28)',
+                borderRadius: 3, color: 'rgba(201,168,76,0.85)',
+                fontFamily: NU, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.05em', textTransform: 'uppercase',
+                padding: '5px 11px', cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ✦ Hotel Review
+            </button>
+          )}
 
           {/* Voice Training */}
           {onVoice && (

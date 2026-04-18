@@ -1031,7 +1031,83 @@ const orderedPrimary = ORDERED_IDS.map((id) =>
 const orderedIdsSet = new Set(ORDERED_IDS);
 const extras = BASE_TEMPLATES.filter(t => !orderedIdsSet.has(t.id));
 
-export const TEMPLATES = [...orderedPrimary, ...extras];
+// ── Hotel Review Template Family ──────────────────────────────────────────────
+// Signature editorial format — The LWD Hotel Review.
+// These are injected after the main list so they appear at the bottom of the
+// template picker but are fully first-class (visible, applyable, buildable).
+const HOTEL_REVIEW_TEMPLATES = [
+  {
+    id: 'hotel-review-cover',
+    name: 'Hotel Review — Cover',
+    category: 'Hotel Review',
+    palette: 'midnight',
+    description: 'Full-bleed hero cover for The LWD Hotel Review format.',
+    fields: [
+      { id: 'heroImage',   type: 'image',    label: 'Hero Image',    required: true, hint: 'Exterior or iconic interior — full bleed' },
+      { id: 'hotelName',   type: 'text',     label: 'Hotel Name',    placeholder: 'THE HILTON PARK LANE' },
+      { id: 'location',    type: 'text',     label: 'Location',      placeholder: 'London, UK' },
+      { id: 'headline',    type: 'text',     label: 'Review Headline', placeholder: 'Where grandeur meets quiet intimacy' },
+      { id: 'standfirst',  type: 'textarea', label: 'Standfirst',    placeholder: 'A distinguished London address for weddings of scale and refinement.', hint: '1–2 sentences' },
+    ],
+  },
+  {
+    id: 'hotel-review-arrival',
+    name: 'Hotel Review — Arrival',
+    category: 'Hotel Review',
+    palette: 'light',
+    description: 'Arrival & First Impressions — atmosphere-led opener page.',
+    fields: [
+      { id: 'image',    type: 'image',    label: 'Arrival Image',   required: true, hint: 'Exterior, lobby, or entrance' },
+      { id: 'headline', type: 'text',     label: 'Section Headline', placeholder: 'A Sense of Arrival' },
+      { id: 'body',     type: 'textarea', label: 'Arrival Copy',    hint: '90–130 words. Atmosphere first, facts second.' },
+    ],
+  },
+  {
+    id: 'hotel-review-rooms',
+    name: 'Hotel Review — Rooms',
+    category: 'Hotel Review',
+    palette: 'light',
+    description: 'Rooms & Suites — comfort, design, light, privacy.',
+    fields: [
+      { id: 'mainImage',    type: 'image',    label: 'Room Image',      required: true },
+      { id: 'galleryImage', type: 'image',    label: 'Suite/Detail Image' },
+      { id: 'headline',     type: 'text',     label: 'Section Headline', placeholder: 'Rooms Worth Staying For' },
+      { id: 'body',         type: 'textarea', label: 'Rooms Copy',      hint: '90–140 words.' },
+    ],
+  },
+  {
+    id: 'hotel-review-dining',
+    name: 'Hotel Review — Dining',
+    category: 'Hotel Review',
+    palette: 'dark',
+    description: 'Dining — experience, mood, and occasion over food facts.',
+    fields: [
+      { id: 'image',   type: 'image',    label: 'Dining Image',    required: true, hint: 'Restaurant interior, plated dish, or bar' },
+      { id: 'subhead', type: 'text',     label: 'Restaurant Name', placeholder: 'The Palm Restaurant' },
+      { id: 'headline',type: 'text',     label: 'Section Headline', placeholder: 'A Table Worth the Journey' },
+      { id: 'body',    type: 'textarea', label: 'Dining Copy',     hint: '80–130 words.' },
+    ],
+  },
+  {
+    id: 'hotel-review-verdict',
+    name: 'Hotel Review — Verdict',
+    category: 'Hotel Review',
+    palette: 'light',
+    description: 'The LWD Verdict — ratings, key facts, best for, and CTA.',
+    fields: [
+      { id: 'verdict',         type: 'textarea', label: 'The LWD Verdict',  hint: '70–110 words. Decisive. Editorial. Authoritative.' },
+      { id: 'ratingRooms',     type: 'text',     label: 'Rooms (1–10)',     placeholder: '9' },
+      { id: 'ratingDining',    type: 'text',     label: 'Dining (1–10)',    placeholder: '8' },
+      { id: 'ratingService',   type: 'text',     label: 'Service (1–10)',   placeholder: '9' },
+      { id: 'ratingValue',     type: 'text',     label: 'Value (1–10)',     placeholder: '7' },
+      { id: 'ratingLocation',  type: 'text',     label: 'Location (1–10)', placeholder: '10' },
+      { id: 'bestFor',         type: 'textarea', label: 'Best For',         placeholder: 'Intimate weddings, City celebrations' },
+      { id: 'keyFacts',        type: 'textarea', label: 'Key Facts',        placeholder: 'Capacity: 400 · Style: Classic luxury · Ceremonies: Indoor & outdoor' },
+    ],
+  },
+];
+
+export const TEMPLATES = [...orderedPrimary, ...extras, ...HOTEL_REVIEW_TEMPLATES];
 
 export const CATEGORIES = [...new Set(TEMPLATES.map(t => t.category))];
 

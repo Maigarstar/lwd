@@ -319,6 +319,144 @@ Return ONLY the title text. No markdown, no explanation.`,
   };
 }
 
+// ── Hotel Review: generate structured page plan for a hotel review ────────────
+// Returns a page structure array compatible with handleAIBuildIssue.
+// Each item: { template_id, page_label, kicker, headline, body, byline }
+export async function generateHotelReview({
+  hotelName,
+  location = '',
+  starRating = 5,
+  priceRange = '££££',
+  reviewType = 'editorial',
+  reviewText = '',
+  headline = '',
+  standfirst = '',
+  verdict = '',
+  sections = { arrival: true, rooms: true, dining: true, spa: false, bar: false, wedding: true },
+  bestFor = [],
+  keyFacts = {},
+  tone = 'Luxury Editorial',
+} = {}) {
+  if (!hotelName) throw new Error('Hotel name is required');
+
+  // Build which sections to generate (always include cover + verdict)
+  const activeSections = [
+    'arrival',
+    ...(sections.rooms    ? ['rooms']   : []),
+    ...(sections.dining   ? ['dining']  : []),
+    ...(sections.spa      ? ['spa']     : []),
+    ...(sections.bar      ? ['bar']     : []),
+    ...(sections.pool     ? ['pool']    : []),
+    ...(sections.wedding  ? ['wedding'] : []),
+    ...(sections.location ? ['location']: []),
+  ];
+
+  const bestForStr = Array.isArray(bestFor) ? bestFor.join(', ') : bestFor;
+  const keyFactsStr = Object.entries(keyFacts)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(', ');
+
+  const systemPrompt = `You are the editorial AI for Luxury Wedding Directory — building a premium hotel review for The LWD Hotel Review format.
+
+You must return ONLY a valid JSON array. No markdown, no explanation, just the raw JSON array.
+
+Each item represents one page in the review:
+{
+  "template_id": "one of: hotel-review-cover, hotel-review-arrival, hotel-review-rooms, hotel-review-dining, hotel-review-verdict",
+  "page_label": "short descriptive label",
+  "kicker": "SHORT KICKER — e.g. 'THE LWD HOTEL REVIEW' or 'FIRST IMPRESSIONS' or 'THE ROOMS'",
+  "headline": "hotel name for cover, room type for rooms, restaurant name for dining, etc.",
+  "body": "2-3 sentences of luxury editorial copy in ${tone} voice — sensory, specific, authoritative",
+  "byline": "Optional: 'Reviewed by Charlotte Ashford, Editor-in-Chief'"
+}
+
+ALWAYS produce pages in this exact order:
+1. hotel-review-cover  (page 1 — always)
+2. hotel-review-arrival (page 2 — always)
+3. hotel-review-rooms  (if rooms section active)
+4. hotel-review-dining (if dining section active)
+5. hotel-review-verdict (last page — always)
+
+Write like a senior editor at Condé Nast Traveller. Use sensory detail, specific place names, architectural language. Never generic.`;
+
+  const userPrompt = `Write a luxury hotel review for The LWD Hotel Review.
+
+Hotel: ${hotelName}
+Location: ${location || 'Not specified'}
+Star Rating: ${starRating} stars
+Price Range: ${priceRange}
+Review Type: ${reviewType}
+${headline ? `Suggested headline: ${headline}` : ''}
+${standfirst ? `Standfirst: ${standfirst}` : ''}
+${verdict ? `Verdict notes: ${verdict}` : ''}
+${bestForStr ? `Best for: ${bestForStr}` : ''}
+${keyFactsStr ? `Key facts: ${keyFactsStr}` : ''}
+${reviewText ? `Editor's notes / paste-in content:\n${reviewText.slice(0, 1200)}` : ''}
+
+Active sections: ${['cover', ...activeSections, 'verdict'].join(', ')}
+
+Produce pages in this order: hotel-review-cover, hotel-review-arrival${sections.rooms ? ', hotel-review-rooms' : ''}${sections.dining ? ', hotel-review-dining' : ''}, hotel-review-verdict.
+
+Return exactly ${2 + activeSections.filter(s => ['rooms','dining'].includes(s)).length + 1} pages.`;
+
+  let data;
+  try {
+    data = await callAiGenerate({
+      feature: 'hotel-review-builder',
+      systemPrompt,
+      userPrompt,
+      maxTokens: 2000,
+    });
+  } catch (err) {
+    throw new Error(err?.message || 'Hotel review generation failed — check AI Settings in Admin.');
+  }
+
+  if (!data?.text) throw new Error('Hotel review generation failed — no response from AI.');
+
+  // Parse JSON — strip markdown fences if present
+  let raw = data.text.trim();
+  raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('Hotel review generation failed — AI returned invalid JSON. Try again.');
+  }
+
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new Error('Hotel review generation failed — empty structure returned.');
+  }
+
+  // Validate template IDs — only allow hotel-review-* templates
+  const VALID_HR_IDS = [
+    'hotel-review-cover', 'hotel-review-arrival', 'hotel-review-rooms',
+    'hotel-review-dining', 'hotel-review-verdict',
+  ];
+  const validated = parsed.map((p, i) => ({
+    ...p,
+    template_id: VALID_HR_IDS.includes(p.template_id)
+      ? p.template_id
+      : i === 0 ? 'hotel-review-cover'
+        : i === parsed.length - 1 ? 'hotel-review-verdict'
+          : 'hotel-review-arrival',
+  }));
+
+  // Fire-and-forget log
+  logGeneration({
+    feature: 'hotel-review-builder',
+    topic: hotelName,
+    word_count: parsed.length,
+    provider: data.provider || 'ai',
+    model: data.model || '',
+    tokens_in: data.usage?.prompt_tokens ?? null,
+    tokens_out: data.usage?.completion_tokens ?? null,
+  }).catch(() => {});
+
+  return validated;
+}
+
 // ── Main: generate full article body ─────────────────────────────────────────
 export async function generateArticleBody({ brief, title, category, tone, focusKeyword }) {
   const categoryKey = (category || 'default').toLowerCase();
