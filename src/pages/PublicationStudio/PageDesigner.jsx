@@ -5726,7 +5726,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         </div>{/* end canvas column */}
 
         {/* Properties panel */}
-        <div style={{ position: 'relative', zIndex: lightsOff ? 0 : 'auto', flexShrink: 0 }}>
+        <div style={{ position: 'relative', zIndex: lightsOff ? 0 : 'auto', flexShrink: 0, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <PropertiesPanel
             selectedObject={selectedObject}
             selectedObjects={selectedObjects}
