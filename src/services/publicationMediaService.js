@@ -19,6 +19,37 @@ function sanitiseFilename(name) {
   return name.replace(/[^A-Za-z0-9._-]/g, '_').replace(/_+/g, '_').slice(0, 80);
 }
 
+// magazine-pages bucket only accepts image/jpeg and image/png.
+// Convert any other format (webp, avif, gif, bmp…) to jpeg via canvas
+// so uploads never hit a 415 MIME rejection.
+function normaliseImageFile(file) {
+  const ALLOWED = ['image/jpeg', 'image/png'];
+  if (ALLOWED.includes(file.type)) return Promise.resolve(file);
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const blobUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width  = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      URL.revokeObjectURL(blobUrl);
+      canvas.toBlob(
+        blob => {
+          if (!blob) { reject(new Error('Image conversion failed')); return; }
+          const name = file.name.replace(/\.[^.]+$/, '.jpg');
+          resolve(new File([blob], name, { type: 'image/jpeg' }));
+        },
+        'image/jpeg',
+        0.92,
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error('Could not read image file')); };
+    img.src = blobUrl;
+  });
+}
+
 export function getRecentAssets() {
   try {
     return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
@@ -39,12 +70,20 @@ function addToRecent(item) {
  * Returns { publicUrl, storagePath, error }.
  */
 export async function uploadAsset(issueId, file) {
-  const safe = sanitiseFilename(file.name);
+  // Normalise to jpeg/png before upload — bucket rejects webp, avif, gif etc.
+  let normalised;
+  try {
+    normalised = await normaliseImageFile(file);
+  } catch (e) {
+    return { error: e.message || 'Image conversion failed' };
+  }
+
+  const safe = sanitiseFilename(normalised.name);
   const path = `${issueId || 'studio'}/assets/${Date.now()}-${safe}`;
 
   let result;
   try {
-    result = await uploadViaEdgeFunction({ bucket: BUCKET, path, blob: file, contentType: file.type || 'image/jpeg' });
+    result = await uploadViaEdgeFunction({ bucket: BUCKET, path, blob: normalised, contentType: normalised.type });
   } catch (e) {
     return { error: e.message || 'Upload failed' };
   }
