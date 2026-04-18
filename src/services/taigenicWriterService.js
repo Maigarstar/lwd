@@ -144,7 +144,7 @@ Return ONLY a JSON array of heading blocks:
 }
 
 // ── Parse AI text response into block array ────────────────────────────────────
-function parseBlocks(raw) {
+export function parseBlocks(raw) {
   if (!raw) return null;
   // Strip markdown code fences if present
   const cleaned = raw.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();

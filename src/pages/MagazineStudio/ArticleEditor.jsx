@@ -3076,8 +3076,17 @@ function AIPanel({ formData, onChange, tone, onToneChange, focusKeyword, onSeoRe
       if (action === 'generate-seo-title') upd('seoTitle', result);
       if (action === 'generate-meta')      upd('metaDescription', result);
       if (action === 'generate-tags')      upd('tags', result.split(',').map(t => t.trim()).filter(Boolean));
+      if (action === 'improve-tone') {
+        // Replace the first paragraph/intro block with the improved text
+        const blocks = formData.content || [];
+        const introIdx = blocks.findIndex(b => b.type === 'intro' || b.type === 'paragraph');
+        if (introIdx >= 0) {
+          const newBlocks = [...blocks];
+          newBlocks[introIdx] = { ...newBlocks[introIdx], text: result };
+          upd('content', newBlocks);
+        }
+      }
 
-      // ← NEW: Trigger SEO recalculation after AI action
       if (onSeoRecalculate) {
         onSeoRecalculate();
       }
@@ -3105,13 +3114,19 @@ function AIPanel({ formData, onChange, tone, onToneChange, focusKeyword, onSeoRe
 
       if (!result?.text) throw new Error('Refinement failed');
 
-      // Parse result based on action
+      // Apply result based on action
       if (action === 'shorten' || action === 'expand') {
-        // Full article regeneration — parse as new blocks
-        const { parseBlocks } = await import('../../services/taigenicWriterService');
-        // Note: parseBlocks is not exported, so we'll need a helper
-        // For now, store as plain text and let editor handle it
-        setError('Article refinement complete. Review the changes.');
+        // AI returns plain prose — split by paragraph breaks and rebuild block array
+        const newBlocks = result.text
+          .split(/\n\n+/)
+          .map(p => p.trim())
+          .filter(Boolean)
+          .map((p, idx) => ({
+            id: crypto.randomUUID ? crypto.randomUUID() : `refined-${Date.now()}-${idx}`,
+            type: 'paragraph',
+            text: p,
+          }));
+        if (newBlocks.length > 0) upd('content', newBlocks);
       } else if (action === 'rewrite-intro') {
         // Update only the first intro/paragraph block
         const newBlocks = [...blocks];
@@ -3121,14 +3136,28 @@ function AIPanel({ formData, onChange, tone, onToneChange, focusKeyword, onSeoRe
           upd('content', newBlocks);
         }
       } else if (action === 'add-keywords') {
-        // Parse JSON suggestions and apply
+        // AI returns JSON: [{ sectionIndex, suggestion }, ...]
+        // Insert each suggestion as a new paragraph after the referenced block
         try {
           const cleaned = result.text.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
           const suggestions = JSON.parse(cleaned);
-          // Note: actual implementation would integrate suggestions into content
-          setError('Keyword suggestions ready. Review and apply to your article.');
+          if (Array.isArray(suggestions) && suggestions.length > 0) {
+            const newBlocks = [...blocks];
+            // Sort descending so splices don't shift earlier indices
+            const sorted = [...suggestions].sort((a, b) => b.sectionIndex - a.sectionIndex);
+            for (const { sectionIndex, suggestion } of sorted) {
+              if (!suggestion) continue;
+              const insertAt = Math.min((sectionIndex ?? 0) + 1, newBlocks.length);
+              newBlocks.splice(insertAt, 0, {
+                id: crypto.randomUUID ? crypto.randomUUID() : `kw-${Date.now()}-${sectionIndex}`,
+                type: 'paragraph',
+                text: suggestion,
+              });
+            }
+            upd('content', newBlocks);
+          }
         } catch (_) {
-          setError('Could not parse keyword suggestions. Review manually.');
+          setError('Could not parse keyword suggestions — try again.');
         }
       } else if (action === 'fix-title') {
         upd('seoTitle', result.text);
