@@ -7,7 +7,7 @@
 
 import { useState, useRef } from 'react';
 import { GOLD, BORDER, MUTED, NU, GD } from './designerConstants';
-import { generateHotelReview } from '../../../services/taigenicWriterService';
+import { generateHotelReview, fetchHotelFromUrl } from '../../../services/taigenicWriterService';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const REVIEW_TYPES = [
@@ -134,6 +134,12 @@ export default function HotelReviewBuilderPanel({ onBuild, onClose }) {
   const [error,          setError]          = useState('');
   const [savedReviewId,  setSavedReviewId]  = useState(null);
 
+  // URL fetch + brand state
+  const [hotelUrl,       setHotelUrl]       = useState('');
+  const [fetchingUrl,    setFetchingUrl]    = useState(false);
+  const [fetchError,     setFetchError]     = useState('');
+  const [brandColors,    setBrandColors]    = useState(null); // { primary, accent, bg, text }
+
   // Fill From Listing state
   const [listingQuery,   setListingQuery]   = useState('');
   const [listingResults, setListingResults] = useState([]);
@@ -224,6 +230,42 @@ export default function HotelReviewBuilderPanel({ onBuild, onClose }) {
 
     setListingQuery(listing.name);
     setListingResults([]);
+  }
+
+  // ── Fetch from URL ────────────────────────────────────────────────────────────
+  async function handleFetchUrl() {
+    if (!hotelUrl.trim() && !form.hotelName.trim()) {
+      setFetchError('Enter a hotel URL or name first');
+      return;
+    }
+    setFetchingUrl(true);
+    setFetchError('');
+    try {
+      const info = await fetchHotelFromUrl({
+        url:       hotelUrl.trim(),
+        hotelName: form.hotelName.trim(),
+      });
+
+      // Pre-fill form fields from fetched data
+      setForm(prev => ({
+        ...prev,
+        hotelName:  info.hotel_name  || prev.hotelName,
+        location:   info.location    || prev.location,
+        starRating: info.star_rating || prev.starRating,
+        priceRange: info.price_range || prev.priceRange,
+        reviewText: info.description || prev.reviewText,
+        bestFor:    info.best_for    || prev.bestFor,
+      }));
+
+      // Store brand colors — passed to generateHotelReview → layout renderers
+      if (info.brand_colors?.primary) {
+        setBrandColors(info.brand_colors);
+      }
+    } catch (err) {
+      setFetchError(err.message || 'Could not fetch hotel info');
+    } finally {
+      setFetchingUrl(false);
+    }
   }
 
   // ── Image upload ─────────────────────────────────────────────────────────────
@@ -321,6 +363,7 @@ export default function HotelReviewBuilderPanel({ onBuild, onClose }) {
         verdict:     form.verdict.trim(),
         sections:    form.sections,
         bestFor:     form.bestFor.split(',').map(s => s.trim()).filter(Boolean),
+        brandColors, // from fetchHotelFromUrl — null means use LWD defaults
       });
 
       // 3. Build pages on canvas
@@ -342,6 +385,9 @@ export default function HotelReviewBuilderPanel({ onBuild, onClose }) {
     setImages([]);
     setListingQuery('');
     setListingResults([]);
+    setHotelUrl('');
+    setFetchError('');
+    setBrandColors(null);
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -452,6 +498,74 @@ export default function HotelReviewBuilderPanel({ onBuild, onClose }) {
                 ⚠ {error}
               </div>
             )}
+
+            {/* ── FETCH FROM WEBSITE ── */}
+            <SectionDivider label="Fetch from Website" />
+            <div style={{ marginBottom: 16 }}>
+              <Label hint="AI reads the hotel's identity + brand palette">Hotel URL</Label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input
+                  type="text"
+                  value={hotelUrl}
+                  onChange={e => setHotelUrl(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleFetchUrl()}
+                  placeholder="https://hotelname.com"
+                  style={{
+                    flex: 1, boxSizing: 'border-box',
+                    background: 'rgba(255,255,255,0.05)', border: `1px solid ${BORDER}`,
+                    borderRadius: 3, color: '#fff', fontFamily: NU, fontSize: 11,
+                    padding: '7px 10px', outline: 'none',
+                  }}
+                />
+                <button
+                  onClick={handleFetchUrl}
+                  disabled={fetchingUrl}
+                  style={{
+                    flexShrink: 0, padding: '7px 14px',
+                    background: fetchingUrl ? `rgba(201,168,76,0.12)` : `rgba(201,168,76,0.15)`,
+                    border: `1px solid rgba(201,168,76,0.35)`,
+                    borderRadius: 3, cursor: fetchingUrl ? 'default' : 'pointer',
+                    fontFamily: NU, fontSize: 9, fontWeight: 700,
+                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                    color: GOLD, whiteSpace: 'nowrap',
+                  }}
+                >
+                  {fetchingUrl ? 'Fetching…' : '✦ Fetch'}
+                </button>
+              </div>
+              {fetchError && (
+                <div style={{ fontFamily: NU, fontSize: 9, color: '#fca5a5', marginTop: 4 }}>
+                  ⚠ {fetchError}
+                </div>
+              )}
+              {/* Brand palette preview */}
+              {brandColors && (
+                <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontFamily: NU, fontSize: 9, color: MUTED }}>Brand palette:</span>
+                  {[brandColors.primary, brandColors.accent, brandColors.bg, brandColors.text]
+                    .filter(Boolean).map((c, i) => (
+                      <div
+                        key={i}
+                        title={c}
+                        style={{
+                          width: 18, height: 18, borderRadius: 3,
+                          background: c, border: `1px solid rgba(255,255,255,0.15)`,
+                          flexShrink: 0,
+                        }}
+                      />
+                    ))}
+                  <span style={{ fontFamily: NU, fontSize: 9, color: 'rgba(201,168,76,0.7)' }}>
+                    ✓ Applied to layout
+                  </span>
+                  <button
+                    onClick={() => setBrandColors(null)}
+                    style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontFamily: NU, fontSize: 9, padding: 0, marginLeft: 4 }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* ── FILL FROM LISTING ── */}
             <SectionDivider label="Fill From Listing" />

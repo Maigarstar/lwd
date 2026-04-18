@@ -319,6 +319,57 @@ Return ONLY the title text. No markdown, no explanation.`,
   };
 }
 
+// ── Hotel URL lookup: fetch hotel identity + brand palette from URL ────────────
+// For well-known properties the AI returns accurate brand colors from its training
+// data. For independent hotels it infers a luxury-appropriate palette from context.
+// Returns a plain object — caller decides what to pre-fill.
+export async function fetchHotelFromUrl({ url = '', hotelName = '' } = {}) {
+  if (!url && !hotelName) throw new Error('Provide a URL or hotel name');
+
+  const data = await callAiGenerate({
+    feature: 'hotel-url-lookup',
+    systemPrompt: `You are a luxury hospitality brand analyst. Given a hotel website URL and/or hotel name, return everything known about the property's identity and visual brand.
+
+Return ONLY valid JSON — no markdown fences, no explanation:
+{
+  "hotel_name": "Official full hotel name",
+  "location": "City, Country",
+  "star_rating": 5,
+  "price_range": "££££",
+  "description": "2-sentence editorial description of the property",
+  "restaurant_name": "Name of the main restaurant (or null)",
+  "cuisine_style": "e.g. 'BRITISH · SEASONAL ✦' (for dining page tag)",
+  "room_types": "e.g. 'Classic Room · Deluxe Suite · Penthouse'",
+  "best_for": "e.g. 'Honeymoons, Anniversary Stays, City Escapes'",
+  "key_facts": "e.g. '198 Rooms · Rooftop Bar · Spa · 2 Restaurants'",
+  "brand_colors": {
+    "primary": "#hex — dominant brand/accent color (from logo, CTAs, hero elements)",
+    "accent":  "#hex — secondary accent (often a contrasting or complementary tone)",
+    "bg":      "#hex — typical page/background color",
+    "text":    "#hex — primary body text color"
+  }
+}
+
+For major hotel brands (Four Seasons, Dorchester, Ritz, Claridge's, Aman, Rosewood, etc.) use their known brand colors exactly.
+For independent hotels, infer a premium palette appropriate for the property's style and location.
+star_rating must be 1–5. price_range must be one of: £, ££, £££, ££££.`,
+    userPrompt: `Hotel URL: ${url || 'not provided'}\nHotel name: ${hotelName || 'not provided'}\n\nReturn the hotel brand profile as JSON.`,
+    maxTokens: 700,
+  });
+
+  if (!data?.text) throw new Error('Could not fetch hotel info — check AI Settings.');
+
+  let raw = data.text.trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/i, '');
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error('Hotel lookup returned invalid data. Try again.');
+  }
+}
+
 // ── Hotel Review: generate structured page plan for a hotel review ────────────
 // Returns a page structure array compatible with handleAIBuildIssue.
 // Each item: { template_id, page_label, kicker, headline, body, byline }
@@ -336,6 +387,7 @@ export async function generateHotelReview({
   bestFor = [],
   keyFacts = {},
   tone = 'Luxury Editorial',
+  brandColors = null, // { primary, accent, bg, text } — from fetchHotelFromUrl
 } = {}) {
   if (!hotelName) throw new Error('Hotel name is required');
 
@@ -470,6 +522,10 @@ Return exactly ${2 + activeSections.filter(s => ['rooms','dining'].includes(s)).
     layout: {
       star_rating: starRating,
       ...(p.layout || {}),
+      // Brand colors flow from fetchHotelFromUrl → panel state → here.
+      // Layout renderers use them to replace accent colors with hotel identity.
+      // null means "use LWD defaults" — safe to omit.
+      brand: brandColors || null,
     },
   }));
 

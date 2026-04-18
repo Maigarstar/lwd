@@ -1144,13 +1144,20 @@ export function applyTemplate(fc, template, dims, brand = {}, layoutParams = {})
     //   image_style: 'cinematic' | 'editorial' | 'intimate'
     //   ratings:     { rooms, dining, service, value }               (verdict)
     //   star_rating: number 1-5                                      (cover)
-    // All params are optional — every key has a sensible default so existing
-    // non-parametric builds continue to work without any param object.
+    //   brand:       { primary, accent, bg, text }                   (ALL pages)
+    //     — from fetchHotelFromUrl. When present, hotel brand colors replace
+    //       the default LWD gold accent throughout the review pages.
+    //       The masthead "THE LWD HOTEL REVIEW" always stays in LWD gold
+    //       as an editorial identity anchor. Everything else adapts.
+    // All params are optional — LWD defaults apply when omitted.
 
     'hotel-review-cover': (params = {}) => {
       const composition = params.composition || 'centered';
       const starCount   = Math.min(5, Math.max(1, params.star_rating || 5));
       const starStr     = Array.from({ length: starCount }, () => '✦').join('  ');
+      // Brand palette — hotel colors replace accent gold, LWD gold stays for masthead
+      const brandAccent = params.brand?.primary || GOLD_C;
+      const brandBg     = params.brand?.bg      || null; // null = keep cinematic dark
 
       // Composition variants affect text alignment + gradient positioning
       const isCentered = composition !== 'editorial-left';
@@ -1174,21 +1181,21 @@ export function applyTemplate(fc, template, dims, brand = {}, layoutParams = {})
       const btmGrad = new Rect({ left: 0, top: btmGradTop, width: W, height: H - btmGradTop, fill: btmOverlay, selectable: false });
       btmGrad.id = genId(); fc.add(btmGrad);
 
-      // Masthead strip (always top-centered — brand anchor point)
+      // Masthead strip — always LWD gold (editorial identity anchor, never overridden)
       const ruleTop  = new Rect({ left: 40, top: 54, width: W - 80, height: 1, fill: GOLD_C });
       const masthead = new Textbox('THE LWD HOTEL REVIEW', { left: 40, top: 68, width: W - 80, fontSize: 10, fontFamily: 'Cinzel', fill: GOLD_C, charSpacing: 500, textAlign: 'center' });
       const ruleMast = new Rect({ left: 40, top: 96, width: W - 80, height: 1, fill: GOLD_C });
 
       // Hotel name — font size is a layout param so AI can pre-scale for long names
       const nameFontSize = params.headline_size || 62;
-      const hotelName = new Textbox('—', { left: textL, top: nameTop, width: textW, fontSize: nameFontSize, fontFamily: 'Bodoni Moda', fill: '#F0EBE0', fontStyle: 'italic', fontWeight: '400', lineHeight: 1.0, textAlign: align });
+      const nameColor    = params.brand?.text || '#F0EBE0';
+      const hotelName = new Textbox('—', { left: textL, top: nameTop, width: textW, fontSize: nameFontSize, fontFamily: 'Bodoni Moda', fill: nameColor, fontStyle: 'italic', fontWeight: '400', lineHeight: 1.0, textAlign: align });
 
-      // Location line
-      const location = new Textbox('—', { left: textL, top: locTop, width: textW, fontSize: 10, fontFamily: 'Cinzel', fill: GOLD_C, charSpacing: 400, textAlign: align });
-
-      const stars   = new Textbox(starStr, { left: textL, top: starsTop, width: textW, fontSize: 14, fontFamily: 'Jost', fill: GOLD_C, textAlign: align, charSpacing: 200 });
-      const ruleBot = new Rect({ left: W / 2 - 80, top: H - 72, width: 160, height: 1, fill: 'rgba(201,168,76,0.4)' });
-      const badge   = new Textbox('REVIEWED EXCLUSIVELY FOR LWD', { left: 40, top: H - 54, width: W - 80, fontSize: 8, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.6)', charSpacing: 400, textAlign: 'center' });
+      // Location + stars use brand accent so the hotel's palette reads on the cover
+      const location = new Textbox('—', { left: textL, top: locTop, width: textW, fontSize: 10, fontFamily: 'Cinzel', fill: brandAccent, charSpacing: 400, textAlign: align });
+      const stars    = new Textbox(starStr, { left: textL, top: starsTop, width: textW, fontSize: 14, fontFamily: 'Jost', fill: brandAccent, textAlign: align, charSpacing: 200 });
+      const ruleBot  = new Rect({ left: W / 2 - 80, top: H - 72, width: 160, height: 1, fill: `${brandAccent}66` });
+      const badge    = new Textbox('REVIEWED EXCLUSIVELY FOR LWD', { left: 40, top: H - 54, width: W - 80, fontSize: 8, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.6)', charSpacing: 400, textAlign: 'center' });
 
       hotelName._role = 'hotel_name';
       location._role  = 'hotel_location';
@@ -1198,28 +1205,31 @@ export function applyTemplate(fc, template, dims, brand = {}, layoutParams = {})
     'hotel-review-arrival': (params = {}) => {
       // image_split controls the image/text column ratio.
       // 'wide-image' = 56% image (dramatic), 'narrow-image' = 44% (default, more text)
-      const imgRatio  = params.image_split === 'wide-image' ? 0.56 : 0.44;
-      const textStart = imgRatio + 0.05;
-      const textW     = 1 - textStart - 0.02;
+      const imgRatio   = params.image_split === 'wide-image' ? 0.56 : 0.44;
+      const textStart  = imgRatio + 0.05;
+      const textW      = 1 - textStart - 0.02;
+      const brandAccent = params.brand?.primary || GOLD_C;
+      const brandBg    = params.brand?.bg      || '#FAF8F5';
+      const brandText  = params.brand?.text    || DARK_C;
 
-      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: brandBg, selectable: false });
       bg.id = genId(); fc.add(bg);
       addImagePlaceholder(fc, { left: 0, top: 0, width: W * imgRatio, height: H, imageUrl: IMG.venetianPalazzo, fill: '#2A2016' });
 
-      // Gold vertical rule at the column break
-      const vLine = new Rect({ left: W * imgRatio, top: 40, width: 1, height: H - 80, fill: GOLD_C, selectable: false });
+      // Vertical rule uses brand accent
+      const vLine = new Rect({ left: W * imgRatio, top: 40, width: 1, height: H - 80, fill: brandAccent, selectable: false });
       vLine.id = genId(); fc.add(vLine);
 
-      const kicker   = new Textbox('FIRST IMPRESSIONS', { left: W * textStart, top: 60, width: W * textW, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 400 });
-      const rule     = new Rect({ left: W * textStart, top: 82, width: 48, height: 1, fill: GOLD_C });
-      const hotelName = new Textbox('—', { left: W * textStart, top: 100, width: W * textW, fontSize: params.headline_size || 40, fontFamily: 'Bodoni Moda', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.0 });
-      const location  = new Textbox('—', { left: W * textStart, top: 200, width: W * textW, fontSize: 13, fontFamily: 'Cormorant Garamond', fill: GOLD_C, fontStyle: 'italic' });
+      const kicker    = new Textbox('FIRST IMPRESSIONS', { left: W * textStart, top: 60, width: W * textW, fontSize: 9, fontFamily: 'Jost', fill: brandAccent, charSpacing: 400 });
+      const rule      = new Rect({ left: W * textStart, top: 82, width: 48, height: 1, fill: brandAccent });
+      const hotelName = new Textbox('—', { left: W * textStart, top: 100, width: W * textW, fontSize: params.headline_size || 40, fontFamily: 'Bodoni Moda', fill: brandText, fontStyle: 'italic', lineHeight: 1.0 });
+      const location  = new Textbox('—', { left: W * textStart, top: 200, width: W * textW, fontSize: 13, fontFamily: 'Cormorant Garamond', fill: brandAccent, fontStyle: 'italic' });
       const bodyRule  = new Rect({ left: W * textStart, top: 228, width: W * textW, height: 1, fill: 'rgba(24,18,10,0.15)' });
-      const body      = new Textbox('', { left: W * textStart, top: 246, width: W * textW, fontSize: 11, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.8, fontStyle: 'italic' });
+      const body      = new Textbox('', { left: W * textStart, top: 246, width: W * textW, fontSize: 11, fontFamily: 'Cormorant Garamond', fill: brandText, lineHeight: 1.8, fontStyle: 'italic' });
       const factsRule  = new Rect({ left: W * textStart, top: H * 0.7, width: W * textW, height: 1, fill: 'rgba(24,18,10,0.15)' });
-      const factsLabel = new Textbox('AT A GLANCE', { left: W * textStart, top: H * 0.725, width: W * textW, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
-      const facts      = new Textbox('', { left: W * textStart, top: H * 0.755, width: W * textW, fontSize: 10, fontFamily: 'Jost', fill: DARK_C, lineHeight: 1.9, charSpacing: 50 });
-      const styleTag   = new Textbox('', { left: W * textStart, top: H - 52, width: W * textW, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const factsLabel = new Textbox('AT A GLANCE', { left: W * textStart, top: H * 0.725, width: W * textW, fontSize: 8, fontFamily: 'Jost', fill: brandAccent, charSpacing: 300 });
+      const facts      = new Textbox('', { left: W * textStart, top: H * 0.755, width: W * textW, fontSize: 10, fontFamily: 'Jost', fill: brandText, lineHeight: 1.9, charSpacing: 50 });
+      const styleTag   = new Textbox('', { left: W * textStart, top: H - 52, width: W * textW, fontSize: 8, fontFamily: 'Jost', fill: brandAccent, charSpacing: 300 });
 
       kicker._role    = 'page_kicker';
       hotelName._role = 'hotel_name';
@@ -1231,15 +1241,16 @@ export function applyTemplate(fc, template, dims, brand = {}, layoutParams = {})
 
     'hotel-review-rooms': (params = {}) => {
       // mood: 'dark' (default) | 'light' — controls bg + text palette
-      const isDark    = (params.mood || 'dark') !== 'light';
-      const imgRatio  = params.image_split === 'narrow-image' ? 0.44 : 0.56;
-      const textStart = imgRatio + 0.05;
-      const textW     = 1 - textStart - 0.02;
-      const bgFill    = isDark ? '#141210' : '#FAF8F5';
-      const textFill  = isDark ? '#F0EBE0' : DARK_C;
-      const bodyFill  = isDark ? 'rgba(240,235,224,0.8)' : DARK_C;
-      const specsFill = isDark ? 'rgba(240,235,224,0.75)' : 'rgba(24,18,10,0.7)';
-      const ratingFill = isDark ? 'rgba(201,168,76,0.15)' : 'rgba(24,18,10,0.08)';
+      const isDark      = (params.mood || 'dark') !== 'light';
+      const imgRatio    = params.image_split === 'narrow-image' ? 0.44 : 0.56;
+      const textStart   = imgRatio + 0.05;
+      const textW       = 1 - textStart - 0.02;
+      const brandAccent = params.brand?.primary || GOLD_C;
+      const bgFill      = params.brand?.bg || (isDark ? '#141210' : '#FAF8F5');
+      const textFill    = isDark ? '#F0EBE0' : (params.brand?.text || DARK_C);
+      const bodyFill    = isDark ? 'rgba(240,235,224,0.8)' : (params.brand?.text || DARK_C);
+      const specsFill   = isDark ? 'rgba(240,235,224,0.75)' : 'rgba(24,18,10,0.7)';
+      const ratingFill  = isDark ? `${brandAccent}25` : 'rgba(24,18,10,0.08)';
 
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: bgFill, selectable: false });
       bg.id = genId(); fc.add(bg);
@@ -1248,21 +1259,21 @@ export function applyTemplate(fc, template, dims, brand = {}, layoutParams = {})
       const vLine    = new Rect({ left: W * imgRatio, top: 40, width: 1, height: H - 80, fill: GOLD_C, selectable: false });
       vLine.id = genId(); fc.add(vLine);
       const kicker   = new Textbox('THE ROOMS', { left: W * textStart, top: 56, width: W * textW, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 400 });
-      const rule     = new Rect({ left: W * textStart, top: 78, width: 40, height: 1, fill: GOLD_C });
+      const rule     = new Rect({ left: W * textStart, top: 78, width: 40, height: 1, fill: brandAccent });
       const roomType = new Textbox('', { left: W * textStart, top: 94, width: W * textW, fontSize: params.headline_size || 28, fontFamily: 'Bodoni Moda', fill: textFill, fontStyle: 'italic', lineHeight: 1.05 });
-      const bodyRule = new Rect({ left: W * textStart, top: 206, width: W * textW, height: 1, fill: 'rgba(201,168,76,0.25)' });
+      const bodyRule = new Rect({ left: W * textStart, top: 206, width: W * textW, height: 1, fill: `${brandAccent}40` });
       const body     = new Textbox('', { left: W * textStart, top: 222, width: W * textW, fontSize: 10, fontFamily: 'Cormorant Garamond', fill: bodyFill, lineHeight: 1.8, fontStyle: 'italic' });
-      const specsRule  = new Rect({ left: W * textStart, top: H * 0.54, width: W * textW, height: 1, fill: 'rgba(201,168,76,0.25)' });
-      const specsLabel = new Textbox('ROOM TYPES', { left: W * textStart, top: H * 0.565, width: W * textW, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const specsRule  = new Rect({ left: W * textStart, top: H * 0.54, width: W * textW, height: 1, fill: `${brandAccent}40` });
+      const specsLabel = new Textbox('ROOM TYPES', { left: W * textStart, top: H * 0.565, width: W * textW, fontSize: 8, fontFamily: 'Jost', fill: brandAccent, charSpacing: 300 });
       const specs      = new Textbox('', { left: W * textStart, top: H * 0.595, width: W * textW, fontSize: 10, fontFamily: 'Cormorant Garamond', fill: specsFill, lineHeight: 1.9, fontStyle: 'italic' });
 
-      // Rating bar — score from AI params, default 8
+      // Rating bar — score from AI params, default 8; bar uses brand accent
       const rScore = params.ratings?.rooms ?? 8;
       const ratingY = H * 0.79;
-      const rLabel  = new Textbox('ROOMS RATING', { left: W * textStart, top: ratingY, width: W * textW, fontSize: 7, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const rLabel  = new Textbox('ROOMS RATING', { left: W * textStart, top: ratingY, width: W * textW, fontSize: 7, fontFamily: 'Jost', fill: brandAccent, charSpacing: 300 });
       const rTrack  = new Rect({ left: W * textStart, top: ratingY + 18, width: W * textW * 0.9, height: 5, fill: ratingFill });
-      const rFill   = new Rect({ left: W * textStart, top: ratingY + 18, width: W * textW * 0.9 * (rScore / 10), height: 5, fill: GOLD_C });
-      const rTxt    = new Textbox(`${rScore} / 10`, { left: W * textStart, top: ratingY + 30, width: W * textW, fontSize: 9, fontFamily: 'Jost', fill: 'rgba(201,168,76,0.8)', charSpacing: 100 });
+      const rFill   = new Rect({ left: W * textStart, top: ratingY + 18, width: W * textW * 0.9 * (rScore / 10), height: 5, fill: brandAccent });
+      const rTxt    = new Textbox(`${rScore} / 10`, { left: W * textStart, top: ratingY + 30, width: W * textW, fontSize: 9, fontFamily: 'Jost', fill: `${brandAccent}CC`, charSpacing: 100 });
       [rLabel, rTrack, rFill, rTxt].forEach(o => { o.id = genId(); fc.add(o); });
 
       kicker._role   = 'page_kicker';
@@ -1281,10 +1292,13 @@ export function applyTemplate(fc, template, dims, brand = {}, layoutParams = {})
       const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: bgFill, selectable: false });
       bg.id = genId(); fc.add(bg);
 
+      const brandAccent = params.brand?.primary || GOLD_C;
+      const brandText   = params.brand?.text    || DARK_C;
+
       if (isSplit) {
         // Split layout: text left 55%, image right 42%
         addImagePlaceholder(fc, { left: W * 0.58, top: 0, width: W * 0.42, height: H, imageUrl: IMG.receptionTable, fill: '#EDE8E0' });
-        const vLine = new Rect({ left: W * 0.57, top: 40, width: 1, height: H - 80, fill: GOLD_C, selectable: false });
+        const vLine = new Rect({ left: W * 0.57, top: 40, width: 1, height: H - 80, fill: brandAccent, selectable: false });
         vLine.id = genId(); fc.add(vLine);
       } else {
         // Full-width top image — more atmospheric
@@ -1294,19 +1308,19 @@ export function applyTemplate(fc, template, dims, brand = {}, layoutParams = {})
       const contentL = isSplit ? 40 : 40;
       const contentW = isSplit ? W * 0.53 : W - 80;
       const topY     = isSplit ? 60 : H * 0.6;
-      const rule     = new Rect({ left: contentL, top: isSplit ? topY - 12 : H * 0.595, width: isSplit ? contentW : W - 80, height: 1, fill: GOLD_C });
-      const kicker        = new Textbox('THE RESTAURANT', { left: contentL, top: topY, width: contentW * 0.65, fontSize: 9, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 400 });
-      const cuisineTag    = new Textbox('', { left: contentL + contentW * 0.67, top: topY, width: contentW * 0.33, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300, textAlign: 'right' });
-      const restaurantName = new Textbox('', { left: contentL, top: topY + H * 0.032, width: isSplit ? contentW : W - 80, fontSize: params.headline_size || 42, fontFamily: 'Bodoni Moda', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.0 });
+      const rule     = new Rect({ left: contentL, top: isSplit ? topY - 12 : H * 0.595, width: isSplit ? contentW : W - 80, height: 1, fill: brandAccent });
+      const kicker        = new Textbox('THE RESTAURANT', { left: contentL, top: topY, width: contentW * 0.65, fontSize: 9, fontFamily: 'Jost', fill: brandAccent, charSpacing: 400 });
+      const cuisineTag    = new Textbox('', { left: contentL + contentW * 0.67, top: topY, width: contentW * 0.33, fontSize: 8, fontFamily: 'Jost', fill: brandAccent, charSpacing: 300, textAlign: 'right' });
+      const restaurantName = new Textbox('', { left: contentL, top: topY + H * 0.032, width: isSplit ? contentW : W - 80, fontSize: params.headline_size || 42, fontFamily: 'Bodoni Moda', fill: brandText, fontStyle: 'italic', lineHeight: 1.0 });
       const bodyRule  = new Rect({ left: contentL, top: topY + H * 0.105, width: isSplit ? contentW : W - 80, height: 1, fill: 'rgba(24,18,10,0.12)' });
-      const body      = new Textbox('', { left: contentL, top: topY + H * 0.125, width: contentW, fontSize: 11, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.75, fontStyle: 'italic' });
+      const body      = new Textbox('', { left: contentL, top: topY + H * 0.125, width: contentW, fontSize: 11, fontFamily: 'Cormorant Garamond', fill: brandText, lineHeight: 1.75, fontStyle: 'italic' });
 
-      // Dining rating bar
+      // Dining rating bar — brand accent color
       const rY = isSplit ? H * 0.80 : H * 0.77;
-      const rLabel = new Textbox('DINING RATING', { left: isSplit ? contentL : W * 0.68, top: rY, width: isSplit ? 140 : W * 0.28, fontSize: 7, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      const rLabel = new Textbox('DINING RATING', { left: isSplit ? contentL : W * 0.68, top: rY, width: isSplit ? 140 : W * 0.28, fontSize: 7, fontFamily: 'Jost', fill: brandAccent, charSpacing: 300 });
       const rTrack = new Rect({ left: isSplit ? contentL : W * 0.68, top: rY + 16, width: isSplit ? 140 : W * 0.26, height: 5, fill: 'rgba(24,18,10,0.08)' });
-      const rFill  = new Rect({ left: isSplit ? contentL : W * 0.68, top: rY + 16, width: (isSplit ? 140 : W * 0.26) * (diningRating / 10), height: 5, fill: GOLD_C });
-      const rTxt   = new Textbox(`${diningRating} / 10`, { left: isSplit ? contentL : W * 0.68, top: rY + 28, width: isSplit ? 140 : W * 0.28, fontSize: 9, fontFamily: 'Jost', fill: 'rgba(201,168,76,0.8)', charSpacing: 100 });
+      const rFill  = new Rect({ left: isSplit ? contentL : W * 0.68, top: rY + 16, width: (isSplit ? 140 : W * 0.26) * (diningRating / 10), height: 5, fill: brandAccent });
+      const rTxt   = new Textbox(`${diningRating} / 10`, { left: isSplit ? contentL : W * 0.68, top: rY + 28, width: isSplit ? 140 : W * 0.28, fontSize: 9, fontFamily: 'Jost', fill: `${brandAccent}CC`, charSpacing: 100 });
       [rLabel, rTrack, rFill, rTxt].forEach(o => { o.id = genId(); fc.add(o); });
 
       kicker._role          = 'page_kicker';
@@ -1324,36 +1338,39 @@ export function applyTemplate(fc, template, dims, brand = {}, layoutParams = {})
         service: params.ratings?.service ?? 9,
         value:   params.ratings?.value   ?? 7,
       };
+      const brandAccent = params.brand?.primary || GOLD_C;
+      const brandBg     = params.brand?.bg      || '#FAF8F5';
+      const brandText   = params.brand?.text    || DARK_C;
 
-      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: '#FAF8F5', selectable: false });
+      const bg = new Rect({ left: 0, top: 0, width: W, height: H, fill: brandBg, selectable: false });
       bg.id = genId(); fc.add(bg);
 
-      const kicker     = new Textbox('THE VERDICT', { left: 40, top: 56, width: W - 80, fontSize: 10, fontFamily: 'Cinzel', fill: GOLD_C, charSpacing: 500, textAlign: 'center' });
-      const ruleTop    = new Rect({ left: W / 2 - 40, top: 88, width: 80, height: 1, fill: GOLD_C });
-      const verdictText = new Textbox('', { left: 80, top: 112, width: W - 160, fontSize: 15, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.75, fontStyle: 'italic', textAlign: 'center' });
+      const kicker      = new Textbox('THE VERDICT', { left: 40, top: 56, width: W - 80, fontSize: 10, fontFamily: 'Cinzel', fill: brandAccent, charSpacing: 500, textAlign: 'center' });
+      const ruleTop     = new Rect({ left: W / 2 - 40, top: 88, width: 80, height: 1, fill: brandAccent });
+      const verdictText = new Textbox('', { left: 80, top: 112, width: W - 160, fontSize: 15, fontFamily: 'Cormorant Garamond', fill: brandText, lineHeight: 1.75, fontStyle: 'italic', textAlign: 'center' });
       kicker._role      = 'page_kicker';
       verdictText._role = 'page_body';
       [kicker, ruleTop, verdictText].forEach(o => { o.id = genId(); fc.add(o); });
 
-      // Rating bars — 2×2 grid with AI-driven scores
+      // Rating bars — 2×2 grid, brand accent drives fill + labels
       const ratingsData = [
         { label: 'ROOMS',   score: ratings.rooms },
         { label: 'DINING',  score: ratings.dining },
         { label: 'SERVICE', score: ratings.service },
         { label: 'VALUE',   score: ratings.value },
       ];
-      const barY0  = H * 0.44;
+      const barY0   = H * 0.44;
       const barRowH = 64;
-      const barW   = (W - 200) / 2;
+      const barW    = (W - 200) / 2;
       ratingsData.forEach((r, i) => {
         const col = i % 2;
         const row = Math.floor(i / 2);
         const bx  = 80 + col * (barW + 40);
         const by  = barY0 + row * barRowH;
-        const lbl       = new Textbox(r.label, { left: bx, top: by, width: barW, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+        const lbl       = new Textbox(r.label, { left: bx, top: by, width: barW, fontSize: 8, fontFamily: 'Jost', fill: brandAccent, charSpacing: 300 });
         const trackBg   = new Rect({ left: bx, top: by + 18, width: barW, height: 5, fill: 'rgba(24,18,10,0.1)' });
-        const trackFill = new Rect({ left: bx, top: by + 18, width: barW * (r.score / 10), height: 5, fill: GOLD_C });
-        const scoreTxt  = new Textbox(`${r.score}/10`, { left: bx, top: by + 30, width: barW, fontSize: 10, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic' });
+        const trackFill = new Rect({ left: bx, top: by + 18, width: barW * (r.score / 10), height: 5, fill: brandAccent });
+        const scoreTxt  = new Textbox(`${r.score}/10`, { left: bx, top: by + 30, width: barW, fontSize: 10, fontFamily: 'Cormorant Garamond', fill: brandText, fontStyle: 'italic' });
         [lbl, trackBg, trackFill, scoreTxt].forEach(o => { o.id = genId(); fc.add(o); });
       });
 
