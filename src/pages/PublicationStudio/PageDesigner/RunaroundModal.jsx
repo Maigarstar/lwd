@@ -14,7 +14,7 @@ export default function RunaroundModal({
   onRemoveObstacle,
   onSetGap,
 }) {
-  if (!open || !textbox) return null;
+  if (!textbox) return null;
 
   const obstacles = textbox.runaroundTargetIds || [];
   const gap = textbox.runaroundGap ?? 12;
