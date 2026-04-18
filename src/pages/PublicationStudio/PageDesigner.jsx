@@ -5726,8 +5726,8 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         </div>{/* end canvas column */}
 
         {/* Properties panel */}
-        <div style={{ position: 'relative', zIndex: lightsOff ? 0 : 'auto', display: 'flex', minHeight: 0 }}>
-          <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+        <div style={{ position: 'relative', zIndex: lightsOff ? 0 : 'auto', display: 'flex', height: '100%', flexShrink: 0, minHeight: 0 }}>
+          <div style={{ height: '100%', overflow: 'hidden', minHeight: 0 }}>
             <PropertiesPanel
               selectedObject={selectedObject}
               selectedObjects={selectedObjects}
