@@ -4345,7 +4345,15 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     const fc = getActiveCanvas();
     if (!fc) return;
     const obj = fc.getObjects().find(o => o.id === id);
-    if (obj) { fc.setActiveObject(obj); fc.requestRenderAll(); }
+    if (obj) {
+      fc.setActiveObject(obj);
+      fc.requestRenderAll();
+      // Explicitly push to state — don't rely on Fabric's selection events
+      // firing after programmatic setActiveObject (they sometimes don't).
+      // This guarantees PropertiesPanel shows the object immediately.
+      setSelectedObject(obj);
+      setSelectedObjects([obj]);
+    }
   }, [getActiveCanvas]);
 
   const handleToggleLayerVisibility = useCallback((id) => {
