@@ -37,6 +37,7 @@ import StudioVoicePanel from './PageDesigner/StudioVoicePanel';
 import PageSlotPanel from './PageDesigner/PageSlotPanel';
 import FillIssuePanelModal from './PageDesigner/FillIssuePanelModal';
 import ArticleReflowPanel from './PageDesigner/ArticleReflowPanel';
+import RunaroundModal from './PageDesigner/RunaroundModal';
 import VersionHistoryPanel from './PageDesigner/VersionHistoryPanel';
 import { createVersion } from '../../services/publicationVersionService';
 import { useStudioCollaboration } from '../../hooks/useStudioCollaboration';
@@ -2006,6 +2007,10 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   const runaroundPickSourceRef = useRef(null); // the RunaroundTextbox being configured
   const runaroundPickModeRef   = useRef(false);
   useEffect(() => { runaroundPickModeRef.current = runaroundPickMode; }, [runaroundPickMode]);
+
+  // ── Runaround obstacle management modal ──────────────────────────────────────
+  const [runnaroundModalOpen, setRunnaroundModalOpen] = useState(false);
+  const [runnaroundModalTextbox, setRunnaroundModalTextbox] = useState(null); // the textbox being configured
 
   // ── Text chain "link pick" mode ─────────────────────────────────────────────
   // When the user clicks "Link to Next Frame" in PropertiesPanel, we enter
@@ -4841,7 +4846,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     }
 
     runaroundPickSourceRef.current = target;
-    setRunaroundPickMode(true);
+    setRunnaroundModalTextbox(target);
+    setRunnaroundModalOpen(true);
+    setRunaroundPickMode(false); // Don't enter pick mode immediately; wait for modal button click
   }, [getActiveCanvas, setSelectedObject]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Remove all runaround obstacles from a textbox.
@@ -4868,6 +4875,47 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     fc?.requestRenderAll();
     handlePropertiesUpdate();
   }, [getActiveCanvas]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Runaround modal handlers ────────────────────────────────────────────────────
+
+  // Called when user clicks "+ Add Obstacle" in the modal
+  const handleRunaroundAddObstacle = useCallback(() => {
+    runaroundPickSourceRef.current = runnaroundModalTextbox;
+    setRunaroundPickMode(prev => !prev); // Toggle pick mode on/off
+  }, [runnaroundModalTextbox]);
+
+  // Called when user clicks Remove button for an obstacle in the modal
+  const handleRunaroundRemoveObstacle = useCallback((obstacleId) => {
+    if (!runnaroundModalTextbox) return;
+    const fc = getActiveCanvas();
+    if (!fc) return;
+
+    // Remove ID from array
+    if (runnaroundModalTextbox.runaroundTargetIds) {
+      runnaroundModalTextbox.runaroundTargetIds = runnaroundModalTextbox.runaroundTargetIds.filter(id => id !== obstacleId);
+    }
+
+    // Reflow text
+    const savedH = runnaroundModalTextbox.height;
+    runnaroundModalTextbox.initDimensions();
+    runnaroundModalTextbox.height = savedH;
+    fc.requestRenderAll();
+    handlePropertiesUpdate();
+  }, [runnaroundModalTextbox, getActiveCanvas]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Called when user changes the gap slider in the modal
+  const handleRunaroundModalSetGap = useCallback((gap) => {
+    if (!runnaroundModalTextbox) return;
+    const fc = getActiveCanvas();
+    if (!fc) return;
+
+    runnaroundModalTextbox.runaroundGap = gap;
+    const savedH = runnaroundModalTextbox.height;
+    runnaroundModalTextbox.initDimensions();
+    runnaroundModalTextbox.height = savedH;
+    fc.requestRenderAll();
+    handlePropertiesUpdate();
+  }, [runnaroundModalTextbox, getActiveCanvas]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Guide rails ─────────────────────────────────────────────────────────────
 
@@ -5734,6 +5782,23 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
           pointerEvents: 'none',
           zIndex: 9999,
         }} />
+      )}
+
+      {/* Runaround modal — for managing text wrap obstacles */}
+      {runnaroundModalOpen && (
+        <RunaroundModal
+          open={runnaroundModalOpen}
+          onClose={() => {
+            setRunnaroundModalOpen(false);
+            setRunnaroundModalTextbox(null);
+            setRunaroundPickMode(false); // Exit pick mode if active
+          }}
+          textbox={runnaroundModalTextbox}
+          canvas={getActiveCanvas()}
+          onAddObstacle={handleRunaroundAddObstacle}
+          onRemoveObstacle={handleRunaroundRemoveObstacle}
+          onSetGap={handleRunaroundModalSetGap}
+        />
       )}
 
       {/* Image picker modal — triggered by double-click on any placeholder */}
