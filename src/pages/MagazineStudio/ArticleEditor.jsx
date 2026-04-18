@@ -4068,7 +4068,7 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
   const [sidebarTab, setSidebarTab] = useState('document'); // 'document' | 'ai'
   const [statusMachineOpen, setStatusMachineOpen] = useState(false);
   const [aiWriterTopic, setAiWriterTopic] = useState('');
-  const [aiWriterTone, setAiWriterTone] = useState('Luxury Editorial');
+  // aiWriterTone removed — tone is now the shared prop (unified with Document tab + AIPanel)
   const [aiWriterWordCount, setAiWriterWordCount] = useState(600);
   const [coverLibOpen, setCoverLibOpen] = useState(false);
   // What the next MediaLibrary open should target: 'library' | 'unsplash' | 'upload'.
@@ -4302,7 +4302,7 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                     aiProvider: 'taigenic',
                     aiPromptVersion: 'v1-editorial',
                     aiTopic: aiWriterTopic,
-                    aiTone: aiWriterTone,
+                    aiTone: tone,
                     aiWordCount: aiWriterDraft.wordCount,
                     // Auto-fill SEO fields from structured draft output
                     ...(aiWriterDraft.seoTitle && !formData.seoTitle ? { seoTitle: aiWriterDraft.seoTitle } : {}),
@@ -4390,7 +4390,7 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                           category: formData.categoryLabel || formData.category,
                         });
                         setContentBrief(brief);
-                        if (brief.toneRecommendation) setAiWriterTone(brief.toneRecommendation);
+                        if (brief.toneRecommendation) onToneChange(brief.toneRecommendation);
                         if (brief.summary && !aiWriterTopic.trim()) setAiWriterTopic(brief.summary);
                       } catch (err) {
                         setAiWriterError(err.message || 'Brief generation failed.');
@@ -4496,18 +4496,18 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                 <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.muted, marginBottom: 5 }}>Tone</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
                   {TONE_PRESETS.map(t => (
-                    <button key={t.key} onClick={() => setAiWriterTone(t.key)}
+                    <button key={t.key} onClick={() => onToneChange(t.key)}
                       style={{ padding: '6px 8px', borderRadius: 2, cursor: 'pointer', textAlign: 'left',
-                        background: aiWriterTone === t.key ? `${GOLD}18` : 'transparent',
-                        border: `1px solid ${aiWriterTone === t.key ? GOLD : S.border}`,
+                        background: tone === t.key ? `${GOLD}18` : 'transparent',
+                        border: `1px solid ${tone === t.key ? GOLD : S.border}`,
                         transition: 'all 0.15s' }}>
-                      <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, color: aiWriterTone === t.key ? GOLD : S.text }}>{t.label}</div>
+                      <div style={{ fontFamily: FU, fontSize: 9, fontWeight: 600, color: tone === t.key ? GOLD : S.text }}>{t.label}</div>
                       <div style={{ fontFamily: FU, fontSize: 7, color: S.faint, marginTop: 1 }}>{t.desc}</div>
                     </button>
                   ))}
                 </div>
                 {/* Fallback: full list for edge tones */}
-                <select value={aiWriterTone} onChange={e => setAiWriterTone(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.faint, fontFamily: FU, fontSize: 9, padding: '5px 6px', borderRadius: 2, outline: 'none', cursor: 'pointer', marginTop: 4 }}>
+                <select value={tone} onChange={e => onToneChange(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', background: S.inputBg, border: `1px solid ${S.inputBorder}`, color: S.faint, fontFamily: FU, fontSize: 9, padding: '5px 6px', borderRadius: 2, outline: 'none', cursor: 'pointer', marginTop: 4 }}>
                   {TONE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
@@ -4545,7 +4545,7 @@ function DocSidebar({ formData, onChange, tone, onToneChange, onPublish, onUnpub
                       brief:         aiWriterTopic,
                       title:         formData.title,
                       category:      formData.categoryLabel || formData.category,
-                      tone:          aiWriterTone,
+                      tone:          tone,
                       focusKeyword:  focusKeyword,
                     });
                     setAiWriterDraft(result);
