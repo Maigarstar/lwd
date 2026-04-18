@@ -38,6 +38,7 @@ import { getAllSubmissions, reviewSubmission, toggleFeatured } from "../services
 import ReviewsModule from "./AdminDashboard/ReviewsModule";
 import CRMModule from "./AdminModules/CRMModule";
 import ListingApplicationsModule from "./AdminModules/ListingApplicationsModule";
+import HotelReviewsModule from "./AdminModules/HotelReviewsModule";
 import EmailMarketingModule from "./AdminModules/EmailMarketingModule";
 import EmailBuilderModule from "./AdminModules/EmailBuilderModule";
 import SalesPipelineModule from "./AdminModules/SalesPipelineModule";
@@ -375,6 +376,7 @@ const NAV_SECTIONS = [
       { key: "publication-studio",   label: "Pub. Studio",       icon: "✐" },
       { key: "magazine",             label: "The Magazine",      icon: "✦" },
       { key: "magazine-studio",      label: "Article Studio",    icon: "✎" },
+      { key: "hotel-reviews",        label: "Hotel Reviews",     icon: "✦" },
     ],
   },
   {
@@ -11699,6 +11701,7 @@ export default function AdminDashboard({ onBack, onNavigate }) {
       case "event-studio":      return <EventsModule key="event-studio" C={C} darkMode={darkMode} onBuilderModeChange={setEventsBuilderActive} startInBuilder />;
       case "managed-accounts":  return <ManagedAccountsModule C={C} />;
       case "listing-applications": return <ListingApplicationsModule C={C} />;
+      case "hotel-reviews":        return <HotelReviewsModule C={C} />;
       case "partner-enquiries": return <PartnerEnquiriesModule C={C} />;
       case "sales-pipeline":    return <SalesPipelineModule C={C} />;
       case "pipeline-builder":  return <PipelineBuilderModule C={C} />;
