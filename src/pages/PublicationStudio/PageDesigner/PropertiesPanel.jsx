@@ -627,6 +627,7 @@ export default function PropertiesPanel({ selectedObject, selectedObjects, canva
   return (
     <div style={{
       width: 280,
+      height: '100%',
       flexShrink: 0,
       background: '#1A1712',
       borderLeft: `1px solid ${BORDER}`,
