@@ -70,11 +70,14 @@ function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem, m
     const items = [];
     (v.imgs || []).forEach((img) => {
       if (typeof img === "string") {
-        items.push({ type: "image", src: img, alt_text: "", creditName: null, creditIG: null, showCredit: false });
-      } else {
-        items.push({
+        // H4 fix: skip empty string URLs — they cause broken-image requests
+        if (img) items.push({ type: "image", src: img, alt_text: "", creditName: null, creditIG: null, showCredit: false });
+      } else if (img && typeof img === "object") {
+        const src = img.src || img.url || "";
+        // H4 fix: only add if we have a real URL
+        if (src) items.push({
           type:        "image",
-          src:         img.src || img.url || "",
+          src,
           alt_text:    img.alt_text || "",
           creditName:  img.credit_name || null,
           creditIG:    img.credit_instagram || null,
@@ -90,7 +93,8 @@ function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem, m
         items.push({ type: "video", src: v.videoUrl, creditName: null, creditIG: null, showCredit: false });
       }
     }
-    return items.length > 0 ? items : [{ type: "image", src: "", creditName: null, creditIG: null, showCredit: false }];
+    // H4 fix: only use placeholder slot if we have nothing at all — no empty-src fallback
+    return items.length > 0 ? items : [];
   })();
 
   const mediaCount  = allMedia.length;
@@ -295,6 +299,7 @@ function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem, m
                   src={item.src}
                   alt={item.alt_text || (i === 0 ? `${v.name} – ${v.city}, ${v.region}` : `${v.name} photo ${i + 1}`)}
                   loading="lazy"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
                   style={{
                     width: "100%", height: "100%", objectFit: "cover",
                     transform:  hov && i === slideIdx ? "scale(1.03)" : "scale(1)",
@@ -337,7 +342,7 @@ function VenueGridCard({ v, onView, isMobile, quickViewItem, setQuickViewItem, m
               ) : (
                 <>
                   {v.imgs?.[0] && (
-                    <img src={v.imgs[0]} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img src={typeof v.imgs[0] === 'string' ? v.imgs[0] : (v.imgs[0]?.src || v.imgs[0]?.url || '')} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
                   )}
                   <video
                     ref={(el) => { videoRefs.current[i] = el; }}

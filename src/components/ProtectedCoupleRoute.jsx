@@ -12,9 +12,20 @@ export default function ProtectedCoupleRoute({ children }) {
   const { isAuthenticated, loading } = useCoupleAuth();
 
   // ── Admin Preview Mode bypass ──────────────────────────────────────────────
-  // Synchronous check, admin set "lwd_admin_preview" before navigating here.
-  // To remove: delete this block.
-  const _p = (() => { try { return JSON.parse(sessionStorage.getItem("lwd_admin_preview") || "null"); } catch { return null; } })();
+  // Admin sets "lwd_admin_preview" in sessionStorage before navigating here.
+  // M12 fix: enforce a 5-minute expiry so the bypass can't linger indefinitely.
+  const _p = (() => {
+    try {
+      const raw = JSON.parse(sessionStorage.getItem("lwd_admin_preview") || "null");
+      if (!raw) return null;
+      // Expire after 5 minutes
+      if (raw.at && Date.now() - raw.at > 5 * 60 * 1000) {
+        sessionStorage.removeItem("lwd_admin_preview");
+        return null;
+      }
+      return raw;
+    } catch { return null; }
+  })();
   if (_p?.type === "couple") return children;
   // ──────────────────────────────────────────────────────────────────────────
 

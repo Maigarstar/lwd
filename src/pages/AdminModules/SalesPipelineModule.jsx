@@ -664,13 +664,15 @@ function CampaignLaunchModal({ campaign, allProspects, onClose, onDone }) {
   const step     = steps[stepIndex] || {};
   const audience = filterProspectsForCampaign(allProspects, parseObj(campaign.filters));
 
-  const [launching, setLaunching] = useState(false);
-  const [progress,  setProgress]  = useState({ sent: 0, total: 0 });
-  const [done,      setDone]      = useState(false);
+  const [launching,   setLaunching]   = useState(false);
+  const [progress,    setProgress]    = useState({ sent: 0, total: 0 });
+  const [done,        setDone]        = useState(false);
+  const [launchError, setLaunchError] = useState(null);
 
   async function handleLaunch() {
     if (launching || done || audience.length === 0) return;
     setLaunching(true);
+    setLaunchError(null);
     setProgress({ sent: 0, total: audience.length });
     const fromEmail = localStorage.getItem('emailFromAddress') || '';
     const fromName  = localStorage.getItem('emailFromName')  || 'Luxury Wedding Directory';
@@ -687,6 +689,8 @@ function CampaignLaunchModal({ campaign, allProspects, onClose, onDone }) {
       setTimeout(() => onDone(), 2200);
     } catch (e) {
       console.error('Launch failed:', e);
+      // H11 fix: surface the error in the UI so admin knows send failed
+      setLaunchError(e?.message || 'Send failed — check your email settings and try again.');
       setLaunching(false);
     }
   }
@@ -736,6 +740,13 @@ function CampaignLaunchModal({ campaign, allProspects, onClose, onDone }) {
               <div style={{ height: 6, background: '#f3f0ea', borderRadius: 100 }}>
                 <div style={{ height: '100%', background: done ? '#16a34a' : G, borderRadius: 100, width: `${progress.total > 0 ? (progress.sent / progress.total) * 100 : 0}%`, transition: 'width 0.3s' }} />
               </div>
+            </div>
+          )}
+
+          {/* H11 fix: surface send errors in the UI */}
+          {launchError && (
+            <div style={{ marginBottom: 12, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13, color: '#dc2626' }}>
+              ⚠ {launchError}
             </div>
           )}
 

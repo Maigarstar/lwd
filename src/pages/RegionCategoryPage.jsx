@@ -2539,6 +2539,9 @@ function VendorCategoryCarousel({ categories, C, onSelect, activeCategorySlugs =
   const start = page * VENDOR_CATS_PER_PAGE;
   const visible = categories.slice(start, start + VENDOR_CATS_PER_PAGE);
 
+  // H5 fix: reset to page 0 when the category list changes (e.g. on category switch)
+  useEffect(() => { setPage(0); }, [categories]);
+
   const [hovPrev, setHovPrev] = useState(false);
   const [hovNext, setHovNext] = useState(false);
 

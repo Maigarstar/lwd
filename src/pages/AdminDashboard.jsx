@@ -11956,13 +11956,13 @@ export default function AdminDashboard({ onBack, onNavigate }) {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <button
-                    onClick={() => { sessionStorage.setItem("lwd_admin_preview", JSON.stringify({ type: "vendor", id: "11111111-1111-1111-1111-111111111113", analytics_enabled: true })); window.location.href = "/vendor"; }}
+                    onClick={() => { sessionStorage.setItem("lwd_admin_preview", JSON.stringify({ type: "vendor", id: "11111111-1111-1111-1111-111111111113", analytics_enabled: true, at: Date.now() })); window.location.href = "/vendor"; }}
                     style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 3, cursor: 'pointer', padding: '6px 10px', fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.45)', textAlign: 'left', transition: 'all 0.15s', letterSpacing: '0.04em' }}
                     onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#c9a84c'; e.currentTarget.style.color = '#c9a84c'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}
                   >Vendor Portal</button>
                   <button
-                    onClick={() => { sessionStorage.setItem("lwd_admin_preview", JSON.stringify({ type: "couple", id: "couple-1" })); window.location.href = "/getting-married"; }}
+                    onClick={() => { sessionStorage.setItem("lwd_admin_preview", JSON.stringify({ type: "couple", id: "couple-1", at: Date.now() })); window.location.href = "/getting-married"; }}
                     style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 3, cursor: 'pointer', padding: '6px 10px', fontFamily: NU, fontSize: 10, color: 'rgba(255,255,255,0.45)', textAlign: 'left', transition: 'all 0.15s', letterSpacing: '0.04em' }}
                     onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#c9a84c'; e.currentTarget.style.color = '#c9a84c'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; }}
