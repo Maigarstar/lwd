@@ -47,8 +47,13 @@ export class RunaroundTextbox extends Textbox {
 
   constructor(text, options = {}) {
     super(text, options);
-    /** @type {string|null} — the `.id` of the obstacle Fabric object */
-    this.runaroundTargetId = options.runaroundTargetId || null;
+    // Support both legacy single ID and new array format
+    // If runaroundTargetId exists (old), convert to array for backward compatibility
+    if (options.runaroundTargetId && !options.runaroundTargetIds) {
+      this.runaroundTargetIds = [options.runaroundTargetId];
+    } else {
+      this.runaroundTargetIds = options.runaroundTargetIds || [];
+    }
     /** @type {number} — px gap between text and obstacle edge */
     this.runaroundGap      = options.runaroundGap      ?? DEFAULT_GAP;
 
@@ -57,58 +62,68 @@ export class RunaroundTextbox extends Textbox {
     this._runaroundLineData = {};
   }
 
-  // ── Resolve the obstacle from the canvas ─────────────────────────────────
+  // ── Resolve obstacles from the canvas ──────────────────────────────────────
 
   /**
-   * Returns the obstacle Fabric object (or null if not found).
+   * Returns all obstacle Fabric objects for this textbox.
+   * @returns {FabricObject[]}
+   */
+  get runaroundObstacles() {
+    if (!this.runaroundTargetIds || !this.canvas || this.runaroundTargetIds.length === 0) {
+      return [];
+    }
+    return this.runaroundTargetIds
+      .map(id => this.canvas.getObjects().find(o => o.id === id))
+      .filter(Boolean);
+  }
+
+  /**
+   * Deprecated: kept for backward compatibility. Use runaroundObstacles instead.
    * @returns {FabricObject|null}
    */
   get runaroundObj() {
-    if (!this.runaroundTargetId || !this.canvas) return null;
-    return (
-      this.canvas.getObjects().find(o => o.id === this.runaroundTargetId) || null
-    );
+    const obstacles = this.runaroundObstacles;
+    return obstacles.length > 0 ? obstacles[0] : null;
   }
 
   // ── Core layout override ──────────────────────────────────────────────────
 
   /**
    * Override _wrapText to inject per-line width narrowing and left indents
-   * for lines that overlap the obstacle's Y range.
+   * for lines that overlap obstacles' Y ranges. Supports multiple obstacles.
    *
    * @param {string[]} lines       — array of paragraph strings (hard newlines)
    * @param {number}   desiredWidth — full textbox width
    * @returns {string[][]}          — visual lines (same contract as Textbox)
    */
   _wrapText(lines, desiredWidth) {
-    const obs = this.runaroundObj;
+    const obstacles = this.runaroundObstacles;
 
-    // ── No obstacle: behave exactly like a regular Textbox ────────────────
-    if (!obs) {
+    // ── No obstacles: behave exactly like a regular Textbox ────────────────
+    if (obstacles.length === 0) {
       this._runaroundLineData = {};
       return super._wrapText(lines, desiredWidth);
     }
 
-    // ── Compute obstacle bounds in this textbox's local coord system ──────
-    //
-    // Fabric object positions are in canvas (absolute) space.
-    // The textbox's top-left is at (this.left, this.top).
-    // We deliberately ignore rotation for v1 simplicity.
-    const obsBounds = obs.getBoundingRect(true); // useCache=true for perf
-    const myLeft    = this.left  || 0;
-    const myTop     = this.top   || 0;
-    const gap       = this.runaroundGap;
+    // ── Compute all obstacle bounds in textbox-local coord system ──────────
+    // Fabric objects are in canvas (absolute) space. The textbox's top-left
+    // is at (this.left, this.top). We deliberately ignore rotation for v1.
+    const myLeft  = this.left  || 0;
+    const myTop   = this.top   || 0;
+    const gap     = this.runaroundGap;
+    const midX    = desiredWidth / 2;
 
-    // Obstacle extents in textbox-local coords
-    const obsLocalTop    = obsBounds.top    - myTop;
-    const obsLocalBottom = obsLocalTop      + obsBounds.height;
-    const obsLocalLeft   = obsBounds.left   - myLeft;
-    const obsLocalRight  = obsLocalLeft     + obsBounds.width;
-
-    // Determine side: obstacle on the left or the right of the textbox midpoint?
-    const midX       = desiredWidth / 2;
-    const obsMidX    = (obsLocalLeft + obsLocalRight) / 2;
-    const obsOnLeft  = obsMidX < midX;
+    // Compute local bounds for all obstacles
+    const obstaclesBounds = obstacles.map(obs => {
+      const bounds = obs.getBoundingRect(true);
+      return {
+        top:    bounds.top    - myTop,
+        bottom: bounds.top + bounds.height - myTop,
+        left:   bounds.left   - myLeft,
+        right:  bounds.left + bounds.width  - myLeft,
+        midX:   (bounds.left - myLeft + bounds.left + bounds.width  - myLeft) / 2,
+      };
+    });
 
     // ── Build pre-layout data (word widths) once ──────────────────────────
     this.isWrapping = true;
@@ -172,15 +187,18 @@ export class RunaroundTextbox extends Textbox {
       const p1Start = paraToPass1Start[i];
       const p1Count = paraToPass1Count[i];
 
-      // Check if any pass1 visual line for this paragraph overlaps the obstacle
+      // Check if any pass1 visual line overlaps ANY obstacle
       let paraOverlaps = false;
       for (let k = p1Start; k < p1Start + p1Count; k++) {
         const lineY = lineYCenters[k] ?? y;
-        if (lineY + approxLineH / 2 > obsLocalTop &&
-            lineY - approxLineH / 2 < obsLocalBottom) {
-          paraOverlaps = true;
-          break;
+        for (const obs of obstaclesBounds) {
+          if (lineY + approxLineH / 2 > obs.top &&
+              lineY - approxLineH / 2 < obs.bottom) {
+            paraOverlaps = true;
+            break;
+          }
         }
+        if (paraOverlaps) break;
       }
 
       if (!paraOverlaps) {
@@ -216,22 +234,30 @@ export class RunaroundTextbox extends Textbox {
         ? approxLineH / 2
         : lineYCenters[paraToPass1Start[i]] ?? approxLineH / 2;
 
-      // Compute effective width and indent for a given Y
+      // Compute effective width and indent for a given Y, considering all obstacles
       const getEffective = (yCenter) => {
-        const inZone = yCenter + approxLineH / 2 > obsLocalTop &&
-                       yCenter - approxLineH / 2 < obsLocalBottom;
-        if (!inZone) return { width: desiredWidth, indent: 0 };
+        let effectiveLeft = 0;   // how far to indent (for left-side obstacles)
+        let effectiveRight = desiredWidth; // where to stop (for right-side obstacles)
 
-        if (obsOnLeft) {
-          // Obstacle on LEFT: indent text to start after obstacle right edge
-          const indent    = Math.max(0, obsLocalRight + gap);
-          const available = Math.max(desiredWidth - indent, 1);
-          return { width: available, indent };
-        } else {
-          // Obstacle on RIGHT: reduce max width to stop before obstacle left edge
-          const available = Math.max(obsLocalLeft - gap, 1);
-          return { width: available, indent: 0 };
+        // Loop over all obstacles and find the ones overlapping this Y
+        for (const obs of obstaclesBounds) {
+          const lineOverlapsObs = yCenter + approxLineH / 2 > obs.top &&
+                                  yCenter - approxLineH / 2 < obs.bottom;
+          if (!lineOverlapsObs) continue;
+
+          // This obstacle overlaps the line. Determine which side and update bounds.
+          if (obs.midX < midX) {
+            // Obstacle on LEFT: indent text to start after obstacle right edge
+            effectiveLeft = Math.max(effectiveLeft, obs.right + gap);
+          } else {
+            // Obstacle on RIGHT: reduce max width to stop before obstacle left edge
+            effectiveRight = Math.min(effectiveRight, obs.left - gap);
+          }
         }
+
+        const width  = Math.max(1, effectiveRight - effectiveLeft);
+        const indent = effectiveLeft;
+        return { width, indent };
       };
 
       let { width: effectiveW, indent: effectiveIndent } = getEffective(currentY);
@@ -315,7 +341,7 @@ export class RunaroundTextbox extends Textbox {
 
   toObject(propertiesToInclude = []) {
     return super.toObject([
-      'runaroundTargetId',
+      'runaroundTargetIds',  // new: array format
       'runaroundGap',
       ...propertiesToInclude,
     ]);

@@ -186,6 +186,30 @@ export function getChainFrames(canvas, chainId) {
     .sort((a, b) => (a.chainOrder ?? 0) - (b.chainOrder ?? 0));
 }
 
+/**
+ * Return all frames in a chain across both canvases (for spread view).
+ * Searches both leftCanvas and rightCanvas for frames with the given chainId.
+ *
+ * @param  {FabricCanvas} leftCanvas
+ * @param  {FabricCanvas} rightCanvas
+ * @param  {string}       chainId
+ * @returns {FabricTextbox[]}
+ */
+export function getChainFramesAcrossCanvases(leftCanvas, rightCanvas, chainId) {
+  if (!chainId) return [];
+  const leftFrames = leftCanvas
+    ? leftCanvas.getObjects()
+        .filter(o => o.chainId === chainId && o.type === 'textbox')
+    : [];
+  const rightFrames = rightCanvas
+    ? rightCanvas.getObjects()
+        .filter(o => o.chainId === chainId && o.type === 'textbox')
+    : [];
+  const allFrames = [...leftFrames, ...rightFrames];
+  allFrames.sort((a, b) => (a.chainOrder ?? 0) - (b.chainOrder ?? 0));
+  return allFrames;
+}
+
 // ── Link / Unlink ─────────────────────────────────────────────────────────────
 
 /**
@@ -234,7 +258,50 @@ export function linkFrames(frameA, frameB, canvas) {
 }
 
 /**
- * Remove `frame` from its chain.
+ * Link frames across two canvases (spread view). Works like linkFrames but
+ * searches both canvases and renders both after linking.
+ *
+ * @param {FabricTextbox} frameA — frame on any canvas
+ * @param {FabricTextbox} frameB — frame on any canvas
+ * @param {FabricCanvas}  leftCanvas
+ * @param {FabricCanvas}  rightCanvas
+ */
+export function linkFramesAcrossCanvases(frameA, frameB, leftCanvas, rightCanvas) {
+  if (!frameA || !frameB || frameA === frameB) return;
+
+  // Resolve or create chain
+  const chainId = frameA.chainId || genId();
+
+  const existingFrames = frameA.chainId
+    ? getChainFramesAcrossCanvases(leftCanvas, rightCanvas, frameA.chainId)
+    : [frameA];
+
+  // Guard: frameB already in this chain
+  if (existingFrames.includes(frameB)) return;
+
+  // Bootstrap frameA if this is a new chain
+  if (!frameA.chainId) {
+    frameA.chainId    = chainId;
+    frameA.chainOrder = 0;
+  }
+
+  // Append frameB
+  frameB.chainId    = chainId;
+  frameB.chainOrder = existingFrames.length; // place at end
+
+  const allFrames = getChainFramesAcrossCanvases(leftCanvas, rightCanvas, chainId);
+
+  // Merge texts then redistribute
+  const fullText = frameA.chainFullText || reconstructMasterText(allFrames);
+  distributeChainText(allFrames, fullText);
+
+  // Render both canvases
+  leftCanvas?.requestRenderAll();
+  rightCanvas?.requestRenderAll();
+}
+
+/**
+ * Remove `frame` from its chain (works across canvases too).
  *
  * • The frame keeps its currently visible text.
  * • Remaining frames are re-numbered and the master text is redistributed

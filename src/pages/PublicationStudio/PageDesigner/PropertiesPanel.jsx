@@ -938,13 +938,13 @@ export default function PropertiesPanel({ selectedObject, selectedObjects, canva
               <Hr />
               <div style={SECTION}>Text Wrap</div>
               <div style={{ padding: '4px 16px 12px' }}>
-                {obj.runaroundTargetId ? (
+                {obj.runaroundTargetIds && obj.runaroundTargetIds.length > 0 ? (
                   <>
                     <div style={{
                       fontFamily: NU, fontSize: 10, color: MUTED,
                       marginBottom: 8, lineHeight: 1.5,
                     }}>
-                      ⊙ Wrapping around obstacle
+                      ⊙ Wrapping around {obj.runaroundTargetIds.length} obstacle{obj.runaroundTargetIds.length !== 1 ? 's' : ''}
                     </div>
                     <PropField label={`Gap: ${obj.runaroundGap ?? 12}px`}>
                       <input
@@ -971,7 +971,7 @@ export default function PropertiesPanel({ selectedObject, selectedObjects, canva
                         padding: '6px 0', cursor: 'pointer', marginBottom: 6,
                       }}
                     >
-                      {runaroundPickMode ? '⟳ Picking obstacle…' : '⊙ Change Obstacle'}
+                      {runaroundPickMode ? '⟳ Picking obstacle…' : '+ Add Obstacle'}
                     </button>
                     <button
                       onClick={() => onClearRunaround?.(obj)}
