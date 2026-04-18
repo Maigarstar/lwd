@@ -2053,6 +2053,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     fetchBrandKit().then(({ data }) => { if (data) setBrand(data); });
   }, []);
 
+  // ── Page dimensions — must be declared before any callback that references dims ──
+  const dims = PAGE_SIZES[pageSize] || PAGE_SIZES.A4;
+
   // Image picker — opened by double-clicking any isImagePlaceholder object
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const imagePickerTargetRef = useRef(null); // the Fabric object to replace
@@ -2122,7 +2125,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     } catch (e) {
       console.error('[addSpreadImage]', e);
     }
-  }, [spreadView, dims, saveCurrentPageToState]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [spreadView, dims]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Page number settings
   const [pageNumberSettings, setPageNumberSettings] = useState({
@@ -2143,8 +2146,6 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   const clipboardRef = useRef(null);
 
   const SNAP_GRID = 40; // matches GridOverlay cell size
-
-  const dims = PAGE_SIZES[pageSize] || PAGE_SIZES.A4;
 
   // ── Auto-fit zoom ────────────────────────────────────────────────────────────
   // Note: fitToScreen only calls setZoom here. handleZoomChange (defined below)
