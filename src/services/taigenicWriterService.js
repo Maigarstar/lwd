@@ -441,6 +441,11 @@ Return exactly ${2 + activeSections.filter(s => ['rooms','dining'].includes(s)).
       : i === 0 ? 'hotel-review-cover'
         : i === parsed.length - 1 ? 'hotel-review-verdict'
           : 'hotel-review-arrival',
+    // Always stamp hotel identity so role-based injection can target named slots.
+    // The AI generates prose (kicker/headline/body) but never carries hotel_name
+    // or location forward — we inject them here so every page gets them.
+    hotel_name: hotelName,
+    location:   location || '',
   }));
 
   // Fire-and-forget log

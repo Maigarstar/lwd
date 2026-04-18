@@ -1127,6 +1127,8 @@ export function applyTemplate(fc, template, dims, brand = {}) {
       const stars = new Textbox('✦  ✦  ✦  ✦  ✦', { left: 40, top: H * 0.78, width: W - 80, fontSize: 14, fontFamily: 'Jost', fill: GOLD_C, textAlign: 'center', charSpacing: 200 });
       const ruleBot = new Rect({ left: W / 2 - 80, top: H - 72, width: 160, height: 1, fill: 'rgba(201,168,76,0.4)' });
       const badge = new Textbox('REVIEWED EXCLUSIVELY FOR LWD', { left: 40, top: H - 54, width: W - 80, fontSize: 8, fontFamily: 'Jost', fill: 'rgba(240,235,224,0.6)', charSpacing: 400, textAlign: 'center' });
+      hotelName._role = 'hotel_name';
+      location._role  = 'hotel_location';
       [ruleTop, masthead, ruleMast, hotelName, location, stars, ruleBot, badge].forEach(o => { o.id = genId(); fc.add(o); });
     },
 
@@ -1147,6 +1149,11 @@ export function applyTemplate(fc, template, dims, brand = {}) {
       const factsLabel = new Textbox('AT A GLANCE', { left: W * 0.49, top: H * 0.725, width: W * 0.47, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
       const facts = new Textbox('96 Rooms & Suites  ·  Private Jetty  ·  Michelin Dining  ·  Spa', { left: W * 0.49, top: H * 0.755, width: W * 0.47, fontSize: 10, fontFamily: 'Jost', fill: DARK_C, lineHeight: 1.9, charSpacing: 50 });
       const styleTag = new Textbox('CLASSIC · VENETIAN · 5-STAR', { left: W * 0.49, top: H - 52, width: W * 0.47, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
+      kicker._role   = 'page_kicker';
+      hotelName._role = 'hotel_name';
+      location._role  = 'hotel_location';
+      body._role     = 'page_body';
+      facts._role    = 'hotel_facts';
       [kicker, rule, hotelName, location, bodyRule, body, factsRule, factsLabel, facts, styleTag].forEach(o => { o.id = genId(); fc.add(o); });
     },
 
@@ -1174,6 +1181,10 @@ export function applyTemplate(fc, template, dims, brand = {}) {
       const rFill = new Rect({ left: W * 0.61, top: ratingY + 18, width: W * 0.33 * 0.8, height: 5, fill: GOLD_C });
       rFill.id = genId(); fc.add(rFill);
       const rScore = new Textbox('8 / 10', { left: W * 0.61, top: ratingY + 30, width: W * 0.35, fontSize: 9, fontFamily: 'Jost', fill: 'rgba(201,168,76,0.8)', charSpacing: 100 });
+      kicker._role   = 'page_kicker';
+      roomType._role = 'page_headline';
+      body._role     = 'page_body';
+      specs._role    = 'hotel_room_types';
       [kicker, rule, roomType, bodyRule, body, specsRule, specsLabel, specs, rScore].forEach(o => { o.id = genId(); fc.add(o); });
     },
 
@@ -1190,6 +1201,10 @@ export function applyTemplate(fc, template, dims, brand = {}) {
       const body = new Textbox('Breakfast on the terrace as the sun crests the Salute — this alone may justify the room rate. The kitchen practises a rigorous restraint: lagoon-caught sea bass with agretti and lemon, risotto built from the broth up.', { left: 40, top: H * 0.77, width: W * 0.57, fontSize: 11, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.75, fontStyle: 'italic' });
       const coverLabel = new Textbox('COVERS', { left: W * 0.68, top: H * 0.77, width: W * 0.28, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 300 });
       const covers = new Textbox('120 indoor\n60 terrace', { left: W * 0.68, top: H * 0.797, width: W * 0.28, fontSize: 12, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', lineHeight: 1.6 });
+      kicker._role         = 'page_kicker';
+      cuisineTag._role     = 'hotel_cuisine';
+      restaurantName._role = 'page_headline';
+      body._role           = 'page_body';
       [rule, kicker, cuisineTag, restaurantName, bodyRule, body, coverLabel, covers].forEach(o => { o.id = genId(); fc.add(o); });
     },
 
@@ -1200,6 +1215,8 @@ export function applyTemplate(fc, template, dims, brand = {}) {
       const kicker = new Textbox('THE VERDICT', { left: 40, top: 56, width: W - 80, fontSize: 10, fontFamily: 'Cinzel', fill: GOLD_C, charSpacing: 500, textAlign: 'center' });
       const ruleTop = new Rect({ left: W / 2 - 40, top: 88, width: 80, height: 1, fill: GOLD_C });
       const verdictText = new Textbox("Cipriani earns its mythology. After half a century of receiving the world's most discerning guests, it understands that true luxury is not addition but subtraction — of noise, of effort, of anything that interrupts the pleasure of simply being there.", { left: 80, top: 112, width: W - 160, fontSize: 15, fontFamily: 'Cormorant Garamond', fill: DARK_C, lineHeight: 1.75, fontStyle: 'italic', textAlign: 'center' });
+      kicker._role     = 'page_kicker';
+      verdictText._role = 'page_body';
       [kicker, ruleTop, verdictText].forEach(o => { o.id = genId(); fc.add(o); });
       // Rating bars — 4 categories in a 2×2 grid
       const ratingsData = [
@@ -1231,6 +1248,7 @@ export function applyTemplate(fc, template, dims, brand = {}) {
       const bfLabel = new Textbox('BEST FOR', { left: 80, top: H * 0.71, width: W - 160, fontSize: 8, fontFamily: 'Jost', fill: GOLD_C, charSpacing: 400, textAlign: 'center' });
       bfLabel.id = genId(); fc.add(bfLabel);
       const bfTags = new Textbox('Honeymoons  ·  Anniversaries  ·  Romantic Breaks  ·  Wedding Stays', { left: 80, top: H * 0.74, width: W - 160, fontSize: 12, fontFamily: 'Cormorant Garamond', fill: DARK_C, fontStyle: 'italic', textAlign: 'center', lineHeight: 1.7, charSpacing: 100 });
+      bfTags._role = 'hotel_best_for';
       bfTags.id = genId(); fc.add(bfTags);
       // LWD badge footer
       const footerRule = new Rect({ left: 80, top: H * 0.855, width: W - 160, height: 1, fill: 'rgba(201,168,76,0.35)' });
@@ -1238,6 +1256,7 @@ export function applyTemplate(fc, template, dims, brand = {}) {
       const badge = new Textbox('AN LWD SIGNATURE REVIEW', { left: 40, top: H * 0.878, width: W - 80, fontSize: 9, fontFamily: 'Cinzel', fill: GOLD_C, charSpacing: 500, textAlign: 'center' });
       badge.id = genId(); fc.add(badge);
       const byline = new Textbox('Reviewed by Charlotte Ashford, Editor-in-Chief', { left: 40, top: H * 0.914, width: W - 80, fontSize: 11, fontFamily: 'Cormorant Garamond', fill: MUTED_C, fontStyle: 'italic', textAlign: 'center' });
+      byline._role = 'page_byline';
       byline.id = genId(); fc.add(byline);
     },
   };
@@ -3181,6 +3200,24 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         if (pageSpec.headline && headlineObj) headlineObj.set('text', pageSpec.headline.replace(/\\n/g, '\n'));
         if (pageSpec.body     && bodyObj)     bodyObj.set('text',     pageSpec.body);
         if (pageSpec.byline   && bylineObj)   bylineObj.set('text',   pageSpec.byline);
+
+        // ── Role-based injection (hotel-review templates use named slots) ────
+        // _role overrides heuristics — every tagged object gets the right value.
+        const roleObjs = {};
+        fc.getObjects().forEach(o => { if (o._role) roleObjs[o._role] = o; });
+        if (Object.keys(roleObjs).length > 0) {
+          const setRole = (role, val) => { if (val && roleObjs[role]) roleObjs[role].set('text', val); };
+          setRole('hotel_name',      pageSpec.hotel_name);
+          setRole('hotel_location',  pageSpec.location ? pageSpec.location.toUpperCase() : undefined);
+          setRole('page_kicker',     pageSpec.kicker ? pageSpec.kicker.toUpperCase() : undefined);
+          setRole('page_headline',   pageSpec.headline);
+          setRole('page_body',       pageSpec.body);
+          setRole('page_byline',     pageSpec.byline);
+          setRole('hotel_best_for',  pageSpec.best_for);
+          setRole('hotel_facts',     pageSpec.key_facts);
+          setRole('hotel_cuisine',   pageSpec.cuisine);
+          setRole('hotel_room_types',pageSpec.room_types);
+        }
 
         // Fonts + images are both preloaded — FabricImage.fromURL resolves from
         // browser cache, so this wait is typically <50ms. Hard cap at 800ms.
