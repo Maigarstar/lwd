@@ -1483,7 +1483,8 @@ const TABS = [
 function IssueWorkspace({ issueId, onDelete, onReadIssue, onCloned, onBack }) {
   const [issue,     setIssue]     = useState(null);
   const [formData,  setFormData]  = useState({});
-  const [tab,       setTab]       = useState('overview');
+  // Restore last tab from URL hash so F5 returns to same screen
+  const [tab,       setTab]       = useState(() => readHash().get('tab') || 'overview');
   const [saving,    setSaving]    = useState(false);
   const [saveMsg,   setSaveMsg]   = useState('');
   const [publishing,  setPublishing]  = useState(false);
@@ -1550,6 +1551,13 @@ function IssueWorkspace({ issueId, onDelete, onReadIssue, onCloned, onBack }) {
       if (data) setCommentCounts(data);
     });
   }, [tab, issueId]);
+
+  // Keep URL hash tab in sync so F5 returns to same tab
+  useEffect(() => {
+    const p = readHash();
+    p.set('tab', tab);
+    writeHash(p);
+  }, [tab]);
 
   const change = useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -2650,15 +2658,44 @@ function CollectionsModal({ issues, onClose }) {
 
 // ── Main Publication Studio ───────────────────────────────────────────────────
 
+// ── URL-hash helpers for navigation persistence ───────────────────────────────
+// Encoding the active issue ID and tab into the URL hash means that F5 /
+// Cmd+R returns the user to exactly where they were, rather than the issue list.
+// Hash format: #issue=<uuid>&tab=<tabname>
+function readHash() {
+  try {
+    return new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  } catch (_) {
+    return new URLSearchParams();
+  }
+}
+function writeHash(params) {
+  try {
+    window.location.hash = params.toString();
+  } catch (_) {}
+}
+
 export default function PublicationStudio({ onBack, onReadIssue }) {
   const [issues,          setIssues]          = useState([]);
   const [loading,         setLoading]         = useState(true);
-  const [activeId,        setActiveId]        = useState(null);
+  const [activeId,        setActiveId]        = useState(() => readHash().get('issue') || null);
   const [showCreate,      setShowCreate]      = useState(false);
   const [filter,          setFilter]          = useState('all'); // all | draft | published | archived
   const [showCalendar,    setShowCalendar]    = useState(false);
   const [showBrandKit,    setShowBrandKit]    = useState(false);
   const [showCollections, setShowCollections] = useState(false);
+
+  // Keep hash in sync whenever the active issue changes
+  useEffect(() => {
+    const p = readHash();
+    if (activeId) {
+      p.set('issue', activeId);
+    } else {
+      p.delete('issue');
+      p.delete('tab');
+    }
+    writeHash(p);
+  }, [activeId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -2687,7 +2724,7 @@ export default function PublicationStudio({ onBack, onReadIssue }) {
 
       {/* ── Top bar ── */}
       <div style={{ height: 52, flexShrink: 0, borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', padding: '0 20px', gap: 16, background: SURF }}>
-        <button onClick={onBack}
+        <button onClick={() => { writeHash(new URLSearchParams()); onBack?.(); }}
           style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 0, flexShrink: 0 }}>
           ←
         </button>
