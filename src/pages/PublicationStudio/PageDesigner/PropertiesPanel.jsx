@@ -436,7 +436,7 @@ function LinkCardProperties({ obj, canvas, onUpdate }) {
 
 // ── Main panel ────────────────────────────────────────────────────────────────
 
-export default function PropertiesPanel({ selectedObject, selectedObjects, canvas, onUpdate, onGroup, onUngroup, onRemoveBg, removingBg, onCrop }) {
+export default function PropertiesPanel({ selectedObject, selectedObjects, canvas, onUpdate, onGroup, onUngroup, onRemoveBg, removingBg, onCrop, onLinkChain, onUnlinkChain, chainLinkMode }) {
   const [aiImproveLoading, setAiImproveLoading] = useState(false);
   const [aiRewriteLoading, setAiRewriteLoading] = useState(false);
   const [lockRatio, setLockRatio] = useState(false);
@@ -870,6 +870,68 @@ export default function PropertiesPanel({ selectedObject, selectedObjects, canva
                 >
                   {aiRewriteLoading ? 'Rewriting...' : '✦ AI Rewrite'}
                 </button>
+              </div>
+
+              {/* ── Text Chain ───────────────────────────────────────────────────── */}
+              <Hr />
+              <div style={SECTION}>Text Chain</div>
+              <div style={{ padding: '4px 16px 12px' }}>
+                {obj.chainId ? (
+                  <>
+                    <div style={{
+                      fontFamily: NU, fontSize: 10, color: MUTED,
+                      marginBottom: 8, lineHeight: 1.5,
+                    }}>
+                      ⛓ Linked · frame {(obj.chainOrder ?? 0) + 1}
+                      {obj.chainHasOverflow && (
+                        <span style={{ color: GOLD, marginLeft: 6 }}>▶ overflow →</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => onUnlinkChain?.(obj)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(255,80,80,0.08)',
+                        border: '1px solid rgba(255,80,80,0.25)',
+                        borderRadius: 3, color: '#FF6060',
+                        fontFamily: NU, fontSize: 10, fontWeight: 700,
+                        letterSpacing: '0.06em', textTransform: 'uppercase',
+                        padding: '6px 0', cursor: 'pointer',
+                      }}
+                    >
+                      ✕ Unlink This Frame
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{
+                      fontFamily: NU, fontSize: 10, color: MUTED,
+                      marginBottom: 8, lineHeight: 1.5,
+                    }}>
+                      {chainLinkMode
+                        ? 'Click another text frame on the canvas to link it after this one.'
+                        : 'Link overflow to another frame on the same page.'}
+                    </div>
+                    <button
+                      onClick={() => onLinkChain?.(obj)}
+                      style={{
+                        width: '100%',
+                        background: chainLinkMode
+                          ? 'rgba(201,169,110,0.2)'
+                          : 'rgba(201,169,110,0.08)',
+                        border: `1px solid ${chainLinkMode
+                          ? 'rgba(201,169,110,0.6)'
+                          : 'rgba(201,169,110,0.2)'}`,
+                        borderRadius: 3, color: GOLD,
+                        fontFamily: NU, fontSize: 10, fontWeight: 700,
+                        letterSpacing: '0.06em', textTransform: 'uppercase',
+                        padding: '6px 0', cursor: 'pointer',
+                      }}
+                    >
+                      {chainLinkMode ? '⟳ Picking target…' : '⛓ Link to Next Frame'}
+                    </button>
+                  </>
+                )}
               </div>
             </>
           )}

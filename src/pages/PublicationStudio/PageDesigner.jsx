@@ -20,6 +20,7 @@ import FloatingTextToolbar from './PageDesigner/FloatingTextToolbar';
 import PageListPanel from './PageDesigner/PageListPanel';
 import DesignerToolbar from './PageDesigner/DesignerToolbar';
 import { canvasToJpegBlob, canvasToPrintJpegBlob, generatePrintPDF, generateScreenPDF, downloadPDF, extractPageSVGs, generateVectorPDF } from './PageDesigner/exportUtils';
+import { distributeChainText, reconstructMasterText, getChainFrames, linkFrames, unlinkFrame } from './PageDesigner/textChainUtils';
 import { upsertPages, upsertPage, fetchPages, uploadPageImage, uploadThumbImage } from '../../services/magazinePageService';
 import { updateIssue } from '../../services/magazineIssuesService';
 import { fetchBrandKit } from '../../services/magazineBrandKitService';
@@ -1994,6 +1995,16 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
   const [spreadView, setSpreadView] = useState(() => _loadPref('spreadView', window.innerWidth >= 1400));
   const [activeSpreadSide, setActiveSpreadSide] = useState('right'); // 'left' | 'right'
 
+  // ── Text chain "link pick" mode ─────────────────────────────────────────────
+  // When the user clicks "Link to Next Frame" in PropertiesPanel, we enter
+  // chain-pick mode. The next textbox the user clicks on the canvas becomes the
+  // downstream frame. chainPickSourceRef holds the source Fabric Textbox.
+  const [chainPickMode, setChainPickMode] = useState(false);
+  const chainPickSourceRef = useRef(null);
+  // Ref mirrors chainPickMode so event handlers don't capture stale closure
+  const chainPickModeRef = useRef(false);
+  useEffect(() => { chainPickModeRef.current = chainPickMode; }, [chainPickMode]);
+
   // Spread preview modal (read-only rendered spread view)
   const [showSpreadPreview, setShowSpreadPreview] = useState(false);
 
@@ -2599,7 +2610,38 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       );
       fabricRef.current = fc;
 
+      // ── Single-page: text chain redistribution ───────────────────────────
+      const redistributeChainSingle = (e) => {
+        const obj = e.target;
+        if (!obj || obj.type !== 'textbox' || !obj.chainId) return;
+        const frames = getChainFrames(fc, obj.chainId);
+        if (frames.length < 2) return;
+        const allWords      = (obj.chainFullText || '').split(/\s+/).filter(Boolean);
+        const newFrameWords = (obj.text || '').split(/\s+/).filter(Boolean);
+        const wordStart = obj.chainWordStart ?? 0;
+        const wordEnd   = obj.chainWordEnd   ?? allWords.length;
+        const newWords  = [...allWords.slice(0, wordStart), ...newFrameWords, ...allWords.slice(wordEnd)];
+        distributeChainText(frames, newWords.join(' '));
+        fc.requestRenderAll();
+      };
+      fc.on('text:editing:exited', redistributeChainSingle);
+
+      // ── Single-page: chain link-pick ─────────────────────────────────────
+      const handleChainPickSingle = (e) => {
+        if (!chainPickModeRef.current) return;
+        const target = e.target;
+        if (!target || target.type !== 'textbox') return;
+        if (target === chainPickSourceRef.current) return;
+        linkFrames(chainPickSourceRef.current, target, fc);
+        chainPickSourceRef.current = null;
+        setChainPickMode(false);
+        fc.requestRenderAll();
+      };
+      fc.on('mouse:down', handleChainPickSingle);
+
       return () => {
+        fc.off('text:editing:exited', redistributeChainSingle);
+        fc.off('mouse:down', handleChainPickSingle);
         // Disposal already handled by callback ref while DOM is live.
         // Guarded null-assignment to prevent stale refs if cleanup somehow runs first.
         if (fabricRef.current === fc) {
@@ -2682,12 +2724,68 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       fcL?.on('text:changed',        syncToRight);
       fcL?.on('text:editing:exited', syncToRight);
 
+      // ── Text chain redistribution ────────────────────────────────────────
+      // When the user finishes editing a chained textbox, we reconstruct the
+      // master text (what they typed + what's in downstream frames) and
+      // redistribute across all frames in chain order.
+      //
+      // We listen on both canvases so chains work in both single and spread mode.
+      const redistributeChain = (e) => {
+        const obj = e.target;
+        if (!obj || obj.type !== 'textbox' || !obj.chainId) return;
+        const fc = getActiveCanvas();
+        if (!fc) return;
+        const frames = getChainFrames(fc, obj.chainId);
+        if (frames.length < 2) return;
+
+        // Reconstruct master text: replace this frame's word slice with its
+        // current text, leaving all other frames' word slices intact.
+        const chainFullText = obj.chainFullText || '';
+        const allWords      = chainFullText.split(/\s+/).filter(Boolean);
+        const newFrameWords = (obj.text || '').split(/\s+/).filter(Boolean);
+
+        const wordStart = obj.chainWordStart ?? 0;
+        const wordEnd   = obj.chainWordEnd   ?? allWords.length;
+
+        const newWords = [
+          ...allWords.slice(0, wordStart),
+          ...newFrameWords,
+          ...allWords.slice(wordEnd),
+        ];
+
+        distributeChainText(frames, newWords.join(' '));
+        fc.requestRenderAll();
+      };
+
+      fcR?.on('text:editing:exited', redistributeChain);
+      fcL?.on('text:editing:exited', redistributeChain);
+
+      // ── Chain "link pick" — mouse:down on either canvas ─────────────────
+      const handleChainPick = (e) => {
+        if (!chainPickModeRef.current) return;
+        const target = e.target;
+        if (!target || target.type !== 'textbox') return;
+        if (target === chainPickSourceRef.current) return; // same frame, ignore
+        const fc = getActiveCanvas();
+        if (!fc) return;
+        linkFrames(chainPickSourceRef.current, target, fc);
+        chainPickSourceRef.current = null;
+        setChainPickMode(false);
+        fc.requestRenderAll();
+      };
+      fcR?.on('mouse:down', handleChainPick);
+      fcL?.on('mouse:down', handleChainPick);
+
       return () => {
         // Remove cross-canvas sync listeners before disposal
         fcR?.off('text:changed',        syncToLeft);
         fcR?.off('text:editing:exited', syncToLeft);
         fcL?.off('text:changed',        syncToRight);
         fcL?.off('text:editing:exited', syncToRight);
+        fcR?.off('text:editing:exited', redistributeChain);
+        fcL?.off('text:editing:exited', redistributeChain);
+        fcR?.off('mouse:down', handleChainPick);
+        fcL?.off('mouse:down', handleChainPick);
 
         // Disposal already handled by callback refs while DOM is live.
         // These null-assignments prevent stale references if effect cleanup
@@ -2917,7 +3015,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
     if (!spreadView) {
       const fc = fabricRef.current;
       if (!fc) return;
-      const json = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']);
+      const json = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']);
       const thumb = fc.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
       setPages(prev => prev.map((p, i) =>
         i === currentPageIndex ? { ...p, canvasJSON: json, thumbnailDataUrl: thumb } : p
@@ -2926,12 +3024,12 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pages.length);
       setPages(prev => prev.map((p, i) => {
         if (i === leftIndex && fabricRefLeft.current) {
-          const json  = fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'isSpreadImage', 'spreadImageId', 'spreadSide', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']);
+          const json  = fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'isSpreadImage', 'spreadImageId', 'spreadSide', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']);
           const thumb = fabricRefLeft.current.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
           return { ...p, canvasJSON: json, thumbnailDataUrl: thumb };
         }
         if (i === rightIndex && fabricRef.current) {
-          const json  = fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'isSpreadImage', 'spreadImageId', 'spreadSide', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']);
+          const json  = fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'isSpreadImage', 'spreadImageId', 'spreadSide', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']);
           const thumb = fabricRef.current.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
           return { ...p, canvasJSON: json, thumbnailDataUrl: thumb };
         }
@@ -3709,13 +3807,13 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       const { leftIndex, rightIndex } = getSpreadIndices(currentPageIndex, pages.length);
       const freshPages = pages.map((page, i) => {
         if (!spreadView && i === currentPageIndex && fabricRef.current) {
-          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']) };
+          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']) };
         }
         if (spreadView && i === leftIndex && fabricRefLeft.current) {
-          return { ...page, canvasJSON: fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']) };
+          return { ...page, canvasJSON: fabricRefLeft.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']) };
         }
         if (spreadView && i === rightIndex && fabricRef.current) {
-          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']) };
+          return { ...page, canvasJSON: fabricRef.current.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']) };
         }
         return page;
       });
@@ -4261,7 +4359,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       await new Promise(r => setTimeout(r, 80));
       fc.renderAll();
 
-      const json  = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']);
+      const json  = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']);
       const thumb = fc.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
       fc.dispose();
 
@@ -4476,7 +4574,7 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
         await new Promise(r => setTimeout(r, 60));
         fc.renderAll();
 
-        const json  = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain']);
+        const json  = fc.toJSON(['id', 'name', 'custom', 'customType', 'isImagePlaceholder', 'isPlaceholderMarker', 'ctaUrl', 'ctaStyle', 'videoUrl', 'linkUrl', 'ogTitle', 'ogDesc', 'ogDomain', 'chainId', 'chainOrder', 'chainFullText', 'chainWordStart', 'chainWordEnd', 'chainHasOverflow']);
         const thumb = fc.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.3 });
 
         newPages.push({
@@ -4547,6 +4645,24 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
       }
     }
   }
+
+  // ── Text chain link / unlink ────────────────────────────────────────────────
+
+  // Enter "pick target" mode: the next textbox click on the canvas will be
+  // linked as the downstream frame for the selected source frame.
+  const handleLinkChain = useCallback((sourceFrame) => {
+    chainPickSourceRef.current = sourceFrame;
+    setChainPickMode(true);
+  }, []);
+
+  // Unlink the frame from its chain and redistribute remaining frames.
+  const handleUnlinkChain = useCallback((frame) => {
+    const fc = getActiveCanvas();
+    if (!fc || !frame) return;
+    unlinkFrame(frame, fc);
+    fc.requestRenderAll();
+    handlePropertiesUpdate();
+  }, [getActiveCanvas]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Guide rails ─────────────────────────────────────────────────────────────
 
@@ -5368,6 +5484,9 @@ export default function PageDesigner({ issue, onIssueUpdate, onPagesChange, onBa
             onRemoveBg={handleRemoveBg}
             removingBg={removingBg}
             onCrop={enterCropMode}
+            onLinkChain={handleLinkChain}
+            onUnlinkChain={handleUnlinkChain}
+            chainLinkMode={chainPickMode}
           />
         </div>
       </div>
