@@ -3214,16 +3214,6 @@ function AIPanel({ formData, onChange, tone, onToneChange, focusKeyword, onSeoRe
 
   return (
     <div>
-      <SectionLabel>Tone Settings</SectionLabel>
-      <Field label="Writing Tone" hint="Applied to all AI generation for this article">
-        <Select
-          value={tone}
-          onChange={onToneChange}
-          options={TONE_OPTIONS.map(t => ({ value: t, label: t }))}
-        />
-      </Field>
-
-      <Divider />
       <SectionLabel>Generate Content</SectionLabel>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 12 }}>
         {aiBtn('generate-excerpt',   '✦ Generate Excerpt')}
@@ -6904,8 +6894,7 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
   const SAVE_TIMEOUT_MS                 = 20000;
   const [focusKeyword, setFocusKeyword] = useState('');
   const [showIntelPanel, setShowIntelPanel] = useState(false);
-  const [showAIPanel, setShowAIPanel]   = useState(true); // ← NEW: AIPanel visible by default on desktop
-  const [triggerSeoRefresh, setTriggerSeoRefresh] = useState(0); // ← NEW: Force SEO recalculation
+  const [showAIPanel, setShowAIPanel]   = useState(true);
   // Template picker should ONLY appear for genuinely-new articles (no real DB
   // UUID). Existing articles must go straight to the editor even if their
   // content blocks are still loading async — otherwise every edit click flashes
@@ -6983,10 +6972,9 @@ export default function ArticleEditor({ initialPost, onBack, onSaveToParent, sav
 
   const contentIntel = useMemo(() => computeContentIntelligence(formData, focusKeyword), [formData, focusKeyword]);
 
-  // ← NEW: Trigger SEO recalculation after AI actions
-  const recalculateSeo = useCallback(() => {
-    setTriggerSeoRefresh(Date.now());
-  }, []);
+  // recalculateSeo: LiveSeoPanel derives from formData so updates automatically.
+  // Callback kept as a stable no-op so AIPanel's onSeoRecalculate prop stays wired.
+  const recalculateSeo = useCallback(() => {}, []);
 
   // ── AI fix triggered from LiveSeoPanel "Fix with AI" buttons ─────────────
   // Reads formDataRef.current to avoid stale-closure issues — the ref is
